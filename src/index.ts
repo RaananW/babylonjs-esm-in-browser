@@ -43,7 +43,7 @@ var ground = CreateGround("ground1", { width: 6, height: 6, subdivisions: 2 }, s
 // Affect a material
 ground.material = material;
 
-SceneLoader.ImportMeshAsync("", "https://playground.babylonjs.com/scenes/BoomBox/", "BoomBox.gltf", scene).then((result) => {
+SceneLoader.ImportMeshAsync("", "https://assets.babylonjs.com/meshes/BoomBox/", "BoomBox.gltf", scene).then((result) => {
     const boomBox = result.meshes[0];
     boomBox.position.y = 1;
     boomBox.scaling.scaleInPlace(50);
