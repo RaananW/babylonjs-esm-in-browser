@@ -1,0 +1,27 @@
+{
+  "name": "babylonjs-es6",
+  "version": "1.0.0",
+  "description": "An example of babylon.js loaded in a pure es6 modules environment",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rollup -c rollup.build.config.mjs",
+    "watch": "rollup -c rollup.watch.config.mjs -w",
+    "build-standalone": "tsc -p tsconfig.json"
+  },
+  "author": "Raanan Weber",
+  "license": "MIT",
+  "dependencies": {
+    "@babylonjs/core": "^5.41.0",
+    "@babylonjs/loaders": "^5.41.0",
+    "tslib": "^2.4.1"
+  },
+  "devDependencies": {
+    "@guanghechen/rollup-plugin-copy": "^3.0.0-alpha.4",
+    "@rollup/plugin-typescript": "^10.0.1",
+    "rollup": "^3.9.1",
+    "rollup-plugin-serve": "^2.0.2",
+    "typescript": "^4.9.4"
+  }
+}
