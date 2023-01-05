@@ -1,0 +1,50 @@
+import { AbstractMesh } from "../../Meshes/abstractMesh.js";
+Object.defineProperty(AbstractMesh.prototype, "physicsBody", {
+    get: function () {
+        return this._physicsBody;
+    },
+    set: function (value) {
+        if (this._physicsBody === value) {
+            return;
+        }
+        if (this._disposePhysicsObserver) {
+            this.onDisposeObservable.remove(this._disposePhysicsObserver);
+        }
+        this._physicsBody = value;
+        if (value) {
+            this._disposePhysicsObserver = this.onDisposeObservable.add(() => {
+                // Physics
+                if (this.physicsBody) {
+                    this.physicsBody.dispose( /*!doNotRecurse*/);
+                    this.physicsBody = null;
+                }
+            });
+        }
+    },
+    enumerable: true,
+    configurable: true,
+});
+/**
+ * Gets the current physics body
+ * @returns a physics body or null
+ */
+/** @internal */
+AbstractMesh.prototype.getPhysicsBody = function () {
+    return this.physicsBody;
+};
+/**
+ * Apply a physic impulse to the mesh
+ * @param force defines the force to apply
+ * @param contactPoint defines where to apply the force
+ * @returns the current mesh
+ * @see https://doc.babylonjs.com/features/featuresDeepDive/physics/usingPhysicsEngine
+ */
+/** @internal */
+AbstractMesh.prototype.applyImpulse = function (force, contactPoint) {
+    if (!this.physicsBody) {
+        throw new Error("No Physics Body for AbstractMesh");
+    }
+    this.physicsBody.applyImpulse(force, contactPoint);
+    return this;
+};
+//# sourceMappingURL=physicsEngineComponent.js.map

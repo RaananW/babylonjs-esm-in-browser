@@ -1,0 +1,4 @@
+export {};
+/** @internal */
+/* interface DeepImmutableMap<K, V> extends ReadonlyMap<DeepImmutable<K>, DeepImmutable<V>> {} // es2015+ only */
+//# sourceMappingURL=types.js.map
