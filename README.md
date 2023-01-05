@@ -31,7 +31,8 @@ You can technically ignore the rollup unresolved import warning - it is quite ex
 
 ## It doesn't work
 
-Yes it does... If it doesn't, you are probably using a browser that doesn't support import-maps or es modules. Note that IE11 is already retired. And Apple browsers are always behind.
+[Yes it does...](https://raananw.github.io//babylonjs-esm-in-browser/)
+ If it doesn't, you are probably using a browser that doesn't support import-maps or es modules. Note that IE11 is already retired. And Apple browsers are always behind.
 
 ## Adding other babylon packages
 
