@@ -1,6 +1,6 @@
 # Babylon.js in-browser es modules support
 
-* EXPERIMENTAL *
+**EXPERIMENTAL**
 
 This project is an example of how to use babylon in a modules-script in-browser.
 
