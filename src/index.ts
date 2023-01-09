@@ -17,10 +17,10 @@ const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 const engine = new Engine(canvas);
 
 // Create our first scene.
-var scene = new Scene(engine);
+const scene = new Scene(engine);
 
 // This creates and positions a free camera (non-mesh)
-var camera = new FreeCamera("camera1", new Vector3(0, 5, 10), scene);
+const camera = new FreeCamera("camera1", new Vector3(0, 5, 10), scene);
 
 // This targets the camera to scene origin
 camera.setTarget(Vector3.Zero());
@@ -29,16 +29,16 @@ camera.setTarget(Vector3.Zero());
 camera.attachControl(canvas, true);
 
 // This creates a light, aiming 0,1,0 - to the sky (non-mesh)
-var light = new HemisphericLight("light1", new Vector3(0, 1, 0), scene);
+const light = new HemisphericLight("light1", new Vector3(0, 1, 0), scene);
 
 // Default intensity is 1. Let's dim the light a small amount
 light.intensity = 0.7;
 
 // Create a grid material
-var material = new StandardMaterial("grid", scene);
+const material = new StandardMaterial("grid", scene);
 
 // Our built-in 'ground' shape.
-var ground = CreateGround("ground1", { width: 6, height: 6, subdivisions: 2 }, scene);
+const ground = CreateGround("ground1", { width: 6, height: 6, subdivisions: 2 }, scene);
 
 // Affect a material
 ground.material = material;
