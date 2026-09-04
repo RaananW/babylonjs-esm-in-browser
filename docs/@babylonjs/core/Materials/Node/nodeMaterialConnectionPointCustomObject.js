@@ -1,4 +1,4 @@
-import { NodeMaterialConnectionPoint, NodeMaterialConnectionPointCompatibilityStates } from "./nodeMaterialBlockConnectionPoint.js";
+import { NodeMaterialConnectionPoint } from "./nodeMaterialBlockConnectionPoint.js";
 /**
  * Defines a connection point to be used for points with a custom object type
  */
@@ -11,7 +11,9 @@ export class NodeMaterialConnectionPointCustomObject extends NodeMaterialConnect
      * @param _blockType
      * @param _blockName
      */
-    constructor(name, ownerBlock, direction, _blockType, _blockName) {
+    constructor(name, ownerBlock, direction, 
+    // @internal
+    _blockType, _blockName) {
         super(name, ownerBlock, direction);
         this._blockType = _blockType;
         this._blockName = _blockName;
@@ -24,8 +26,8 @@ export class NodeMaterialConnectionPointCustomObject extends NodeMaterialConnect
      */
     checkCompatibilityState(connectionPoint) {
         return connectionPoint instanceof NodeMaterialConnectionPointCustomObject && connectionPoint._blockName === this._blockName
-            ? NodeMaterialConnectionPointCompatibilityStates.Compatible
-            : NodeMaterialConnectionPointCompatibilityStates.TypeIncompatible;
+            ? 0 /* NodeMaterialConnectionPointCompatibilityStates.Compatible */
+            : 1 /* NodeMaterialConnectionPointCompatibilityStates.TypeIncompatible */;
     }
     /**
      * Creates a block suitable to be used as an input for this input point.

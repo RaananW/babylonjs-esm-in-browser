@@ -1,10 +1,9 @@
-import { ShaderLanguage } from "../../Materials/shaderLanguage";
-import type { Nullable } from "../../types";
-import type { IShaderProcessor } from "../Processors/iShaderProcessor";
-import type { WebGPUSamplerDescription, WebGPUShaderProcessingContext, WebGPUTextureDescription, WebGPUBufferDescription } from "./webgpuShaderProcessingContext";
+import { ShaderLanguage } from "../../Materials/shaderLanguage.js";
+import { type Nullable } from "../../types.js";
+import { type IShaderProcessor } from "../Processors/iShaderProcessor.js";
+import { type WebGPUSamplerDescription, type WebGPUShaderProcessingContext, type WebGPUTextureDescription, type WebGPUBufferDescription } from "./webgpuShaderProcessingContext.js";
 /** @internal */
 export declare abstract class WebGPUShaderProcessor implements IShaderProcessor {
-    static readonly AutoSamplerSuffix = "Sampler";
     static readonly LeftOvertUBOName = "LeftOver";
     static readonly InternalsUBOName = "Internals";
     static UniformSizes: {
@@ -37,8 +36,7 @@ export declare abstract class WebGPUShaderProcessor implements IShaderProcessor 
     protected _buildLeftOverUBO(): string;
     protected _collectBindingNames(): void;
     protected _preCreateBindGroupEntries(): void;
-    protected _addTextureBindingDescription(name: string, textureInfo: WebGPUTextureDescription, textureIndex: number, dimension: Nullable<GPUTextureViewDimension>, format: Nullable<GPUTextureFormat>, isVertex: boolean): void;
+    protected _addTextureBindingDescription(name: string, textureInfo: WebGPUTextureDescription, textureIndex: number, dimension: Nullable<GPUTextureViewDimension>, format: Nullable<GPUTextureFormat>, isVertex: boolean, storageTextureAccess?: GPUStorageTextureAccess): void;
     protected _addSamplerBindingDescription(name: string, samplerInfo: WebGPUSamplerDescription, isVertex: boolean): void;
     protected _addBufferBindingDescription(name: string, uniformBufferInfo: WebGPUBufferDescription, bufferType: GPUBufferBindingType, isVertex: boolean): void;
-    protected _injectStartingAndEndingCode(code: string, mainFuncDecl: string, startingCode?: string, endingCode?: string): string;
 }

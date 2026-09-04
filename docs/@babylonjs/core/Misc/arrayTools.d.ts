@@ -1,44 +1,23 @@
-/** @internal */
-interface TupleTypes<T> {
-    2: [T, T];
-    3: [T, T, T];
-    4: [T, T, T, T];
-    5: [T, T, T, T, T];
-    6: [T, T, T, T, T, T];
-    7: [T, T, T, T, T, T, T];
-    8: [T, T, T, T, T, T, T, T];
-    9: [T, T, T, T, T, T, T, T, T];
-    10: [T, T, T, T, T, T, T, T, T, T];
-    11: [T, T, T, T, T, T, T, T, T, T, T];
-    12: [T, T, T, T, T, T, T, T, T, T, T, T];
-    13: [T, T, T, T, T, T, T, T, T, T, T, T, T];
-    14: [T, T, T, T, T, T, T, T, T, T, T, T, T, T];
-    15: [T, T, T, T, T, T, T, T, T, T, T, T, T, T, T];
-}
+import { type Tuple } from "../types.js";
 /**
- * Class containing a set of static utilities functions for arrays.
+ * Returns an array of the given size filled with elements built from the given constructor and the parameters.
+ * @param size the number of element to construct and put in the array.
+ * @param itemBuilder a callback responsible for creating new instance of item. Called once per array entry.
+ * @returns a new array filled with new objects.
  */
-export declare class ArrayTools {
-    /**
-     * Returns an array of the given size filled with elements built from the given constructor and the parameters.
-     * @param size the number of element to construct and put in the array.
-     * @param itemBuilder a callback responsible for creating new instance of item. Called once per array entry.
-     * @returns a new array filled with new objects.
-     */
-    static BuildArray<T>(size: number, itemBuilder: () => T): Array<T>;
-    /**
-     * Returns a tuple of the given size filled with elements built from the given constructor and the parameters.
-     * @param size he number of element to construct and put in the tuple.
-     * @param itemBuilder a callback responsible for creating new instance of item. Called once per tuple entry.
-     * @returns a new tuple filled with new objects.
-     */
-    static BuildTuple<T, N extends keyof TupleTypes<unknown>>(size: N, itemBuilder: () => T): TupleTypes<T>[N];
-}
+export declare function BuildArray<T>(size: number, itemBuilder: () => T): Array<T>;
+/**
+ * Returns a tuple of the given size filled with elements built from the given constructor and the parameters.
+ * @param size he number of element to construct and put in the tuple.
+ * @param itemBuilder a callback responsible for creating new instance of item. Called once per tuple entry.
+ * @returns a new tuple filled with new objects.
+ */
+export declare function BuildTuple<T, N extends number>(size: N, itemBuilder: () => T): Tuple<T, N>;
 /**
  * Defines the callback type used when an observed array function is triggered.
  * @internal
  */
-export declare type _ObserveCallback = (functionName: string, previousLength: number) => void;
+export type _ObserveCallback = (functionName: string, previousLength: number) => void;
 /**
  * Observes an array and notifies the given observer when the array is modified.
  * @param array Defines the array to observe
@@ -47,4 +26,3 @@ export declare type _ObserveCallback = (functionName: string, previousLength: nu
  * @internal
  */
 export declare function _ObserveArray<T>(array: T[], callback: _ObserveCallback): () => void;
-export {};

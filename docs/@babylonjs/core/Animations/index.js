@@ -9,4 +9,7 @@ export * from "./animationKey.js";
 export * from "./animationRange.js";
 export * from "./animatable.interface.js";
 export * from "./pathCursor.js";
+export * from "./animationGroupMask.js";
+export * from "./animation.optimizations.js";
+export * from "./animatorAvatar.js";
 //# sourceMappingURL=index.js.map

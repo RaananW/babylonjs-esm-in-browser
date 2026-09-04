@@ -1,7 +1,7 @@
-import type { Nullable } from "../../types";
-import type { FreeCamera } from "../../Cameras/freeCamera";
-import { BaseCameraMouseWheelInput } from "../../Cameras/Inputs/BaseCameraMouseWheelInput";
-import { Coordinate } from "../../Maths/math.axis";
+import { type Nullable } from "../../types.js";
+import { type FreeCamera } from "../../Cameras/freeCamera.js";
+import { BaseCameraMouseWheelInput } from "../../Cameras/Inputs/BaseCameraMouseWheelInput.js";
+import { Coordinate } from "../../Maths/math.axis.js";
 /**
  * Manage the mouse wheel inputs to control a free camera.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs

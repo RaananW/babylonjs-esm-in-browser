@@ -1,5 +1,5 @@
-import type { Camera } from "../camera";
+import { type Camera } from "../camera.js";
 /**
  * @internal
  */
-export declare function setVRRigMode(camera: Camera, rigParams: any): void;
+export declare function _SetVrRigMode(camera: Camera, rigParams: any): void;

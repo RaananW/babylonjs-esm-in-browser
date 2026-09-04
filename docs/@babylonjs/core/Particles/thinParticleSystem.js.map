@@ -1,0 +1,1 @@
+{"version":3,"file":"thinParticleSystem.js","sourceRoot":"","sources":["../../../../dev/core/src/Particles/thinParticleSystem.ts"],"names":[],"mappings":"AAAA,cAAc,2BAA2B,CAAC","sourcesContent":["export * from \"./thinParticleSystem.pure\";\n"]}

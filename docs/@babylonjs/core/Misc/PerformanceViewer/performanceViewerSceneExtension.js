@@ -1,9 +1,4 @@
-import { Scene } from "../../scene.js";
-import { PerformanceViewerCollector } from "./performanceViewerCollector.js";
-Scene.prototype.getPerfCollector = function () {
-    if (!this._perfCollector) {
-        this._perfCollector = new PerformanceViewerCollector(this);
-    }
-    return this._perfCollector;
-};
+export * from "./performanceViewerSceneExtension.pure.js";
+import { RegisterPerformanceViewerSceneExtension } from "./performanceViewerSceneExtension.pure.js";
+RegisterPerformanceViewerSceneExtension();
 //# sourceMappingURL=performanceViewerSceneExtension.js.map

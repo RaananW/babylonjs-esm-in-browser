@@ -1,6 +1,6 @@
-import type { Scene } from "../scene";
-import { VideoTexture } from "../Materials/Textures/videoTexture";
-import { TextureDome } from "./textureDome";
+import { type Scene } from "../scene.js";
+import { VideoTexture } from "../Materials/Textures/videoTexture.pure.js";
+import { TextureDome } from "./textureDome.js";
 /**
  * Display a 360/180 degree video on an approximately spherical surface, useful for VR applications or skyboxes.
  * As a subclass of TransformNode, this allow parenting to the camera or multiple videos with different locations in the scene.

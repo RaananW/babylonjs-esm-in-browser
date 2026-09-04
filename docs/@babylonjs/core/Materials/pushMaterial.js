@@ -1,12 +1,12 @@
-import { Matrix } from "../Maths/math.vector.js";
+import { Matrix } from "../Maths/math.vector.pure.js";
 import { Material } from "../Materials/material.js";
 /**
  * Base class of materials working in push mode in babylon JS
  * @internal
  */
 export class PushMaterial extends Material {
-    constructor(name, scene, storeEffectOnSubMeshes = true) {
-        super(name, scene);
+    constructor(name, scene, storeEffectOnSubMeshes = true, forceGLSL = false) {
+        super(name, scene, undefined, forceGLSL);
         this._normalMatrix = new Matrix();
         this._storeEffectOnSubMeshes = storeEffectOnSubMeshes;
     }
@@ -56,12 +56,28 @@ export class PushMaterial extends Material {
         }
         this.bindForSubMesh(world, mesh, mesh.subMeshes[0]);
     }
-    _afterBind(mesh, effect = null) {
-        super._afterBind(mesh, effect);
+    _afterBind(mesh, effect = null, subMesh) {
+        super._afterBind(mesh, effect, subMesh);
         this.getScene()._cachedEffect = effect;
+        if (subMesh) {
+            subMesh._drawWrapper._forceRebindOnNextCall = false;
+        }
+        else {
+            this._drawWrapper._forceRebindOnNextCall = false;
+        }
     }
-    _mustRebind(scene, effect, visibility = 1) {
-        return scene.isCachedMaterialInvalid(this, effect, visibility);
+    _mustRebind(scene, effect, subMesh, visibility = 1) {
+        return subMesh._drawWrapper._forceRebindOnNextCall || scene.isCachedMaterialInvalid(this, effect, visibility);
+    }
+    /**
+     * Disposes the push material resources.
+     * @param forceDisposeEffect defines whether to dispose the effect
+     * @param forceDisposeTextures defines whether to dispose the textures
+     * @param notBoundToMesh defines whether the material is not bound to a mesh
+     */
+    dispose(forceDisposeEffect, forceDisposeTextures, notBoundToMesh) {
+        this._activeEffect = undefined;
+        super.dispose(forceDisposeEffect, forceDisposeTextures, notBoundToMesh);
     }
 }
 //# sourceMappingURL=pushMaterial.js.map

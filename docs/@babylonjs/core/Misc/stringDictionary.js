@@ -155,6 +155,7 @@ export class StringDictionary {
      * @param callback the callback to execute, if it return a valid T instanced object the enumeration will stop and the object will be returned
      * @returns the first item
      */
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     first(callback) {
         for (const cur in this._data) {
             const val = this._data[cur];

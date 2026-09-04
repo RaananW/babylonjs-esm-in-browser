@@ -1,3 +1,4 @@
+import { Logger } from "../../Misc/logger.js";
 /**
  * Class used to store shared data between 2 NodeMaterialBuildState
  */
@@ -7,55 +8,76 @@ export class NodeMaterialBuildStateSharedData {
         /**
          * Gets the list of emitted varyings
          */
-        this.temps = new Array();
+        this.temps = [];
         /**
          * Gets the list of emitted varyings
          */
-        this.varyings = new Array();
+        this.varyings = [];
         /**
-         * Gets the varying declaration string
+         * Gets the varying declaration string (for vertex shader)
          */
         this.varyingDeclaration = "";
         /**
-         * Input blocks
+         * Gets the varying declaration string (for fragment shader)
+         * This is potentially different from varyingDeclaration only in WebGPU
          */
-        this.inputBlocks = new Array();
+        this.varyingDeclarationFragment = "";
+        /**
+         * Gets the varying initialization string (for fragment shader)
+         * Only used in WebGPU, to reconstruct the varying values from the vertex shader if their types is mat4x4f
+         */
+        this.varyingInitializationsFragment = "";
         /**
          * Input blocks
          */
-        this.textureBlocks = new Array();
+        this.inputBlocks = [];
+        /**
+         * Input blocks
+         */
+        this.textureBlocks = [];
         /**
          * Bindable blocks (Blocks that need to set data to the effect)
          */
-        this.bindableBlocks = new Array();
+        this.bindableBlocks = [];
         /**
          * Bindable blocks (Blocks that need to set data to the effect) that will always be called (by bindForSubMesh), contrary to bindableBlocks that won't be called if _mustRebind() returns false
          */
-        this.forcedBindableBlocks = new Array();
+        this.forcedBindableBlocks = [];
         /**
          * List of blocks that can provide a compilation fallback
          */
-        this.blocksWithFallbacks = new Array();
+        this.blocksWithFallbacks = [];
         /**
          * List of blocks that can provide a define update
          */
-        this.blocksWithDefines = new Array();
+        this.blocksWithDefines = [];
         /**
          * List of blocks that can provide a repeatable content
          */
-        this.repeatableContentBlocks = new Array();
+        this.repeatableContentBlocks = [];
         /**
          * List of blocks that can provide a dynamic list of uniforms
          */
-        this.dynamicUniformBlocks = new Array();
+        this.dynamicUniformBlocks = [];
         /**
          * List of blocks that can block the isReady function for the material
          */
-        this.blockingBlocks = new Array();
+        this.blockingBlocks = [];
         /**
          * Gets the list of animated inputs
          */
-        this.animatedInputs = new Array();
+        this.animatedInputs = [];
+        /**
+         * Defines to inject in the vertex and fragment shaders
+         */
+        this.defines = {};
+        /**
+         * Configurations used to format the generated code
+         */
+        this.formatConfig = {
+            getUniformAnnotation: null,
+            formatVariablename: (name) => name.replace(/[^a-zA-Z_]+/g, ""),
+        };
         /** List of emitted variables */
         this.variableNames = {};
         /** List of emitted defines */
@@ -76,6 +98,7 @@ export class NodeMaterialBuildStateSharedData {
             emitVertex: false,
             emitFragment: false,
             notConnectedNonOptionalInputs: new Array(),
+            customErrors: new Array(),
         };
         /**
          * Is vertex program allowed to be empty?
@@ -114,22 +137,39 @@ export class NodeMaterialBuildStateSharedData {
         this.defineNames["MAINUV7"] = 0;
     }
     /**
+     * Push a new error to the build state, avoiding exceptions that can break the build process
+     * @param message defines the error message to push
+     */
+    raiseBuildError(message) {
+        if (this.checks.customErrors.indexOf(message) === -1) {
+            this.checks.customErrors.push(message);
+        }
+    }
+    /**
      * Emits console errors and exceptions if there is a failing check
+     * @returns true if all checks pass
      */
     emitErrors() {
         let errorMessage = "";
         if (!this.checks.emitVertex && !this.allowEmptyVertexProgram) {
-            errorMessage += "NodeMaterial does not have a vertex output. You need to at least add a block that generates a glPosition value.\r\n";
+            errorMessage += "NodeMaterial does not have a vertex output. You need to at least add a block that generates a position value.\n";
         }
         if (!this.checks.emitFragment) {
-            errorMessage += "NodeMaterial does not have a fragment output. You need to at least add a block that generates a glFragColor value.\r\n";
+            errorMessage += "NodeMaterial does not have a fragment output. You need to at least add a block that generates a color value.\n";
         }
         for (const notConnectedInput of this.checks.notConnectedNonOptionalInputs) {
-            errorMessage += `input ${notConnectedInput.name} from block ${notConnectedInput.ownerBlock.name}[${notConnectedInput.ownerBlock.getClassName()}] is not connected and is not optional.\r\n`;
+            errorMessage += `input ${notConnectedInput.name} from block ${notConnectedInput.ownerBlock.name}[${notConnectedInput.ownerBlock.getClassName()}] is not connected and is not optional.\n`;
+        }
+        for (const customError of this.checks.customErrors) {
+            errorMessage += customError + "\n";
         }
         if (errorMessage) {
-            throw "Build of NodeMaterial failed:\r\n" + errorMessage;
+            errorMessage = "Node material build failed: \n" + errorMessage;
+            Logger.Error(errorMessage);
+            this.nodeMaterial.onBuildErrorObservable.notifyObservers(errorMessage);
+            return false;
         }
+        return true;
     }
 }
 //# sourceMappingURL=nodeMaterialBuildStateSharedData.js.map

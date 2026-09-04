@@ -6,7 +6,9 @@ layout(location=0) out vec4 glFragData[{X}];
 #endif
 `;
 // Sideeffect
-ShaderStore.IncludesShadersStore[name] = shader;
+if (!ShaderStore.IncludesShadersStore[name]) {
+    ShaderStore.IncludesShadersStore[name] = shader;
+}
 /** @internal */
 export const mrtFragmentDeclaration = { name, shader };
 //# sourceMappingURL=mrtFragmentDeclaration.js.map

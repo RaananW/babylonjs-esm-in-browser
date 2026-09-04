@@ -1,8 +1,9 @@
-import type { PickingInfo } from "../../Collisions/pickingInfo";
-import type { AbstractMesh } from "../../Meshes/abstractMesh";
-import type { Mesh } from "../../Meshes/mesh";
-import type { Scene } from "../../scene";
-import type { Behavior } from "../behavior";
+import { type PickingInfo } from "../../Collisions/pickingInfo.js";
+import { type AbstractMesh } from "../../Meshes/abstractMesh.js";
+import { type Mesh } from "../../Meshes/mesh.js";
+import { type Scene } from "../../scene.js";
+import { type Nullable } from "../../types.js";
+import { type Behavior } from "../behavior.js";
 /**
  * A behavior that allows a transform node to stick to a surface position/orientation
  * @since 5.0.0
@@ -54,6 +55,10 @@ export declare class SurfaceMagnetismBehavior implements Behavior<Mesh> {
      * Maximum distance for the node to stick to the surface
      */
     maxStickingDistance: number;
+    /**
+     * Attached node of this behavior
+     */
+    get attachedNode(): Nullable<Mesh>;
     /**
      * Attaches the behavior to a transform node
      * @param target defines the target where the behavior is attached to

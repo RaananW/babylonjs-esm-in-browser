@@ -163,6 +163,18 @@ export class CloudPoint {
  */
 export class PointsGroup {
     /**
+     * Get or set the groupId
+     * @deprecated Please use groupId instead
+     */
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    get groupID() {
+        return this.groupId;
+    }
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    set groupID(groupID) {
+        this.groupId = groupID;
+    }
+    /**
      * Creates a points group object. This is an internal reference to produce particles for the PCS.
      * PCS internal tool, don't use it manually.
      * @internal
@@ -170,16 +182,6 @@ export class PointsGroup {
     constructor(id, posFunction) {
         this.groupId = id;
         this._positionFunction = posFunction;
-    }
-    /**
-     * Get or set the groupId
-     * @deprecated Please use groupId instead
-     */
-    get groupID() {
-        return this.groupId;
-    }
-    set groupID(groupID) {
-        this.groupId = groupID;
     }
 }
 //# sourceMappingURL=cloudPoint.js.map

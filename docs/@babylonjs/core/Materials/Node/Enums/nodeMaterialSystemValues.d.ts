@@ -23,5 +23,9 @@ export declare enum NodeMaterialSystemValues {
     /** Camera parameters */
     CameraParameters = 10,
     /** Material alpha */
-    MaterialAlpha = 11
+    MaterialAlpha = 11,
+    /** Projection */
+    ProjectionInverse = 12,
+    /** CameraForward */
+    CameraForward = 13
 }

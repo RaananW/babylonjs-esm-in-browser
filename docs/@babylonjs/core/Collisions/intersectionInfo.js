@@ -8,6 +8,7 @@ export class IntersectionInfo {
         this.distance = distance;
         this.faceId = 0;
         this.subMeshId = 0;
+        this._internalSubMeshId = 0;
     }
 }
 //# sourceMappingURL=intersectionInfo.js.map

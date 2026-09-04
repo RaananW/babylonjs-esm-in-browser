@@ -1,0 +1,131 @@
+// Do not edit.
+import { ShaderStore } from "../../Engines/shaderStore.js";
+import "./clusteredLightingFunctions.js";
+import "./pbrClusteredLightingFunctions.js";
+const name = "pbrDirectLightingFunctions";
+const shader = `#define CLEARCOATREFLECTANCE90 1.0
+struct lightingInfo
+{diffuse: vec3f,
+#ifdef SS_TRANSLUCENCY
+diffuseTransmission: vec3f,
+#endif
+#ifdef SPECULARTERM
+specular: vec3f,
+#endif
+#ifdef CLEARCOAT
+clearCoat: vec4f,
+#endif
+#ifdef SHEEN
+sheen: vec3f
+#endif
+};fn adjustRoughnessFromLightProperties(roughness: f32,lightRadius: f32,lightDistance: f32)->f32 {
+#if defined(USEPHYSICALLIGHTFALLOFF) || defined(USEGLTFLIGHTFALLOFF)
+var lightRoughness: f32=lightRadius/lightDistance;var totalRoughness: f32=saturate(lightRoughness+roughness);return totalRoughness;
+#else
+return roughness;
+#endif
+}
+fn computeHemisphericDiffuseLighting(info: preLightingInfo,lightColor: vec3f,groundColor: vec3f)->vec3f {return mix(groundColor,lightColor,info.NdotL);}
+#if defined(AREALIGHTUSED) && defined(AREALIGHTSUPPORTED)
+fn computeAreaDiffuseLighting(info: preLightingInfo,lightColor: vec3f)->vec3f {return info.areaLightDiffuse*lightColor;}
+#endif
+fn computeDiffuseLighting(info: preLightingInfo,lightColor: vec3f)->vec3f {var diffuseTerm: vec3f=vec3f(1.0/PI);
+#if BASE_DIFFUSE_MODEL==BRDF_DIFFUSE_MODEL_LEGACY
+diffuseTerm=vec3f(diffuseBRDF_Burley(info.NdotL,info.NdotV,info.VdotH,info.roughness));
+#elif BASE_DIFFUSE_MODEL==BRDF_DIFFUSE_MODEL_BURLEY
+diffuseTerm=vec3f(diffuseBRDF_Burley(info.NdotL,info.NdotV,info.VdotH,info.diffuseRoughness));
+#elif BASE_DIFFUSE_MODEL==BRDF_DIFFUSE_MODEL_EON
+var clampedAlbedo: vec3f=clamp(info.surfaceAlbedo,vec3f(0.1),vec3f(1.0));diffuseTerm=diffuseBRDF_EON(clampedAlbedo,info.diffuseRoughness,info.NdotL,info.NdotV,info.LdotV);diffuseTerm/=clampedAlbedo;
+#endif
+return diffuseTerm*info.attenuation*info.NdotL*lightColor;}
+fn computeProjectionTextureDiffuseLighting(projectionLightTexture: texture_2d<f32>,projectionLightSampler: sampler,textureProjectionMatrix: mat4x4f,posW: vec3f)->vec3f{var strq: vec4f=textureProjectionMatrix* vec4f(posW,1.0);strq/=strq.w;var textureColor: vec3f=textureSample(projectionLightTexture,projectionLightSampler,strq.xy).rgb;return toLinearSpaceVec3(textureColor);}
+#ifdef SS_TRANSLUCENCY
+fn computeDiffuseTransmittedLighting(info: preLightingInfo,lightColor: vec3f,transmittance: vec3f)->vec3f {var transmittanceNdotL=vec3f(0.0);var NdotL: f32=absEps(info.NdotLUnclamped);
+#ifndef SS_TRANSLUCENCY_LEGACY
+if (info.NdotLUnclamped<0.0) {
+#endif
+var wrapNdotL: f32=computeWrappedDiffuseNdotL(NdotL,0.02);var trAdapt: f32=step(0.,info.NdotLUnclamped);transmittanceNdotL=mix(transmittance*wrapNdotL, vec3f(wrapNdotL),trAdapt);
+#ifndef SS_TRANSLUCENCY_LEGACY
+}
+var diffuseTerm : vec3f=vec3f(1.0/PI);
+#if BASE_DIFFUSE_MODEL==BRDF_DIFFUSE_MODEL_LEGACY
+diffuseTerm=vec3f(diffuseBRDF_Burley(
+info.NdotL,info.NdotV,info.VdotH,info.roughness));
+#elif BASE_DIFFUSE_MODEL==BRDF_DIFFUSE_MODEL_BURLEY
+diffuseTerm=vec3f(diffuseBRDF_Burley(
+info.NdotL,info.NdotV,info.VdotH,info.diffuseRoughness));
+#elif BASE_DIFFUSE_MODEL==BRDF_DIFFUSE_MODEL_EON
+var clampedAlbedo: vec3f=clamp(info.surfaceAlbedo,vec3f(0.1),vec3f(1.0));diffuseTerm=diffuseBRDF_EON(clampedAlbedo,info.diffuseRoughness,
+info.NdotL,info.NdotV,info.LdotV);diffuseTerm/=clampedAlbedo;
+#endif
+return (transmittanceNdotL*diffuseTerm)*info.attenuation*lightColor;
+#else
+let diffuseTerm=diffuseBRDF_Burley(NdotL,info.NdotV,info.VdotH,info.roughness);return diffuseTerm*transmittanceNdotL*info.attenuation*lightColor;
+#endif
+}
+#endif
+#ifdef SPECULARTERM
+fn computeSpecularLighting(info: preLightingInfo,N: vec3f,reflectance0: vec3f,fresnel: vec3f,geometricRoughnessFactor: f32,lightColor: vec3f)->vec3f {var NdotH: f32=saturateEps(dot(N,info.H));var roughness: f32=max(info.roughness,geometricRoughnessFactor);var alphaG: f32=convertRoughnessToAverageSlope(roughness);var modifiedFresnel: vec3f=fresnel;
+#ifdef IRIDESCENCE
+modifiedFresnel=mix(fresnel,reflectance0,info.iridescenceIntensity);
+#endif
+var distribution: f32=normalDistributionFunction_TrowbridgeReitzGGX(NdotH,alphaG);
+#ifdef BRDF_V_HEIGHT_CORRELATED
+var smithVisibility: f32=smithVisibility_GGXCorrelated(info.NdotL,info.NdotV,alphaG);
+#else
+var smithVisibility: f32=smithVisibility_TrowbridgeReitzGGXFast(info.NdotL,info.NdotV,alphaG);
+#endif
+var specTerm: vec3f=modifiedFresnel*distribution*smithVisibility;return specTerm*info.attenuation*info.NdotL*lightColor;}
+#if defined(AREALIGHTUSED) && defined(AREALIGHTSUPPORTED)
+fn computeAreaSpecularLighting(info: preLightingInfo,specularColor: vec3f,reflectance0: vec3f,reflectance90: vec3f)->vec3f {var fresnel:vec3f =reflectance0*specularColor*info.areaLightFresnel.x+( vec3f( 1.0 )-specularColor )*info.areaLightFresnel.y*reflectance90;return specularColor*fresnel*info.areaLightSpecular;}
+fn computeOpenPBRAreaSpecularLighting(info: preLightingInfo,lightColor: vec3f,reflectance0: vec3f,reflectance90: vec3f)->vec3f {let fresnel: vec3f=reflectance0*info.areaLightFresnel.x+(reflectance90-reflectance0)*info.areaLightFresnel.y;return lightColor*fresnel*info.areaLightSpecular;}
+#if CONDUCTOR_SPECULAR_MODEL==CONDUCTOR_SPECULAR_MODEL_OPENPBR
+fn computeOpenPBRAreaConductorSpecularLighting(info: preLightingInfo,lightColor: vec3f,reflectance0: vec3f,edgeTint: vec3f)->vec3f {let b: vec3f=getF82B(reflectance0,edgeTint);let normalizedSchlickMoment: f32=clamp(info.areaLightFresnel.y/max(info.areaLightFresnel.x,Epsilon),0.0f,1.0f);let representativeOneMinusCosTheta: f32=pow(normalizedSchlickMoment,0.2f);let f82DipMoment: f32=info.areaLightFresnel.y*representativeOneMinusCosTheta*(1.0f-representativeOneMinusCosTheta);let fresnel: vec3f=reflectance0*info.areaLightFresnel.x+(vec3f(1.0f)-reflectance0)*info.areaLightFresnel.y-b*f82DipMoment;return lightColor*clamp(fresnel,vec3f(0.0f),vec3f(info.areaLightFresnel.x))*info.areaLightSpecular;}
+#endif
+fn computeOpenPBRAreaFresnel(info: preLightingInfo,reflectance0: f32,reflectance90: f32)->f32 {return reflectance0*info.areaLightFresnel.x+(reflectance90-reflectance0)*info.areaLightFresnel.y;}
+#endif
+#endif
+#ifdef FUZZ
+fn evalFuzz(L: vec3f,NdotL: f32,NdotV: f32,T: vec3f,B: vec3f,ltcLut: vec3f)->f32
+{if (NdotL<=0.0f || NdotV<=0.0f) {return 0.0f;}
+let M=mat3x3f(
+vec3f(ltcLut.r,0.0f,0.0f),
+vec3f(ltcLut.g,1.0f,0.0f),
+vec3f(0.0f,0.0f,1.0f)
+);let Llocal: vec3f=vec3f(dot(L,T),dot(L,B),NdotL);let Lwarp: vec3f=normalize(M*Llocal);let cosThetaWarp: f32=max(Lwarp.z,0.0f);return cosThetaWarp*NdotL;}
+#endif
+#if defined(ANISOTROPIC) && defined(ANISOTROPIC_OPENPBR)
+fn computeAnisotropicSpecularLighting(info: preLightingInfo,V: vec3f,N: vec3f,T: vec3f,B: vec3f,anisotropy: f32,geometricRoughnessFactor: f32,lightColor: vec3f)->vec3f {var NdotH: f32=saturateEps(dot(N,info.H));var TdotH: f32=dot(T,info.H);var BdotH: f32=dot(B,info.H);var TdotV: f32=dot(T,V);var BdotV: f32=dot(B,V);var TdotL: f32=dot(T,info.L);var BdotL: f32=dot(B,info.L);var alphaG: f32=convertRoughnessToAverageSlope(info.roughness);var alphaTB: vec2f=getAnisotropicRoughness(alphaG,anisotropy);var distribution: f32=normalDistributionFunction_BurleyGGX_Anisotropic(NdotH,TdotH,BdotH,alphaTB);var smithVisibility: f32=smithVisibility_GGXCorrelated_Anisotropic(info.NdotL,info.NdotV,TdotV,BdotV,TdotL,BdotL,alphaTB);var specTerm: vec3f=vec3f(distribution*smithVisibility);return specTerm*info.attenuation*info.NdotL*lightColor;}
+#elif defined(ANISOTROPIC)
+fn computeAnisotropicSpecularLighting(info: preLightingInfo,V: vec3f,N: vec3f,T: vec3f,B: vec3f,anisotropy: f32,reflectance0: vec3f,reflectance90: vec3f,geometricRoughnessFactor: f32,lightColor: vec3f)->vec3f {var NdotH: f32=saturateEps(dot(N,info.H));var TdotH: f32=dot(T,info.H);var BdotH: f32=dot(B,info.H);var TdotV: f32=dot(T,V);var BdotV: f32=dot(B,V);var TdotL: f32=dot(T,info.L);var BdotL: f32=dot(B,info.L);var alphaG: f32=convertRoughnessToAverageSlope(info.roughness);var alphaTB: vec2f=getAnisotropicRoughness(alphaG,anisotropy);alphaTB=max(alphaTB,vec2f(geometricRoughnessFactor*geometricRoughnessFactor));var fresnel: vec3f=fresnelSchlickGGXVec3(info.VdotH,reflectance0,reflectance90);
+#ifdef IRIDESCENCE
+fresnel=mix(fresnel,reflectance0,info.iridescenceIntensity);
+#endif
+var distribution: f32=normalDistributionFunction_BurleyGGX_Anisotropic(NdotH,TdotH,BdotH,alphaTB);var smithVisibility: f32=smithVisibility_GGXCorrelated_Anisotropic(info.NdotL,info.NdotV,TdotV,BdotV,TdotL,BdotL,alphaTB);var specTerm: vec3f=fresnel*distribution*smithVisibility;return specTerm*info.attenuation*info.NdotL*lightColor;}
+#endif
+#ifdef CLEARCOAT
+fn computeClearCoatLighting(info: preLightingInfo,Ncc: vec3f,geometricRoughnessFactor: f32,clearCoatIntensity: f32,lightColor: vec3f)->vec4f {var NccdotL: f32=saturateEps(dot(Ncc,info.L));var NccdotH: f32=saturateEps(dot(Ncc,info.H));var clearCoatRoughness: f32=max(info.roughness,geometricRoughnessFactor);var alphaG: f32=convertRoughnessToAverageSlope(clearCoatRoughness);var fresnel: f32=fresnelSchlickGGX(info.VdotH,uniforms.vClearCoatRefractionParams.x,CLEARCOATREFLECTANCE90);fresnel*=clearCoatIntensity;var distribution: f32=normalDistributionFunction_TrowbridgeReitzGGX(NccdotH,alphaG);var kelemenVisibility: f32=visibility_Kelemen(info.VdotH);var clearCoatTerm: f32=fresnel*distribution*kelemenVisibility;return vec4f(
+clearCoatTerm*info.attenuation*NccdotL*lightColor,
+1.0-fresnel
+);}
+fn computeClearCoatLightingAbsorption(NdotVRefract: f32,L: vec3f,Ncc: vec3f,clearCoatColor: vec3f,clearCoatThickness: f32,clearCoatIntensity: f32)->vec3f {var LRefract: vec3f=-refract(L,Ncc,uniforms.vClearCoatRefractionParams.y);var NdotLRefract: f32=saturateEps(dot(Ncc,LRefract));var absorption: vec3f=computeClearCoatAbsorption(NdotVRefract,NdotLRefract,clearCoatColor,clearCoatThickness,clearCoatIntensity);return absorption;}
+#endif
+#ifdef SHEEN
+fn computeSheenLighting(info: preLightingInfo,N: vec3f,reflectance0: vec3f,reflectance90: vec3f,geometricRoughnessFactor: f32,lightColor: vec3f)->vec3f {var NdotH: f32=saturateEps(dot(N,info.H));var roughness: f32=max(info.roughness,geometricRoughnessFactor);var alphaG: f32=convertRoughnessToAverageSlope(roughness);var fresnel: f32=1.;var distribution: f32=normalDistributionFunction_CharlieSheen(NdotH,alphaG);/*#ifdef SHEEN_SOFTER
+var visibility: f32=visibility_CharlieSheen(info.NdotL,info.NdotV,alphaG);
+#else */
+var visibility: f32=visibility_Ashikhmin(info.NdotL,info.NdotV);/* #endif */
+var sheenTerm: f32=fresnel*distribution*visibility;return sheenTerm*info.attenuation*info.NdotL*lightColor;}
+#endif
+#if defined(CLUSTLIGHT_BATCH) && CLUSTLIGHT_BATCH>0
+#include<clusteredLightingFunctions>
+#include<pbrClusteredLightingFunctions>[0..maxSimultaneousLights]
+#endif
+`;
+// Sideeffect
+if (!ShaderStore.IncludesShadersStoreWGSL[name]) {
+    ShaderStore.IncludesShadersStoreWGSL[name] = shader;
+}
+/** @internal */
+export const pbrDirectLightingFunctionsWGSL = { name, shader };
+//# sourceMappingURL=pbrDirectLightingFunctions.js.map

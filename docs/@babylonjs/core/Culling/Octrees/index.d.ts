@@ -1,3 +1,3 @@
-export * from "./octree";
-export * from "./octreeBlock";
-export * from "./octreeSceneComponent";
+export * from "./octree.js";
+export * from "./octreeBlock.js";
+export * from "./octreeSceneComponent.js";

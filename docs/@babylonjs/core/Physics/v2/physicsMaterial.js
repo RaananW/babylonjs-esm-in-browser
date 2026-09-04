@@ -1,67 +1,34 @@
 /**
- *
+ * Determines how values from the PhysicsMaterial are combined when
+ * two objects are in contact. When each PhysicsMaterial specifies
+ * a different combine mode for some property, the combine mode which
+ * is used will be selected based on their order in this enum - i.e.
+ * a value later in this list will be preferentially used.
  */
-/** @internal */
-export class PhysicsMaterial {
+export var PhysicsMaterialCombineMode;
+(function (PhysicsMaterialCombineMode) {
     /**
-     *
-     * @param friction
-     * @param restitution
-     * @param scene
+     * The final value will be the geometric mean of the two values:
+     * sqrt( valueA *  valueB )
      */
-    constructor(friction, restitution, scene) {
-        /** @internal */
-        /**
-         *
-         */
-        this._pluginData = undefined;
-        const physicsEngine = scene.getPhysicsEngine();
-        if (!physicsEngine) {
-            throw new Error("No Physics Engine available.");
-        }
-        if (physicsEngine.getPluginVersion() != 2) {
-            throw new Error("Plugin version is incorrect. Expected version 2.");
-        }
-        const physicsPlugin = physicsEngine.getPhysicsPlugin();
-        if (!physicsPlugin) {
-            throw new Error("No Physics Plugin available.");
-        }
-        this._physicsPlugin = physicsPlugin;
-        this._physicsPlugin.initMaterial(this);
-    }
+    PhysicsMaterialCombineMode[PhysicsMaterialCombineMode["GEOMETRIC_MEAN"] = 0] = "GEOMETRIC_MEAN";
     /**
-     *
-     * @param friction
+     * The final value will be the smaller of the two:
+     * min( valueA , valueB )
      */
-    setFriction(friction) {
-        this._physicsPlugin.setFriction(this, friction);
-    }
+    PhysicsMaterialCombineMode[PhysicsMaterialCombineMode["MINIMUM"] = 1] = "MINIMUM";
+    /** The final value will be the larger of the two:
+     * max( valueA , valueB )
+     */
+    PhysicsMaterialCombineMode[PhysicsMaterialCombineMode["MAXIMUM"] = 2] = "MAXIMUM";
+    /** The final value will be the arithmetic mean of the two values:
+     * (valueA + valueB) / 2
+     */
+    PhysicsMaterialCombineMode[PhysicsMaterialCombineMode["ARITHMETIC_MEAN"] = 3] = "ARITHMETIC_MEAN";
     /**
-     *
-     * @returns
+     * The final value will be the product of the two values:
+     * valueA * valueB
      */
-    getFriction() {
-        return this._physicsPlugin.getFriction(this);
-    }
-    /**
-     *
-     * @param restitution
-     */
-    setRestitution(restitution) {
-        this._physicsPlugin.setRestitution(this, restitution);
-    }
-    /**
-     *
-     * @returns
-     */
-    getRestitution() {
-        return this._physicsPlugin.getRestitution(this);
-    }
-    /**
-     *
-     */
-    dispose() {
-        this._physicsPlugin.disposeMaterial(this);
-    }
-}
+    PhysicsMaterialCombineMode[PhysicsMaterialCombineMode["MULTIPLY"] = 4] = "MULTIPLY";
+})(PhysicsMaterialCombineMode || (PhysicsMaterialCombineMode = {}));
 //# sourceMappingURL=physicsMaterial.js.map

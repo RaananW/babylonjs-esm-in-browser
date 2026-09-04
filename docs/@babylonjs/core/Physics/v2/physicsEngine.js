@@ -1,12 +1,26 @@
-import { Vector3 } from "../../Maths/math.vector.js";
+import { Vector3 } from "../../Maths/math.vector.pure.js";
 import { PhysicsRaycastResult } from "../physicsRaycastResult.js";
 import { _WarnImport } from "../../Misc/devTools.js";
 /**
  * Class used to control physics engine
  * @see https://doc.babylonjs.com/features/featuresDeepDive/physics/usingPhysicsEngine
  */
-/** @internal */
 export class PhysicsEngine {
+    /**
+     *
+     * @returns physics plugin version
+     */
+    getPluginVersion() {
+        return this._physicsPlugin.getPluginVersion();
+    }
+    // eslint-disable-next-line jsdoc/require-returns-check
+    /**
+     * Factory used to create the default physics plugin.
+     * @returns The default physics plugin
+     */
+    static DefaultPluginFactory() {
+        throw _WarnImport("");
+    }
     /**
      * Creates a new Physics Engine
      * @param gravity defines the gravity vector used by the simulation
@@ -22,20 +36,6 @@ export class PhysicsEngine {
         this.setTimeStep();
     }
     /**
-     *
-     * @returns physics plugin version
-     */
-    getPluginVersion() {
-        return this._physicsPlugin.getPluginVersion();
-    }
-    /**
-     * Factory used to create the default physics plugin.
-     * @returns The default physics plugin
-     */
-    static DefaultPluginFactory() {
-        throw _WarnImport("");
-    }
-    /**
      * Sets the gravity vector used by the simulation
      * @param gravity defines the gravity vector to use
      */
@@ -48,6 +48,7 @@ export class PhysicsEngine {
      * Default is 1/60.
      * To slow it down, enter 1/600 for example.
      * To speed it up, 1/30
+     * Unit is seconds.
      * @param newTimeStep defines the new timestep to apply to this world.
      */
     setTimeStep(newTimeStep = 1 / 60) {
@@ -90,22 +91,30 @@ export class PhysicsEngine {
         return this._physicsPlugin.name;
     }
     /**
-     * Adding a new impostor for the impostor tracking.
-     * This will be done by the impostor itself.
-     * @param impostor the impostor to add
+     * Set the maximum allowed linear and angular velocities
+     * @param maxLinearVelocity maximum allowed linear velocity
+     * @param maxAngularVelocity maximum allowed angular velocity
      */
+    setVelocityLimits(maxLinearVelocity, maxAngularVelocity) {
+        this._physicsPlugin.setVelocityLimits(maxLinearVelocity, maxAngularVelocity);
+    }
+    /**
+     * @returns maximum allowed linear velocity
+     */
+    getMaxLinearVelocity() {
+        return this._physicsPlugin.getMaxLinearVelocity();
+    }
+    /**
+     * @returns maximum allowed angular velocity
+     */
+    getMaxAngularVelocity() {
+        return this._physicsPlugin.getMaxAngularVelocity();
+    }
     /**
      * Called by the scene. No need to call it.
      * @param delta defines the timespan between frames
      */
     _step(delta) {
-        //check if any mesh has no body / requires an update
-        /*this._impostors.forEach((impostor) => {
-            if (impostor.isBodyInitRequired()) {
-                this._physicsPlugin.generatePhysicsBody(impostor);
-            }
-        });
-*/
         if (delta > 0.1) {
             delta = 0.1;
         }
@@ -115,20 +124,27 @@ export class PhysicsEngine {
         this._physicsPlugin.executeStep(delta, this._physicsBodies);
     }
     /**
-     *
-     * @param body
+     * Add a body as an active component of this engine
+     * @param physicsBody The body to add
      */
     addBody(physicsBody) {
         this._physicsBodies.push(physicsBody);
     }
     /**
-     *
+     * Removes a particular body from this engine
+     * @param physicsBody The body to remove from the simulation
      */
     removeBody(physicsBody) {
         const index = this._physicsBodies.indexOf(physicsBody);
         if (index > -1) {
             /*const removed =*/ this._physicsBodies.splice(index, 1);
         }
+    }
+    /**
+     * @returns an array of bodies added to this engine
+     */
+    getBodies() {
+        return this._physicsBodies;
     }
     /**
      * Gets the current plugin used to run the simulation
@@ -141,20 +157,36 @@ export class PhysicsEngine {
      * Does a raycast in the physics world
      * @param from when should the ray start?
      * @param to when should the ray end?
-     * @param result resulting PhysicsRaycastResult
+     * @param result resulting PhysicsRaycastResult or array of PhysicsRaycastResults
+     * @param query raycast query object
+     * If result is an empty array, it will be populated with every detected raycast hit.
+     * If result is a populated array, it will only fill the PhysicsRaycastResults present in the array.
      */
-    raycastToRef(from, to, result) {
-        this._physicsPlugin.raycast(from, to, result);
+    raycastToRef(from, to, result, query) {
+        this._physicsPlugin.raycast(from, to, result, query);
     }
     /**
      * Does a raycast in the physics world
      * @param from when should the ray start?
      * @param to when should the ray end?
+     * @param query raycast query object
      * @returns PhysicsRaycastResult
      */
-    raycast(from, to) {
+    raycast(from, to, query) {
         const result = new PhysicsRaycastResult();
-        this._physicsPlugin.raycast(from, to, result);
+        this._physicsPlugin.raycast(from, to, result, query);
+        return result;
+    }
+    /**
+     * Does a raycast through multiple objects in the physics world
+     * @param from when should the ray start?
+     * @param to when should the ray end?
+     * @param query raycast query object
+     * @returns array of PhysicsRaycastResult
+     */
+    raycastMulti(from, to, query) {
+        const result = [];
+        this._physicsPlugin.raycast(from, to, result, query);
         return result;
     }
 }

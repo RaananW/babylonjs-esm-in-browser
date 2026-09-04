@@ -1,5 +1,5 @@
-import * as BABYLON from "../index";
-export * from "../index";
+import * as BABYLON from "../index.js";
+export * from "../index.js";
 export declare const Debug: {
     AxesViewer: typeof BABYLON.AxesViewer;
     BoneAxesViewer: typeof BABYLON.BoneAxesViewer;

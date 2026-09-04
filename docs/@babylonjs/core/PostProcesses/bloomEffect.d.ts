@@ -1,13 +1,13 @@
-import { PostProcessRenderEffect } from "../PostProcesses/RenderPipeline/postProcessRenderEffect";
-import type { PostProcess } from "./postProcess";
-import { ExtractHighlightsPostProcess } from "./extractHighlightsPostProcess";
-import type { Camera } from "../Cameras/camera";
-import type { Scene } from "../scene";
+import { PostProcessRenderEffect } from "../PostProcesses/RenderPipeline/postProcessRenderEffect.js";
+import { type PostProcess } from "./postProcess.js";
+import { ExtractHighlightsPostProcess } from "./extractHighlightsPostProcess.pure.js";
+import { type Camera } from "../Cameras/camera.js";
+import { type Scene } from "../scene.js";
+import { type AbstractEngine } from "../Engines/abstractEngine.js";
 /**
  * The bloom effect spreads bright areas of an image to simulate artifacts seen in cameras
  */
 export declare class BloomEffect extends PostProcessRenderEffect {
-    private _bloomScale;
     /**
      * @internal Internal
      */
@@ -34,21 +34,23 @@ export declare class BloomEffect extends PostProcessRenderEffect {
      */
     get kernel(): number;
     set kernel(value: number);
+    get bloomScale(): number;
+    private _thinBloomEffect;
     /**
      * Creates a new instance of @see BloomEffect
-     * @param scene The scene the effect belongs to.
-     * @param _bloomScale The ratio of the blur texture to the input texture that should be used to compute the bloom.
-     * @param bloomWeight The the strength of bloom.
+     * @param sceneOrEngine The scene or engine the effect belongs to.
+     * @param bloomScale The ratio of the blur texture to the input texture that should be used to compute the bloom.
+     * @param bloomWeight The strength of bloom.
      * @param bloomKernel The size of the kernel to be used when applying the blur.
      * @param pipelineTextureType The type of texture to be used when performing the post processing.
      * @param blockCompilation If compilation of the shader should not be done in the constructor. The updateEffect method can be used to compile the shader at a later time. (default: false)
      */
-    constructor(scene: Scene, _bloomScale: number, bloomWeight: number, bloomKernel: number, pipelineTextureType?: number, blockCompilation?: boolean);
+    constructor(sceneOrEngine: Scene | AbstractEngine, bloomScale: number, bloomWeight: number, bloomKernel: number, pipelineTextureType?: number, blockCompilation?: boolean);
     /**
      * Disposes each of the internal effects for a given camera.
      * @param camera The camera to dispose the effect on.
      */
-    disposeEffects(camera: Camera): void;
+    disposeEffects(camera?: Camera): void;
     /**
      * @internal Internal
      */

@@ -1,13 +1,13 @@
-import { Quaternion, Vector3, Matrix } from "../../../Maths/math.vector.js";
+import { Quaternion, Vector3, Matrix } from "../../../Maths/math.vector.pure.js";
 import { Logger } from "../../../Misc/logger.js";
-import { PhysicsImpostor } from "../physicsImpostor.js";
+import { PhysicsImpostor } from "../physicsImpostor.pure.js";
 import { PhysicsJoint } from "../physicsJoint.js";
-import { VertexBuffer } from "../../../Buffers/buffer.js";
+import { VertexBuffer } from "../../../Buffers/buffer.pure.js";
 import { VertexData } from "../../../Meshes/mesh.vertexData.js";
-import { ExtrudeShape } from "../../../Meshes/Builders/shapeBuilder.js";
-import { CreateLines } from "../../../Meshes/Builders/linesBuilder.js";
+import { ExtrudeShape } from "../../../Meshes/Builders/shapeBuilder.pure.js";
+import { CreateLines } from "../../../Meshes/Builders/linesBuilder.pure.js";
 import { PhysicsRaycastResult } from "../../physicsRaycastResult.js";
-import { Scalar } from "../../../Maths/math.scalar.js";
+import { WithinEpsilon } from "../../../Maths/math.scalar.functions.js";
 import { Epsilon } from "../../../Maths/math.constants.js";
 /**
  * AmmoJS Physics plugin
@@ -26,6 +26,7 @@ export class AmmoJSPlugin {
         /**
          * Reference to the Ammo library
          */
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         this.bjsAMMO = {};
         /**
          * Name of the plugin
@@ -239,7 +240,7 @@ export class AmmoJSPlugin {
         let node;
         let nodePositions;
         let x, y, z;
-        const path = new Array();
+        const path = [];
         for (let n = 0; n < nbVertices; n++) {
             node = bodyVertices.at(n);
             nodePositions = node.get_m_x();
@@ -295,15 +296,15 @@ export class AmmoJSPlugin {
             vertexNormals[3 * n + 1] = ny;
             vertexNormals[3 * n + 2] = nz;
         }
-        const vertex_data = new VertexData();
-        vertex_data.positions = vertexPositions;
-        vertex_data.normals = vertexNormals;
-        vertex_data.uvs = object.getVerticesData(VertexBuffer.UVKind);
-        vertex_data.colors = object.getVerticesData(VertexBuffer.ColorKind);
+        const vertexData = new VertexData();
+        vertexData.positions = vertexPositions;
+        vertexData.normals = vertexNormals;
+        vertexData.uvs = object.getVerticesData(VertexBuffer.UVKind);
+        vertexData.colors = object.getVerticesData(VertexBuffer.ColorKind);
         if (object && object.getIndices) {
-            vertex_data.indices = object.getIndices();
+            vertexData.indices = object.getIndices();
         }
-        vertex_data.applyToMesh(object);
+        vertexData.applyToMesh(object);
     }
     /**
      * Applies an impulse on the imposter
@@ -451,9 +452,9 @@ export class AmmoJSPlugin {
                 this.world.removeRigidBody(impostor.physicsBody);
             }
             if (impostor._pluginData) {
-                impostor._pluginData.toDispose.forEach((d) => {
+                for (const d of impostor._pluginData.toDispose) {
                     this.bjsAMMO.destroy(d);
-                });
+                }
                 impostor._pluginData.toDispose = [];
             }
         }
@@ -466,6 +467,10 @@ export class AmmoJSPlugin {
         const mainBody = impostorJoint.mainImpostor.physicsBody;
         const connectedBody = impostorJoint.connectedImpostor.physicsBody;
         if (!mainBody || !connectedBody) {
+            return;
+        }
+        // if the joint is already created, don't create it again for preventing memory leaks
+        if (impostorJoint.joint.physicsJoint) {
             return;
         }
         const jointData = impostorJoint.joint.jointData;
@@ -483,7 +488,11 @@ export class AmmoJSPlugin {
                     jointData.mainPivot = new Vector3(0, -distance / 2, 0);
                     jointData.connectedPivot = new Vector3(0, distance / 2, 0);
                 }
-                joint = new this.bjsAMMO.btPoint2PointConstraint(mainBody, connectedBody, new this.bjsAMMO.btVector3(jointData.mainPivot.x, jointData.mainPivot.y, jointData.mainPivot.z), new this.bjsAMMO.btVector3(jointData.connectedPivot.x, jointData.connectedPivot.y, jointData.connectedPivot.z));
+                const mainPivot = this._tmpAmmoVectorA;
+                mainPivot.setValue(jointData.mainPivot.x, jointData.mainPivot.y, jointData.mainPivot.z);
+                const connectedPivot = this._tmpAmmoVectorB;
+                connectedPivot.setValue(jointData.connectedPivot.x, jointData.connectedPivot.y, jointData.connectedPivot.z);
+                joint = new this.bjsAMMO.btPoint2PointConstraint(mainBody, connectedBody, mainPivot, connectedPivot);
                 break;
             }
             case PhysicsJoint.HingeJoint: {
@@ -493,18 +502,34 @@ export class AmmoJSPlugin {
                 if (!jointData.connectedAxis) {
                     jointData.connectedAxis = new Vector3(0, 0, 0);
                 }
-                const mainAxis = new this.bjsAMMO.btVector3(jointData.mainAxis.x, jointData.mainAxis.y, jointData.mainAxis.z);
-                const connectedAxis = new this.bjsAMMO.btVector3(jointData.connectedAxis.x, jointData.connectedAxis.y, jointData.connectedAxis.z);
-                joint = new this.bjsAMMO.btHingeConstraint(mainBody, connectedBody, new this.bjsAMMO.btVector3(jointData.mainPivot.x, jointData.mainPivot.y, jointData.mainPivot.z), new this.bjsAMMO.btVector3(jointData.connectedPivot.x, jointData.connectedPivot.y, jointData.connectedPivot.z), mainAxis, connectedAxis);
+                const mainPivot = this._tmpAmmoVectorA;
+                mainPivot.setValue(jointData.mainPivot.x, jointData.mainPivot.y, jointData.mainPivot.z);
+                const connectedPivot = this._tmpAmmoVectorB;
+                connectedPivot.setValue(jointData.connectedPivot.x, jointData.connectedPivot.y, jointData.connectedPivot.z);
+                const mainAxis = this._tmpAmmoVectorC;
+                mainAxis.setValue(jointData.mainAxis.x, jointData.mainAxis.y, jointData.mainAxis.z);
+                const connectedAxis = this._tmpAmmoVectorD;
+                connectedAxis.setValue(jointData.connectedAxis.x, jointData.connectedAxis.y, jointData.connectedAxis.z);
+                joint = new this.bjsAMMO.btHingeConstraint(mainBody, connectedBody, mainPivot, connectedPivot, mainAxis, connectedAxis);
                 break;
             }
-            case PhysicsJoint.BallAndSocketJoint:
-                joint = new this.bjsAMMO.btPoint2PointConstraint(mainBody, connectedBody, new this.bjsAMMO.btVector3(jointData.mainPivot.x, jointData.mainPivot.y, jointData.mainPivot.z), new this.bjsAMMO.btVector3(jointData.connectedPivot.x, jointData.connectedPivot.y, jointData.connectedPivot.z));
+            case PhysicsJoint.BallAndSocketJoint: {
+                const mainPivot = this._tmpAmmoVectorA;
+                mainPivot.setValue(jointData.mainPivot.x, jointData.mainPivot.y, jointData.mainPivot.z);
+                const connectedPivot = this._tmpAmmoVectorB;
+                connectedPivot.setValue(jointData.connectedPivot.x, jointData.connectedPivot.y, jointData.connectedPivot.z);
+                joint = new this.bjsAMMO.btPoint2PointConstraint(mainBody, connectedBody, mainPivot, connectedPivot);
                 break;
-            default:
+            }
+            default: {
                 Logger.Warn("JointType not currently supported by the Ammo plugin, falling back to PhysicsJoint.BallAndSocketJoint");
-                joint = new this.bjsAMMO.btPoint2PointConstraint(mainBody, connectedBody, new this.bjsAMMO.btVector3(jointData.mainPivot.x, jointData.mainPivot.y, jointData.mainPivot.z), new this.bjsAMMO.btVector3(jointData.connectedPivot.x, jointData.connectedPivot.y, jointData.connectedPivot.z));
+                const mainPivot = this._tmpAmmoVectorA;
+                mainPivot.setValue(jointData.mainPivot.x, jointData.mainPivot.y, jointData.mainPivot.z);
+                const connectedPivot = this._tmpAmmoVectorB;
+                connectedPivot.setValue(jointData.connectedPivot.x, jointData.connectedPivot.y, jointData.connectedPivot.z);
+                joint = new this.bjsAMMO.btPoint2PointConstraint(mainBody, connectedBody, mainPivot, connectedPivot);
                 break;
+            }
         }
         this.world.addConstraint(joint, !impostorJoint.joint.jointData.collision);
         impostorJoint.joint.physicsJoint = joint;
@@ -517,6 +542,7 @@ export class AmmoJSPlugin {
         if (this.world) {
             this.world.removeConstraint(impostorJoint.joint.physicsJoint);
         }
+        this.bjsAMMO.destroy(impostorJoint.joint.physicsJoint);
     }
     // adds all verticies (including child verticies) to the triangle mesh
     _addMeshVerts(btTriangleMesh, topLevelObject, object) {
@@ -577,9 +603,10 @@ export class AmmoJSPlugin {
                 btTriangleMesh.addTriangle(triPoints[0], triPoints[1], triPoints[2]);
                 triangleCount++;
             }
-            object.getChildMeshes().forEach((m) => {
+            const childMeshes = object.getChildMeshes();
+            for (const m of childMeshes) {
                 triangleCount += this._addMeshVerts(btTriangleMesh, topLevelObject, m);
-            });
+            }
         }
         return triangleCount;
     }
@@ -588,14 +615,11 @@ export class AmmoJSPlugin {
      * Softbody vertices (nodes) are in world space and to match this
      * The object's position and rotation is set to zero and so its vertices are also then set in world space
      * @param impostor to create the softbody for
+     * @returns the number of vertices added to the softbody
      */
     _softVertexData(impostor) {
         const object = impostor.object;
         if (object && object.getIndices && object.getWorldMatrix && object.getChildMeshes) {
-            let indices = object.getIndices();
-            if (!indices) {
-                indices = [];
-            }
             let vertexPositions = object.getVerticesData(VertexBuffer.PositionKind);
             if (!vertexPositions) {
                 vertexPositions = [];
@@ -615,26 +639,27 @@ export class AmmoJSPlugin {
                 newPoints.push(v.x, v.y, v.z);
                 newNorms.push(n.x, n.y, n.z);
             }
-            const vertex_data = new VertexData();
-            vertex_data.positions = newPoints;
-            vertex_data.normals = newNorms;
-            vertex_data.uvs = object.getVerticesData(VertexBuffer.UVKind);
-            vertex_data.colors = object.getVerticesData(VertexBuffer.ColorKind);
+            const vertexData = new VertexData();
+            vertexData.positions = newPoints;
+            vertexData.normals = newNorms;
+            vertexData.uvs = object.getVerticesData(VertexBuffer.UVKind);
+            vertexData.colors = object.getVerticesData(VertexBuffer.ColorKind);
             if (object && object.getIndices) {
-                vertex_data.indices = object.getIndices();
+                vertexData.indices = object.getIndices();
             }
-            vertex_data.applyToMesh(object);
+            vertexData.applyToMesh(object);
             object.position = Vector3.Zero();
             object.rotationQuaternion = null;
             object.rotation = Vector3.Zero();
             object.computeWorldMatrix(true);
-            return vertex_data;
+            return vertexData;
         }
         return VertexData.ExtractFromMesh(object);
     }
     /**
      * Create an impostor's soft body
      * @param impostor to create the softbody for
+     * @returns the softbody
      */
     _createSoftbody(impostor) {
         const object = impostor.object;
@@ -643,9 +668,9 @@ export class AmmoJSPlugin {
             if (!indices) {
                 indices = [];
             }
-            const vertex_data = this._softVertexData(impostor);
-            const vertexPositions = vertex_data.positions;
-            const vertexNormals = vertex_data.normals;
+            const vertexData = this._softVertexData(impostor);
+            const vertexPositions = vertexData.positions;
+            const vertexNormals = vertexData.normals;
             if (vertexPositions === null || vertexNormals === null) {
                 return new this.bjsAMMO.btCompoundShape();
             }
@@ -677,17 +702,14 @@ export class AmmoJSPlugin {
     /**
      * Create cloth for an impostor
      * @param impostor to create the softbody for
+     * @returns the cloth
      */
     _createCloth(impostor) {
         const object = impostor.object;
         if (object && object.getIndices) {
-            let indices = object.getIndices();
-            if (!indices) {
-                indices = [];
-            }
-            const vertex_data = this._softVertexData(impostor);
-            const vertexPositions = vertex_data.positions;
-            const vertexNormals = vertex_data.normals;
+            const vertexData = this._softVertexData(impostor);
+            const vertexPositions = vertexData.positions;
+            const vertexNormals = vertexData.normals;
             if (vertexPositions === null || vertexNormals === null) {
                 return new this.bjsAMMO.btCompoundShape();
             }
@@ -708,18 +730,19 @@ export class AmmoJSPlugin {
     /**
      * Create rope for an impostor
      * @param impostor to create the softbody for
+     * @returns the rope
      */
     _createRope(impostor) {
         let len;
         let segments;
-        const vertex_data = this._softVertexData(impostor);
-        const vertexPositions = vertex_data.positions;
-        const vertexNormals = vertex_data.normals;
+        const vertexData = this._softVertexData(impostor);
+        const vertexPositions = vertexData.positions;
+        const vertexNormals = vertexData.normals;
         if (vertexPositions === null || vertexNormals === null) {
             return new this.bjsAMMO.btCompoundShape();
         }
         //force the mesh to be updatable
-        vertex_data.applyToMesh(impostor.object, true);
+        vertexData.applyToMesh(impostor.object, true);
         impostor._isFromLine = true;
         // If in lines mesh all normals will be zero
         const vertexSquared = vertexNormals.map((x) => x * x);
@@ -756,6 +779,7 @@ export class AmmoJSPlugin {
     /**
      * Create a custom physics impostor shape using the plugin's onCreateCustomShape handler
      * @param impostor to create the custom physics shape for
+     * @returns the custom physics shape
      */
     _createCustom(impostor) {
         let returnValue = null;
@@ -806,9 +830,10 @@ export class AmmoJSPlugin {
                 btConvexHullShape.addPoint(triPoints[2], true);
                 triangleCount++;
             }
-            object.getChildMeshes().forEach((m) => {
+            const childMeshes = object.getChildMeshes();
+            for (const m of childMeshes) {
                 triangleCount += this._addHullVerts(btConvexHullShape, topLevelObject, m);
-            });
+            }
         }
         return triangleCount;
     }
@@ -821,10 +846,11 @@ export class AmmoJSPlugin {
             returnValue = new this.bjsAMMO.btCompoundShape();
             // Add shape of all children to the compound shape
             let childrenAdded = 0;
-            meshChildren.forEach((childMesh) => {
+            for (const childMesh of meshChildren) {
                 const childImpostor = childMesh.getPhysicsImpostor();
                 if (childImpostor) {
                     if (childImpostor.type == PhysicsImpostor.MeshImpostor) {
+                        // eslint-disable-next-line no-throw-literal
                         throw "A child MeshImpostor is not supported. Only primitive impostors are supported as children (eg. box or sphere)";
                     }
                     const shape = this._createShape(childImpostor);
@@ -839,7 +865,7 @@ export class AmmoJSPlugin {
                     childImpostor.dispose();
                     childrenAdded++;
                 }
-            });
+            }
             if (childrenAdded > 0) {
                 // Add parents shape as a child if present
                 if (impostor.type != PhysicsImpostor.NoImpostor) {
@@ -862,15 +888,17 @@ export class AmmoJSPlugin {
         switch (impostor.type) {
             case PhysicsImpostor.SphereImpostor:
                 // Is there a better way to compare floats number? With an epsilon or with a Math function
-                if (Scalar.WithinEpsilon(impostorExtents.x, impostorExtents.y, 0.0001) && Scalar.WithinEpsilon(impostorExtents.x, impostorExtents.z, 0.0001)) {
+                if (WithinEpsilon(impostorExtents.x, impostorExtents.y, 0.0001) && WithinEpsilon(impostorExtents.x, impostorExtents.z, 0.0001)) {
                     returnValue = new this.bjsAMMO.btSphereShape(impostorExtents.x / 2);
                 }
                 else {
                     // create a btMultiSphereShape because it's not possible to set a local scaling on a btSphereShape
-                    const positions = [new this.bjsAMMO.btVector3(0, 0, 0)];
+                    this._tmpAmmoVectorA.setValue(0, 0, 0);
+                    const positions = [this._tmpAmmoVectorA];
                     const radii = [1];
                     returnValue = new this.bjsAMMO.btMultiSphereShape(positions, radii, 1);
-                    returnValue.setLocalScaling(new this.bjsAMMO.btVector3(impostorExtents.x / 2, impostorExtents.y / 2, impostorExtents.z / 2));
+                    this._tmpAmmoVectorA.setValue(impostorExtents.x / 2, impostorExtents.y / 2, impostorExtents.z / 2);
+                    returnValue.setLocalScaling(this._tmpAmmoVectorA);
                 }
                 break;
             case PhysicsImpostor.CapsuleImpostor:
@@ -1366,6 +1394,7 @@ export class AmmoJSPlugin {
     dispose() {
         // Dispose of world
         this.bjsAMMO.destroy(this.world);
+        this.bjsAMMO.destroy(this._softBodySolver);
         this.bjsAMMO.destroy(this._solver);
         this.bjsAMMO.destroy(this._overlappingPairCache);
         this.bjsAMMO.destroy(this._dispatcher);
@@ -1374,6 +1403,7 @@ export class AmmoJSPlugin {
         this.bjsAMMO.destroy(this._tmpAmmoVectorA);
         this.bjsAMMO.destroy(this._tmpAmmoVectorB);
         this.bjsAMMO.destroy(this._tmpAmmoVectorC);
+        this.bjsAMMO.destroy(this._tmpAmmoVectorD);
         this.bjsAMMO.destroy(this._tmpAmmoTransform);
         this.bjsAMMO.destroy(this._tmpAmmoQuaternion);
         this.bjsAMMO.destroy(this._tmpAmmoConcreteContactResultCallback);

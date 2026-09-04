@@ -1,34 +1,44 @@
-import { __decorate } from "../tslib.es6.js";
-import { Vector3 } from "./math.vector.js";
+import { __esDecorate, __runInitializers } from "../tslib.es6.js";
+import { Vector3 } from "./math.vector.pure.js";
 import { nativeOverride } from "../Misc/decorators.js";
 // This helper class is only here so we can apply the nativeOverride decorator to functions.
-class MathHelpers {
-    static extractMinAndMaxIndexed(positions, indices, indexStart, indexCount, minimum, maximum) {
-        for (let index = indexStart; index < indexStart + indexCount; index++) {
-            const offset = indices[index] * 3;
-            const x = positions[offset];
-            const y = positions[offset + 1];
-            const z = positions[offset + 2];
-            minimum.minimizeInPlaceFromFloats(x, y, z);
-            maximum.maximizeInPlaceFromFloats(x, y, z);
-        }
-    }
-    static extractMinAndMax(positions, start, count, stride, minimum, maximum) {
-        for (let index = start, offset = start * stride; index < start + count; index++, offset += stride) {
-            const x = positions[offset];
-            const y = positions[offset + 1];
-            const z = positions[offset + 2];
-            minimum.minimizeInPlaceFromFloats(x, y, z);
-            maximum.maximizeInPlaceFromFloats(x, y, z);
-        }
-    }
-}
-__decorate([
-    nativeOverride.filter((...[positions, indices]) => !Array.isArray(positions) && !Array.isArray(indices))
-], MathHelpers, "extractMinAndMaxIndexed", null);
-__decorate([
-    nativeOverride.filter((...[positions]) => !Array.isArray(positions))
-], MathHelpers, "extractMinAndMax", null);
+let MathHelpers = (() => {
+    var _a;
+    let _staticExtraInitializers = [];
+    let _static_extractMinAndMaxIndexed_decorators;
+    let _static_extractMinAndMax_decorators;
+    return _a = class MathHelpers {
+            static extractMinAndMaxIndexed(positions, indices, indexStart, indexCount, minimum, maximum) {
+                for (let index = indexStart; index < indexStart + indexCount; index++) {
+                    const offset = indices[index] * 3;
+                    const x = positions[offset];
+                    const y = positions[offset + 1];
+                    const z = positions[offset + 2];
+                    minimum.minimizeInPlaceFromFloats(x, y, z);
+                    maximum.maximizeInPlaceFromFloats(x, y, z);
+                }
+            }
+            static extractMinAndMax(positions, start, count, stride, minimum, maximum) {
+                for (let index = start, offset = start * stride; index < start + count; index++, offset += stride) {
+                    const x = positions[offset];
+                    const y = positions[offset + 1];
+                    const z = positions[offset + 2];
+                    minimum.minimizeInPlaceFromFloats(x, y, z);
+                    maximum.maximizeInPlaceFromFloats(x, y, z);
+                }
+            }
+        },
+        (() => {
+            const _metadata = typeof Symbol === "function" && Symbol.metadata ? Object.create(null) : void 0;
+            _static_extractMinAndMaxIndexed_decorators = [nativeOverride.filter((...args) => !Array.isArray(args[0]) && !Array.isArray(args[1]))];
+            _static_extractMinAndMax_decorators = [nativeOverride.filter((...args) => !Array.isArray(args[0]))];
+            __esDecorate(_a, null, _static_extractMinAndMaxIndexed_decorators, { kind: "method", name: "extractMinAndMaxIndexed", static: true, private: false, access: { has: obj => "extractMinAndMaxIndexed" in obj, get: obj => obj.extractMinAndMaxIndexed }, metadata: _metadata }, null, _staticExtraInitializers);
+            __esDecorate(_a, null, _static_extractMinAndMax_decorators, { kind: "method", name: "extractMinAndMax", static: true, private: false, access: { has: obj => "extractMinAndMax" in obj, get: obj => obj.extractMinAndMax }, metadata: _metadata }, null, _staticExtraInitializers);
+            if (_metadata) Object.defineProperty(_a, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+            __runInitializers(_a, _staticExtraInitializers);
+        })(),
+        _a;
+})();
 /**
  * Extracts minimum and maximum values from a list of indexed positions
  * @param positions defines the positions to use
@@ -38,6 +48,7 @@ __decorate([
  * @param bias defines bias value to add to the result
  * @returns minimum and maximum values
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export function extractMinAndMaxIndexed(positions, indices, indexStart, indexCount, bias = null) {
     const minimum = new Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
     const maximum = new Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
@@ -64,6 +75,7 @@ export function extractMinAndMaxIndexed(positions, indices, indexStart, indexCou
  * @param stride defines the stride size to use (distance between two positions in the positions array)
  * @returns minimum and maximum values
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export function extractMinAndMax(positions, start, count, bias = null, stride) {
     const minimum = new Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
     const maximum = new Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
@@ -83,5 +95,47 @@ export function extractMinAndMax(positions, start, count, bias = null, stride) {
         minimum: minimum,
         maximum: maximum,
     };
+}
+/**
+ * Flip flipped faces
+ * @param positions defines the positions to use
+ * @param indices defines the indices to use and update
+ */
+export function FixFlippedFaces(positions, indices) {
+    const boundingInfo = extractMinAndMax(positions, 0, positions.length / 3);
+    const inside = boundingInfo.maximum.subtract(boundingInfo.minimum).scale(0.5).add(boundingInfo.minimum);
+    const tmpVectorA = new Vector3();
+    const tmpVectorB = new Vector3();
+    const tmpVectorC = new Vector3();
+    const tmpVectorAB = new Vector3();
+    const tmpVectorAC = new Vector3();
+    const tmpVectorNormal = new Vector3();
+    const tmpVectorAvgNormal = new Vector3();
+    // Clean indices
+    for (let index = 0; index < indices.length; index += 3) {
+        const a = indices[index];
+        const b = indices[index + 1];
+        const c = indices[index + 2];
+        // Evaluate face normal
+        tmpVectorA.fromArray(positions, a * 3);
+        tmpVectorB.fromArray(positions, b * 3);
+        tmpVectorC.fromArray(positions, c * 3);
+        tmpVectorB.subtractToRef(tmpVectorA, tmpVectorAB);
+        tmpVectorC.subtractToRef(tmpVectorA, tmpVectorAC);
+        Vector3.CrossToRef(tmpVectorAB, tmpVectorAC, tmpVectorNormal);
+        tmpVectorNormal.normalize();
+        // Calculate normal from face center to the inside of the geometry
+        const avgX = tmpVectorA.x + tmpVectorB.x + tmpVectorC.x;
+        const avgY = tmpVectorA.y + tmpVectorB.y + tmpVectorC.y;
+        const avgZ = tmpVectorA.z + tmpVectorB.z + tmpVectorC.z;
+        tmpVectorAvgNormal.set(avgX / 3, avgY / 3, avgZ / 3);
+        tmpVectorAvgNormal.subtractInPlace(inside);
+        tmpVectorAvgNormal.normalize();
+        if (Vector3.Dot(tmpVectorNormal, tmpVectorAvgNormal) >= 0) {
+            // Flip!
+            indices[index] = c;
+            indices[index + 2] = a;
+        }
+    }
 }
 //# sourceMappingURL=math.functions.js.map

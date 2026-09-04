@@ -1,10 +1,28 @@
 /**
- * Options used to control default behaviors regarding compatibility support
- */
-export class CompatibilityOptions {
-}
-/**
  * Defines if the system should use OpenGL convention for UVs when creating geometry or loading .babylon files (false by default)
  */
-CompatibilityOptions.UseOpenGLOrientationForUV = false;
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export let useOpenGLOrientationForUV = false;
+/**
+ * Sets whether to use OpenGL convention for UVs
+ * @param value the new value
+ */
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export function setOpenGLOrientationForUV(value) {
+    useOpenGLOrientationForUV = value;
+}
+/**
+ * Options used to control default behaviors regarding compatibility support
+ * @deprecated please use named exports
+ */
+export const CompatibilityOptions = {
+    /* eslint-disable @typescript-eslint/naming-convention */
+    get UseOpenGLOrientationForUV() {
+        return useOpenGLOrientationForUV;
+    },
+    set UseOpenGLOrientationForUV(value) {
+        useOpenGLOrientationForUV = value;
+    },
+    /* eslint-enable @typescript-eslint/naming-convention */
+};
 //# sourceMappingURL=compatibilityOptions.js.map

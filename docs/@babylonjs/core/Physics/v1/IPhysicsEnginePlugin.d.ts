@@ -1,9 +1,9 @@
-import type { Nullable } from "../../types";
-import type { Vector3, Quaternion } from "../../Maths/math.vector";
-import type { AbstractMesh } from "../../Meshes/abstractMesh";
-import type { PhysicsImpostor } from "./physicsImpostor";
-import type { PhysicsJoint, IMotorEnabledJoint } from "./physicsJoint";
-import type { PhysicsRaycastResult } from "../physicsRaycastResult";
+import { type Nullable } from "../../types.js";
+import { type Vector3, type Quaternion } from "../../Maths/math.vector.js";
+import { type AbstractMesh } from "../../Meshes/abstractMesh.js";
+import { type PhysicsImpostor } from "./physicsImpostor.js";
+import { type PhysicsJoint, type IMotorEnabledJoint } from "./physicsJoint.js";
+import { type PhysicsRaycastResult } from "../physicsRaycastResult.js";
 /**
  * Interface used to describe a physics joint
  */
@@ -17,13 +17,7 @@ export interface PhysicsImpostorJoint {
 }
 /** @internal */
 export interface IPhysicsEnginePlugin {
-    /**
-     *
-     */
     world: any;
-    /**
-     *
-     */
     name: string;
     setGravity(gravity: Vector3): void;
     setTimeStep(timeStep: number): void;

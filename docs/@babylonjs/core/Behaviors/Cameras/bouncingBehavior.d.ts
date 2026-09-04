@@ -1,6 +1,7 @@
-import type { Behavior } from "../../Behaviors/behavior";
-import type { ArcRotateCamera } from "../../Cameras/arcRotateCamera";
-import { BackEase } from "../../Animations/easing";
+import { type Behavior } from "../../Behaviors/behavior.js";
+import { type ArcRotateCamera } from "../../Cameras/arcRotateCamera.js";
+import { BackEase } from "../../Animations/easing.js";
+import { type Nullable } from "../../types.js";
 /**
  * Add a bouncing effect to an ArcRotateCamera when reaching a specified minimum and maximum radius
  * @see https://doc.babylonjs.com/features/featuresDeepDive/behaviors/cameraBehaviors#bouncing-behavior
@@ -40,6 +41,10 @@ export declare class BouncingBehavior implements Behavior<ArcRotateCamera> {
      * Transition ranges will be set to 5% of the bounding box diagonal in world space
      */
     set autoTransitionRange(value: boolean);
+    /**
+     * Attached node of this behavior
+     */
+    get attachedNode(): Nullable<ArcRotateCamera>;
     private _attachedCamera;
     private _onAfterCheckInputsObserver;
     private _onMeshTargetChangedObserver;

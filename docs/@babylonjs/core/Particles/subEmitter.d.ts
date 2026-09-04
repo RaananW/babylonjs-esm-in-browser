@@ -1,6 +1,6 @@
-import type { ThinEngine } from "../Engines/thinEngine";
-declare type Scene = import("../scene").Scene;
-declare type ParticleSystem = import("../Particles/particleSystem").ParticleSystem;
+import { type AbstractEngine } from "../Engines/abstractEngine.js";
+import { type Scene } from "../scene.js";
+import { type ParticleSystem } from "../Particles/particleSystem.js";
 /**
  * Type of sub emitter
  */
@@ -58,7 +58,7 @@ export declare class SubEmitter {
     /**
      * @internal
      */
-    static _ParseParticleSystem(system: any, sceneOrEngine: Scene | ThinEngine, rootUrl: string, doNotStart?: boolean): ParticleSystem;
+    static _ParseParticleSystem(system: any, sceneOrEngine: Scene | AbstractEngine, rootUrl: string, doNotStart?: boolean): ParticleSystem;
     /**
      * Creates a new SubEmitter from a serialized JSON version
      * @param serializationObject defines the JSON object to read from
@@ -66,8 +66,7 @@ export declare class SubEmitter {
      * @param rootUrl defines the rootUrl for data loading
      * @returns a new SubEmitter
      */
-    static Parse(serializationObject: any, sceneOrEngine: Scene | ThinEngine, rootUrl: string): SubEmitter;
+    static Parse(serializationObject: any, sceneOrEngine: Scene | AbstractEngine, rootUrl: string): SubEmitter;
     /** Release associated resources */
     dispose(): void;
 }
-export {};

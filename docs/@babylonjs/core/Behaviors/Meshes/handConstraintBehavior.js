@@ -1,6 +1,6 @@
 import { WebXRFeatureName } from "../../XR/webXRFeaturesManager.js";
-import { WebXRHandJoint } from "../../XR/features/WebXRHandTracking.js";
-import { Quaternion, TmpVectors, Vector3 } from "../../Maths/math.vector.js";
+import { Quaternion, TmpVectors, Vector3 } from "../../Maths/math.vector.pure.js";
+import { Tools } from "../../Misc/tools.pure.js";
 /**
  * Zones around the hand
  */
@@ -66,6 +66,12 @@ export var HandConstraintVisibility;
  */
 export class HandConstraintBehavior {
     /**
+     * Attached node of this behavior
+     */
+    get attachedNode() {
+        return this._node;
+    }
+    /**
      * Builds a hand constraint behavior
      */
     constructor() {
@@ -74,7 +80,7 @@ export class HandConstraintBehavior {
         /**
          * Sets the HandConstraintVisibility level for the hand constraint
          */
-        this.handConstraintVisibility = HandConstraintVisibility.PALM_AND_GAZE;
+        this.handConstraintVisibility = 3 /* HandConstraintVisibility.PALM_AND_GAZE */;
         /**
          * A number from 0.0 to 1.0, marking how restricted the direction the palm faces is for the attached node to be enabled.
          * A 1 means the palm must be directly facing the user before the node is enabled, a 0 means it is always enabled.
@@ -93,15 +99,15 @@ export class HandConstraintBehavior {
         /**
          * Where to place the node regarding the center of the hand.
          */
-        this.targetZone = HandConstraintZone.ULNAR_SIDE;
+        this.targetZone = 2 /* HandConstraintZone.ULNAR_SIDE */;
         /**
          * Orientation mode of the 4 zones around the hand
          */
-        this.zoneOrientationMode = HandConstraintOrientation.HAND_ROTATION;
+        this.zoneOrientationMode = 1 /* HandConstraintOrientation.HAND_ROTATION */;
         /**
          * Orientation mode of the node attached to this behavior
          */
-        this.nodeOrientationMode = HandConstraintOrientation.HAND_ROTATION;
+        this.nodeOrientationMode = 1 /* HandConstraintOrientation.HAND_ROTATION */;
         /**
          * Set the hand this behavior should follow. If set to "none", it will follow any visible hand (prioritising the left one).
          */
@@ -111,11 +117,12 @@ export class HandConstraintBehavior {
          * Higher values will give a slower interpolation.
          */
         this.lerpTime = 100;
+        this._node = null;
         // For a right hand
-        this._zoneAxis[HandConstraintZone.ABOVE_FINGER_TIPS] = new Vector3(0, 1, 0);
-        this._zoneAxis[HandConstraintZone.RADIAL_SIDE] = new Vector3(-1, 0, 0);
-        this._zoneAxis[HandConstraintZone.ULNAR_SIDE] = new Vector3(1, 0, 0);
-        this._zoneAxis[HandConstraintZone.BELOW_WRIST] = new Vector3(0, -1, 0);
+        this._zoneAxis[0 /* HandConstraintZone.ABOVE_FINGER_TIPS */] = new Vector3(0, 1, 0);
+        this._zoneAxis[1 /* HandConstraintZone.RADIAL_SIDE */] = new Vector3(-1, 0, 0);
+        this._zoneAxis[2 /* HandConstraintZone.ULNAR_SIDE */] = new Vector3(1, 0, 0);
+        this._zoneAxis[3 /* HandConstraintZone.BELOW_WRIST */] = new Vector3(0, -1, 0);
     }
     /** gets or sets behavior's name */
     get name() {
@@ -142,9 +149,9 @@ export class HandConstraintBehavior {
             hand = this._handTracking.getHandByHandedness(this.handedness);
         }
         if (hand) {
-            const pinkyMetacarpal = hand.getJointMesh(WebXRHandJoint.PINKY_FINGER_METACARPAL);
-            const middleMetacarpal = hand.getJointMesh(WebXRHandJoint.MIDDLE_FINGER_METACARPAL);
-            const wrist = hand.getJointMesh(WebXRHandJoint.WRIST);
+            const pinkyMetacarpal = hand.getJointMesh("pinky-finger-metacarpal" /* WebXRHandJoint.PINKY_FINGER_METACARPAL */);
+            const middleMetacarpal = hand.getJointMesh("middle-finger-metacarpal" /* WebXRHandJoint.MIDDLE_FINGER_METACARPAL */);
+            const wrist = hand.getJointMesh("wrist" /* WebXRHandJoint.WRIST */);
             if (wrist && middleMetacarpal && pinkyMetacarpal) {
                 const handPose = { position: middleMetacarpal.absolutePosition, quaternion: new Quaternion(), id: hand.xrController.uniqueId };
                 // palm forward
@@ -156,7 +163,15 @@ export class HandConstraintBehavior {
                 // Create vectors for a rotation quaternion, where forward points out from the palm
                 Vector3.CrossToRef(up, forward, forward);
                 Vector3.CrossToRef(forward, up, left);
-                Quaternion.FromLookDirectionLHToRef(forward, up, handPose.quaternion);
+                if (this.handedness === "right") {
+                    forward.negateInPlace();
+                }
+                if (this._scene.useRightHandedSystem) {
+                    Quaternion.FromLookDirectionRHToRef(forward, up, handPose.quaternion);
+                }
+                else {
+                    Quaternion.FromLookDirectionLHToRef(forward, up, handPose.quaternion);
+                }
                 return handPose;
             }
         }
@@ -187,7 +202,7 @@ export class HandConstraintBehavior {
                 const camera = this._scene.activeCamera;
                 zoneOffset.copyFrom(this._zoneAxis[this.targetZone]);
                 const cameraLookAtQuaternion = TmpVectors.Quaternion[0];
-                if (camera && (this.zoneOrientationMode === HandConstraintOrientation.LOOK_AT_CAMERA || this.nodeOrientationMode === HandConstraintOrientation.LOOK_AT_CAMERA)) {
+                if (camera && (this.zoneOrientationMode === 0 /* HandConstraintOrientation.LOOK_AT_CAMERA */ || this.nodeOrientationMode === 0 /* HandConstraintOrientation.LOOK_AT_CAMERA */)) {
                     const toCamera = TmpVectors.Vector3[1];
                     toCamera.copyFrom(camera.position).subtractInPlace(pose.position).normalize();
                     if (this._scene.useRightHandedSystem) {
@@ -197,7 +212,7 @@ export class HandConstraintBehavior {
                         Quaternion.FromLookDirectionLHToRef(toCamera, Vector3.UpReadOnly, cameraLookAtQuaternion);
                     }
                 }
-                if (this.zoneOrientationMode === HandConstraintOrientation.HAND_ROTATION) {
+                if (this.zoneOrientationMode === 1 /* HandConstraintOrientation.HAND_ROTATION */) {
                     pose.quaternion.toRotationMatrix(TmpVectors.Matrix[0]);
                 }
                 else {
@@ -208,7 +223,7 @@ export class HandConstraintBehavior {
                 const targetPosition = TmpVectors.Vector3[2];
                 const targetRotation = TmpVectors.Quaternion[1];
                 targetPosition.copyFrom(pose.position).addInPlace(zoneOffset);
-                if (this.nodeOrientationMode === HandConstraintOrientation.HAND_ROTATION) {
+                if (this.nodeOrientationMode === 1 /* HandConstraintOrientation.HAND_ROTATION */) {
                     targetRotation.copyFrom(pose.quaternion);
                 }
                 else {
@@ -229,7 +244,7 @@ export class HandConstraintBehavior {
         const camera = this._scene.activeCamera;
         if (camera) {
             const cameraForward = camera.getForwardRay();
-            if (this.handConstraintVisibility === HandConstraintVisibility.GAZE_FOCUS || this.handConstraintVisibility === HandConstraintVisibility.PALM_AND_GAZE) {
+            if (this.handConstraintVisibility === 2 /* HandConstraintVisibility.GAZE_FOCUS */ || this.handConstraintVisibility === 3 /* HandConstraintVisibility.PALM_AND_GAZE */) {
                 gazeVisible = false;
                 let gaze;
                 if (this._eyeTracking) {
@@ -252,7 +267,7 @@ export class HandConstraintBehavior {
                     }
                 }
             }
-            if (this.handConstraintVisibility === HandConstraintVisibility.PALM_UP || this.handConstraintVisibility === HandConstraintVisibility.PALM_AND_GAZE) {
+            if (this.handConstraintVisibility === 1 /* HandConstraintVisibility.PALM_UP */ || this.handConstraintVisibility === 3 /* HandConstraintVisibility.PALM_AND_GAZE */) {
                 palmVisible = false;
                 if (pose) {
                     const palmDirection = TmpVectors.Vector3[0];
@@ -270,21 +285,28 @@ export class HandConstraintBehavior {
      */
     detach() {
         this._scene.onBeforeRenderObservable.remove(this._sceneRenderObserver);
+        this._node = null;
     }
     /**
      * Links the behavior to the XR experience in which to retrieve hand transform information.
      * @param xr xr experience
      */
     linkToXRExperience(xr) {
-        try {
-            this._eyeTracking = xr.featuresManager.getEnabledFeature(WebXRFeatureName.EYE_TRACKING);
+        const featuresManager = xr.featuresManager ? xr.featuresManager : xr;
+        if (!featuresManager) {
+            Tools.Error("XR features manager must be available or provided directly for the Hand Menu to work");
         }
-        catch (_a) { }
-        try {
-            this._handTracking = xr.featuresManager.getEnabledFeature(WebXRFeatureName.HAND_TRACKING);
-        }
-        catch (_b) {
-            alert("Hand tracking must be enabled for the Hand Menu to work");
+        else {
+            try {
+                this._eyeTracking = featuresManager.getEnabledFeature(WebXRFeatureName.EYE_TRACKING);
+            }
+            catch { }
+            try {
+                this._handTracking = featuresManager.getEnabledFeature(WebXRFeatureName.HAND_TRACKING);
+            }
+            catch {
+                Tools.Error("Hand tracking must be enabled for the Hand Menu to work");
+            }
         }
     }
 }

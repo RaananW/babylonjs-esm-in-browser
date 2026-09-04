@@ -1,14 +1,13 @@
-import type { Nullable } from "../../types";
-import { Vector3 } from "../../Maths/math.vector";
-import type { IPhysicsEngine } from "../IPhysicsEngine";
-import type { IPhysicsEnginePluginV2 } from "./IPhysicsEnginePlugin";
-import { PhysicsRaycastResult } from "../physicsRaycastResult";
-import type { PhysicsBody } from "./physicsBody";
+import { type Nullable } from "../../types.js";
+import { Vector3 } from "../../Maths/math.vector.pure.js";
+import { type IPhysicsEngine } from "../IPhysicsEngine.js";
+import { type IPhysicsEnginePluginV2 } from "./IPhysicsEnginePlugin.js";
+import { type IRaycastQuery, PhysicsRaycastResult } from "../physicsRaycastResult.js";
+import { type PhysicsBody } from "./physicsBody.js";
 /**
  * Class used to control physics engine
  * @see https://doc.babylonjs.com/features/featuresDeepDive/physics/usingPhysicsEngine
  */
-/** @internal */
 export declare class PhysicsEngine implements IPhysicsEngine {
     private _physicsPlugin;
     /** @internal */
@@ -44,6 +43,7 @@ export declare class PhysicsEngine implements IPhysicsEngine {
      * Default is 1/60.
      * To slow it down, enter 1/600 for example.
      * To speed it up, 1/30
+     * Unit is seconds.
      * @param newTimeStep defines the new timestep to apply to this world.
      */
     setTimeStep(newTimeStep?: number): void;
@@ -74,24 +74,38 @@ export declare class PhysicsEngine implements IPhysicsEngine {
      */
     getPhysicsPluginName(): string;
     /**
-     * Adding a new impostor for the impostor tracking.
-     * This will be done by the impostor itself.
-     * @param impostor the impostor to add
+     * Set the maximum allowed linear and angular velocities
+     * @param maxLinearVelocity maximum allowed linear velocity
+     * @param maxAngularVelocity maximum allowed angular velocity
      */
+    setVelocityLimits(maxLinearVelocity: number, maxAngularVelocity: number): void;
+    /**
+     * @returns maximum allowed linear velocity
+     */
+    getMaxLinearVelocity(): number;
+    /**
+     * @returns maximum allowed angular velocity
+     */
+    getMaxAngularVelocity(): number;
     /**
      * Called by the scene. No need to call it.
      * @param delta defines the timespan between frames
      */
     _step(delta: number): void;
     /**
-     *
-     * @param body
+     * Add a body as an active component of this engine
+     * @param physicsBody The body to add
      */
     addBody(physicsBody: PhysicsBody): void;
     /**
-     *
+     * Removes a particular body from this engine
+     * @param physicsBody The body to remove from the simulation
      */
     removeBody(physicsBody: PhysicsBody): void;
+    /**
+     * @returns an array of bodies added to this engine
+     */
+    getBodies(): Array<PhysicsBody>;
     /**
      * Gets the current plugin used to run the simulation
      * @returns current plugin
@@ -101,14 +115,26 @@ export declare class PhysicsEngine implements IPhysicsEngine {
      * Does a raycast in the physics world
      * @param from when should the ray start?
      * @param to when should the ray end?
-     * @param result resulting PhysicsRaycastResult
+     * @param result resulting PhysicsRaycastResult or array of PhysicsRaycastResults
+     * @param query raycast query object
+     * If result is an empty array, it will be populated with every detected raycast hit.
+     * If result is a populated array, it will only fill the PhysicsRaycastResults present in the array.
      */
-    raycastToRef(from: Vector3, to: Vector3, result: PhysicsRaycastResult): void;
+    raycastToRef(from: Vector3, to: Vector3, result: PhysicsRaycastResult | Array<PhysicsRaycastResult>, query?: IRaycastQuery): void;
     /**
      * Does a raycast in the physics world
      * @param from when should the ray start?
      * @param to when should the ray end?
+     * @param query raycast query object
      * @returns PhysicsRaycastResult
      */
-    raycast(from: Vector3, to: Vector3): PhysicsRaycastResult;
+    raycast(from: Vector3, to: Vector3, query?: IRaycastQuery): PhysicsRaycastResult;
+    /**
+     * Does a raycast through multiple objects in the physics world
+     * @param from when should the ray start?
+     * @param to when should the ray end?
+     * @param query raycast query object
+     * @returns array of PhysicsRaycastResult
+     */
+    raycastMulti(from: Vector3, to: Vector3, query?: IRaycastQuery): Array<PhysicsRaycastResult>;
 }

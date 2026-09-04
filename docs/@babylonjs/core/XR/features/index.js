@@ -18,4 +18,9 @@ export * from "./WebXRLightEstimation.js";
 export * from "./WebXREyeTracking.js";
 export * from "./WebXRWalkingLocomotion.js";
 export * from "./WebXRLayers.js";
+export * from "./WebXRDepthSensing.js";
+export * from "./WebXRSpaceWarp.js";
+export * from "./WebXRRawCameraAccess.js";
+export * from "./WebXRBodyTracking.js";
+export * from "./WebXRTrackedSources.js";
 //# sourceMappingURL=index.js.map

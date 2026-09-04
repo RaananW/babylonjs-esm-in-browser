@@ -1,17 +1,17 @@
 import { SceneSerializer } from "./sceneSerializer.js";
-import { Mesh } from "../Meshes/mesh.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
 import { Light } from "../Lights/light.js";
-import { Camera } from "../Cameras/camera.js";
+import { Camera } from "../Cameras/camera.pure.js";
 import { Skeleton } from "../Bones/skeleton.js";
 import { Material } from "../Materials/material.js";
-import { MultiMaterial } from "../Materials/multiMaterial.js";
-import { TransformNode } from "../Meshes/transformNode.js";
-import { ParticleSystem } from "../Particles/particleSystem.js";
+import { MultiMaterial } from "../Materials/multiMaterial.pure.js";
+import { TransformNode } from "../Meshes/transformNode.pure.js";
+import { ParticleSystem } from "../Particles/particleSystem.pure.js";
 import { MorphTargetManager } from "../Morph/morphTargetManager.js";
 import { ShadowGenerator } from "../Lights/Shadows/shadowGenerator.js";
-import { PostProcess } from "../PostProcesses/postProcess.js";
-import { Texture } from "../Materials/Textures/texture.js";
-import { SerializationHelper } from "./decorators.js";
+import { PostProcess } from "../PostProcesses/postProcess.pure.js";
+import { Texture } from "../Materials/Textures/texture.pure.js";
+import { SerializationHelper } from "./decorators.serialization.js";
 /**
  * Class used to record delta files between 2 scene states
  */
@@ -98,6 +98,9 @@ export class SceneRecorder {
                         deleteId: originalObject.id || originalObject.name,
                     },
                 };
+                if (!deltaJSON[key]) {
+                    deltaJSON[key] = [];
+                }
                 deltaJSON[key].push(newObject);
             }
         }
@@ -165,6 +168,13 @@ export class SceneRecorder {
                 return;
             }
         }
+    }
+    /**
+     * Dispose the recorder.
+     */
+    dispose() {
+        this._trackedScene = null;
+        this._savedJSON = null;
     }
     static GetShadowGeneratorById(scene, id) {
         const allGenerators = scene.lights.map((l) => l.getShadowGenerators());
@@ -265,12 +275,15 @@ export class SceneRecorder {
             if (source.__state && source.__state.id !== undefined) {
                 const targetEntity = finder(source.__state.id);
                 if (targetEntity) {
+                    // This first pass applies properties that aren't on the serialization list
                     this._ApplyPropertiesToEntity(source, targetEntity);
+                    // The second pass applies the serializable properties
+                    SerializationHelper.ParseProperties(source, targetEntity, scene, null);
                 }
             }
             else if (source.__state && source.__state.deleteId !== undefined) {
                 const target = finder(source.__state.deleteId);
-                target === null || target === void 0 ? void 0 : target.dispose();
+                target?.dispose();
             }
             else {
                 // New

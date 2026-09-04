@@ -1,9 +1,10 @@
-import { Observable } from "../Misc/observable";
-import { AbstractMesh } from "../Meshes/abstractMesh";
-import type { Ray } from "../Culling/ray";
-import type { Scene } from "../scene";
-import type { WebXRAbstractMotionController } from "./motionController/webXRAbstractMotionController";
-import type { WebXRCamera } from "./webXRCamera";
+import { Observable } from "../Misc/observable.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { type Ray } from "../Culling/ray.js";
+import { type Scene } from "../scene.js";
+import { type WebXRAbstractMotionController } from "./motionController/webXRAbstractMotionController.js";
+import { type WebXRCamera } from "./webXRCamera.js";
+import { type WebXRSessionManager } from "./webXRSessionManager.js";
 /**
  * Configuration options for the WebXR controller creation
  */
@@ -103,6 +104,7 @@ export declare class WebXRInputSource {
      * @param xrFrame xr frame to update the pose with
      * @param referenceSpace reference space to use
      * @param xrCamera the xr camera, used for parenting
+     * @param xrSessionManager the session manager used to get the world reference system
      */
-    updateFromXRFrame(xrFrame: XRFrame, referenceSpace: XRReferenceSpace, xrCamera: WebXRCamera): void;
+    updateFromXRFrame(xrFrame: XRFrame, referenceSpace: XRReferenceSpace, xrCamera: WebXRCamera, xrSessionManager: WebXRSessionManager): void;
 }

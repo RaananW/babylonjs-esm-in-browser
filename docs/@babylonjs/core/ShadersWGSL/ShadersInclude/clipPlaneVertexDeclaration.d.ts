@@ -1,5 +1,5 @@
 /** @internal */
-export declare const clipPlaneVertexDeclaration: {
+export declare const clipPlaneVertexDeclarationWGSL: {
     name: string;
     shader: string;
 };

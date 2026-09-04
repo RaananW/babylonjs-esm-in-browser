@@ -10,4 +10,5 @@ export * from "./scaleGizmo.js";
 export * from "./lightGizmo.js";
 export * from "./cameraGizmo.js";
 export * from "./planeDragGizmo.js";
+export * from "./spatialAudioGizmo.js";
 //# sourceMappingURL=index.js.map

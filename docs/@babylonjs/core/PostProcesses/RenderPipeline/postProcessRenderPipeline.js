@@ -1,185 +1,227 @@
-import { __decorate } from "../../tslib.es6.js";
-import { Tools } from "../../Misc/tools.js";
+import { __esDecorate, __runInitializers } from "../../tslib.es6.js";
+import { Tools } from "../../Misc/tools.pure.js";
 import { serialize } from "../../Misc/decorators.js";
+import { UniqueIdGenerator } from "../../Misc/uniqueIdGenerator.js";
+import { RegisterPostProcessRenderPipelineManagerSceneComponent } from "./postProcessRenderPipelineManagerSceneComponent.pure.js";
+import { PostProcessRenderPipelineManager } from "./postProcessRenderPipelineManager.js";
 /**
  * PostProcessRenderPipeline
  * @see https://doc.babylonjs.com/features/featuresDeepDive/postProcesses/postProcessRenderPipeline
  */
-export class PostProcessRenderPipeline {
-    /**
-     * Initializes a PostProcessRenderPipeline
-     * @param _engine engine to add the pipeline to
-     * @param name name of the pipeline
-     */
-    constructor(_engine, name) {
-        this._engine = _engine;
-        this._name = name;
-        this._renderEffects = {};
-        this._renderEffectsForIsolatedPass = new Array();
-        this._cameras = [];
-    }
-    /**
-     * Gets pipeline name
-     */
-    get name() {
-        return this._name;
-    }
-    /** Gets the list of attached cameras */
-    get cameras() {
-        return this._cameras;
-    }
-    /**
-     * Gets the class name
-     * @returns "PostProcessRenderPipeline"
-     */
-    getClassName() {
-        return "PostProcessRenderPipeline";
-    }
-    /**
-     * If all the render effects in the pipeline are supported
-     */
-    get isSupported() {
-        for (const renderEffectName in this._renderEffects) {
-            if (Object.prototype.hasOwnProperty.call(this._renderEffects, renderEffectName)) {
-                if (!this._renderEffects[renderEffectName].isSupported) {
-                    return false;
+let PostProcessRenderPipeline = (() => {
+    var _a;
+    let __name_decorators;
+    let __name_initializers = [];
+    let __name_extraInitializers = [];
+    return _a = class PostProcessRenderPipeline {
+            /**
+             * Gets pipeline name
+             */
+            get name() {
+                return this._name;
+            }
+            /** Gets the list of attached cameras */
+            get cameras() {
+                return this._cameras;
+            }
+            /**
+             * Gets the active engine
+             */
+            get engine() {
+                return this._engine;
+            }
+            /**
+             * Initializes a PostProcessRenderPipeline
+             * @param _engine engine to add the pipeline to
+             * @param name name of the pipeline
+             */
+            constructor(_engine, name) {
+                this._engine = _engine;
+                /** @internal */
+                this._name = __runInitializers(this, __name_initializers, void 0);
+                /**
+                 * Gets the unique id of the post process rendering pipeline
+                 */
+                this.uniqueId = (__runInitializers(this, __name_extraInitializers), UniqueIdGenerator.UniqueId);
+                RegisterPostProcessRenderPipelineManagerSceneComponent(PostProcessRenderPipelineManager);
+                this._name = name;
+                this._renderEffects = {};
+                this._renderEffectsForIsolatedPass = new Array();
+                this._cameras = [];
+            }
+            /**
+             * Gets the class name
+             * @returns "PostProcessRenderPipeline"
+             */
+            getClassName() {
+                return "PostProcessRenderPipeline";
+            }
+            /**
+             * If all the render effects in the pipeline are supported
+             */
+            get isSupported() {
+                for (const renderEffectName in this._renderEffects) {
+                    if (Object.prototype.hasOwnProperty.call(this._renderEffects, renderEffectName)) {
+                        if (!this._renderEffects[renderEffectName].isSupported) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+            /**
+             * Adds an effect to the pipeline
+             * @param renderEffect the effect to add
+             */
+            addEffect(renderEffect) {
+                this._renderEffects[renderEffect._name] = renderEffect;
+            }
+            // private
+            /** @internal */
+            _rebuild() { }
+            /**
+             * @internal
+             */
+            _enableEffect(renderEffectName, cameras) {
+                const renderEffects = this._renderEffects[renderEffectName];
+                if (!renderEffects) {
+                    return;
+                }
+                renderEffects._enable(Tools.MakeArray(cameras || this._cameras));
+            }
+            /**
+             * @internal
+             */
+            _disableEffect(renderEffectName, cameras) {
+                const renderEffects = this._renderEffects[renderEffectName];
+                if (!renderEffects) {
+                    return;
+                }
+                renderEffects._disable(Tools.MakeArray(cameras || this._cameras));
+            }
+            /**
+             * @internal
+             */
+            _attachCameras(cameras, unique) {
+                const cams = Tools.MakeArray(cameras || this._cameras);
+                if (!cams) {
+                    return;
+                }
+                const indicesToDelete = [];
+                let i;
+                for (i = 0; i < cams.length; i++) {
+                    const camera = cams[i];
+                    if (!camera) {
+                        continue;
+                    }
+                    if (this._cameras.indexOf(camera) === -1) {
+                        this._cameras.push(camera);
+                    }
+                    else if (unique) {
+                        indicesToDelete.push(i);
+                    }
+                }
+                for (i = 0; i < indicesToDelete.length; i++) {
+                    cams.splice(indicesToDelete[i], 1);
+                }
+                for (const renderEffectName in this._renderEffects) {
+                    if (Object.prototype.hasOwnProperty.call(this._renderEffects, renderEffectName)) {
+                        this._renderEffects[renderEffectName]._attachCameras(cams);
+                    }
                 }
             }
-        }
-        return true;
-    }
-    /**
-     * Adds an effect to the pipeline
-     * @param renderEffect the effect to add
-     */
-    addEffect(renderEffect) {
-        this._renderEffects[renderEffect._name] = renderEffect;
-    }
-    // private
-    /** @internal */
-    _rebuild() { }
-    /**
-     * @internal
-     */
-    _enableEffect(renderEffectName, cameras) {
-        const renderEffects = this._renderEffects[renderEffectName];
-        if (!renderEffects) {
-            return;
-        }
-        renderEffects._enable(Tools.MakeArray(cameras || this._cameras));
-    }
-    /**
-     * @internal
-     */
-    _disableEffect(renderEffectName, cameras) {
-        const renderEffects = this._renderEffects[renderEffectName];
-        if (!renderEffects) {
-            return;
-        }
-        renderEffects._disable(Tools.MakeArray(cameras || this._cameras));
-    }
-    /**
-     * @internal
-     */
-    _attachCameras(cameras, unique) {
-        const cams = Tools.MakeArray(cameras || this._cameras);
-        if (!cams) {
-            return;
-        }
-        const indicesToDelete = [];
-        let i;
-        for (i = 0; i < cams.length; i++) {
-            const camera = cams[i];
-            if (!camera) {
-                continue;
+            /**
+             * @internal
+             */
+            _detachCameras(cameras) {
+                const cams = Tools.MakeArray(cameras || this._cameras);
+                if (!cams) {
+                    return;
+                }
+                for (const renderEffectName in this._renderEffects) {
+                    if (Object.prototype.hasOwnProperty.call(this._renderEffects, renderEffectName)) {
+                        this._renderEffects[renderEffectName]._detachCameras(cams);
+                    }
+                }
+                for (let i = 0; i < cams.length; i++) {
+                    this._cameras.splice(this._cameras.indexOf(cams[i]), 1);
+                }
             }
-            if (this._cameras.indexOf(camera) === -1) {
-                this._cameras.push(camera);
+            /** @internal */
+            _update() {
+                for (const renderEffectName in this._renderEffects) {
+                    if (Object.prototype.hasOwnProperty.call(this._renderEffects, renderEffectName)) {
+                        this._renderEffects[renderEffectName]._update();
+                    }
+                }
+                for (let i = 0; i < this._cameras.length; i++) {
+                    if (!this._cameras[i]) {
+                        continue;
+                    }
+                    const cameraName = this._cameras[i].name;
+                    if (this._renderEffectsForIsolatedPass[cameraName]) {
+                        this._renderEffectsForIsolatedPass[cameraName]._update();
+                    }
+                }
             }
-            else if (unique) {
-                indicesToDelete.push(i);
+            /** @internal */
+            _reset() {
+                this._renderEffects = {};
+                this._renderEffectsForIsolatedPass = new Array();
             }
-        }
-        for (i = 0; i < indicesToDelete.length; i++) {
-            cams.splice(indicesToDelete[i], 1);
-        }
-        for (const renderEffectName in this._renderEffects) {
-            if (Object.prototype.hasOwnProperty.call(this._renderEffects, renderEffectName)) {
-                this._renderEffects[renderEffectName]._attachCameras(cams);
+            _enableMSAAOnFirstPostProcess(sampleCount) {
+                if (!this._engine._features.supportMSAA) {
+                    return false;
+                }
+                // Set samples of the very first post process to 4 to enable native anti-aliasing in browsers that support webGL 2.0 (See: https://github.com/BabylonJS/Babylon.js/issues/3754)
+                const effectKeys = Object.keys(this._renderEffects);
+                if (effectKeys.length > 0) {
+                    const postProcesses = this._renderEffects[effectKeys[0]].getPostProcesses();
+                    if (postProcesses) {
+                        postProcesses[0].samples = sampleCount;
+                    }
+                }
+                return true;
             }
-        }
-    }
-    /**
-     * @internal
-     */
-    _detachCameras(cameras) {
-        const cams = Tools.MakeArray(cameras || this._cameras);
-        if (!cams) {
-            return;
-        }
-        for (const renderEffectName in this._renderEffects) {
-            if (Object.prototype.hasOwnProperty.call(this._renderEffects, renderEffectName)) {
-                this._renderEffects[renderEffectName]._detachCameras(cams);
+            /**
+             * Ensures that all post processes in the pipeline are the correct size according to the
+             * the viewport's required size
+             */
+            _adaptPostProcessesToViewPort() {
+                const effectKeys = Object.keys(this._renderEffects);
+                for (const effectKey of effectKeys) {
+                    const postProcesses = this._renderEffects[effectKey].getPostProcesses();
+                    if (postProcesses) {
+                        for (const postProcess of postProcesses) {
+                            postProcess.adaptScaleToCurrentViewport = true;
+                        }
+                    }
+                }
             }
-        }
-        for (let i = 0; i < cams.length; i++) {
-            this._cameras.splice(this._cameras.indexOf(cams[i]), 1);
-        }
-    }
-    /** @internal */
-    _update() {
-        for (const renderEffectName in this._renderEffects) {
-            if (Object.prototype.hasOwnProperty.call(this._renderEffects, renderEffectName)) {
-                this._renderEffects[renderEffectName]._update();
+            /**
+             * Sets the required values to the prepass renderer.
+             * @param prePassRenderer defines the prepass renderer to setup.
+             * @returns true if the pre pass is needed.
+             */
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            setPrePassRenderer(prePassRenderer) {
+                // Do Nothing by default
+                return false;
             }
-        }
-        for (let i = 0; i < this._cameras.length; i++) {
-            if (!this._cameras[i]) {
-                continue;
+            /**
+             * Disposes of the pipeline
+             */
+            dispose() {
+                // Must be implemented by children
             }
-            const cameraName = this._cameras[i].name;
-            if (this._renderEffectsForIsolatedPass[cameraName]) {
-                this._renderEffectsForIsolatedPass[cameraName]._update();
-            }
-        }
-    }
-    /** @internal */
-    _reset() {
-        this._renderEffects = {};
-        this._renderEffectsForIsolatedPass = new Array();
-    }
-    _enableMSAAOnFirstPostProcess(sampleCount) {
-        if (!this._engine._features.supportMSAA) {
-            return false;
-        }
-        // Set samples of the very first post process to 4 to enable native anti-aliasing in browsers that support webGL 2.0 (See: https://github.com/BabylonJS/Babylon.js/issues/3754)
-        const effectKeys = Object.keys(this._renderEffects);
-        if (effectKeys.length > 0) {
-            const postProcesses = this._renderEffects[effectKeys[0]].getPostProcesses();
-            if (postProcesses) {
-                postProcesses[0].samples = sampleCount;
-            }
-        }
-        return true;
-    }
-    /**
-     * Sets the required values to the prepass renderer.
-     * @param prePassRenderer defines the prepass renderer to setup.
-     * @returns true if the pre pass is needed.
-     */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    setPrePassRenderer(prePassRenderer) {
-        // Do Nothing by default
-        return false;
-    }
-    /**
-     * Disposes of the pipeline
-     */
-    dispose() {
-        // Must be implemented by children
-    }
-}
-__decorate([
-    serialize()
-], PostProcessRenderPipeline.prototype, "_name", void 0);
+        },
+        (() => {
+            const _metadata = typeof Symbol === "function" && Symbol.metadata ? Object.create(null) : void 0;
+            __name_decorators = [serialize()];
+            __esDecorate(null, null, __name_decorators, { kind: "field", name: "_name", static: false, private: false, access: { has: obj => "_name" in obj, get: obj => obj._name, set: (obj, value) => { obj._name = value; } }, metadata: _metadata }, __name_initializers, __name_extraInitializers);
+            if (_metadata) Object.defineProperty(_a, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+        })(),
+        _a;
+})();
+export { PostProcessRenderPipeline };
 //# sourceMappingURL=postProcessRenderPipeline.js.map

@@ -1,0 +1,77 @@
+/** This file must only contain pure code and pure imports */
+import { NodeMaterialBlock } from "../../nodeMaterialBlock.js";
+import { type NodeMaterialBuildState } from "../../nodeMaterialBuildState.js";
+import { type Mesh } from "../../../../Meshes/mesh.pure.js";
+import { type Effect } from "../../../effect.pure.js";
+import { type NodeMaterialConnectionPoint } from "../../nodeMaterialBlockConnectionPoint.js";
+import { type AbstractMesh } from "../../../../Meshes/abstractMesh.pure.js";
+import { type NodeMaterial, type NodeMaterialDefines } from "../../nodeMaterial.pure.js";
+/**
+ * Block used to add support for scene fog
+ */
+export declare class FogBlock extends NodeMaterialBlock {
+    private _fogDistanceName;
+    private _fogParameters;
+    /**
+     * Create a new FogBlock
+     * @param name defines the block name
+     */
+    constructor(name: string);
+    /**
+     * Gets the current class name
+     * @returns the class name
+     */
+    getClassName(): string;
+    /**
+     * Gets the world position input component
+     */
+    get worldPosition(): NodeMaterialConnectionPoint;
+    /**
+     * Gets the view input component
+     */
+    get view(): NodeMaterialConnectionPoint;
+    /**
+     * Gets the color input component
+     */
+    get input(): NodeMaterialConnectionPoint;
+    /**
+     * Gets the fog color input component
+     */
+    get fogColor(): NodeMaterialConnectionPoint;
+    /**
+     * Gets the output component
+     */
+    get output(): NodeMaterialConnectionPoint;
+    /**
+     * Initialize the block
+     * @param state - the build state
+     */
+    initialize(state: NodeMaterialBuildState): void;
+    private _initShaderSourceAsync;
+    /**
+     * Auto configure the block based on the material
+     * @param material - the node material
+     * @param additionalFilteringInfo - optional filtering info
+     */
+    autoConfigure(material: NodeMaterial, additionalFilteringInfo?: (node: NodeMaterialBlock) => boolean): void;
+    /**
+     * Prepare the list of defines
+     * @param defines - the material defines
+     * @param nodeMaterial - the node material
+     * @param mesh - the mesh to prepare for
+     */
+    prepareDefines(defines: NodeMaterialDefines, nodeMaterial: NodeMaterial, mesh?: AbstractMesh): void;
+    /**
+     * Bind data to effect
+     * @param effect - the effect to bind to
+     * @param nodeMaterial - the node material
+     * @param mesh - the mesh to bind for
+     */
+    bind(effect: Effect, nodeMaterial: NodeMaterial, mesh?: Mesh): void;
+    protected _buildBlock(state: NodeMaterialBuildState): this;
+}
+/**
+ * Register side effects for fogBlock.
+ * Safe to call multiple times; only the first call has an effect.
+ */
+export declare function RegisterFogBlock(): void;

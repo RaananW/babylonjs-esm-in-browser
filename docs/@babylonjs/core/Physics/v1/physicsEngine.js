@@ -1,10 +1,25 @@
-import { Vector3 } from "../../Maths/math.vector.js";
+import { Vector3 } from "../../Maths/math.vector.pure.js";
 import { _WarnImport } from "../../Misc/devTools.js";
 /**
  * Class used to control physics engine
  * @see https://doc.babylonjs.com/features/featuresDeepDive/physics/usingPhysicsEngine
  */
 export class PhysicsEngine {
+    /**
+     *
+     * @returns version
+     */
+    getPluginVersion() {
+        return this._physicsPlugin.getPluginVersion();
+    }
+    /**
+     * @virtual
+     * Factory used to create the default physics plugin.
+     * @returns The default physics plugin
+     */
+    static DefaultPluginFactory() {
+        throw _WarnImport("CannonJSPlugin");
+    }
     /**
      * Creates a new Physics Engine
      * @param gravity defines the gravity vector used by the simulation
@@ -25,20 +40,6 @@ export class PhysicsEngine {
         gravity = gravity || new Vector3(0, -9.807, 0);
         this.setGravity(gravity);
         this.setTimeStep();
-    }
-    /**
-     *
-     * @returns version
-     */
-    getPluginVersion() {
-        return this._physicsPlugin.getPluginVersion();
-    }
-    /**
-     * Factory used to create the default physics plugin.
-     * @returns The default physics plugin
-     */
-    static DefaultPluginFactory() {
-        throw _WarnImport("CannonJSPlugin");
     }
     /**
      * Sets the gravity vector used by the simulation
@@ -85,9 +86,9 @@ export class PhysicsEngine {
      * Release all resources
      */
     dispose() {
-        this._impostors.forEach(function (impostor) {
+        for (const impostor of this._impostors) {
             impostor.dispose();
-        });
+        }
         this._physicsPlugin.dispose();
     }
     /**
@@ -162,11 +163,11 @@ export class PhysicsEngine {
      */
     _step(delta) {
         //check if any mesh has no body / requires an update
-        this._impostors.forEach((impostor) => {
+        for (const impostor of this._impostors) {
             if (impostor.isBodyInitRequired()) {
                 this._physicsPlugin.generatePhysicsBody(impostor);
             }
-        });
+        }
         if (delta > 0.1) {
             delta = 0.1;
         }
@@ -229,6 +230,7 @@ export class PhysicsEngine {
      * @param from when should the ray start?
      * @param to when should the ray end?
      * @param result resulting PhysicsRaycastResult
+     * @returns true if the ray hits an impostor, else false
      */
     raycastToRef(from, to, result) {
         return this._physicsPlugin.raycastToRef(from, to, result);

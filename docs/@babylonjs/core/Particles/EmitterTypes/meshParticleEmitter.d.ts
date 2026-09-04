@@ -1,12 +1,11 @@
-import type { Matrix } from "../../Maths/math.vector";
-import { Vector3 } from "../../Maths/math.vector";
-import type { Particle } from "../../Particles/particle";
-import type { IParticleEmitterType } from "./IParticleEmitterType";
-import type { Nullable } from "../../types";
-import type { Scene } from "../../scene";
-import type { AbstractMesh } from "../../Meshes/abstractMesh";
-import type { UniformBufferEffectCommonAccessor } from "../../Materials/uniformBufferEffectCommonAccessor";
-import type { UniformBuffer } from "../../Materials/uniformBuffer";
+import { type Matrix, Vector3 } from "../../Maths/math.vector.pure.js";
+import { type Particle } from "../../Particles/particle.js";
+import { type IParticleEmitterType } from "./IParticleEmitterType.js";
+import { type Nullable } from "../../types.js";
+import { type Scene } from "../../scene.js";
+import { type AbstractMesh } from "../../Meshes/abstractMesh.js";
+import { type UniformBufferEffectCommonAccessor } from "../../Materials/uniformBufferEffectCommonAccessor.js";
+import { type UniformBuffer } from "../../Materials/uniformBuffer.js";
 /**
  * Particle emitter emitting particles from the inside of a box.
  * It emits the particles randomly between 2 given directions.

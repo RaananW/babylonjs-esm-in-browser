@@ -2,12 +2,7 @@ import { UniformBuffer } from "../../Materials/uniformBuffer.js";
 import { WebGPUShaderProcessor } from "./webgpuShaderProcessor.js";
 /** @internal */
 export class WebGPUPipelineContext {
-    constructor(shaderProcessingContext, engine) {
-        this._name = "unnamed";
-        this.shaderProcessingContext = shaderProcessingContext;
-        this._leftOverUniformsByName = {};
-        this.engine = engine;
-    }
+    // eslint-disable-next-line no-restricted-syntax
     get isAsync() {
         return false;
     }
@@ -17,16 +12,24 @@ export class WebGPUPipelineContext {
         }
         return false;
     }
+    constructor(shaderProcessingContext, engine) {
+        // The field is indexed by textureState. See @WebGPUMaterialContext.textureState for more information.
+        this.bindGroupLayouts = {};
+        this._name = "unnamed";
+        this.shaderProcessingContext = shaderProcessingContext;
+        this._leftOverUniformsByName = {};
+        this.engine = engine;
+        this.vertexBufferKindToType = {};
+    }
     _handlesSpectorRebuildCallback() {
         // Nothing to do yet for spector.
     }
     _fillEffectInformation(effect, uniformBuffersNames, uniformsNames, uniforms, samplerList, samplers, attributesNames, attributes) {
         const engine = this.engine;
-        // Prevent Memory Leak by reducing the number of string, refer to the string instead of copy.
-        effect._fragmentSourceCode = "";
-        effect._vertexSourceCode = "";
-        // this._fragmentSourceCodeOverride = "";
-        // this._vertexSourceCodeOverride = "";
+        if (engine._doNotHandleContextLost) {
+            effect._fragmentSourceCode = "";
+            effect._vertexSourceCode = "";
+        }
         const foundSamplers = this.shaderProcessingContext.availableTextures;
         let index;
         for (index = 0; index < samplerList.length; index++) {
@@ -65,6 +68,7 @@ export class WebGPUPipelineContext {
         if (!this.shaderProcessingContext.leftOverUniforms.length) {
             return;
         }
+        this.uniformBuffer?.dispose();
         this.uniformBuffer = new UniformBuffer(this.engine, undefined, undefined, "leftOver-" + this._name);
         for (const leftOverUniform of this.shaderProcessingContext.leftOverUniforms) {
             const type = leftOverUniform.type.replace(/^(.*?)(<.*>)?$/, "$1");
@@ -73,6 +77,9 @@ export class WebGPUPipelineContext {
             this._leftOverUniformsByName[leftOverUniform.name] = leftOverUniform.type;
         }
         this.uniformBuffer.create();
+    }
+    setEngine(engine) {
+        this.engine = engine;
     }
     /**
      * Release all associated resources.
@@ -168,6 +175,91 @@ export class WebGPUPipelineContext {
         this.setIntArray(uniformName, array);
     }
     /**
+     * Sets an unsigned integer value on a uniform variable.
+     * @param uniformName Name of the variable.
+     * @param value Value to be set.
+     */
+    setUInt(uniformName, value) {
+        if (!this.uniformBuffer || !this._leftOverUniformsByName[uniformName]) {
+            return;
+        }
+        this.uniformBuffer.updateUInt(uniformName, value);
+    }
+    /**
+     * Sets an unsigned int2 value on a uniform variable.
+     * @param uniformName Name of the variable.
+     * @param x First unsigned int in uint2.
+     * @param y Second unsigned int in uint2.
+     */
+    setUInt2(uniformName, x, y) {
+        if (!this.uniformBuffer || !this._leftOverUniformsByName[uniformName]) {
+            return;
+        }
+        this.uniformBuffer.updateUInt2(uniformName, x, y);
+    }
+    /**
+     * Sets an unsigned int3 value on a uniform variable.
+     * @param uniformName Name of the variable.
+     * @param x First unsigned int in uint3.
+     * @param y Second unsigned int in uint3.
+     * @param z Third unsigned int in uint3.
+     */
+    setUInt3(uniformName, x, y, z) {
+        if (!this.uniformBuffer || !this._leftOverUniformsByName[uniformName]) {
+            return;
+        }
+        this.uniformBuffer.updateUInt3(uniformName, x, y, z);
+    }
+    /**
+     * Sets an unsigned int4 value on a uniform variable.
+     * @param uniformName Name of the variable.
+     * @param x First unsigned int in uint4.
+     * @param y Second unsigned int in uint4.
+     * @param z Third unsigned int in uint4.
+     * @param w Fourth unsigned int in uint4.
+     */
+    setUInt4(uniformName, x, y, z, w) {
+        if (!this.uniformBuffer || !this._leftOverUniformsByName[uniformName]) {
+            return;
+        }
+        this.uniformBuffer.updateUInt4(uniformName, x, y, z, w);
+    }
+    /**
+     * Sets an unsigned int array on a uniform variable.
+     * @param uniformName Name of the variable.
+     * @param array array to be set.
+     */
+    setUIntArray(uniformName, array) {
+        if (!this.uniformBuffer || !this._leftOverUniformsByName[uniformName]) {
+            return;
+        }
+        this.uniformBuffer.updateUIntArray(uniformName, array);
+    }
+    /**
+     * Sets an unsigned int array 2 on a uniform variable. (Array is specified as single array eg. [1,2,3,4] will result in [[1,2],[3,4]] in the shader)
+     * @param uniformName Name of the variable.
+     * @param array array to be set.
+     */
+    setUIntArray2(uniformName, array) {
+        this.setUIntArray(uniformName, array);
+    }
+    /**
+     * Sets an unsigned int array 3 on a uniform variable. (Array is specified as single array eg. [1,2,3,4,5,6] will result in [[1,2,3],[4,5,6]] in the shader)
+     * @param uniformName Name of the variable.
+     * @param array array to be set.
+     */
+    setUIntArray3(uniformName, array) {
+        this.setUIntArray(uniformName, array);
+    }
+    /**
+     * Sets an unsigned int array 4 on a uniform variable. (Array is specified as single array eg. [1,2,3,4,5,6,7,8] will result in [[1,2,3,4],[5,6,7,8]] in the shader)
+     * @param uniformName Name of the variable.
+     * @param array array to be set.
+     */
+    setUIntArray4(uniformName, array) {
+        this.setUIntArray(uniformName, array);
+    }
+    /**
      * Sets an array on a uniform variable.
      * @param uniformName Name of the variable.
      * @param array array to be set.
@@ -190,7 +282,6 @@ export class WebGPUPipelineContext {
      * Sets an array 3 on a uniform variable. (Array is specified as single array eg. [1,2,3,4,5,6] will result in [[1,2,3],[4,5,6]] in the shader)
      * @param uniformName Name of the variable.
      * @param array array to be set.
-     * @returns this effect.
      */
     setArray3(uniformName, array) {
         this.setArray(uniformName, array);
@@ -251,7 +342,6 @@ export class WebGPUPipelineContext {
      * Sets a float on a uniform variable.
      * @param uniformName Name of the variable.
      * @param value value to be set.
-     * @returns this effect.
      */
     setFloat(uniformName, value) {
         if (!this.uniformBuffer || !this._leftOverUniformsByName[uniformName]) {
@@ -323,7 +413,6 @@ export class WebGPUPipelineContext {
      * @param y Second float in float4.
      * @param z Third float in float4.
      * @param w Fourth float in float4.
-     * @returns this effect.
      */
     setFloat4(uniformName, x, y, z, w) {
         if (!this.uniformBuffer || !this._leftOverUniformsByName[uniformName]) {
@@ -357,12 +446,10 @@ export class WebGPUPipelineContext {
         this.setFloat4(uniformName, color4.r, color4.g, color4.b, color4.a);
     }
     _getVertexShaderCode() {
-        var _a;
-        return (_a = this.sources) === null || _a === void 0 ? void 0 : _a.vertex;
+        return this.sources?.vertex;
     }
     _getFragmentShaderCode() {
-        var _a;
-        return (_a = this.sources) === null || _a === void 0 ? void 0 : _a.fragment;
+        return this.sources?.fragment;
     }
 }
 //# sourceMappingURL=webgpuPipelineContext.js.map

@@ -19,7 +19,6 @@ export class LayerSceneComponent {
             return;
         }
         this._engine = this.scene.getEngine();
-        this.scene.layers = new Array();
     }
     /**
      * Registers the component in a given scene
@@ -93,17 +92,17 @@ export class LayerSceneComponent {
     }
     _drawRenderTargetBackground(renderTarget) {
         this._draw((layer) => {
-            return this._drawRenderTargetPredicate(layer, true, true, this.scene.activeCamera.layerMask, renderTarget);
+            return this._drawRenderTargetPredicate(layer, true, true, this.scene.activeCamera ? this.scene.activeCamera.layerMask : 0, renderTarget);
         });
     }
     _drawRenderTargetForegroundWithPostProcessing(renderTarget) {
         this._draw((layer) => {
-            return this._drawRenderTargetPredicate(layer, false, true, this.scene.activeCamera.layerMask, renderTarget);
+            return this._drawRenderTargetPredicate(layer, false, true, this.scene.activeCamera ? this.scene.activeCamera.layerMask : 0, renderTarget);
         });
     }
     _drawRenderTargetForegroundWithoutPostProcessing(renderTarget) {
         this._draw((layer) => {
-            return this._drawRenderTargetPredicate(layer, false, false, this.scene.activeCamera.layerMask, renderTarget);
+            return this._drawRenderTargetPredicate(layer, false, false, this.scene.activeCamera ? this.scene.activeCamera.layerMask : 0, renderTarget);
         });
     }
     /**
@@ -114,9 +113,9 @@ export class LayerSceneComponent {
         if (!container.layers) {
             return;
         }
-        container.layers.forEach((layer) => {
+        for (const layer of container.layers) {
             this.scene.layers.push(layer);
-        });
+        }
     }
     /**
      * Removes all the elements in the container from the scene
@@ -127,7 +126,7 @@ export class LayerSceneComponent {
         if (!container.layers) {
             return;
         }
-        container.layers.forEach((layer) => {
+        for (const layer of container.layers) {
             const index = this.scene.layers.indexOf(layer);
             if (index !== -1) {
                 this.scene.layers.splice(index, 1);
@@ -135,7 +134,7 @@ export class LayerSceneComponent {
             if (dispose) {
                 layer.dispose();
             }
-        });
+        }
     }
 }
 //# sourceMappingURL=layerSceneComponent.js.map

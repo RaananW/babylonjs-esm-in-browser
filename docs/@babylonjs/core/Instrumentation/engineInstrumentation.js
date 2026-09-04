@@ -4,27 +4,6 @@ import { PerfCounter } from "../Misc/perfCounter.js";
  * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/optimize_your_scene#engineinstrumentation
  */
 export class EngineInstrumentation {
-    /**
-     * Instantiates a new engine instrumentation.
-     * This class can be used to get instrumentation data from a Babylon engine
-     * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/optimize_your_scene#engineinstrumentation
-     * @param engine Defines the engine to instrument
-     */
-    constructor(
-    /**
-     * Define the instrumented engine.
-     */
-    engine) {
-        this.engine = engine;
-        this._captureGPUFrameTime = false;
-        this._captureShaderCompilationTime = false;
-        this._shaderCompilationTime = new PerfCounter();
-        // Observers
-        this._onBeginFrameObserver = null;
-        this._onEndFrameObserver = null;
-        this._onBeforeShaderCompilationObserver = null;
-        this._onAfterShaderCompilationObserver = null;
-    }
     // Properties
     /**
      * Gets the perf counter used for GPU frame time
@@ -74,7 +53,8 @@ export class EngineInstrumentation {
                 this._shaderCompilationTime.beginMonitoring();
             });
             this._onAfterShaderCompilationObserver = this.engine.onAfterShaderCompilationObservable.add(() => {
-                this._shaderCompilationTime.endMonitoring();
+                this._shaderCompilationTime.endMonitoring(false);
+                this._shaderCompilationTime.endFrame();
             });
         }
         else {
@@ -85,9 +65,34 @@ export class EngineInstrumentation {
         }
     }
     /**
+     * Instantiates a new engine instrumentation.
+     * This class can be used to get instrumentation data from a Babylon engine
+     * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/optimize_your_scene#engineinstrumentation
+     * @param engine Defines the engine to instrument
+     */
+    constructor(
+    /**
+     * Define the instrumented engine.
+     */
+    engine) {
+        this.engine = engine;
+        this._captureGPUFrameTime = false;
+        this._captureShaderCompilationTime = false;
+        this._shaderCompilationTime = new PerfCounter();
+        // Observers
+        this._onBeginFrameObserver = null;
+        this._onEndFrameObserver = null;
+        this._onBeforeShaderCompilationObserver = null;
+        this._onAfterShaderCompilationObserver = null;
+        this._disposed = false;
+    }
+    /**
      * Dispose and release associated resources.
      */
     dispose() {
+        if (this._disposed) {
+            return;
+        }
         this.engine.onBeginFrameObservable.remove(this._onBeginFrameObserver);
         this._onBeginFrameObserver = null;
         this.engine.onEndFrameObservable.remove(this._onEndFrameObserver);
@@ -97,6 +102,7 @@ export class EngineInstrumentation {
         this.engine.onAfterShaderCompilationObservable.remove(this._onAfterShaderCompilationObserver);
         this._onAfterShaderCompilationObserver = null;
         this.engine = null;
+        this._disposed = true;
     }
 }
 //# sourceMappingURL=engineInstrumentation.js.map

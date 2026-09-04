@@ -1,1 +1,1 @@
-export * from "../OBJ/index";
+export * from "../OBJ/index.js";

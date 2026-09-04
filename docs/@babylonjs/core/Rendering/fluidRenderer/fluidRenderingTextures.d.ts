@@ -1,18 +1,19 @@
-import type { Camera } from "../../Cameras/camera.js";
-import type { Engine } from "../../Engines/engine.js";
-import type { RenderTargetWrapper } from "../../Engines/renderTargetWrapper.js";
-import { Texture } from "../../Materials/Textures/texture.js";
-import type { ThinTexture } from "../../Materials/Textures/thinTexture.js";
-import { PostProcess } from "../../PostProcesses/postProcess.js";
-import type { Scene } from "../../scene.js";
-import type { Nullable } from "../../types.js";
+import { type Camera } from "../../Cameras/camera.js";
+import { type AbstractEngine } from "../../Engines/abstractEngine.js";
+import { type RenderTargetWrapper } from "../../Engines/renderTargetWrapper.js";
+import { Texture } from "../../Materials/Textures/texture.pure.js";
+import { type ThinTexture } from "../../Materials/Textures/thinTexture.js";
+import { PostProcess } from "../../PostProcesses/postProcess.pure.js";
+import { type Scene } from "../../scene.js";
+import { type Nullable } from "../../types.js";
 import { Observable } from "../../Misc/observable.js";
+import { ShaderLanguage } from "../../Materials/shaderLanguage.js";
 /** @internal */
 export declare class FluidRenderingTextures {
     protected _name: string;
     protected _scene: Scene;
     protected _camera: Nullable<Camera>;
-    protected _engine: Engine;
+    protected _engine: AbstractEngine;
     protected _width: number;
     protected _height: number;
     protected _blurTextureSizeX: number;
@@ -44,7 +45,13 @@ export declare class FluidRenderingTextures {
     get renderTargetBlur(): Nullable<RenderTargetWrapper>;
     get texture(): Nullable<Texture>;
     get textureBlur(): Nullable<Texture>;
-    constructor(name: string, scene: Scene, width: number, height: number, blurTextureSizeX: number, blurTextureSizeY: number, textureType?: number, textureFormat?: number, blurTextureType?: number, blurTextureFormat?: number, useStandardBlur?: boolean, camera?: Nullable<Camera>, generateDepthBuffer?: boolean, samples?: number);
+    /** Shader language used by the texture */
+    protected _shaderLanguage: ShaderLanguage;
+    /**
+     * Gets the shader language used in the texture
+     */
+    get shaderLanguage(): ShaderLanguage;
+    constructor(name: string, scene: Scene, width: number, height: number, blurTextureSizeX: number, blurTextureSizeY: number, textureType?: number, textureFormat?: number, blurTextureType?: number, blurTextureFormat?: number, useStandardBlur?: boolean, camera?: Nullable<Camera>, generateDepthBuffer?: boolean, samples?: number, shaderLanguage?: ShaderLanguage);
     initialize(): void;
     applyBlurPostProcesses(): void;
     protected _createRenderTarget(): void;

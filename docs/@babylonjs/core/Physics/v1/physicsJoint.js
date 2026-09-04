@@ -26,15 +26,13 @@ export class PhysicsJoint {
      * Gets the physics joint
      */
     get physicsJoint() {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return this._physicsJoint;
     }
     /**
      * Sets the physics joint
      */
     set physicsJoint(newJoint) {
-        if (this._physicsJoint) {
-            //remove from the world
-        }
         this._physicsJoint = newJoint;
     }
     /**

@@ -1,24 +1,38 @@
 /** @internal */
-export declare enum PredefinedColorSpace {
-    SRGB = "srgb"
-}
-/** @internal */
 export declare enum PowerPreference {
     LowPower = "low-power",
     HighPerformance = "high-performance"
 }
 /** @internal */
 export declare enum FeatureName {
+    CoreFeaturesAndLimits = "core-features-and-limits",
     DepthClipControl = "depth-clip-control",
-    Depth24UnormStencil8 = "depth24unorm-stencil8",
     Depth32FloatStencil8 = "depth32float-stencil8",
     TextureCompressionBC = "texture-compression-bc",
+    TextureCompressionBCSliced3D = "texture-compression-bc-sliced-3d",
     TextureCompressionETC2 = "texture-compression-etc2",
     TextureCompressionASTC = "texture-compression-astc",
+    TextureCompressionASTCSliced3D = "texture-compression-astc-sliced-3d",
     TimestampQuery = "timestamp-query",
     IndirectFirstInstance = "indirect-first-instance",
     ShaderF16 = "shader-f16",
-    BGRA8UnormStorage = "bgra8unorm-storage"
+    RG11B10UFloatRenderable = "rg11b10ufloat-renderable",
+    BGRA8UnormStorage = "bgra8unorm-storage",
+    Float32Filterable = "float32-filterable",
+    Float32Blendable = "float32-blendable",
+    ClipDistances = "clip-distances",
+    DualSourceBlending = "dual-source-blending",
+    Subgroups = "subgroups",
+    TextureFormatsTier1 = "texture-formats-tier1",
+    TextureFormatsTier2 = "texture-formats-tier2",
+    PrimitiveIndex = "primitive-index",
+    TextureComponentSwizzle = "texture-component-swizzle"
+}
+/** @internal */
+export declare enum BufferMapState {
+    Unmapped = "unmapped",
+    Pending = "pending",
+    Mapped = "mapped"
 }
 /** @internal */
 export declare enum BufferUsage {
@@ -50,7 +64,8 @@ export declare enum TextureUsage {
     CopyDst = 2,
     TextureBinding = 4,
     StorageBinding = 8,
-    RenderAttachment = 16
+    RenderAttachment = 16,
+    TransientAttachment = 32
 }
 /** @internal */
 export declare enum TextureViewDimension {
@@ -72,100 +87,106 @@ export declare enum TextureAspect {
  * @internal
  */
 export declare enum TextureFormat {
-    R8Unorm = "r8unorm",
-    R8Snorm = "r8snorm",
-    R8Uint = "r8uint",
-    R8Sint = "r8sint",
-    R16Uint = "r16uint",
-    R16Sint = "r16sint",
-    R16Float = "r16float",
-    RG8Unorm = "rg8unorm",
-    RG8Snorm = "rg8snorm",
-    RG8Uint = "rg8uint",
-    RG8Sint = "rg8sint",
-    R32Uint = "r32uint",
-    R32Sint = "r32sint",
-    R32Float = "r32float",
-    RG16Uint = "rg16uint",
-    RG16Sint = "rg16sint",
-    RG16Float = "rg16float",
-    RGBA8Unorm = "rgba8unorm",
-    RGBA8UnormSRGB = "rgba8unorm-srgb",
-    RGBA8Snorm = "rgba8snorm",
-    RGBA8Uint = "rgba8uint",
-    RGBA8Sint = "rgba8sint",
-    BGRA8Unorm = "bgra8unorm",
-    BGRA8UnormSRGB = "bgra8unorm-srgb",
-    RGB9E5UFloat = "rgb9e5ufloat",
-    RGB10A2Unorm = "rgb10a2unorm",
-    RG11B10UFloat = "rg11b10ufloat",
-    RG32Uint = "rg32uint",
-    RG32Sint = "rg32sint",
-    RG32Float = "rg32float",
-    RGBA16Uint = "rgba16uint",
-    RGBA16Sint = "rgba16sint",
-    RGBA16Float = "rgba16float",
-    RGBA32Uint = "rgba32uint",
-    RGBA32Sint = "rgba32sint",
-    RGBA32Float = "rgba32float",
+    R8Unorm = "r8unorm",// Red channel only. 8 bit integer per channel. [0, 255] converted to/from float [0, 1] in shader.
+    R8Snorm = "r8snorm",// Red channel only. 8 bit integer per channel. [-127, 127] converted to/from float [-1, 1] in shader.
+    R8Uint = "r8uint",// Red channel only. 8 bit integer per channel. Unsigned in shader.
+    R8Sint = "r8sint",// Red channel only. 8 bit integer per channel. Signed in shader.
+    R16Uint = "r16uint",// Red channel only. 16 bit integer per channel. Unsigned in shader.
+    R16Sint = "r16sint",// Red channel only. 16 bit integer per channel. Signed in shader.
+    R16Float = "r16float",// Red channel only. 16 bit float per channel. Float in shader.
+    RG8Unorm = "rg8unorm",// Red and green channels. 8 bit integer per channel. [0, 255] converted to/from float [0, 1] in shader.
+    RG8Snorm = "rg8snorm",// Red and green channels. 8 bit integer per channel. [-127, 127] converted to/from float [-1, 1] in shader.
+    RG8Uint = "rg8uint",// Red and green channels. 8 bit integer per channel. Unsigned in shader.
+    RG8Sint = "rg8sint",// Red and green channels. 8 bit integer per channel. Signed in shader.
+    R16Unorm = "r16unorm",// Red channel only. 16 bit integer per channel. [0, 65535] converted to float [0, 1] in shader.
+    R16Snorm = "r16snorm",// Red channel only. 16 bit integer per channel. [-32768, 32767] converted to float [-1, 1] in shader.
+    R32Uint = "r32uint",// Red channel only. 32 bit integer per channel. Unsigned in shader.
+    R32Sint = "r32sint",// Red channel only. 32 bit integer per channel. Signed in shader.
+    R32Float = "r32float",// Red channel only. 32 bit float per channel. Float in shader.
+    RG16Uint = "rg16uint",// Red and green channels. 16 bit integer per channel. Unsigned in shader.
+    RG16Sint = "rg16sint",// Red and green channels. 16 bit integer per channel. Signed in shader.
+    RG16Float = "rg16float",// Red and green channels. 16 bit float per channel. Float in shader.
+    RGBA8Unorm = "rgba8unorm",// Red, green, blue, and alpha channels. 8 bit integer per channel. [0, 255] converted to/from float [0, 1] in shader.
+    RGBA8UnormSRGB = "rgba8unorm-srgb",// Red, green, blue, and alpha channels. 8 bit integer per channel. Srgb-color [0, 255] converted to/from linear-color float [0, 1] in shader.
+    RGBA8Snorm = "rgba8snorm",// Red, green, blue, and alpha channels. 8 bit integer per channel. [-127, 127] converted to/from float [-1, 1] in shader.
+    RGBA8Uint = "rgba8uint",// Red, green, blue, and alpha channels. 8 bit integer per channel. Unsigned in shader.
+    RGBA8Sint = "rgba8sint",// Red, green, blue, and alpha channels. 8 bit integer per channel. Signed in shader.
+    BGRA8Unorm = "bgra8unorm",// Blue, green, red, and alpha channels. 8 bit integer per channel. [0, 255] converted to/from float [0, 1] in shader.
+    BGRA8UnormSRGB = "bgra8unorm-srgb",// Blue, green, red, and alpha channels. 8 bit integer per channel. Srgb-color [0, 255] converted to/from linear-color float [0, 1] in shader.
+    RG16Unorm = "rg16unorm",// Red and green channels. 16 bit integer per channel. [0, 65535] converted to float [0, 1] in shader.
+    RG16Snorm = "rg16snorm",// Red and green channels. 16 bit integer per channel. [-32768, 32767] converted to float [-1, 1] in shader.
+    RGB9E5UFloat = "rgb9e5ufloat",// Packed unsigned float with 9 bits mantisa for each RGB component, then a common 5 bits exponent
+    RGB10A2UINT = "rgb10a2uint",// Red, green, blue, and alpha channels. 10 bit integer for RGB channels, 2 bit integer for alpha channel. [0, 1023] ([0, 3] for alpha).
+    RGB10A2Unorm = "rgb10a2unorm",// Red, green, blue, and alpha channels. 10 bit integer for RGB channels, 2 bit integer for alpha channel. [0, 1023] ([0, 3] for alpha) converted to/from float [0, 1] in shader.
+    RG11B10UFloat = "rg11b10ufloat",// Red, green, and blue channels. 11 bit float with no sign bit for RG channels. 10 bit float with no sign bit for blue channel. Float in shader.
+    RG32Uint = "rg32uint",// Red and green channels. 32 bit integer per channel. Unsigned in shader.
+    RG32Sint = "rg32sint",// Red and green channels. 32 bit integer per channel. Signed in shader.
+    RG32Float = "rg32float",// Red and green channels. 32 bit float per channel. Float in shader.
+    RGBA16Uint = "rgba16uint",// Red, green, blue, and alpha channels. 16 bit integer per channel. Unsigned in shader.
+    RGBA16Sint = "rgba16sint",// Red, green, blue, and alpha channels. 16 bit integer per channel. Signed in shader.
+    RGBA16Float = "rgba16float",// Red, green, blue, and alpha channels. 16 bit float per channel. Float in shader.
+    RGBA16Unorm = "rgba16unorm",// Red, green, blue, and alpha channels. 16 bit integer per channel. [0, 65535] converted to float [0, 1] in shader.
+    RGBA16Snorm = "rgba16snorm",// Red, green, blue, and alpha channels. 16 bit integer per channel. [-32768, 32767] converted to float [-1, 1] in shader.
+    RGBA32Uint = "rgba32uint",// Red, green, blue, and alpha channels. 32 bit integer per channel. Unsigned in shader.
+    RGBA32Sint = "rgba32sint",// Red, green, blue, and alpha channels. 32 bit integer per channel. Signed in shader.
+    RGBA32Float = "rgba32float",// Red, green, blue, and alpha channels. 32 bit float per channel. Float in shader.
     Stencil8 = "stencil8",
     Depth16Unorm = "depth16unorm",
-    Depth24Plus = "depth24plus",
-    Depth24PlusStencil8 = "depth24plus-stencil8",
-    Depth32Float = "depth32float",
-    BC1RGBAUnorm = "bc1-rgba-unorm",
-    BC1RGBAUnormSRGB = "bc1-rgba-unorm-srgb",
-    BC2RGBAUnorm = "bc2-rgba-unorm",
-    BC2RGBAUnormSRGB = "bc2-rgba-unorm-srgb",
-    BC3RGBAUnorm = "bc3-rgba-unorm",
-    BC3RGBAUnormSRGB = "bc3-rgba-unorm-srgb",
-    BC4RUnorm = "bc4-r-unorm",
-    BC4RSnorm = "bc4-r-snorm",
-    BC5RGUnorm = "bc5-rg-unorm",
-    BC5RGSnorm = "bc5-rg-snorm",
-    BC6HRGBUFloat = "bc6h-rgb-ufloat",
-    BC6HRGBFloat = "bc6h-rgb-float",
-    BC7RGBAUnorm = "bc7-rgba-unorm",
-    BC7RGBAUnormSRGB = "bc7-rgba-unorm-srgb",
-    ETC2RGB8Unorm = "etc2-rgb8unorm",
-    ETC2RGB8UnormSRGB = "etc2-rgb8unorm-srgb",
-    ETC2RGB8A1Unorm = "etc2-rgb8a1unorm",
-    ETC2RGB8A1UnormSRGB = "etc2-rgb8a1unorm-srgb",
-    ETC2RGBA8Unorm = "etc2-rgba8unorm",
-    ETC2RGBA8UnormSRGB = "etc2-rgba8unorm-srgb",
-    EACR11Unorm = "eac-r11unorm",
-    EACR11Snorm = "eac-r11snorm",
-    EACRG11Unorm = "eac-rg11unorm",
-    EACRG11Snorm = "eac-rg11snorm",
-    ASTC4x4Unorm = "astc-4x4-unorm",
-    ASTC4x4UnormSRGB = "astc-4x4-unorm-srgb",
-    ASTC5x4Unorm = "astc-5x4-unorm",
-    ASTC5x4UnormSRGB = "astc-5x4-unorm-srgb",
-    ASTC5x5Unorm = "astc-5x5-unorm",
-    ASTC5x5UnormSRGB = "astc-5x5-unorm-srgb",
-    ASTC6x5Unorm = "astc-6x5-unorm",
-    ASTC6x5UnormSRGB = "astc-6x5-unorm-srgb",
-    ASTC6x6Unorm = "astc-6x6-unorm",
-    ASTC6x6UnormSRGB = "astc-6x6-unorm-srgb",
-    ASTC8x5Unorm = "astc-8x5-unorm",
-    ASTC8x5UnormSRGB = "astc-8x5-unorm-srgb",
-    ASTC8x6Unorm = "astc-8x6-unorm",
-    ASTC8x6UnormSRGB = "astc-8x6-unorm-srgb",
-    ASTC8x8Unorm = "astc-8x8-unorm",
-    ASTC8x8UnormSRGB = "astc-8x8-unorm-srgb",
-    ASTC10x5Unorm = "astc-10x5-unorm",
-    ASTC10x5UnormSRGB = "astc-10x5-unorm-srgb",
-    ASTC10x6Unorm = "astc-10x6-unorm",
-    ASTC10x6UnormSRGB = "astc-10x6-unorm-srgb",
-    ASTC10x8Unorm = "astc-10x8-unorm",
-    ASTC10x8UnormSRGB = "astc-10x8-unorm-srgb",
-    ASTC10x10Unorm = "astc-10x10-unorm",
-    ASTC10x10UnormSRGB = "astc-10x10-unorm-srgb",
-    ASTC12x10Unorm = "astc-12x10-unorm",
-    ASTC12x10UnormSRGB = "astc-12x10-unorm-srgb",
-    ASTC12x12Unorm = "astc-12x12-unorm",
-    ASTC12x12UnormSRGB = "astc-12x12-unorm-srgb",
-    Depth24UnormStencil8 = "depth24unorm-stencil8",
+    Depth24Plus = "depth24plus",// Special depth format with at least 24 bit integer depth.
+    Depth24PlusStencil8 = "depth24plus-stencil8",// Special depth/stencil format with at least 24 bit integer depth and 8 bits integer stencil.
+    Depth32Float = "depth32float",// Special depth format with 32 bit floating point depth.
+    BC1RGBAUnorm = "bc1-rgba-unorm",// 4x4 block compressed texture. 8 bytes per block (4 bit/px). 4 color + alpha pallet. 5 bit R + 6 bit G + 5 bit B + 1 bit alpha. Also known as DXT1.
+    BC1RGBAUnormSRGB = "bc1-rgba-unorm-srgb",// 4x4 block compressed texture. 8 bytes per block (4 bit/px). 4 color + alpha pallet. 5 bit R + 6 bit G + 5 bit B + 1 bit alpha. Also known as DXT1.
+    BC2RGBAUnorm = "bc2-rgba-unorm",// 4x4 block compressed texture. 16 bytes per block (8 bit/px). 4 color pallet. 5 bit R + 6 bit G + 5 bit B + 4 bit alpha. Also known as DXT3.
+    BC2RGBAUnormSRGB = "bc2-rgba-unorm-srgb",// 4x4 block compressed texture. 16 bytes per block (8 bit/px). 4 color pallet. 5 bit R + 6 bit G + 5 bit B + 4 bit alpha. Also known as DXT3.
+    BC3RGBAUnorm = "bc3-rgba-unorm",// 4x4 block compressed texture. 16 bytes per block (8 bit/px). 4 color pallet + 8 alpha pallet. 5 bit R + 6 bit G + 5 bit B + 8 bit alpha. Also known as DXT5.
+    BC3RGBAUnormSRGB = "bc3-rgba-unorm-srgb",// 4x4 block compressed texture. 16 bytes per block (8 bit/px). 4 color pallet + 8 alpha pallet. 5 bit R + 6 bit G + 5 bit B + 8 bit alpha. Also known as DXT5.
+    BC4RUnorm = "bc4-r-unorm",// 4x4 block compressed texture. 8 bytes per block (4 bit/px). 8 color pallet. 8 bit R. Also known as RGTC1.
+    BC4RSnorm = "bc4-r-snorm",// 4x4 block compressed texture. 8 bytes per block (4 bit/px). 8 color pallet. 8 bit R. Also known as RGTC1.
+    BC5RGUnorm = "bc5-rg-unorm",// 4x4 block compressed texture. 16 bytes per block (8 bit/px). 8 color red pallet + 8 color green pallet. 8 bit RG. Also known as RGTC2.
+    BC5RGSnorm = "bc5-rg-snorm",// 4x4 block compressed texture. 16 bytes per block (8 bit/px). 8 color red pallet + 8 color green pallet. 8 bit RG. Also known as RGTC2.
+    BC6HRGBUFloat = "bc6h-rgb-ufloat",// 4x4 block compressed texture. 16 bytes per block (8 bit/px). Variable sized pallet. 16 bit unsigned float RGB. Float in shader. Also known as BPTC (float).
+    BC6HRGBFloat = "bc6h-rgb-float",// 4x4 block compressed texture. 16 bytes per block (8 bit/px). Variable sized pallet. 16 bit signed float RGB. Float in shader. Also known as BPTC (float).
+    BC7RGBAUnorm = "bc7-rgba-unorm",// 4x4 block compressed texture. 16 bytes per block (8 bit/px). Variable sized pallet. 8 bit integer RGBA. Also known as BPTC (unorm).
+    BC7RGBAUnormSRGB = "bc7-rgba-unorm-srgb",// 4x4 block compressed texture. 16 bytes per block (8 bit/px). Variable sized pallet. 8 bit integer RGBA. Also known as BPTC (unorm).
+    ETC2RGB8Unorm = "etc2-rgb8unorm",// 4x4 block compressed texture. 8 bytes per block (4 bit/px). Complex pallet. 8 bit integer RGB.
+    ETC2RGB8UnormSRGB = "etc2-rgb8unorm-srgb",// 4x4 block compressed texture. 8 bytes per block (4 bit/px). Complex pallet. 8 bit integer RGB.
+    ETC2RGB8A1Unorm = "etc2-rgb8a1unorm",// 4x4 block compressed texture. 8 bytes per block (4 bit/px). Complex pallet. 8 bit integer RGB + 1 bit alpha.
+    ETC2RGB8A1UnormSRGB = "etc2-rgb8a1unorm-srgb",// 4x4 block compressed texture. 8 bytes per block (4 bit/px). Complex pallet. 8 bit integer RGB + 1 bit alpha.
+    ETC2RGBA8Unorm = "etc2-rgba8unorm",// 4x4 block compressed texture. 16 bytes per block (8 bit/px). Complex pallet. 8 bit integer RGB + 8 bit alpha.
+    ETC2RGBA8UnormSRGB = "etc2-rgba8unorm-srgb",// 4x4 block compressed texture. 16 bytes per block (8 bit/px). Complex pallet. 8 bit integer RGB + 8 bit alpha.
+    EACR11Unorm = "eac-r11unorm",// 4x4 block compressed texture. 8 bytes per block (4 bit/px). Complex pallet. 11 bit integer R.
+    EACR11Snorm = "eac-r11snorm",// 4x4 block compressed texture. 8 bytes per block (4 bit/px). Complex pallet. 11 bit integer R.
+    EACRG11Unorm = "eac-rg11unorm",// 4x4 block compressed texture. 16 bytes per block (8 bit/px). Complex pallet. 11 bit integer R + 11 bit integer G.
+    EACRG11Snorm = "eac-rg11snorm",// 4x4 block compressed texture. 16 bytes per block (8 bit/px). Complex pallet. 11 bit integer R + 11 bit integer G.
+    ASTC4x4Unorm = "astc-4x4-unorm",// 4x4 block compressed texture. 16 bytes per block (8 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC4x4UnormSRGB = "astc-4x4-unorm-srgb",// 4x4 block compressed texture. 16 bytes per block (8 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC5x4Unorm = "astc-5x4-unorm",// 5x4 block compressed texture. 16 bytes per block (6.4 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC5x4UnormSRGB = "astc-5x4-unorm-srgb",// 5x4 block compressed texture. 16 bytes per block (6.4 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC5x5Unorm = "astc-5x5-unorm",// 5x5 block compressed texture. 16 bytes per block (5.12 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC5x5UnormSRGB = "astc-5x5-unorm-srgb",// 5x5 block compressed texture. 16 bytes per block (5.12 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC6x5Unorm = "astc-6x5-unorm",// 6x5 block compressed texture. 16 bytes per block (4.27 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC6x5UnormSRGB = "astc-6x5-unorm-srgb",// 6x5 block compressed texture. 16 bytes per block (4.27 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC6x6Unorm = "astc-6x6-unorm",// 6x6 block compressed texture. 16 bytes per block (3.56 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC6x6UnormSRGB = "astc-6x6-unorm-srgb",// 6x6 block compressed texture. 16 bytes per block (3.56 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC8x5Unorm = "astc-8x5-unorm",// 8x5 block compressed texture. 16 bytes per block (3.2 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC8x5UnormSRGB = "astc-8x5-unorm-srgb",// 8x5 block compressed texture. 16 bytes per block (3.2 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC8x6Unorm = "astc-8x6-unorm",// 8x6 block compressed texture. 16 bytes per block (2.67 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC8x6UnormSRGB = "astc-8x6-unorm-srgb",// 8x6 block compressed texture. 16 bytes per block (2.67 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC8x8Unorm = "astc-8x8-unorm",// 8x8 block compressed texture. 16 bytes per block (2 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC8x8UnormSRGB = "astc-8x8-unorm-srgb",// 8x8 block compressed texture. 16 bytes per block (2 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC10x5Unorm = "astc-10x5-unorm",// 10x5 block compressed texture. 16 bytes per block (2.56 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC10x5UnormSRGB = "astc-10x5-unorm-srgb",// 10x5 block compressed texture. 16 bytes per block (2.56 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC10x6Unorm = "astc-10x6-unorm",// 10x6 block compressed texture. 16 bytes per block (2.13 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC10x6UnormSRGB = "astc-10x6-unorm-srgb",// 10x6 block compressed texture. 16 bytes per block (2.13 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC10x8Unorm = "astc-10x8-unorm",// 10x8 block compressed texture. 16 bytes per block (1.6 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC10x8UnormSRGB = "astc-10x8-unorm-srgb",// 10x8 block compressed texture. 16 bytes per block (1.6 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC10x10Unorm = "astc-10x10-unorm",// 10x10 block compressed texture. 16 bytes per block (1.28 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC10x10UnormSRGB = "astc-10x10-unorm-srgb",// 10x10 block compressed texture. 16 bytes per block (1.28 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC12x10Unorm = "astc-12x10-unorm",// 12x10 block compressed texture. 16 bytes per block (1.07 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC12x10UnormSRGB = "astc-12x10-unorm-srgb",// 12x10 block compressed texture. 16 bytes per block (1.07 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC12x12Unorm = "astc-12x12-unorm",// 12x12 block compressed texture. 16 bytes per block (0.89 bit/px). Complex pallet. 8 bit integer RGBA.
+    ASTC12x12UnormSRGB = "astc-12x12-unorm-srgb",// 12x12 block compressed texture. 16 bytes per block (0.89 bit/px). Complex pallet. 8 bit integer RGBA.
     Depth32FloatStencil8 = "depth32float-stencil8"
 }
 /** @internal */
@@ -176,6 +197,11 @@ export declare enum AddressMode {
 }
 /** @internal */
 export declare enum FilterMode {
+    Nearest = "nearest",
+    Linear = "linear"
+}
+/** @internal */
+export declare enum MipmapFilterMode {
     Nearest = "nearest",
     Linear = "linear"
 }
@@ -218,13 +244,20 @@ export declare enum TextureSampleType {
 }
 /** @internal */
 export declare enum StorageTextureAccess {
-    WriteOnly = "write-only"
+    WriteOnly = "write-only",
+    ReadOnly = "read-only",
+    ReadWrite = "read-write"
 }
 /** @internal */
 export declare enum CompilationMessageType {
     Error = "error",
     Warning = "warning",
     Info = "info"
+}
+/** @internal */
+export declare enum PipelineErrorReason {
+    Validation = "validation",
+    Internal = "internal"
 }
 /** @internal */
 export declare enum AutoLayoutMode {
@@ -250,7 +283,7 @@ export declare enum CullMode {
     Back = "back"
 }
 /** @internal */
-export declare enum ColorWriteFlags {
+export declare enum ColorWrite {
     Red = 1,
     Green = 2,
     Blue = 4,
@@ -271,7 +304,11 @@ export declare enum BlendFactor {
     OneMinusDstAlpha = "one-minus-dst-alpha",
     SrcAlphaSaturated = "src-alpha-saturated",
     Constant = "constant",
-    OneMinusConstant = "one-minus-constant"
+    OneMinusConstant = "one-minus-constant",
+    Src1 = "src1",
+    OneMinusSrc1 = "one-minus-src1",
+    Src1Alpha = "src1-alpha",
+    OneMinusSrc1Alpha = "one-minus-src1-alpha"
 }
 /** @internal */
 export declare enum BlendOperation {
@@ -299,22 +336,31 @@ export declare enum IndexFormat {
 }
 /** @internal */
 export declare enum VertexFormat {
+    Uint8 = "uint8",
     Uint8x2 = "uint8x2",
     Uint8x4 = "uint8x4",
+    Sint8 = "sint8",
     Sint8x2 = "sint8x2",
     Sint8x4 = "sint8x4",
+    Unorm8 = "unorm8",
     Unorm8x2 = "unorm8x2",
     Unorm8x4 = "unorm8x4",
+    Snorm8 = "snorm8",
     Snorm8x2 = "snorm8x2",
     Snorm8x4 = "snorm8x4",
+    Uint16 = "uint16",
     Uint16x2 = "uint16x2",
     Uint16x4 = "uint16x4",
+    Sint16 = "sint16",
     Sint16x2 = "sint16x2",
     Sint16x4 = "sint16x4",
+    Unorm16 = "unorm16",
     Unorm16x2 = "unorm16x2",
     Unorm16x4 = "unorm16x4",
+    Snorm16 = "snorm16",
     Snorm16x2 = "snorm16x2",
     Snorm16x4 = "snorm16x4",
+    Float16 = "float16",
     Float16x2 = "float16x2",
     Float16x4 = "float16x4",
     Float32 = "float32",
@@ -328,10 +374,12 @@ export declare enum VertexFormat {
     Sint32 = "sint32",
     Sint32x2 = "sint32x2",
     Sint32x3 = "sint32x3",
-    Sint32x4 = "sint32x4"
+    Sint32x4 = "sint32x4",
+    UNORM10x10x10x2 = "unorm10-10-10-2",
+    UNORM8x4BGRA = "unorm8x4-bgra"
 }
 /** @internal */
-export declare enum InputStepMode {
+export declare enum VertexStepMode {
     Vertex = "vertex",
     Instance = "instance"
 }
@@ -366,11 +414,18 @@ export declare enum CanvasAlphaMode {
     Premultiplied = "premultiplied"
 }
 /** @internal */
+export declare enum CanvasToneMappingMode {
+    Standard = "standard",
+    Extended = "extended"
+}
+/** @internal */
 export declare enum DeviceLostReason {
+    Unknown = "unknown",
     Destroyed = "destroyed"
 }
 /** @internal */
 export declare enum ErrorFilter {
+    Validation = "validation",
     OutOfMemory = "out-of-memory",
-    Validation = "validation"
+    Internal = "internal"
 }

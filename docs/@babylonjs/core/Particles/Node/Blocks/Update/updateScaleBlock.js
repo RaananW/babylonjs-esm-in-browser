@@ -1,0 +1,8 @@
+/**
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import updateScaleBlock.pure for tree-shakeable, side-effect-free usage.
+ */
+export * from "./updateScaleBlock.pure.js";
+import { RegisterUpdateScaleBlock } from "./updateScaleBlock.pure.js";
+RegisterUpdateScaleBlock();
+//# sourceMappingURL=updateScaleBlock.js.map

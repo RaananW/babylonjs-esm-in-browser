@@ -1,8 +1,8 @@
 import { Logger } from "../../../Misc/logger.js";
-import { Vector3, Vector2 } from "../../../Maths/math.vector.js";
-import { Color4, Color3 } from "../../../Maths/math.color.js";
-import { Texture } from "../../../Materials/Textures/texture.js";
-import { ProceduralTexture } from "./proceduralTexture.js";
+import { Vector3, Vector2 } from "../../../Maths/math.vector.pure.js";
+import { Color4, Color3 } from "../../../Maths/math.color.pure.js";
+import { Texture } from "../../../Materials/Textures/texture.pure.js";
+import { ProceduralTexture } from "./proceduralTexture.pure.js";
 import { WebRequest } from "../../../Misc/webRequest.js";
 /**
  * Procedural texturing is a way to programmatically create a texture. There are 2 types of procedural textures: code-only, and code that references some classic 2D images, sometimes called 'refMaps' or 'sampler' images.
@@ -28,6 +28,9 @@ export class CustomProceduralTexture extends ProceduralTexture {
         this._animate = true;
         this._time = 0;
         this._texturePath = texturePath;
+        if (fallbackTexture && !(fallbackTexture instanceof Texture)) {
+            skipJson = !!fallbackTexture.skipJson;
+        }
         if (!skipJson) {
             //Try to load json
             this._loadJson(texturePath);

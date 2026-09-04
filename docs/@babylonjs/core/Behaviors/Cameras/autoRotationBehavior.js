@@ -11,7 +11,11 @@ export class AutoRotationBehavior {
         this._idleRotationSpeed = 0.05;
         this._idleRotationWaitTime = 2000;
         this._idleRotationSpinupTime = 2000;
+        /**
+         * Target alpha
+         */
         this.targetAlpha = null;
+        this._attachedCamera = null;
         this._isPointerDown = false;
         this._lastFrameTime = null;
         this._lastInteractionTime = -Infinity;
@@ -79,6 +83,12 @@ export class AutoRotationBehavior {
         return Math.abs(this._cameraRotationSpeed) > 0;
     }
     /**
+     * Attached node of this behavior
+     */
+    get attachedNode() {
+        return this._attachedCamera;
+    }
+    /**
      * Initializes the behavior.
      */
     init() {
@@ -134,20 +144,21 @@ export class AutoRotationBehavior {
         }
         this._attachedCamera.onAfterCheckInputsObservable.remove(this._onAfterCheckInputsObserver);
         this._attachedCamera = null;
+        this._lastFrameTime = null;
     }
     /**
      * Force-reset the last interaction time
      * @param customTime an optional time that will be used instead of the current last interaction time. For example `Date.now()`
      */
     resetLastInteractionTime(customTime) {
-        this._lastInteractionTime = customTime !== null && customTime !== void 0 ? customTime : PrecisionDate.Now;
+        this._lastInteractionTime = customTime ?? PrecisionDate.Now;
     }
     /**
      * Returns true if camera alpha reaches the target alpha
      * @returns true if camera alpha reaches the target alpha
      */
     _reachTargetAlpha() {
-        if (this._attachedCamera && this.targetAlpha) {
+        if (this._attachedCamera && this.targetAlpha !== null) {
             return Math.abs(this._attachedCamera.alpha - this.targetAlpha) < Epsilon;
         }
         return false;

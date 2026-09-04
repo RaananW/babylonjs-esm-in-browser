@@ -1,11 +1,19 @@
-import { Vector3, Quaternion, Matrix } from "../Maths/math.vector.js";
-import { Space } from "../Maths/math.axis.js";
+import { Vector3, Quaternion, Matrix } from "../Maths/math.vector.pure.js";
 import { Logger } from "../Misc/logger.js";
 /**
  * Class used to apply inverse kinematics to bones
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/bonesSkeletons#boneikcontroller
  */
 export class BoneIKController {
+    /**
+     * Gets or sets maximum allowed angle
+     */
+    get maxAngle() {
+        return this._maxAngle;
+    }
+    set maxAngle(value) {
+        this._setMaxAngle(value);
+    }
     /**
      * Creates a new BoneIKController
      * @param mesh defines the TransformNode to control
@@ -64,8 +72,9 @@ export class BoneIKController {
             return;
         }
         this.mesh = mesh;
+        bone.getSkeleton().computeAbsoluteMatrices();
         const bonePos = bone.getPosition();
-        if (bone.getAbsoluteTransform().determinant() > 0) {
+        if (bone.getAbsoluteMatrix().determinant() > 0) {
             this._rightHandedSystem = true;
             this._bendAxis.x = 0;
             this._bendAxis.y = 0;
@@ -97,7 +106,7 @@ export class BoneIKController {
             const pos3 = this._bone1.getAbsolutePosition(mesh);
             this._bone1Length = Vector3.Distance(pos2, pos3);
         }
-        this._bone1.getRotationMatrixToRef(Space.WORLD, mesh, this._bone1Mat);
+        this._bone1.getRotationMatrixToRef(1 /* Space.WORLD */, mesh, this._bone1Mat);
         this.maxAngle = Math.PI;
         if (options) {
             if (options.targetMesh) {
@@ -130,15 +139,6 @@ export class BoneIKController {
                 this.slerpAmount = options.slerpAmount;
             }
         }
-    }
-    /**
-     * Gets or sets maximum allowed angle
-     */
-    get maxAngle() {
-        return this._maxAngle;
-    }
-    set maxAngle(value) {
-        this._setMaxAngle(value);
     }
     _setMaxAngle(ang) {
         if (ang < 0) {
@@ -241,17 +241,17 @@ export class BoneIKController {
                 Quaternion.FromRotationMatrixToRef(mat1, tmpQuat);
                 Quaternion.SlerpToRef(this._bone1Quat, tmpQuat, this.slerpAmount, this._bone1Quat);
                 angC = this._bone2Ang * (1.0 - this.slerpAmount) + angC * this.slerpAmount;
-                this._bone1.setRotationQuaternion(this._bone1Quat, Space.WORLD, this.mesh);
+                this._bone1.setRotationQuaternion(this._bone1Quat, 1 /* Space.WORLD */, this.mesh);
                 this._slerping = true;
             }
             else {
-                this._bone1.setRotationMatrix(mat1, Space.WORLD, this.mesh);
+                this._bone1.setRotationMatrix(mat1, 1 /* Space.WORLD */, this.mesh);
                 this._bone1Mat.copyFrom(mat1);
                 this._slerping = false;
             }
             this._updateLinkedTransformRotation(this._bone1);
         }
-        this._bone2.setAxisAngle(this._bendAxis, angC, Space.LOCAL);
+        this._bone2.setAxisAngle(this._bendAxis, angC, 0 /* Space.LOCAL */);
         this._updateLinkedTransformRotation(this._bone2);
         this._bone2Ang = angC;
     }
@@ -260,7 +260,7 @@ export class BoneIKController {
             if (!bone._linkedTransformNode.rotationQuaternion) {
                 bone._linkedTransformNode.rotationQuaternion = new Quaternion();
             }
-            bone.getRotationQuaternionToRef(Space.LOCAL, null, bone._linkedTransformNode.rotationQuaternion);
+            bone.getRotationQuaternionToRef(0 /* Space.LOCAL */, null, bone._linkedTransformNode.rotationQuaternion);
         }
     }
 }

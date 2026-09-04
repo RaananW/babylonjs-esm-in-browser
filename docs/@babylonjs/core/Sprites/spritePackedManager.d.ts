@@ -1,5 +1,5 @@
-import { SpriteManager } from "./spriteManager";
-import type { Scene } from "../scene";
+import { type SpriteManagerOptions, SpriteManager } from "./spriteManager.js";
+import { type Scene } from "../scene.js";
 /**
  * Class used to manage multiple sprites of different sizes on the same spritesheet
  * @see https://doc.babylonjs.com/features/featuresDeepDive/sprites
@@ -17,8 +17,9 @@ export declare class SpritePackedManager extends SpriteManager {
      * @param epsilon defines the epsilon value to align texture (0.01 by default)
      * @param samplingMode defines the sampling mode to use with spritesheet
      * @param fromPacked set to true; do not alter
+     * @param options options for the sprite manager
      */
     constructor(
     /** defines the packed manager's name */
-    name: string, imgUrl: string, capacity: number, scene: Scene, spriteJSON?: string | null, epsilon?: number, samplingMode?: number);
+    name: string, imgUrl: string, capacity: number, scene: Scene, spriteJSON?: string | null, epsilon?: number, samplingMode?: number, options?: SpriteManagerOptions);
 }

@@ -1,5 +1,5 @@
-import type { Nullable } from "../types";
-declare type Animation = import("./animation").Animation;
+import { type Nullable } from "../types.js";
+import { type Animation } from "./animation.js";
 /**
  * Interface containing an array of animations
  */
@@ -9,4 +9,3 @@ export interface IAnimatable {
      */
     animations: Nullable<Array<Animation>>;
 }
-export {};

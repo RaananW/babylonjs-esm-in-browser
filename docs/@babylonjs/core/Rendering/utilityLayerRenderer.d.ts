@@ -1,16 +1,16 @@
-import type { IDisposable } from "../scene";
-import { Scene } from "../scene";
-import type { Nullable } from "../types";
-import { Observable } from "../Misc/observable";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import { HemisphericLight } from "../Lights/hemisphericLight";
-import type { Camera } from "../Cameras/camera";
+import { type IDisposable, Scene } from "../scene.pure.js";
+import { type Nullable } from "../types.js";
+import { Observable } from "../Misc/observable.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { HemisphericLight } from "../Lights/hemisphericLight.pure.js";
+import { type Camera } from "../Cameras/camera.js";
 /**
  * Renders a layer on top of an existing scene
  */
 export declare class UtilityLayerRenderer implements IDisposable {
     /** the original scene that will be rendered on top of */
     originalScene: Scene;
+    readonly handleEvents: boolean;
     private _pointerCaptures;
     private _lastPointerEvents;
     /** @internal */
@@ -54,6 +54,12 @@ export declare class UtilityLayerRenderer implements IDisposable {
      */
     static get DefaultKeepDepthUtilityLayer(): UtilityLayerRenderer;
     /**
+     * Creates an utility layer, and set it as a default utility layer (Depth map of the previous scene is not cleared before drawing on top of it)
+     * @param scene associated scene
+     * @internal
+     */
+    static _CreateDefaultKeepUtilityLayerFromScene(scene: Scene): UtilityLayerRenderer;
+    /**
      * The scene that is rendered on top of the original scene
      */
     utilityLayerScene: Scene;
@@ -86,10 +92,11 @@ export declare class UtilityLayerRenderer implements IDisposable {
      * Instantiates a UtilityLayerRenderer
      * @param originalScene the original scene that will be rendered on top of
      * @param handleEvents boolean indicating if the utility layer should handle events
+     * @param manualRender boolean indicating if the utility layer should render manually.
      */
     constructor(
     /** the original scene that will be rendered on top of */
-    originalScene: Scene, handleEvents?: boolean);
+    originalScene: Scene, handleEvents?: boolean, manualRender?: boolean);
     private _notifyObservers;
     /**
      * Renders the utility layers scene on top of the original scene

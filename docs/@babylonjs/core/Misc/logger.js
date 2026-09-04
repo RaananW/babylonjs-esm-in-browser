@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Logger used throughout the application to allow configuration of
  * the log level required for the messages.
@@ -15,14 +16,13 @@ export class Logger {
         return entry.current <= entry.limit;
     }
     static _GenerateLimitMessage(message, level = 1) {
-        var _a;
         const entry = Logger._LogLimitOutputs[message];
         if (!entry || !Logger.MessageLimitReached) {
             return;
         }
         const type = this._Levels[level];
         if (entry.current === entry.limit) {
-            Logger[type.name](Logger.MessageLimitReached.replace(/%LIMIT%/g, "" + entry.limit).replace(/%TYPE%/g, (_a = type.name) !== null && _a !== void 0 ? _a : ""));
+            Logger[type.name](Logger.MessageLimitReached.replace(/%LIMIT%/g, "" + entry.limit).replace(/%TYPE%/g, type.name ?? ""));
         }
     }
     static _AddLogEntry(entry) {
@@ -41,15 +41,18 @@ export class Logger {
         // nothing to do
     }
     static _LogEnabled(level = 1, message, limit) {
-        if (limit !== undefined && !Logger._CheckLimit(message, limit)) {
+        // take first message if array
+        const msg = Array.isArray(message) ? message[0] : message;
+        if (limit !== undefined && !Logger._CheckLimit(msg, limit)) {
             return;
         }
-        const formattedMessage = Logger._FormatMessage(message);
+        const formattedMessage = Logger._FormatMessage(msg);
         const type = this._Levels[level];
-        type.logFunc && type.logFunc("BJS - " + formattedMessage);
+        const optionals = Array.isArray(message) ? message.slice(1) : [];
+        type.logFunc && type.logFunc("BJS - " + formattedMessage, ...optionals);
         const entry = `<div style='color:${type.color}'>${formattedMessage}</div><br>`;
         Logger._AddLogEntry(entry);
-        Logger._GenerateLimitMessage(message, level);
+        Logger._GenerateLimitMessage(msg, level);
     }
     /**
      * Gets current log cache (list of logs)
@@ -66,18 +69,20 @@ export class Logger {
         Logger.errorsCount = 0;
     }
     /**
-     * Sets the current log level (MessageLogLevel / WarningLogLevel / ErrorLogLevel)
+     * Sets the current log level. This property is a bit field, allowing you to combine different levels (MessageLogLevel / WarningLogLevel / ErrorLogLevel).
+     * Use NoneLogLevel to disable logging and AllLogLevel for a quick way to enable all levels.
      */
     static set LogLevels(level) {
         Logger.Log = Logger._LogDisabled;
         Logger.Warn = Logger._LogDisabled;
         Logger.Error = Logger._LogDisabled;
-        [Logger.MessageLogLevel, Logger.WarningLogLevel, Logger.ErrorLogLevel].forEach((l) => {
+        const levels = [Logger.MessageLogLevel, Logger.WarningLogLevel, Logger.ErrorLogLevel];
+        for (const l of levels) {
             if ((level & l) === l) {
                 const type = this._Levels[l];
                 Logger[type.name] = Logger._LogEnabled.bind(Logger, l);
             }
-        });
+        }
     }
 }
 /**

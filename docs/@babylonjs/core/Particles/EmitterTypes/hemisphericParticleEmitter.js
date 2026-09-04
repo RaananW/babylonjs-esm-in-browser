@@ -1,6 +1,6 @@
 import { DeepCopier } from "../../Misc/deepCopier.js";
-import { Vector3 } from "../../Maths/math.vector.js";
-import { Scalar } from "../../Maths/math.scalar.js";
+import { Vector3 } from "../../Maths/math.vector.pure.js";
+import { RandomRange } from "../../Maths/math.scalar.functions.js";
 /**
  * Particle emitter emitting particles from the inside of a hemisphere.
  * It emits the particles alongside the hemisphere radius. The emission direction might be randomized.
@@ -14,15 +14,15 @@ export class HemisphericParticleEmitter {
      */
     constructor(
     /**
-     * The radius of the emission hemisphere.
+     * [1] The radius of the emission hemisphere.
      */
     radius = 1, 
     /**
-     * The range of emission [0-1] 0 Surface only, 1 Entire Radius.
+     * [1] The range of emission [0-1] 0 Surface only, 1 Entire Radius.
      */
     radiusRange = 1, 
     /**
-     * How much to randomize the particle direction [0-1].
+     * [0] How much to randomize the particle direction [0-1].
      */
     directionRandomizer = 0) {
         this.radius = radius;
@@ -38,9 +38,9 @@ export class HemisphericParticleEmitter {
      */
     startDirectionFunction(worldMatrix, directionToUpdate, particle, isLocal) {
         const direction = particle.position.subtract(worldMatrix.getTranslation()).normalize();
-        const randX = Scalar.RandomRange(0, this.directionRandomizer);
-        const randY = Scalar.RandomRange(0, this.directionRandomizer);
-        const randZ = Scalar.RandomRange(0, this.directionRandomizer);
+        const randX = RandomRange(0, this.directionRandomizer);
+        const randY = RandomRange(0, this.directionRandomizer);
+        const randZ = RandomRange(0, this.directionRandomizer);
         direction.x += randX;
         direction.y += randY;
         direction.z += randZ;
@@ -59,9 +59,9 @@ export class HemisphericParticleEmitter {
      * @param isLocal defines if the position should be set in local space
      */
     startPositionFunction(worldMatrix, positionToUpdate, particle, isLocal) {
-        const randRadius = this.radius - Scalar.RandomRange(0, this.radius * this.radiusRange);
-        const v = Scalar.RandomRange(0, 1.0);
-        const phi = Scalar.RandomRange(0, 2 * Math.PI);
+        const randRadius = this.radius - RandomRange(0, this.radius * this.radiusRange);
+        const v = RandomRange(0, 1.0);
+        const phi = RandomRange(0, 2 * Math.PI);
         const theta = Math.acos(2 * v - 1);
         const randX = randRadius * Math.cos(phi) * Math.sin(theta);
         const randY = randRadius * Math.cos(theta);

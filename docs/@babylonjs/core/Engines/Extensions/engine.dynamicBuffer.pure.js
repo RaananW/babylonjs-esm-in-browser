@@ -1,0 +1,61 @@
+/** This file must only contain pure code and pure imports */
+import { ThinEngine } from "../../Engines/thinEngine.pure.js";
+let _Registered = false;
+/**
+ * Register side effects for engineDynamicBuffer.
+ * Safe to call multiple times; only the first call has an effect.
+ */
+export function RegisterEngineDynamicBuffer() {
+    if (_Registered) {
+        return;
+    }
+    _Registered = true;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    ThinEngine.prototype.updateDynamicIndexBuffer = function (indexBuffer, indices, offset = 0) {
+        // Force cache update
+        this._currentBoundBuffer[this._gl.ELEMENT_ARRAY_BUFFER] = null;
+        this.bindIndexBuffer(indexBuffer);
+        let view;
+        if (indexBuffer.is32Bits) {
+            // anything else than Uint32Array needs to be converted to Uint32Array
+            view = indices instanceof Uint32Array ? indices : new Uint32Array(indices);
+        }
+        else {
+            // anything else than Uint16Array needs to be converted to Uint16Array
+            view = indices instanceof Uint16Array ? indices : new Uint16Array(indices);
+        }
+        this._gl.bufferData(this._gl.ELEMENT_ARRAY_BUFFER, view, this._gl.DYNAMIC_DRAW);
+        this._resetIndexBufferBinding();
+    };
+    ThinEngine.prototype.updateDynamicVertexBuffer = function (vertexBuffer, data, byteOffset, byteLength) {
+        this.bindArrayBuffer(vertexBuffer);
+        if (byteOffset === undefined) {
+            byteOffset = 0;
+        }
+        const dataLength = data.byteLength || data.length;
+        if (byteLength === undefined || (byteLength >= dataLength && byteOffset === 0)) {
+            if (data instanceof Array) {
+                this._gl.bufferSubData(this._gl.ARRAY_BUFFER, byteOffset, new Float32Array(data));
+            }
+            else {
+                this._gl.bufferSubData(this._gl.ARRAY_BUFFER, byteOffset, data);
+            }
+        }
+        else {
+            if (data instanceof Array) {
+                this._gl.bufferSubData(this._gl.ARRAY_BUFFER, byteOffset, new Float32Array(data).subarray(0, byteLength / 4));
+            }
+            else {
+                if (ArrayBuffer.isView(data)) {
+                    data = new Uint8Array(data.buffer, data.byteOffset, byteLength);
+                }
+                else {
+                    data = new Uint8Array(data, 0, byteLength);
+                }
+                this._gl.bufferSubData(this._gl.ARRAY_BUFFER, byteOffset, data);
+            }
+        }
+        this._resetVertexBufferBinding();
+    };
+}
+//# sourceMappingURL=engine.dynamicBuffer.pure.js.map

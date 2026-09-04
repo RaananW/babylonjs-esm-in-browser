@@ -1,1 +1,2 @@
-export * from "./babylonFileLoader";
+export * from "./babylonFileLoader.js";
+export * from "./babylonFileParser.function.js";

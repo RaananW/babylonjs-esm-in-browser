@@ -1,10 +1,9 @@
-import { Observable } from "../Misc/observable";
-import type { IDisposable, Scene } from "../scene";
-import { WebXRSessionManager } from "./webXRSessionManager";
-import { WebXRCamera } from "./webXRCamera";
-import type { WebXRRenderTarget } from "./webXRTypes";
-import { WebXRState } from "./webXRTypes";
-import { WebXRFeaturesManager } from "./webXRFeaturesManager";
+import { Observable } from "../Misc/observable.js";
+import { type IDisposable, type Scene } from "../scene.js";
+import { WebXRSessionManager } from "./webXRSessionManager.js";
+import { WebXRCamera } from "./webXRCamera.js";
+import { type WebXRRenderTarget, WebXRState } from "./webXRTypes.js";
+import { WebXRFeaturesManager } from "./webXRFeaturesManager.js";
 /**
  * Options for setting up XR spectator camera.
  */
@@ -31,6 +30,9 @@ export declare class WebXRExperienceHelper implements IDisposable {
     private _supported;
     private _spectatorMode;
     private _lastTimestamp;
+    private _spectatorStateChangedObserver;
+    private _spectatorXRFrameObserver;
+    private _spectatorAfterRenderObserver;
     /**
      * Camera used to render xr content
      */
@@ -97,6 +99,7 @@ export declare class WebXRExperienceHelper implements IDisposable {
      * Disable spectator mode for desktop VR experiences.
      */
     disableSpecatatorMode(): void;
+    private _clearSpectatorObservers;
     private _switchSpectatorMode;
     private _nonXRToXRCamera;
     private _setState;

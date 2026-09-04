@@ -1,0 +1,1 @@
+{"version":3,"file":"gaussianSplattingMeshBase.js","sourceRoot":"","sources":["../../../../../dev/core/src/Meshes/GaussianSplatting/gaussianSplattingMeshBase.ts"],"names":[],"mappings":"AAAA,cAAc,kCAAkC,CAAC;AAEjD,OAAO,8BAA8B,CAAC","sourcesContent":["export * from \"./gaussianSplattingMeshBase.pure\";\n\nimport \"core/Meshes/thinInstanceMesh\";\n"]}

@@ -1,10 +1,10 @@
-import type { AssetContainer } from "@babylonjs/core/assetContainer.js";
-import type { Bone } from "@babylonjs/core/Bones/bone.js";
-import type { Skeleton } from "@babylonjs/core/Bones/skeleton.js";
-import type { Texture } from "@babylonjs/core/Materials/Textures/texture.js";
-import type { Node } from "@babylonjs/core/node.js";
-import type { Scene } from "@babylonjs/core/scene.js";
-import type { Nullable } from "@babylonjs/core/types.js";
+import { type AssetContainer } from "@babylonjs/core/assetContainer.js";
+import { type Bone } from "@babylonjs/core/Bones/bone.js";
+import { type Skeleton } from "@babylonjs/core/Bones/skeleton.js";
+import { type Texture } from "@babylonjs/core/Materials/Textures/texture.js";
+import { type Node } from "@babylonjs/core/node.js";
+import { type Scene } from "@babylonjs/core/scene.js";
+import { type Nullable } from "@babylonjs/core/types.js";
 /**
  * Enums
  * @internal
@@ -97,7 +97,7 @@ export interface IGLTFProperty {
     extensions?: {
         [key: string]: any;
     };
-    extras?: Object;
+    extras?: object;
 }
 /** @internal */
 export interface IGLTFChildRootProperty extends IGLTFProperty {
@@ -153,7 +153,7 @@ export interface IGLTFTechniqueParameter {
 /** @internal */
 export interface IGLTFTechniqueCommonProfile {
     lightingModel: string;
-    texcoordBindings: Object;
+    texcoordBindings: object;
     parameters?: Array<any>;
 }
 /** @internal */
@@ -379,7 +379,7 @@ export interface IGLTFRuntime {
     skins: {
         [key: string]: IGLTFSkins;
     };
-    currentScene?: Object;
+    currentScene?: object;
     scenes: {
         [key: string]: IGLTFScene;
     };

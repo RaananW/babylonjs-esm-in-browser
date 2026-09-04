@@ -1,6 +1,6 @@
-import type { IComputeContext } from "../../Compute/IComputeContext";
-import type { ComputeBindingList, ComputeBindingMapping } from "../Extensions/engine.computeShader";
-import type { WebGPUCacheSampler } from "./webgpuCacheSampler";
+import { type IComputeContext } from "../../Compute/IComputeContext.js";
+import { type ComputeBindingList, type ComputeBindingMapping } from "../Extensions/engine.computeShader.pure.js";
+import { type WebGPUCacheSampler } from "./webgpuCacheSampler.js";
 /** @internal */
 export declare class WebGPUComputeContext implements IComputeContext {
     private static _Counter;

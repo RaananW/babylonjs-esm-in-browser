@@ -1,13 +1,16 @@
-import { Tools } from "../Misc/tools.js";
+/* eslint-disable @typescript-eslint/naming-convention */
+import { Tools } from "../Misc/tools.pure.js";
 import { Observable } from "../Misc/observable.js";
-import { Scene } from "../scene.js";
-import { Engine } from "../Engines/engine.js";
+import { Scene } from "../scene.pure.js";
 import { EngineStore } from "../Engines/engineStore.js";
 import { Logger } from "../Misc/logger.js";
 
 import { SceneLoaderFlags } from "./sceneLoaderFlags.js";
-import { IsBase64DataUrl } from "../Misc/fileTools.js";
+import { IsBase64DataUrl } from "../Misc/fileTools.pure.js";
 import { RuntimeError, ErrorCodes } from "../Misc/error.js";
+import { RandomGUID } from "../Misc/guid.js";
+import { AbstractEngine } from "../Engines/abstractEngine.js";
+import { _FetchAsync } from "../Misc/webRequest.fetch.js";
 /**
  * Mode that determines how to handle old animation groups before loading new ones.
  */
@@ -30,9 +33,676 @@ export var SceneLoaderAnimationGroupLoadingMode;
      */
     SceneLoaderAnimationGroupLoadingMode[SceneLoaderAnimationGroupLoadingMode["NoSync"] = 3] = "NoSync";
 })(SceneLoaderAnimationGroupLoadingMode || (SceneLoaderAnimationGroupLoadingMode = {}));
+function IsFactory(pluginOrFactory) {
+    return !!pluginOrFactory.createPlugin;
+}
+function isFile(value) {
+    return !!value.name;
+}
+const onPluginActivatedObservable = new Observable();
+const registeredPlugins = {};
+let showingLoadingScreen = false;
+function getDefaultPlugin() {
+    return registeredPlugins[".babylon"];
+}
+function getPluginForMimeType(mimeType) {
+    for (const registeredPluginKey in registeredPlugins) {
+        const registeredPlugin = registeredPlugins[registeredPluginKey];
+        if (registeredPlugin.mimeType === mimeType) {
+            return registeredPlugin;
+        }
+    }
+    return undefined;
+}
+function getPluginForExtension(extension, returnDefault) {
+    const registeredPlugin = registeredPlugins[extension];
+    if (registeredPlugin) {
+        return registeredPlugin;
+    }
+    Logger.Warn("Unable to find a plugin to load " +
+        extension +
+        " files. Trying to use .babylon default plugin. To load from a specific filetype (eg. gltf) see: https://doc.babylonjs.com/features/featuresDeepDive/importers/loadingFileTypes");
+    return returnDefault ? getDefaultPlugin() : undefined;
+}
+function isPluginForExtensionAvailable(extension) {
+    return !!registeredPlugins[extension];
+}
+function getPluginForDirectLoad(data) {
+    for (const extension in registeredPlugins) {
+        const plugin = registeredPlugins[extension].plugin;
+        if (plugin.canDirectLoad && plugin.canDirectLoad(data)) {
+            return registeredPlugins[extension];
+        }
+    }
+    return getDefaultPlugin();
+}
+function getFilenameExtension(sceneFilename) {
+    const queryStringPosition = sceneFilename.indexOf("?");
+    if (queryStringPosition !== -1) {
+        sceneFilename = sceneFilename.substring(0, queryStringPosition);
+    }
+    const dotPosition = sceneFilename.lastIndexOf(".");
+    return sceneFilename.substring(dotPosition, sceneFilename.length).toLowerCase();
+}
+function getDirectLoad(sceneFilename) {
+    if (sceneFilename.substring(0, 5) === "data:") {
+        return sceneFilename.substring(5);
+    }
+    return null;
+}
+function formatErrorMessage(fileInfo, message, exception) {
+    const fromLoad = fileInfo.rawData ? "binary data" : fileInfo.url;
+    let errorMessage = "Unable to load from " + fromLoad;
+    if (message) {
+        errorMessage += `: ${message}`;
+    }
+    else if (exception) {
+        errorMessage += `: ${exception}`;
+    }
+    return errorMessage;
+}
+function createLoadError(fileInfo, message, exception) {
+    const errorMessage = formatErrorMessage(fileInfo, message, exception);
+    return new RuntimeError(errorMessage, ErrorCodes.SceneLoaderError, exception);
+}
+function getErrorMessage(error) {
+    return error instanceof Error ? error.message : String(error);
+}
+// Converts an error into a SceneLoader RuntimeError, leaving an already-wrapped SceneLoader error untouched
+// so that it is not double-wrapped (which would duplicate the "Unable to load from ..." prefix).
+function toLoadError(fileInfo, error) {
+    return error instanceof RuntimeError && error.errorCode === ErrorCodes.SceneLoaderError ? error : createLoadError(fileInfo, getErrorMessage(error), error);
+}
+const loadAssetContainerNotSupportedMessage = "LoadAssetContainer is not supported by this plugin. Plugin did not provide a loadAssetContainer or loadAssetContainerAsync method.";
+// A synchronous plugin exposes the synchronous import/load methods; an asynchronous plugin exposes the *Async methods.
+function isSyncPlugin(plugin) {
+    const candidate = plugin;
+    return !!candidate.importMesh || !!candidate.load || !!candidate.loadAssetContainer;
+}
+// Adapts a synchronous ISceneLoaderPlugin into an ISceneLoaderPluginAsync so that callers can use a single
+// promise-based code path regardless of whether the underlying plugin is synchronous or asynchronous.
+// Asynchronous plugins are returned unchanged. The synchronous plugin reports failure via an onError callback
+// and/or a falsy return value; both are translated into a rejected promise.
+function toAsyncPlugin(plugin, fileInfo) {
+    if (!isSyncPlugin(plugin)) {
+        return plugin;
+    }
+    const runSync = (invoke) => {
+        let pluginError;
+        const result = invoke((message, exception) => {
+            pluginError = { message, exception };
+        });
+        if (!result) {
+            throw createLoadError(fileInfo, pluginError?.message, pluginError?.exception);
+        }
+        return result;
+    };
+    return {
+        name: plugin.name,
+        extensions: plugin.extensions,
+        importMeshAsync: async (meshesNames, scene, data, rootUrl) => {
+            const meshes = [];
+            const particleSystems = [];
+            const skeletons = [];
+            runSync((onError) => plugin.importMesh(meshesNames, scene, data, rootUrl, meshes, particleSystems, skeletons, onError));
+            return { meshes, particleSystems, skeletons, animationGroups: [], transformNodes: [], geometries: [], lights: [], spriteManagers: [] };
+        },
+        loadAsync: async (scene, data, rootUrl) => {
+            runSync((onError) => plugin.load(scene, data, rootUrl, onError));
+        },
+        loadAssetContainerAsync: async (scene, data, rootUrl) => {
+            return runSync((onError) => plugin.loadAssetContainer(scene, data, rootUrl, onError));
+        },
+    };
+}
+// Reports a load failure to the legacy onError callback. The onError signature requires a Scene, but a scene
+// may not be available (e.g. the error occurred before any scene was created). In that case, fall back to
+// logging so the error handler does not throw a secondary error and mask the original failure.
+function reportLegacyLoadError(onError, reportScene, error) {
+    const message = getErrorMessage(error);
+    if (onError && reportScene) {
+        onError(reportScene, message, error);
+    }
+    else {
+        Logger.Error(message);
+    }
+}
+// Wraps a user supplied progress callback so that an exception thrown by it is logged rather than
+// aborting the entire loading operation.
+function wrapProgress(onProgress) {
+    if (!onProgress) {
+        return undefined;
+    }
+    return (event) => {
+        try {
+            onProgress(event);
+        }
+        catch (error) {
+            Logger.Warn("Error in onProgress callback: " + getErrorMessage(error));
+        }
+    };
+}
+async function loadDataAsync(fileInfo, scene, onProgress, pluginExtension, name, pluginOptions) {
+    const directLoad = getDirectLoad(fileInfo.url);
+    if (fileInfo.rawData && !pluginExtension) {
+        throw new Error("When using ArrayBufferView to load data the file extension must be provided.");
+    }
+    const fileExtension = !directLoad && !pluginExtension ? getFilenameExtension(fileInfo.url) : "";
+    let registeredPlugin = pluginExtension
+        ? getPluginForExtension(pluginExtension, true)
+        : directLoad
+            ? getPluginForDirectLoad(fileInfo.url)
+            : getPluginForExtension(fileExtension, false);
+    if (!registeredPlugin && fileExtension) {
+        if (fileInfo.url && !fileInfo.url.startsWith("blob:")) {
+            // Fetching head content to get the mime type
+            const response = await _FetchAsync(fileInfo.url, { method: "HEAD", responseHeaders: ["Content-Type"] });
+            const mimeType = response.headerValues ? response.headerValues["Content-Type"] : "";
+            if (mimeType) {
+                registeredPlugin = getPluginForMimeType(mimeType);
+            }
+        }
+        if (!registeredPlugin) {
+            registeredPlugin = getDefaultPlugin();
+        }
+    }
+    if (!registeredPlugin) {
+        throw new Error(`No plugin or fallback for ${pluginExtension ?? fileInfo.url}`);
+    }
+    if (pluginOptions?.[registeredPlugin.plugin.name]?.enabled === false) {
+        throw new Error(`The '${registeredPlugin.plugin.name}' plugin is disabled via the loader options passed to the loading operation.`);
+    }
+    if (fileInfo.rawData && !registeredPlugin.isBinary) {
+        throw new Error("Loading from ArrayBufferView can not be used with plugins that don't support binary loading.");
+    }
+    // For plugin factories, the plugin is instantiated on each SceneLoader operation. This makes options handling
+    // much simpler as we can just pass the options to the factory, rather than passing options through to every possible
+    // plugin call. Given this, options are only supported for plugins that provide a factory function.
+    let plugin;
+    if (IsFactory(registeredPlugin.plugin)) {
+        const pluginFactory = registeredPlugin.plugin;
+        try {
+            // Only await when the factory is actually asynchronous, so that for synchronous factories the plugin is
+            // instantiated (and onPluginActivatedObservable is notified) synchronously within the calling load operation.
+            const createdPlugin = pluginFactory.createPlugin((pluginOptions ?? {}));
+            plugin = createdPlugin instanceof Promise ? await createdPlugin : createdPlugin;
+        }
+        catch (error) {
+            throw createLoadError(fileInfo, "Error instantiating plugin.", error);
+        }
+    }
+    else {
+        plugin = registeredPlugin.plugin;
+    }
+    if (!plugin) {
+        throw new Error(`The loader plugin corresponding to the '${pluginExtension}' file type has not been found. If using es6, please import the plugin you wish to use before.`);
+    }
+    onPluginActivatedObservable.notifyObservers(plugin);
+    // Check if we have a direct load url. If the plugin is registered to handle
+    // it or it's not a base64 data url, then pass it through the direct load path.
+    if (directLoad && ((plugin.canDirectLoad && plugin.canDirectLoad(fileInfo.url)) || !IsBase64DataUrl(fileInfo.url))) {
+        if (plugin.directLoad) {
+            let data;
+            try {
+                data = await plugin.directLoad(scene, directLoad);
+            }
+            catch (error) {
+                throw createLoadError(fileInfo, "Error in directLoad of _loadData: " + error, error);
+            }
+            return { plugin, data };
+        }
+        return { plugin, data: directLoad };
+    }
+    const useArrayBuffer = registeredPlugin.isBinary;
+    return await new Promise((resolve, reject) => {
+        let request = null;
+        let pluginDisposed = false;
+        const onDisposeObserver = plugin.onDisposeObservable?.add(() => {
+            pluginDisposed = true;
+            if (request) {
+                request.abort();
+                request = null;
+            }
+            rejectAndCleanup(createLoadError(fileInfo, "Loading was aborted because the plugin was disposed."));
+        });
+        // Ensure the onDispose observer is removed once the promise settles, so observers do not accumulate across loads.
+        const cleanup = () => {
+            if (onDisposeObserver) {
+                plugin.onDisposeObservable?.remove(onDisposeObserver);
+            }
+        };
+        const resolveAndCleanup = (value) => {
+            cleanup();
+            resolve(value);
+        };
+        const rejectAndCleanup = (error) => {
+            cleanup();
+            reject(error);
+        };
+        const dataCallback = (data, responseURL) => {
+            if (scene.isDisposed) {
+                rejectAndCleanup(createLoadError(fileInfo, "Scene has been disposed"));
+                return;
+            }
+            resolveAndCleanup({ plugin, data, responseURL });
+        };
+        const manifestChecked = () => {
+            if (pluginDisposed) {
+                return;
+            }
+            const errorCallback = (request, exception) => {
+                rejectAndCleanup(createLoadError(fileInfo, request?.statusText, exception));
+            };
+            if (!plugin.loadFile && fileInfo.rawData) {
+                rejectAndCleanup(createLoadError(fileInfo, "Plugin does not support loading ArrayBufferView."));
+                return;
+            }
+            try {
+                request = plugin.loadFile
+                    ? plugin.loadFile(scene, fileInfo.rawData || fileInfo.file || fileInfo.url, fileInfo.rootUrl, dataCallback, onProgress, useArrayBuffer, errorCallback, name)
+                    : scene._loadFile(fileInfo.file || fileInfo.url, dataCallback, onProgress, true, useArrayBuffer, errorCallback);
+            }
+            catch (error) {
+                rejectAndCleanup(createLoadError(fileInfo, undefined, error));
+            }
+        };
+        const engine = scene.getEngine();
+        // File objects and raw data buffers are already in-memory and are not URL-backed requests, so they must
+        // not be routed through the offline (manifest/cache) provider.
+        let canUseOfflineSupport = !fileInfo.file && !fileInfo.rawData && engine.enableOfflineSupport;
+        if (canUseOfflineSupport) {
+            // Also check for exceptions
+            let exceptionFound = false;
+            for (const regex of scene.disableOfflineSupportExceptionRules) {
+                if (regex.test(fileInfo.url)) {
+                    exceptionFound = true;
+                    break;
+                }
+            }
+            canUseOfflineSupport = !exceptionFound;
+        }
+        if (canUseOfflineSupport && AbstractEngine.OfflineProviderFactory) {
+            // Checking if a manifest file has been set for this scene and if offline mode has been requested
+            try {
+                scene.offlineProvider = AbstractEngine.OfflineProviderFactory(fileInfo.url, manifestChecked, engine.disableManifestCheck);
+            }
+            catch (error) {
+                rejectAndCleanup(createLoadError(fileInfo, undefined, error));
+            }
+        }
+        else {
+            manifestChecked();
+        }
+    });
+}
+function GetFileInfo(rootUrl, sceneSource) {
+    let url;
+    let name;
+    let file = null;
+    let rawData = null;
+    if (!sceneSource) {
+        url = rootUrl;
+        name = Tools.GetFilename(rootUrl);
+        rootUrl = Tools.GetFolderPath(rootUrl);
+    }
+    else if (isFile(sceneSource)) {
+        url = `file:${sceneSource.name}`;
+        name = sceneSource.name;
+        file = sceneSource;
+    }
+    else if (ArrayBuffer.isView(sceneSource)) {
+        url = "";
+        name = RandomGUID();
+        rawData = sceneSource;
+    }
+    else if (sceneSource.startsWith("data:")) {
+        url = sceneSource;
+        name = "";
+    }
+    else if (rootUrl) {
+        const filename = sceneSource;
+        if (filename.substring(0, 1) === "/") {
+            Tools.Error("Wrong sceneFilename parameter");
+            return null;
+        }
+        url = rootUrl + filename;
+        name = filename;
+    }
+    else {
+        url = sceneSource;
+        name = Tools.GetFilename(sceneSource);
+        rootUrl = Tools.GetFolderPath(sceneSource);
+    }
+    return {
+        url: url,
+        rootUrl: rootUrl,
+        name: name,
+        file: file,
+        rawData,
+    };
+}
+/**
+ * Adds a new plugin to the list of registered plugins
+ * @param plugin defines the plugin to add
+ */
+export function RegisterSceneLoaderPlugin(plugin) {
+    if (typeof plugin.extensions === "string") {
+        const extension = plugin.extensions;
+        registeredPlugins[extension.toLowerCase()] = {
+            plugin: plugin,
+            isBinary: false,
+        };
+    }
+    else {
+        const extensions = plugin.extensions;
+        const keys = Object.keys(extensions);
+        for (const extension of keys) {
+            registeredPlugins[extension.toLowerCase()] = {
+                plugin: plugin,
+                isBinary: extensions[extension].isBinary,
+                mimeType: extensions[extension].mimeType,
+            };
+        }
+    }
+}
+/**
+ * Adds a new plugin to the list of registered plugins
+ * @deprecated Please use {@link RegisterSceneLoaderPlugin} instead.
+ * @param plugin defines the plugin to add
+ */
+export function registerSceneLoaderPlugin(plugin) {
+    RegisterSceneLoaderPlugin(plugin);
+}
+/**
+ * Gets metadata for all currently registered scene loader plugins.
+ * @returns An array where each entry has metadata for a single scene loader plugin.
+ */
+export function GetRegisteredSceneLoaderPluginMetadata() {
+    return Array.from(Object.entries(registeredPlugins).reduce((pluginMap, [extension, extensionRegistration]) => {
+        let pluginMetadata = pluginMap.get(extensionRegistration.plugin.name);
+        if (!pluginMetadata) {
+            pluginMap.set(extensionRegistration.plugin.name, (pluginMetadata = []));
+        }
+        pluginMetadata.push({ extension, isBinary: extensionRegistration.isBinary, mimeType: extensionRegistration.mimeType });
+        return pluginMap;
+    }, new Map())).map(([name, extensions]) => ({ name, extensions }));
+}
+/**
+ * Import meshes into a scene
+ * @param source a string that defines the name of the scene file, or starts with "data:" following by the stringified version of the scene, or a File object, or an ArrayBufferView
+ * @param scene the instance of BABYLON.Scene to append to
+ * @param options an object that configures aspects of how the scene is loaded
+ * @returns The loaded list of imported meshes, particle systems, skeletons, and animation groups
+ */
+export async function ImportMeshAsync(source, scene, options) {
+    const { meshNames, rootUrl = "", onProgress, pluginExtension, name, pluginOptions } = options ?? {};
+    return await importMeshCoreAsync(meshNames, rootUrl, source, scene, onProgress, pluginExtension, name, pluginOptions);
+}
+async function importMeshCoreAsync(meshNames, rootUrl, sceneFilename = "", scene = EngineStore.LastCreatedScene, onProgress, pluginExtension, name = "", pluginOptions = {}) {
+    if (!scene) {
+        throw new Error("No scene available to import mesh to");
+    }
+    const fileInfo = GetFileInfo(rootUrl, sceneFilename);
+    if (!fileInfo) {
+        throw new Error("Cannot load file: a valid scene filename or root url was not provided.");
+    }
+    const loadingToken = {};
+    scene.addPendingData(loadingToken);
+    const progressHandler = wrapProgress(onProgress);
+    try {
+        const { plugin, data, responseURL } = await loadDataAsync(fileInfo, scene, progressHandler, pluginExtension ?? null, name, pluginOptions);
+        if (plugin.rewriteRootURL) {
+            fileInfo.rootUrl = plugin.rewriteRootURL(fileInfo.rootUrl, responseURL);
+        }
+        let result;
+        try {
+            result = await toAsyncPlugin(plugin, fileInfo).importMeshAsync(meshNames, scene, data, fileInfo.rootUrl, progressHandler, fileInfo.name);
+        }
+        catch (error) {
+            throw toLoadError(fileInfo, error);
+        }
+        // eslint-disable-next-line require-atomic-updates
+        scene.loadingPluginName = plugin.name;
+        scene.importedMeshesFiles.push(fileInfo.url);
+        return result;
+    }
+    finally {
+        scene.removePendingData(loadingToken);
+    }
+}
+// This is the core implementation of load scene
+async function loadSceneCoreAsync(rootUrl, sceneFilename = "", engine = EngineStore.LastCreatedEngine, onProgress, pluginExtension, name = "", pluginOptions = {}) {
+    if (!engine) {
+        throw new Error("No engine available");
+    }
+    const scene = new Scene(engine);
+    try {
+        await appendSceneCoreAsync(rootUrl, sceneFilename, scene, onProgress, pluginExtension, name, pluginOptions);
+    }
+    catch (error) {
+        // The scene was created here, so dispose it on failure to avoid leaking the partially loaded scene.
+        scene.dispose();
+        throw error;
+    }
+    return scene;
+}
+/**
+ * Load a scene
+ * @param source a string that defines the name of the scene file, or starts with "data:" following by the stringified version of the scene, or a File object, or an ArrayBufferView
+ * @param engine is the instance of BABYLON.Engine to use to create the scene
+ * @param options an object that configures aspects of how the scene is loaded
+ * @returns The loaded scene
+ */
+export async function LoadSceneAsync(source, engine, options) {
+    const { rootUrl = "", onProgress, pluginExtension, name, pluginOptions } = options ?? {};
+    return await loadSceneCoreAsync(rootUrl, source, engine, onProgress, pluginExtension, name, pluginOptions);
+}
+/**
+ * Load a scene
+ * @deprecated Please use {@link LoadSceneAsync} instead.
+ * @param source a string that defines the name of the scene file, or starts with "data:" following by the stringified version of the scene, or a File object, or an ArrayBufferView
+ * @param engine is the instance of BABYLON.Engine to use to create the scene
+ * @param options an object that configures aspects of how the scene is loaded
+ * @returns The loaded scene
+ */
+export async function loadSceneAsync(source, engine, options) {
+    return await LoadSceneAsync(source, engine, options);
+}
+// This is the core implementation of append scene
+async function appendSceneCoreAsync(rootUrl, sceneFilename = "", scene = EngineStore.LastCreatedScene, onProgress, pluginExtension, name = "", pluginOptions = {}) {
+    if (!scene) {
+        throw new Error("No scene available to append to");
+    }
+    const fileInfo = GetFileInfo(rootUrl, sceneFilename);
+    if (!fileInfo) {
+        throw new Error("Cannot load file: a valid scene filename or root url was not provided.");
+    }
+    const loadingToken = {};
+    scene.addPendingData(loadingToken);
+    if (SceneLoaderFlags.ShowLoadingScreen && !showingLoadingScreen) {
+        showingLoadingScreen = true;
+        scene.getEngine().displayLoadingUI();
+        scene.executeWhenReady(() => {
+            scene.getEngine().hideLoadingUI();
+            showingLoadingScreen = false;
+        });
+    }
+    const progressHandler = wrapProgress(onProgress);
+    try {
+        const { plugin, data } = await loadDataAsync(fileInfo, scene, progressHandler, pluginExtension ?? null, name, pluginOptions);
+        try {
+            await toAsyncPlugin(plugin, fileInfo).loadAsync(scene, data, fileInfo.rootUrl, progressHandler, fileInfo.name);
+        }
+        catch (error) {
+            throw toLoadError(fileInfo, error);
+        }
+        // eslint-disable-next-line require-atomic-updates
+        scene.loadingPluginName = plugin.name;
+        return scene;
+    }
+    finally {
+        scene.removePendingData(loadingToken);
+    }
+}
+/**
+ * Append a scene
+ * @param source a string that defines the name of the scene file, or starts with "data:" following by the stringified version of the scene, or a File object, or an ArrayBufferView
+ * @param scene is the instance of BABYLON.Scene to append to
+ * @param options an object that configures aspects of how the scene is loaded
+ * @returns A promise that resolves when the scene is appended
+ */
+export async function AppendSceneAsync(source, scene, options) {
+    const { rootUrl = "", onProgress, pluginExtension, name, pluginOptions } = options ?? {};
+    await appendSceneCoreAsync(rootUrl, source, scene, onProgress, pluginExtension, name, pluginOptions);
+}
+/**
+ * Append a scene
+ * @deprecated Please use {@link AppendSceneAsync} instead.
+ * @param source a string that defines the name of the scene file, or starts with "data:" following by the stringified version of the scene, or a File object, or an ArrayBufferView
+ * @param scene is the instance of BABYLON.Scene to append to
+ * @param options an object that configures aspects of how the scene is loaded
+ * @returns A promise that resolves when the scene is appended
+ */
+export async function appendSceneAsync(source, scene, options) {
+    return await AppendSceneAsync(source, scene, options);
+}
+// This is the core implementation of load asset container
+async function loadAssetContainerCoreAsync(rootUrl, sceneFilename = "", scene = EngineStore.LastCreatedScene, onProgress, pluginExtension, name = "", pluginOptions = {}) {
+    if (!scene) {
+        throw new Error("No scene available to load asset container to");
+    }
+    const fileInfo = GetFileInfo(rootUrl, sceneFilename);
+    if (!fileInfo) {
+        throw new Error("Cannot load file: a valid scene filename or root url was not provided.");
+    }
+    const loadingToken = {};
+    scene.addPendingData(loadingToken);
+    const progressHandler = wrapProgress(onProgress);
+    try {
+        const { plugin, data } = await loadDataAsync(fileInfo, scene, progressHandler, pluginExtension ?? null, name, pluginOptions);
+        const asyncPlugin = toAsyncPlugin(plugin, fileInfo);
+        if (!asyncPlugin.loadAssetContainerAsync) {
+            throw createLoadError(fileInfo, loadAssetContainerNotSupportedMessage);
+        }
+        let assetContainer;
+        try {
+            assetContainer = await asyncPlugin.loadAssetContainerAsync(scene, data, fileInfo.rootUrl, progressHandler, fileInfo.name);
+        }
+        catch (error) {
+            throw toLoadError(fileInfo, error);
+        }
+        assetContainer.populateRootNodes();
+        // eslint-disable-next-line require-atomic-updates
+        scene.loadingPluginName = plugin.name;
+        return assetContainer;
+    }
+    finally {
+        scene.removePendingData(loadingToken);
+    }
+}
+/**
+ * Load a scene into an asset container
+ * @param source a string that defines the name of the scene file, or starts with "data:" following by the stringified version of the scene, or a File object, or an ArrayBufferView
+ * @param scene is the instance of Scene to append to
+ * @param options an object that configures aspects of how the scene is loaded
+ * @returns The loaded asset container
+ */
+export async function LoadAssetContainerAsync(source, scene, options) {
+    const { rootUrl = "", onProgress, pluginExtension, name, pluginOptions } = options ?? {};
+    return await loadAssetContainerCoreAsync(rootUrl, source, scene, onProgress, pluginExtension, name, pluginOptions);
+}
+/**
+ * Load a scene into an asset container
+ * @deprecated Please use {@link LoadAssetContainerAsync} instead.
+ * @param source a string that defines the name of the scene file, or starts with "data:" following by the stringified version of the scene, or a File object, or an ArrayBufferView
+ * @param scene is the instance of Scene to append to
+ * @param options an object that configures aspects of how the scene is loaded
+ * @returns The loaded asset container
+ */
+export async function loadAssetContainerAsync(source, scene, options) {
+    return await LoadAssetContainerAsync(source, scene, options);
+}
+// This is the core implementation of import animations
+async function importAnimationsCoreAsync(rootUrl, sceneFilename = "", scene = EngineStore.LastCreatedScene, overwriteAnimations = true, animationGroupLoadingMode = 0 /* SceneLoaderAnimationGroupLoadingMode.Clean */, targetConverter = null, onProgress, pluginExtension, name = "", pluginOptions = {}) {
+    if (!scene) {
+        throw new Error("No scene available to load animations to");
+    }
+    if (overwriteAnimations) {
+        // Reset, stop and dispose all animations before loading new ones
+        for (const animatable of scene.animatables) {
+            animatable.reset();
+        }
+        scene.stopAllAnimations();
+        const animationGroups = scene.animationGroups.slice();
+        for (const animationGroup of animationGroups) {
+            animationGroup.dispose();
+        }
+        const nodes = scene.getNodes();
+        for (const node of nodes) {
+            if (node.animations) {
+                node.animations = [];
+            }
+        }
+    }
+    else {
+        switch (animationGroupLoadingMode) {
+            case 0 /* SceneLoaderAnimationGroupLoadingMode.Clean */:
+                const animationGroups = scene.animationGroups.slice();
+                for (const animationGroup of animationGroups) {
+                    animationGroup.dispose();
+                }
+                break;
+            case 1 /* SceneLoaderAnimationGroupLoadingMode.Stop */:
+                for (const animationGroup of scene.animationGroups) {
+                    animationGroup.stop();
+                }
+                break;
+            case 2 /* SceneLoaderAnimationGroupLoadingMode.Sync */:
+                for (const animationGroup of scene.animationGroups) {
+                    animationGroup.reset();
+                    animationGroup.restart();
+                }
+                break;
+            case 3 /* SceneLoaderAnimationGroupLoadingMode.NoSync */:
+                // nothing to do
+                break;
+            default:
+                throw new Error("Unknown animation group loading mode value '" + animationGroupLoadingMode + "'");
+        }
+    }
+    const startingIndexForNewAnimatables = scene.animatables.length;
+    const container = await loadAssetContainerCoreAsync(rootUrl, sceneFilename, scene, onProgress, pluginExtension, name, pluginOptions);
+    container.mergeAnimationsTo(scene, scene.animatables.slice(startingIndexForNewAnimatables), targetConverter);
+    container.dispose();
+    scene.onAnimationFileImportedObservable.notifyObservers(scene);
+}
+/**
+ * Import animations from a file into a scene
+ * @param source a string that defines the name of the scene file, or starts with "data:" following by the stringified version of the scene, or a File object, or an ArrayBufferView
+ * @param scene is the instance of BABYLON.Scene to append to
+ * @param options an object that configures aspects of how the scene is loaded
+ * @returns A promise that resolves when the animations are imported
+ */
+export async function ImportAnimationsAsync(source, scene, options) {
+    const { rootUrl = "", overwriteAnimations, animationGroupLoadingMode, targetConverter, onProgress, pluginExtension, name, pluginOptions } = options ?? {};
+    await importAnimationsCoreAsync(rootUrl, source, scene, overwriteAnimations, animationGroupLoadingMode, targetConverter, onProgress, pluginExtension, name, pluginOptions);
+}
+/**
+ * Import animations from a file into a scene
+ * @deprecated Please use {@link ImportAnimationsAsync} instead.
+ * @param source a string that defines the name of the scene file, or starts with "data:" following by the stringified version of the scene, or a File object, or an ArrayBufferView
+ * @param scene is the instance of BABYLON.Scene to append to
+ * @param options an object that configures aspects of how the scene is loaded
+ * @returns A promise that resolves when the animations are imported
+ */
+export async function importAnimationsAsync(source, scene, options) {
+    return await ImportAnimationsAsync(source, scene, options);
+}
 /**
  * Class used to load scene from various file formats using registered plugins
  * @see https://doc.babylonjs.com/features/featuresDeepDive/importers/loadingFileTypes
+ * @deprecated The module level functions are more efficient for bundler tree shaking and allow plugin options to be passed through. Future improvements to scene loading will primarily be in the module level functions. The SceneLoader class will remain available, but it will be beneficial to prefer the module level functions.
+ * @see {@link ImportMeshAsync}, {@link LoadSceneAsync}, {@link AppendSceneAsync}, {@link ImportAnimationsAsync}, {@link LoadAssetContainerAsync}
  */
 export class SceneLoader {
     /**
@@ -79,182 +749,7 @@ export class SceneLoader {
      * @returns the .babylon plugin
      */
     static GetDefaultPlugin() {
-        return SceneLoader._RegisteredPlugins[".babylon"];
-    }
-    static _GetPluginForExtension(extension) {
-        const registeredPlugin = SceneLoader._RegisteredPlugins[extension];
-        if (registeredPlugin) {
-            return registeredPlugin;
-        }
-        Logger.Warn("Unable to find a plugin to load " +
-            extension +
-            " files. Trying to use .babylon default plugin. To load from a specific filetype (eg. gltf) see: https://doc.babylonjs.com/features/featuresDeepDive/importers/loadingFileTypes");
-        return SceneLoader.GetDefaultPlugin();
-    }
-    static _GetPluginForDirectLoad(data) {
-        for (const extension in SceneLoader._RegisteredPlugins) {
-            const plugin = SceneLoader._RegisteredPlugins[extension].plugin;
-            if (plugin.canDirectLoad && plugin.canDirectLoad(data)) {
-                return SceneLoader._RegisteredPlugins[extension];
-            }
-        }
-        return SceneLoader.GetDefaultPlugin();
-    }
-    static _GetPluginForFilename(sceneFilename) {
-        const queryStringPosition = sceneFilename.indexOf("?");
-        if (queryStringPosition !== -1) {
-            sceneFilename = sceneFilename.substring(0, queryStringPosition);
-        }
-        const dotPosition = sceneFilename.lastIndexOf(".");
-        const extension = sceneFilename.substring(dotPosition, sceneFilename.length).toLowerCase();
-        return SceneLoader._GetPluginForExtension(extension);
-    }
-    static _GetDirectLoad(sceneFilename) {
-        if (sceneFilename.substr(0, 5) === "data:") {
-            return sceneFilename.substr(5);
-        }
-        return null;
-    }
-    static _FormatErrorMessage(fileInfo, message, exception) {
-        let errorMessage = "Unable to load from " + fileInfo.url;
-        if (message) {
-            errorMessage += `: ${message}`;
-        }
-        else if (exception) {
-            errorMessage += `: ${exception}`;
-        }
-        return errorMessage;
-    }
-    static _LoadData(fileInfo, scene, onSuccess, onProgress, onError, onDispose, pluginExtension) {
-        const directLoad = SceneLoader._GetDirectLoad(fileInfo.url);
-        const registeredPlugin = pluginExtension
-            ? SceneLoader._GetPluginForExtension(pluginExtension)
-            : directLoad
-                ? SceneLoader._GetPluginForDirectLoad(fileInfo.url)
-                : SceneLoader._GetPluginForFilename(fileInfo.url);
-        let plugin;
-        if (registeredPlugin.plugin.createPlugin !== undefined) {
-            plugin = registeredPlugin.plugin.createPlugin();
-        }
-        else {
-            plugin = registeredPlugin.plugin;
-        }
-        if (!plugin) {
-            throw "The loader plugin corresponding to the file type you are trying to load has not been found. If using es6, please import the plugin you wish to use before.";
-        }
-        SceneLoader.OnPluginActivatedObservable.notifyObservers(plugin);
-        // Check if we have a direct load url. If the plugin is registered to handle
-        // it or it's not a base64 data url, then pass it through the direct load path.
-        if (directLoad && ((plugin.canDirectLoad && plugin.canDirectLoad(fileInfo.url)) || !IsBase64DataUrl(fileInfo.url))) {
-            if (plugin.directLoad) {
-                const result = plugin.directLoad(scene, directLoad);
-                if (result.then) {
-                    result
-                        .then((data) => {
-                        onSuccess(plugin, data);
-                    })
-                        .catch((error) => {
-                        onError("Error in directLoad of _loadData: " + error, error);
-                    });
-                }
-                else {
-                    onSuccess(plugin, result);
-                }
-            }
-            else {
-                onSuccess(plugin, directLoad);
-            }
-            return plugin;
-        }
-        const useArrayBuffer = registeredPlugin.isBinary;
-        const dataCallback = (data, responseURL) => {
-            if (scene.isDisposed) {
-                onError("Scene has been disposed");
-                return;
-            }
-            onSuccess(plugin, data, responseURL);
-        };
-        let request = null;
-        let pluginDisposed = false;
-        const onDisposeObservable = plugin.onDisposeObservable;
-        if (onDisposeObservable) {
-            onDisposeObservable.add(() => {
-                pluginDisposed = true;
-                if (request) {
-                    request.abort();
-                    request = null;
-                }
-                onDispose();
-            });
-        }
-        const manifestChecked = () => {
-            if (pluginDisposed) {
-                return;
-            }
-            const errorCallback = (request, exception) => {
-                onError(request === null || request === void 0 ? void 0 : request.statusText, exception);
-            };
-            const fileOrUrl = fileInfo.file || fileInfo.url;
-            request = plugin.loadFile
-                ? plugin.loadFile(scene, fileOrUrl, dataCallback, onProgress, useArrayBuffer, errorCallback)
-                : scene._loadFile(fileOrUrl, dataCallback, onProgress, true, useArrayBuffer, errorCallback);
-        };
-        const engine = scene.getEngine();
-        let canUseOfflineSupport = engine.enableOfflineSupport;
-        if (canUseOfflineSupport) {
-            // Also check for exceptions
-            let exceptionFound = false;
-            for (const regex of scene.disableOfflineSupportExceptionRules) {
-                if (regex.test(fileInfo.url)) {
-                    exceptionFound = true;
-                    break;
-                }
-            }
-            canUseOfflineSupport = !exceptionFound;
-        }
-        if (canUseOfflineSupport && Engine.OfflineProviderFactory) {
-            // Checking if a manifest file has been set for this scene and if offline mode has been requested
-            scene.offlineProvider = Engine.OfflineProviderFactory(fileInfo.url, manifestChecked, engine.disableManifestCheck);
-        }
-        else {
-            manifestChecked();
-        }
-        return plugin;
-    }
-    static _GetFileInfo(rootUrl, sceneFilename) {
-        let url;
-        let name;
-        let file = null;
-        if (!sceneFilename) {
-            url = rootUrl;
-            name = Tools.GetFilename(rootUrl);
-            rootUrl = Tools.GetFolderPath(rootUrl);
-        }
-        else if (sceneFilename.name) {
-            const sceneFile = sceneFilename;
-            url = `file:${sceneFile.name}`;
-            name = sceneFile.name;
-            file = sceneFile;
-        }
-        else if (typeof sceneFilename === "string" && sceneFilename.startsWith("data:")) {
-            url = sceneFilename;
-            name = "";
-        }
-        else {
-            const filename = sceneFilename;
-            if (filename.substr(0, 1) === "/") {
-                Tools.Error("Wrong sceneFilename parameter");
-                return null;
-            }
-            url = rootUrl + filename;
-            name = filename;
-        }
-        return {
-            url: url,
-            rootUrl: rootUrl,
-            name: name,
-            file: file,
-        };
+        return getDefaultPlugin();
     }
     // Public functions
     /**
@@ -263,7 +758,7 @@ export class SceneLoader {
      * @returns a plugin or null if none works
      */
     static GetPluginForExtension(extension) {
-        return SceneLoader._GetPluginForExtension(extension).plugin;
+        return getPluginForExtension(extension, true)?.plugin;
     }
     /**
      * Gets a boolean indicating that the given extension can be loaded
@@ -271,29 +766,14 @@ export class SceneLoader {
      * @returns true if the extension is supported
      */
     static IsPluginForExtensionAvailable(extension) {
-        return !!SceneLoader._RegisteredPlugins[extension];
+        return isPluginForExtensionAvailable(extension);
     }
     /**
      * Adds a new plugin to the list of registered plugins
      * @param plugin defines the plugin to add
      */
     static RegisterPlugin(plugin) {
-        if (typeof plugin.extensions === "string") {
-            const extension = plugin.extensions;
-            SceneLoader._RegisteredPlugins[extension.toLowerCase()] = {
-                plugin: plugin,
-                isBinary: false,
-            };
-        }
-        else {
-            const extensions = plugin.extensions;
-            Object.keys(extensions).forEach((extension) => {
-                SceneLoader._RegisteredPlugins[extension.toLowerCase()] = {
-                    plugin: plugin,
-                    isBinary: extensions[extension].isBinary,
-                };
-            });
-        }
+        RegisterSceneLoaderPlugin(plugin);
     }
     /**
      * Import meshes into a scene
@@ -305,83 +785,21 @@ export class SceneLoader {
      * @param onProgress a callback with a progress event for each file being loaded
      * @param onError a callback with the scene, a message, and possibly an exception when import fails
      * @param pluginExtension the extension used to determine the plugin
-     * @returns The loaded plugin
+     * @param name defines the name of the file, if the data is binary
+     * @param pluginOptions defines the options to use with the plugin
+     * @deprecated Please use the module level {@link ImportMeshAsync} instead
      */
-    static ImportMesh(meshNames, rootUrl, sceneFilename = "", scene = EngineStore.LastCreatedScene, onSuccess = null, onProgress = null, onError = null, pluginExtension = null) {
-        if (!scene) {
-            Logger.Error("No scene available to import mesh to");
-            return null;
-        }
-        const fileInfo = SceneLoader._GetFileInfo(rootUrl, sceneFilename);
-        if (!fileInfo) {
-            return null;
-        }
-        const loadingToken = {};
-        scene.addPendingData(loadingToken);
-        const disposeHandler = () => {
-            scene.removePendingData(loadingToken);
-        };
-        const errorHandler = (message, exception) => {
-            const errorMessage = SceneLoader._FormatErrorMessage(fileInfo, message, exception);
-            if (onError) {
-                onError(scene, errorMessage, new RuntimeError(errorMessage, ErrorCodes.SceneLoaderError, exception));
+    static ImportMesh(meshNames, rootUrl, sceneFilename, scene, onSuccess, onProgress, onError, pluginExtension, name, pluginOptions) {
+        const reportScene = scene ?? EngineStore.LastCreatedScene;
+        void (async () => {
+            try {
+                const result = await importMeshCoreAsync(meshNames, rootUrl, sceneFilename, scene, onProgress, pluginExtension, name, pluginOptions);
+                onSuccess?.(result.meshes, result.particleSystems, result.skeletons, result.animationGroups, result.transformNodes, result.geometries, result.lights, result.spriteManagers);
             }
-            else {
-                Logger.Error(errorMessage);
-                // should the exception be thrown?
+            catch (error) {
+                reportLegacyLoadError(onError, reportScene, error);
             }
-            disposeHandler();
-        };
-        const progressHandler = onProgress
-            ? (event) => {
-                try {
-                    onProgress(event);
-                }
-                catch (e) {
-                    errorHandler("Error in onProgress callback: " + e, e);
-                }
-            }
-            : undefined;
-        const successHandler = (meshes, particleSystems, skeletons, animationGroups, transformNodes, geometries, lights) => {
-            scene.importedMeshesFiles.push(fileInfo.url);
-            if (onSuccess) {
-                try {
-                    onSuccess(meshes, particleSystems, skeletons, animationGroups, transformNodes, geometries, lights);
-                }
-                catch (e) {
-                    errorHandler("Error in onSuccess callback: " + e, e);
-                }
-            }
-            scene.removePendingData(loadingToken);
-        };
-        return SceneLoader._LoadData(fileInfo, scene, (plugin, data, responseURL) => {
-            if (plugin.rewriteRootURL) {
-                fileInfo.rootUrl = plugin.rewriteRootURL(fileInfo.rootUrl, responseURL);
-            }
-            if (plugin.importMesh) {
-                const syncedPlugin = plugin;
-                const meshes = new Array();
-                const particleSystems = new Array();
-                const skeletons = new Array();
-                if (!syncedPlugin.importMesh(meshNames, scene, data, fileInfo.rootUrl, meshes, particleSystems, skeletons, errorHandler)) {
-                    return;
-                }
-                scene.loadingPluginName = plugin.name;
-                successHandler(meshes, particleSystems, skeletons, [], [], [], []);
-            }
-            else {
-                const asyncedPlugin = plugin;
-                asyncedPlugin
-                    .importMeshAsync(meshNames, scene, data, fileInfo.rootUrl, progressHandler, fileInfo.name)
-                    .then((result) => {
-                    scene.loadingPluginName = plugin.name;
-                    successHandler(result.meshes, result.particleSystems, result.skeletons, result.animationGroups, result.transformNodes, result.geometries, result.lights);
-                })
-                    .catch((error) => {
-                    errorHandler(error.message, error);
-                });
-            }
-        }, progressHandler, errorHandler, disposeHandler, pluginExtension);
+        })();
     }
     /**
      * Import meshes into a scene
@@ -391,24 +809,12 @@ export class SceneLoader {
      * @param scene the instance of BABYLON.Scene to append to
      * @param onProgress a callback with a progress event for each file being loaded
      * @param pluginExtension the extension used to determine the plugin
+     * @param name defines the name of the file
      * @returns The loaded list of imported meshes, particle systems, skeletons, and animation groups
+     * @deprecated Please use the module level {@link ImportMeshAsync} instead
      */
-    static ImportMeshAsync(meshNames, rootUrl, sceneFilename = "", scene = EngineStore.LastCreatedScene, onProgress = null, pluginExtension = null) {
-        return new Promise((resolve, reject) => {
-            SceneLoader.ImportMesh(meshNames, rootUrl, sceneFilename, scene, (meshes, particleSystems, skeletons, animationGroups, transformNodes, geometries, lights) => {
-                resolve({
-                    meshes: meshes,
-                    particleSystems: particleSystems,
-                    skeletons: skeletons,
-                    animationGroups: animationGroups,
-                    transformNodes: transformNodes,
-                    geometries: geometries,
-                    lights: lights,
-                });
-            }, onProgress, (scene, message, exception) => {
-                reject(exception || new Error(message));
-            }, pluginExtension);
-        });
+    static async ImportMeshAsync(meshNames, rootUrl, sceneFilename, scene, onProgress, pluginExtension, name) {
+        return await importMeshCoreAsync(meshNames, rootUrl, sceneFilename, scene, onProgress, pluginExtension, name);
     }
     /**
      * Load a scene
@@ -419,14 +825,19 @@ export class SceneLoader {
      * @param onProgress a callback with a progress event for each file being loaded
      * @param onError a callback with the scene, a message, and possibly an exception when import fails
      * @param pluginExtension the extension used to determine the plugin
-     * @returns The loaded plugin
+     * @param name defines the filename, if the data is binary
+     * @deprecated Please use the module level {@link LoadSceneAsync} instead
      */
-    static Load(rootUrl, sceneFilename = "", engine = EngineStore.LastCreatedEngine, onSuccess = null, onProgress = null, onError = null, pluginExtension = null) {
-        if (!engine) {
-            Tools.Error("No engine available");
-            return null;
-        }
-        return SceneLoader.Append(rootUrl, sceneFilename, new Scene(engine), onSuccess, onProgress, onError, pluginExtension);
+    static Load(rootUrl, sceneFilename, engine, onSuccess, onProgress, onError, pluginExtension, name) {
+        void (async () => {
+            try {
+                const scene = await loadSceneCoreAsync(rootUrl, sceneFilename, engine, onProgress, pluginExtension, name);
+                onSuccess?.(scene);
+            }
+            catch (error) {
+                reportLegacyLoadError(onError, EngineStore.LastCreatedScene, error);
+            }
+        })();
     }
     /**
      * Load a scene
@@ -435,16 +846,12 @@ export class SceneLoader {
      * @param engine is the instance of BABYLON.Engine to use to create the scene
      * @param onProgress a callback with a progress event for each file being loaded
      * @param pluginExtension the extension used to determine the plugin
+     * @param name defines the filename, if the data is binary
      * @returns The loaded scene
+     * @deprecated Please use the module level {@link LoadSceneAsync} instead
      */
-    static LoadAsync(rootUrl, sceneFilename = "", engine = EngineStore.LastCreatedEngine, onProgress = null, pluginExtension = null) {
-        return new Promise((resolve, reject) => {
-            SceneLoader.Load(rootUrl, sceneFilename, engine, (scene) => {
-                resolve(scene);
-            }, onProgress, (scene, message, exception) => {
-                reject(exception || new Error(message));
-            }, pluginExtension);
-        });
+    static async LoadAsync(rootUrl, sceneFilename, engine, onProgress, pluginExtension, name) {
+        return await loadSceneCoreAsync(rootUrl, sceneFilename, engine, onProgress, pluginExtension, name);
     }
     /**
      * Append a scene
@@ -455,84 +862,20 @@ export class SceneLoader {
      * @param onProgress a callback with a progress event for each file being loaded
      * @param onError a callback with the scene, a message, and possibly an exception when import fails
      * @param pluginExtension the extension used to determine the plugin
-     * @returns The loaded plugin
+     * @param name defines the name of the file, if the data is binary
+     * @deprecated Please use the module level {@link AppendSceneAsync} instead
      */
-    static Append(rootUrl, sceneFilename = "", scene = EngineStore.LastCreatedScene, onSuccess = null, onProgress = null, onError = null, pluginExtension = null) {
-        if (!scene) {
-            Logger.Error("No scene available to append to");
-            return null;
-        }
-        const fileInfo = SceneLoader._GetFileInfo(rootUrl, sceneFilename);
-        if (!fileInfo) {
-            return null;
-        }
-        const loadingToken = {};
-        scene.addPendingData(loadingToken);
-        const disposeHandler = () => {
-            scene.removePendingData(loadingToken);
-        };
-        if (SceneLoader.ShowLoadingScreen && !this._ShowingLoadingScreen) {
-            this._ShowingLoadingScreen = true;
-            scene.getEngine().displayLoadingUI();
-            scene.executeWhenReady(() => {
-                scene.getEngine().hideLoadingUI();
-                this._ShowingLoadingScreen = false;
-            });
-        }
-        const errorHandler = (message, exception) => {
-            const errorMessage = SceneLoader._FormatErrorMessage(fileInfo, message, exception);
-            if (onError) {
-                onError(scene, errorMessage, new RuntimeError(errorMessage, ErrorCodes.SceneLoaderError, exception));
+    static Append(rootUrl, sceneFilename, scene, onSuccess, onProgress, onError, pluginExtension, name) {
+        const reportScene = scene ?? EngineStore.LastCreatedScene;
+        void (async () => {
+            try {
+                const appendedScene = await appendSceneCoreAsync(rootUrl, sceneFilename, scene, onProgress, pluginExtension, name);
+                onSuccess?.(appendedScene);
             }
-            else {
-                Logger.Error(errorMessage);
-                // should the exception be thrown?
+            catch (error) {
+                reportLegacyLoadError(onError, reportScene, error);
             }
-            disposeHandler();
-        };
-        const progressHandler = onProgress
-            ? (event) => {
-                try {
-                    onProgress(event);
-                }
-                catch (e) {
-                    errorHandler("Error in onProgress callback", e);
-                }
-            }
-            : undefined;
-        const successHandler = () => {
-            if (onSuccess) {
-                try {
-                    onSuccess(scene);
-                }
-                catch (e) {
-                    errorHandler("Error in onSuccess callback", e);
-                }
-            }
-            scene.removePendingData(loadingToken);
-        };
-        return SceneLoader._LoadData(fileInfo, scene, (plugin, data) => {
-            if (plugin.load) {
-                const syncedPlugin = plugin;
-                if (!syncedPlugin.load(scene, data, fileInfo.rootUrl, errorHandler)) {
-                    return;
-                }
-                scene.loadingPluginName = plugin.name;
-                successHandler();
-            }
-            else {
-                const asyncedPlugin = plugin;
-                asyncedPlugin
-                    .loadAsync(scene, data, fileInfo.rootUrl, progressHandler, fileInfo.name)
-                    .then(() => {
-                    scene.loadingPluginName = plugin.name;
-                    successHandler();
-                })
-                    .catch((error) => {
-                    errorHandler(error.message, error);
-                });
-            }
-        }, progressHandler, errorHandler, disposeHandler, pluginExtension);
+        })();
     }
     /**
      * Append a scene
@@ -541,16 +884,12 @@ export class SceneLoader {
      * @param scene is the instance of BABYLON.Scene to append to
      * @param onProgress a callback with a progress event for each file being loaded
      * @param pluginExtension the extension used to determine the plugin
+     * @param name defines the name of the file, if the data is binary
      * @returns The given scene
+     * @deprecated Please use the module level {@link AppendSceneAsync} instead
      */
-    static AppendAsync(rootUrl, sceneFilename = "", scene = EngineStore.LastCreatedScene, onProgress = null, pluginExtension = null) {
-        return new Promise((resolve, reject) => {
-            SceneLoader.Append(rootUrl, sceneFilename, scene, (scene) => {
-                resolve(scene);
-            }, onProgress, (scene, message, exception) => {
-                reject(exception || new Error(message));
-            }, pluginExtension);
-        });
+    static async AppendAsync(rootUrl, sceneFilename, scene, onProgress, pluginExtension, name) {
+        return await appendSceneCoreAsync(rootUrl, sceneFilename, scene, onProgress, pluginExtension, name);
     }
     /**
      * Load a scene into an asset container
@@ -561,80 +900,20 @@ export class SceneLoader {
      * @param onProgress a callback with a progress event for each file being loaded
      * @param onError a callback with the scene, a message, and possibly an exception when import fails
      * @param pluginExtension the extension used to determine the plugin
-     * @returns The loaded plugin
+     * @param name defines the filename, if the data is binary
+     * @deprecated Please use the module level {@link LoadAssetContainerAsync} instead
      */
-    static LoadAssetContainer(rootUrl, sceneFilename = "", scene = EngineStore.LastCreatedScene, onSuccess = null, onProgress = null, onError = null, pluginExtension = null) {
-        if (!scene) {
-            Logger.Error("No scene available to load asset container to");
-            return null;
-        }
-        const fileInfo = SceneLoader._GetFileInfo(rootUrl, sceneFilename);
-        if (!fileInfo) {
-            return null;
-        }
-        const loadingToken = {};
-        scene.addPendingData(loadingToken);
-        const disposeHandler = () => {
-            scene.removePendingData(loadingToken);
-        };
-        const errorHandler = (message, exception) => {
-            const errorMessage = SceneLoader._FormatErrorMessage(fileInfo, message, exception);
-            if (onError) {
-                onError(scene, errorMessage, new RuntimeError(errorMessage, ErrorCodes.SceneLoaderError, exception));
+    static LoadAssetContainer(rootUrl, sceneFilename, scene, onSuccess, onProgress, onError, pluginExtension, name) {
+        const reportScene = scene ?? EngineStore.LastCreatedScene;
+        void (async () => {
+            try {
+                const assets = await loadAssetContainerCoreAsync(rootUrl, sceneFilename, scene, onProgress, pluginExtension, name);
+                onSuccess?.(assets);
             }
-            else {
-                Logger.Error(errorMessage);
-                // should the exception be thrown?
+            catch (error) {
+                reportLegacyLoadError(onError, reportScene, error);
             }
-            disposeHandler();
-        };
-        const progressHandler = onProgress
-            ? (event) => {
-                try {
-                    onProgress(event);
-                }
-                catch (e) {
-                    errorHandler("Error in onProgress callback", e);
-                }
-            }
-            : undefined;
-        const successHandler = (assets) => {
-            if (onSuccess) {
-                try {
-                    onSuccess(assets);
-                }
-                catch (e) {
-                    errorHandler("Error in onSuccess callback", e);
-                }
-            }
-            scene.removePendingData(loadingToken);
-        };
-        return SceneLoader._LoadData(fileInfo, scene, (plugin, data) => {
-            if (plugin.loadAssetContainer) {
-                const syncedPlugin = plugin;
-                const assetContainer = syncedPlugin.loadAssetContainer(scene, data, fileInfo.rootUrl, errorHandler);
-                if (!assetContainer) {
-                    return;
-                }
-                scene.loadingPluginName = plugin.name;
-                successHandler(assetContainer);
-            }
-            else if (plugin.loadAssetContainerAsync) {
-                const asyncedPlugin = plugin;
-                asyncedPlugin
-                    .loadAssetContainerAsync(scene, data, fileInfo.rootUrl, progressHandler, fileInfo.name)
-                    .then((assetContainer) => {
-                    scene.loadingPluginName = plugin.name;
-                    successHandler(assetContainer);
-                })
-                    .catch((error) => {
-                    errorHandler(error.message, error);
-                });
-            }
-            else {
-                errorHandler("LoadAssetContainer is not supported by this plugin. Plugin did not provide a loadAssetContainer or loadAssetContainerAsync method.");
-            }
-        }, progressHandler, errorHandler, disposeHandler, pluginExtension);
+        })();
     }
     /**
      * Load a scene into an asset container
@@ -643,16 +922,12 @@ export class SceneLoader {
      * @param scene is the instance of Scene to append to
      * @param onProgress a callback with a progress event for each file being loaded
      * @param pluginExtension the extension used to determine the plugin
+     * @param name defines the filename, if the data is binary
      * @returns The loaded asset container
+     * @deprecated Please use the module level {@link LoadAssetContainerAsync} instead
      */
-    static LoadAssetContainerAsync(rootUrl, sceneFilename = "", scene = EngineStore.LastCreatedScene, onProgress = null, pluginExtension = null) {
-        return new Promise((resolve, reject) => {
-            SceneLoader.LoadAssetContainer(rootUrl, sceneFilename, scene, (assetContainer) => {
-                resolve(assetContainer);
-            }, onProgress, (scene, message, exception) => {
-                reject(exception || new Error(message));
-            }, pluginExtension);
-        });
+    static async LoadAssetContainerAsync(rootUrl, sceneFilename, scene, onProgress, pluginExtension, name) {
+        return await loadAssetContainerCoreAsync(rootUrl, sceneFilename, scene, onProgress, pluginExtension, name);
     }
     /**
      * Import animations from a file into a scene
@@ -666,64 +941,20 @@ export class SceneLoader {
      * @param onProgress a callback with a progress event for each file being loaded
      * @param onError a callback with the scene, a message, and possibly an exception when import fails
      * @param pluginExtension the extension used to determine the plugin
+     * @param name defines the filename, if the data is binary
+     * @deprecated Please use the module level {@link ImportAnimationsAsync} instead
      */
-    static ImportAnimations(rootUrl, sceneFilename = "", scene = EngineStore.LastCreatedScene, overwriteAnimations = true, animationGroupLoadingMode = SceneLoaderAnimationGroupLoadingMode.Clean, targetConverter = null, onSuccess = null, onProgress = null, onError = null, pluginExtension = null) {
-        if (!scene) {
-            Logger.Error("No scene available to load animations to");
-            return;
-        }
-        if (overwriteAnimations) {
-            // Reset, stop and dispose all animations before loading new ones
-            for (const animatable of scene.animatables) {
-                animatable.reset();
+    static ImportAnimations(rootUrl, sceneFilename, scene, overwriteAnimations, animationGroupLoadingMode, targetConverter, onSuccess, onProgress, onError, pluginExtension, name) {
+        const reportScene = scene ?? EngineStore.LastCreatedScene;
+        void (async () => {
+            try {
+                await importAnimationsCoreAsync(rootUrl, sceneFilename, scene, overwriteAnimations, animationGroupLoadingMode, targetConverter, onProgress, pluginExtension, name);
+                onSuccess?.(reportScene);
             }
-            scene.stopAllAnimations();
-            scene.animationGroups.slice().forEach((animationGroup) => {
-                animationGroup.dispose();
-            });
-            const nodes = scene.getNodes();
-            nodes.forEach((node) => {
-                if (node.animations) {
-                    node.animations = [];
-                }
-            });
-        }
-        else {
-            switch (animationGroupLoadingMode) {
-                case SceneLoaderAnimationGroupLoadingMode.Clean:
-                    scene.animationGroups.slice().forEach((animationGroup) => {
-                        animationGroup.dispose();
-                    });
-                    break;
-                case SceneLoaderAnimationGroupLoadingMode.Stop:
-                    scene.animationGroups.forEach((animationGroup) => {
-                        animationGroup.stop();
-                    });
-                    break;
-                case SceneLoaderAnimationGroupLoadingMode.Sync:
-                    scene.animationGroups.forEach((animationGroup) => {
-                        animationGroup.reset();
-                        animationGroup.restart();
-                    });
-                    break;
-                case SceneLoaderAnimationGroupLoadingMode.NoSync:
-                    // nothing to do
-                    break;
-                default:
-                    Logger.Error("Unknown animation group loading mode value '" + animationGroupLoadingMode + "'");
-                    return;
+            catch (error) {
+                reportLegacyLoadError(onError, reportScene, error);
             }
-        }
-        const startingIndexForNewAnimatables = scene.animatables.length;
-        const onAssetContainerLoaded = (container) => {
-            container.mergeAnimationsTo(scene, scene.animatables.slice(startingIndexForNewAnimatables), targetConverter);
-            container.dispose();
-            scene.onAnimationFileImportedObservable.notifyObservers(scene);
-            if (onSuccess) {
-                onSuccess(scene);
-            }
-        };
-        this.LoadAssetContainer(rootUrl, sceneFilename, scene, onAssetContainerLoaded, onProgress, onError, pluginExtension);
+        })();
     }
     /**
      * Import animations from a file into a scene
@@ -737,20 +968,18 @@ export class SceneLoader {
      * @param onProgress a callback with a progress event for each file being loaded
      * @param onError a callback with the scene, a message, and possibly an exception when import fails
      * @param pluginExtension the extension used to determine the plugin
+     * @param name defines the filename, if the data is binary
      * @returns the updated scene with imported animations
+     * @deprecated Please use the module level {@link ImportAnimationsAsync} instead
      */
-    static ImportAnimationsAsync(rootUrl, sceneFilename = "", scene = EngineStore.LastCreatedScene, overwriteAnimations = true, animationGroupLoadingMode = SceneLoaderAnimationGroupLoadingMode.Clean, targetConverter = null, 
+    static async ImportAnimationsAsync(rootUrl, sceneFilename, scene, overwriteAnimations, animationGroupLoadingMode, targetConverter, 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    onSuccess = null, onProgress = null, 
+    onSuccess, onProgress, 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    onError = null, pluginExtension = null) {
-        return new Promise((resolve, reject) => {
-            SceneLoader.ImportAnimations(rootUrl, sceneFilename, scene, overwriteAnimations, animationGroupLoadingMode, targetConverter, (_scene) => {
-                resolve(_scene);
-            }, onProgress, (_scene, message, exception) => {
-                reject(exception || new Error(message));
-            }, pluginExtension);
-        });
+    onError, pluginExtension, name) {
+        const targetScene = scene ?? EngineStore.LastCreatedScene;
+        await importAnimationsCoreAsync(rootUrl, sceneFilename, targetScene, overwriteAnimations, animationGroupLoadingMode, targetConverter, onProgress, pluginExtension, name);
+        return targetScene;
     }
 }
 /**
@@ -773,7 +1002,5 @@ SceneLoader.DETAILED_LOGGING = 3;
 /**
  * Event raised when a plugin is used to load a scene
  */
-SceneLoader.OnPluginActivatedObservable = new Observable();
-SceneLoader._RegisteredPlugins = {};
-SceneLoader._ShowingLoadingScreen = false;
+SceneLoader.OnPluginActivatedObservable = onPluginActivatedObservable;
 //# sourceMappingURL=sceneLoader.js.map

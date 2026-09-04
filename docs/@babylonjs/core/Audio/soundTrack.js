@@ -1,5 +1,5 @@
-import { Engine } from "../Engines/engine.js";
 import { EngineStore } from "../Engines/engineStore.js";
+import { AbstractEngine } from "../Engines/abstractEngine.js";
 /**
  * It could be useful to isolate your music & sounds on several tracks to better manage volume on a grouped instance of sounds.
  * It will be also used in a future release to apply effects on a specific track.
@@ -23,7 +23,7 @@ export class SoundTrack {
             return;
         }
         this._scene = scene;
-        this.soundCollection = new Array();
+        this.soundCollection = [];
         this._options = options;
         if (!this._options.mainTrack && this._scene.soundTracks) {
             this._scene.soundTracks.push(this);
@@ -31,10 +31,9 @@ export class SoundTrack {
         }
     }
     _initializeSoundTrackAudioGraph() {
-        var _a;
-        if (((_a = Engine.audioEngine) === null || _a === void 0 ? void 0 : _a.canUseWebAudio) && Engine.audioEngine.audioContext) {
-            this._outputAudioNode = Engine.audioEngine.audioContext.createGain();
-            this._outputAudioNode.connect(Engine.audioEngine.masterGain);
+        if (AbstractEngine.audioEngine?.canUseWebAudio && AbstractEngine.audioEngine.audioContext) {
+            this._outputAudioNode = AbstractEngine.audioEngine.audioContext.createGain();
+            this._outputAudioNode.connect(AbstractEngine.audioEngine.masterGain);
             if (this._options) {
                 if (this._options.volume) {
                     this._outputAudioNode.gain.value = this._options.volume;
@@ -47,7 +46,7 @@ export class SoundTrack {
      * Release the sound track and its associated resources
      */
     dispose() {
-        if (Engine.audioEngine && Engine.audioEngine.canUseWebAudio) {
+        if (AbstractEngine.audioEngine && AbstractEngine.audioEngine.canUseWebAudio) {
             if (this._connectedAnalyser) {
                 this._connectedAnalyser.stopDebugCanvas();
             }
@@ -66,14 +65,13 @@ export class SoundTrack {
      * @ignoreNaming
      */
     addSound(sound) {
-        var _a;
         if (!this._isInitialized) {
             this._initializeSoundTrackAudioGraph();
         }
-        if (((_a = Engine.audioEngine) === null || _a === void 0 ? void 0 : _a.canUseWebAudio) && this._outputAudioNode) {
+        if (AbstractEngine.audioEngine?.canUseWebAudio && this._outputAudioNode) {
             sound.connectToSoundTrackAudioNode(this._outputAudioNode);
         }
-        if (sound.soundTrackId) {
+        if (sound.soundTrackId !== undefined) {
             if (sound.soundTrackId === -1) {
                 this._scene.mainSoundTrack.removeSound(sound);
             }
@@ -100,8 +98,7 @@ export class SoundTrack {
      * @param newVolume Define the new volume of the sound track
      */
     setVolume(newVolume) {
-        var _a;
-        if (((_a = Engine.audioEngine) === null || _a === void 0 ? void 0 : _a.canUseWebAudio) && this._outputAudioNode) {
+        if (AbstractEngine.audioEngine?.canUseWebAudio && this._outputAudioNode) {
             this._outputAudioNode.gain.value = newVolume;
         }
     }
@@ -111,8 +108,7 @@ export class SoundTrack {
      * @see https://doc.babylonjs.com/features/featuresDeepDive/audio/playingSoundsMusic#creating-a-spatial-3d-sound
      */
     switchPanningModelToHRTF() {
-        var _a;
-        if ((_a = Engine.audioEngine) === null || _a === void 0 ? void 0 : _a.canUseWebAudio) {
+        if (AbstractEngine.audioEngine?.canUseWebAudio) {
             for (let i = 0; i < this.soundCollection.length; i++) {
                 this.soundCollection[i].switchPanningModelToHRTF();
             }
@@ -124,8 +120,7 @@ export class SoundTrack {
      * @see https://doc.babylonjs.com/features/featuresDeepDive/audio/playingSoundsMusic#creating-a-spatial-3d-sound
      */
     switchPanningModelToEqualPower() {
-        var _a;
-        if ((_a = Engine.audioEngine) === null || _a === void 0 ? void 0 : _a.canUseWebAudio) {
+        if (AbstractEngine.audioEngine?.canUseWebAudio) {
             for (let i = 0; i < this.soundCollection.length; i++) {
                 this.soundCollection[i].switchPanningModelToEqualPower();
             }
@@ -138,14 +133,13 @@ export class SoundTrack {
      * @param analyser The analyser to connect to the engine
      */
     connectToAnalyser(analyser) {
-        var _a;
         if (this._connectedAnalyser) {
             this._connectedAnalyser.stopDebugCanvas();
         }
         this._connectedAnalyser = analyser;
-        if (((_a = Engine.audioEngine) === null || _a === void 0 ? void 0 : _a.canUseWebAudio) && this._outputAudioNode) {
+        if (AbstractEngine.audioEngine?.canUseWebAudio && this._outputAudioNode) {
             this._outputAudioNode.disconnect();
-            this._connectedAnalyser.connectAudioNodes(this._outputAudioNode, Engine.audioEngine.masterGain);
+            this._connectedAnalyser.connectAudioNodes(this._outputAudioNode, AbstractEngine.audioEngine.masterGain);
         }
     }
 }

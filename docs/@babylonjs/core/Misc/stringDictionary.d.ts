@@ -1,4 +1,4 @@
-import type { Nullable } from "../types";
+import { type Nullable } from "../types.js";
 /**
  * This class implement a typical dictionary using a string as key and the generic type T as value.
  * The underlying implementation relies on an associative array to ensure the best performances.
@@ -86,7 +86,7 @@ export declare class StringDictionary<T> {
      * @param callback the callback to execute, if it return a valid T instanced object the enumeration will stop and the object will be returned
      * @returns the first item
      */
-    first<TRes>(callback: (key: string, val: T) => TRes): TRes | null;
+    first<TRes>(callback: (key: string, val: T) => TRes): NonNullable<TRes> | null;
     private _count;
     private _data;
 }

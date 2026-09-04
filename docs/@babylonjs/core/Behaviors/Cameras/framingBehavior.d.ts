@@ -1,10 +1,10 @@
-import type { Behavior } from "../../Behaviors/behavior";
-import type { ArcRotateCamera } from "../../Cameras/arcRotateCamera";
-import { ExponentialEase } from "../../Animations/easing";
-import { Observable } from "../../Misc/observable";
-import type { Nullable } from "../../types";
-import type { AbstractMesh } from "../../Meshes/abstractMesh";
-import { Vector3 } from "../../Maths/math.vector";
+import { type Behavior } from "../../Behaviors/behavior.js";
+import { type ArcRotateCamera } from "../../Cameras/arcRotateCamera.js";
+import { ExponentialEase } from "../../Animations/easing.js";
+import { Observable } from "../../Misc/observable.js";
+import { type Nullable } from "../../types.js";
+import { type AbstractMesh } from "../../Meshes/abstractMesh.js";
+import { Vector3 } from "../../Maths/math.vector.pure.js";
 /**
  * The framing behavior (FramingBehavior) is designed to automatically position an ArcRotateCamera when its target is set to a mesh. It is also useful if you want to prevent the camera to go under a virtual horizontal plane.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/behaviors/cameraBehaviors#framing-behavior
@@ -107,6 +107,10 @@ export declare class FramingBehavior implements Behavior<ArcRotateCamera> {
      * camera limits and sensibilities.
      */
     autoCorrectCameraLimitsAndSensibility: boolean;
+    /**
+     * Attached node of this behavior
+     */
+    get attachedNode(): Nullable<ArcRotateCamera>;
     private _onPrePointerObservableObserver;
     private _onAfterCheckInputsObserver;
     private _onMeshTargetChangedObserver;
@@ -140,7 +144,7 @@ export declare class FramingBehavior implements Behavior<ArcRotateCamera> {
     zoomOnMesh(mesh: AbstractMesh, focusOnOriginXZ?: boolean, onAnimationEnd?: Nullable<() => void>): void;
     /**
      * Targets the given mesh with its children and updates zoom level accordingly.
-     * @param mesh  The mesh to target.
+     * @param mesh The mesh to target.
      * @param focusOnOriginXZ Determines if the camera should focus on 0 in the X and Z axis instead of the mesh
      * @param onAnimationEnd Callback triggered at the end of the framing animation
      */
@@ -158,8 +162,9 @@ export declare class FramingBehavior implements Behavior<ArcRotateCamera> {
      * @param maximumWorld Determines the bigger position of the bounding box extend
      * @param focusOnOriginXZ Determines if the camera should focus on 0 in the X and Z axis instead of the mesh
      * @param onAnimationEnd Callback triggered at the end of the framing animation
+     * @returns true if the zoom was done
      */
-    zoomOnBoundingInfo(minimumWorld: Vector3, maximumWorld: Vector3, focusOnOriginXZ?: boolean, onAnimationEnd?: Nullable<() => void>): void;
+    zoomOnBoundingInfo(minimumWorld: Vector3, maximumWorld: Vector3, focusOnOriginXZ?: boolean, onAnimationEnd?: Nullable<() => void>): boolean;
     /**
      * Calculates the lowest radius for the camera based on the bounding box of the mesh.
      * @param minimumWorld
@@ -173,11 +178,6 @@ export declare class FramingBehavior implements Behavior<ArcRotateCamera> {
      * is automatically returned to its default position (expected to be above ground plane).
      */
     private _maintainCameraAboveGround;
-    /**
-     * Returns the frustum slope based on the canvas ratio and camera FOV
-     * @returns The frustum slope represented as a Vector2 with X and Y slopes
-     */
-    private _getFrustumSlope;
     /**
      * Removes all animation locks. Allows new animations to be added to any of the arcCamera properties.
      */

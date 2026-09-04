@@ -1,9 +1,9 @@
-import type { Nullable } from "../types";
-import { Vector2 } from "../Maths/math.vector";
-import type { PickingInfo } from "../Collisions/pickingInfo";
-import type { IMouseEvent } from "./deviceInputEvents";
-import type { InputManager } from "../Inputs/scene.inputManager";
-declare type Ray = import("../Culling/ray").Ray;
+import { type Nullable } from "../types.js";
+import { Vector2 } from "../Maths/math.vector.pure.js";
+import { type PickingInfo } from "../Collisions/pickingInfo.js";
+import { type IMouseEvent } from "./deviceInputEvents.js";
+import { type InputManager } from "../Inputs/scene.inputManager.js";
+import { type Ray } from "../Culling/ray.js";
 /**
  * Gather the list of pointer event types as constants.
  */
@@ -143,5 +143,8 @@ export interface PointerTouch {
      * Event type passed from DOM.
      */
     type: any;
+    /**
+     * The touch event's associated button ID (0: left, 1: middle, 2: right, etc.)
+     */
+    button?: number;
 }
-export {};

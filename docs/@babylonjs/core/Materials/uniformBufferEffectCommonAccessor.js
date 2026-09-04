@@ -1,5 +1,8 @@
 /** @internal */
 export class UniformBufferEffectCommonAccessor {
+    _isUbo(uboOrEffect) {
+        return uboOrEffect.addUniform !== undefined;
+    }
     constructor(uboOrEffect) {
         if (this._isUbo(uboOrEffect)) {
             this.setMatrix3x3 = uboOrEffect.updateMatrix3x3.bind(uboOrEffect);
@@ -45,9 +48,6 @@ export class UniformBufferEffectCommonAccessor {
             this.setInt3 = uboOrEffect.setInt3.bind(uboOrEffect);
             this.setInt4 = uboOrEffect.setInt4.bind(uboOrEffect);
         }
-    }
-    _isUbo(uboOrEffect) {
-        return uboOrEffect.addUniform !== undefined;
     }
 }
 //# sourceMappingURL=uniformBufferEffectCommonAccessor.js.map

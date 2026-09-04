@@ -1,13 +1,12 @@
-import type { Nullable } from "../types";
-import { Mesh } from "../Meshes/mesh";
-import type { IGizmo } from "./gizmo";
-import { Gizmo } from "./gizmo";
-import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer";
-import { StandardMaterial } from "../Materials/standardMaterial";
-import type { Camera } from "../Cameras/camera";
-import type { PointerInfo } from "../Events/pointerEvents";
-import type { Observer } from "../Misc/observable";
-import { Observable } from "../Misc/observable";
+import { type Nullable } from "../types.js";
+import { Color3 } from "../Maths/math.color.pure.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
+import { type IGizmo, Gizmo } from "./gizmo.js";
+import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer.js";
+import { StandardMaterial } from "../Materials/standardMaterial.pure.js";
+import { type Camera } from "../Cameras/camera.js";
+import { type PointerInfo } from "../Events/pointerEvents.js";
+import { type Observer, Observable } from "../Misc/observable.js";
 /**
  * Interface for camera gizmo
  */
@@ -29,6 +28,7 @@ export declare class CameraGizmo extends Gizmo implements ICameraGizmo {
     protected _cameraLinesMesh: Mesh;
     protected _material: StandardMaterial;
     protected _pointerObserver: Nullable<Observer<PointerInfo>>;
+    private _frustumLinesColor?;
     /**
      * Event that fires each time the gizmo is clicked
      */
@@ -36,10 +36,12 @@ export declare class CameraGizmo extends Gizmo implements ICameraGizmo {
     /**
      * Creates a CameraGizmo
      * @param gizmoLayer The utility layer the gizmo will be added to
+     * @param gizmoColor Camera mesh color. Default is Gray
+     * @param frustumLinesColor Frustum lines color. Default is White
      */
-    constructor(gizmoLayer?: UtilityLayerRenderer);
+    constructor(gizmoLayer?: UtilityLayerRenderer, gizmoColor?: Color3, frustumLinesColor?: Color3);
     protected _camera: Nullable<Camera>;
-    /** Gets or sets a boolean indicating if frustum lines must be rendered (true by default)) */
+    /** Gets or sets a boolean indicating if frustum lines must be rendered (true by default) */
     get displayFrustum(): boolean;
     set displayFrustum(value: boolean);
     /**
@@ -58,6 +60,11 @@ export declare class CameraGizmo extends Gizmo implements ICameraGizmo {
     protected _update(): void;
     private static _Scale;
     private _invProjection;
+    /**
+     * Disposes and replaces the current camera mesh in the gizmo with the specified mesh
+     * @param mesh The mesh to replace the default mesh of the camera gizmo
+     */
+    setCustomMesh(mesh: Mesh): void;
     /**
      * Disposes of the camera gizmo
      */

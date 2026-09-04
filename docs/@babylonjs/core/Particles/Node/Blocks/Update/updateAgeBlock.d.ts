@@ -1,0 +1,5 @@
+/**
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import updateAgeBlock.pure for tree-shakeable, side-effect-free usage.
+ */
+export * from "./updateAgeBlock.pure.js";

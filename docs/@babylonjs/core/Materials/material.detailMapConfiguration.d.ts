@@ -1,13 +1,13 @@
-import type { Nullable } from "../types";
-import type { BaseTexture } from "./Textures/baseTexture";
-import type { UniformBuffer } from "./uniformBuffer";
-import type { IAnimatable } from "../Animations/animatable.interface";
-import { MaterialDefines } from "./materialDefines";
-import { MaterialPluginBase } from "./materialPluginBase";
-declare type Engine = import("../Engines/engine").Engine;
-declare type Scene = import("../scene").Scene;
-declare type StandardMaterial = import("./standardMaterial").StandardMaterial;
-declare type PBRBaseMaterial = import("./PBR/pbrBaseMaterial").PBRBaseMaterial;
+import { type Nullable } from "../types.js";
+import { type BaseTexture } from "./Textures/baseTexture.js";
+import { type UniformBuffer } from "./uniformBuffer.js";
+import { type IAnimatable } from "../Animations/animatable.interface.js";
+import { MaterialDefines } from "./materialDefines.js";
+import { MaterialPluginBase } from "./materialPluginBase.pure.js";
+import { type Scene } from "../scene.js";
+import { type StandardMaterial } from "./standardMaterial.js";
+import { type PBRBaseMaterial } from "./PBR/pbrBaseMaterial.js";
+import { type AbstractEngine } from "../Engines/abstractEngine.js";
 /**
  * @internal
  */
@@ -29,7 +29,7 @@ export declare class DetailMapConfiguration extends MaterialPluginBase {
     /**
      * The detail texture of the material.
      */
-    texture: Nullable<BaseTexture>;
+    accessor texture: Nullable<BaseTexture>;
     /**
      * Defines how strongly the detail diffuse/albedo channel is blended with the regular diffuse/albedo texture
      * Bigger values mean stronger blending
@@ -49,25 +49,68 @@ export declare class DetailMapConfiguration extends MaterialPluginBase {
     /**
      * The method used to blend the bump and detail normals together
      */
-    normalBlendMethod: number;
+    accessor normalBlendMethod: number;
     private _isEnabled;
     /**
      * Enable or disable the detail map on this material
      */
-    isEnabled: boolean;
+    accessor isEnabled: boolean;
     /** @internal */
     private _internalMarkAllSubMeshesAsTexturesDirty;
     /** @internal */
     _markAllSubMeshesAsTexturesDirty(): void;
+    /**
+     * Gets a boolean indicating that the plugin is compatible with a given shader language.
+     * @returns true if the plugin is compatible with the shader language
+     */
+    isCompatible(): boolean;
     constructor(material: PBRBaseMaterial | StandardMaterial, addToPluginList?: boolean);
-    isReadyForSubMesh(defines: MaterialDetailMapDefines, scene: Scene, engine: Engine): boolean;
+    /**
+     * Checks whether the detail map textures are ready for the sub mesh.
+     * @param defines defines the material defines to inspect
+     * @param scene defines the scene to use for readiness checks
+     * @param engine defines the engine to use for readiness checks
+     * @returns true if the detail map is ready
+     */
+    isReadyForSubMesh(defines: MaterialDetailMapDefines, scene: Scene, engine: AbstractEngine): boolean;
+    /**
+     * Updates the material defines for the detail map.
+     * @param defines defines the material defines to update
+     * @param scene defines the scene to use for texture checks
+     */
     prepareDefines(defines: MaterialDetailMapDefines, scene: Scene): void;
+    /**
+     * Binds the detail map data for a sub mesh.
+     * @param uniformBuffer defines the uniform buffer to update
+     * @param scene defines the scene to use for texture binding
+     */
     bindForSubMesh(uniformBuffer: UniformBuffer, scene: Scene): void;
+    /**
+     * Checks whether the detail map uses a texture.
+     * @param texture defines the texture to check
+     * @returns true if the texture is used by the detail map
+     */
     hasTexture(texture: BaseTexture): boolean;
+    /**
+     * Adds the active detail map textures.
+     * @param activeTextures defines the list of active textures to update
+     */
     getActiveTextures(activeTextures: BaseTexture[]): void;
+    /**
+     * Adds the animatable detail map textures.
+     * @param animatables defines the list of animatables to update
+     */
     getAnimatables(animatables: IAnimatable[]): void;
+    /**
+     * Disposes the detail map textures.
+     * @param forceDisposeTextures defines whether to dispose the textures
+     */
     dispose(forceDisposeTextures?: boolean): void;
     getClassName(): string;
+    /**
+     * Adds the detail map sampler names.
+     * @param samplers defines the list of sampler names to update
+     */
     getSamplers(samplers: string[]): void;
     getUniforms(): {
         ubo?: Array<{
@@ -79,4 +122,3 @@ export declare class DetailMapConfiguration extends MaterialPluginBase {
         fragment?: string;
     };
 }
-export {};

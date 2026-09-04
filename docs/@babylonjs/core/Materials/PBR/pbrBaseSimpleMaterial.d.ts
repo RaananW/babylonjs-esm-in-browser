@@ -1,8 +1,8 @@
-import type { Scene } from "../../scene";
-import { Color3 } from "../../Maths/math.color";
-import { PBRBaseMaterial } from "./pbrBaseMaterial";
-import type { BaseTexture } from "../../Materials/Textures/baseTexture";
-import type { Nullable } from "../../types";
+import { type Scene } from "../../scene.js";
+import { Color3 } from "../../Maths/math.color.pure.js";
+import { PBRBaseMaterial } from "./pbrBaseMaterial.pure.js";
+import { type BaseTexture } from "../../Materials/Textures/baseTexture.js";
+import { type Nullable } from "../../types.js";
 /**
  * The Physically based simple base material of BJS.
  *
@@ -13,47 +13,47 @@ export declare abstract class PBRBaseSimpleMaterial extends PBRBaseMaterial {
     /**
      * Number of Simultaneous lights allowed on the material.
      */
-    maxSimultaneousLights: number;
+    accessor maxSimultaneousLights: number;
     /**
      * If sets to true, disables all the lights affecting the material.
      */
-    disableLighting: boolean;
+    accessor disableLighting: boolean;
     /**
      * Environment Texture used in the material (this is use for both reflection and environment lighting).
      */
-    environmentTexture: Nullable<BaseTexture>;
+    accessor environmentTexture: Nullable<BaseTexture>;
     /**
      * If sets to true, x component of normal map value will invert (x = 1.0 - x).
      */
-    invertNormalMapX: boolean;
+    accessor invertNormalMapX: boolean;
     /**
      * If sets to true, y component of normal map value will invert (y = 1.0 - y).
      */
-    invertNormalMapY: boolean;
+    accessor invertNormalMapY: boolean;
     /**
      * Normal map used in the model.
      */
-    normalTexture: Nullable<BaseTexture>;
+    accessor normalTexture: Nullable<BaseTexture>;
     /**
      * Emissivie color used to self-illuminate the model.
      */
-    emissiveColor: Color3;
+    accessor emissiveColor: Color3;
     /**
      * Emissivie texture used to self-illuminate the model.
      */
-    emissiveTexture: Nullable<BaseTexture>;
+    accessor emissiveTexture: Nullable<BaseTexture>;
     /**
      * Occlusion Channel Strength.
      */
-    occlusionStrength: number;
+    accessor occlusionStrength: number;
     /**
      * Occlusion Texture of the material (adding extra occlusion effects).
      */
-    occlusionTexture: Nullable<BaseTexture>;
+    accessor occlusionTexture: Nullable<BaseTexture>;
     /**
      * Defines the alpha limits in alpha test mode.
      */
-    alphaCutOff: number;
+    accessor alphaCutOff: number;
     /**
      * Gets the current double sided mode.
      */
@@ -65,11 +65,11 @@ export declare abstract class PBRBaseSimpleMaterial extends PBRBaseMaterial {
     /**
      * Stores the pre-calculated light information of a mesh in a texture.
      */
-    lightmapTexture: Nullable<BaseTexture>;
+    accessor lightmapTexture: Nullable<BaseTexture>;
     /**
      * If true, the light map contains occlusion information instead of lighting info.
      */
-    useLightmapAsShadowmap: boolean;
+    accessor useLightmapAsShadowmap: boolean;
     /**
      * Instantiates a new PBRMaterial instance.
      *

@@ -1,5 +1,5 @@
-import type { ArcRotateCamera } from "../../Cameras/arcRotateCamera";
-import type { ICameraInput } from "../../Cameras/cameraInputsManager";
+import { type ArcRotateCamera } from "../../Cameras/arcRotateCamera.js";
+import { type ICameraInput } from "../../Cameras/cameraInputsManager.js";
 /**
  * Manage the keyboard inputs to control the movement of an arc rotate camera.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs
@@ -31,6 +31,16 @@ export declare class ArcRotateCameraKeyboardMoveInput implements ICameraInput<Ar
      */
     keysReset: number[];
     /**
+     * Defines the list of key codes associated with the zoom in action.
+     * Only used when CameraMovement is active — these keys always trigger zoom regardless of modifiers.
+     */
+    keysZoomIn: number[];
+    /**
+     * Defines the list of key codes associated with the zoom out action.
+     * Only used when CameraMovement is active — these keys always trigger zoom regardless of modifiers.
+     */
+    keysZoomOut: number[];
+    /**
      * Defines the panning sensibility of the inputs.
      * (How fast is the camera panning)
      */
@@ -41,14 +51,24 @@ export declare class ArcRotateCameraKeyboardMoveInput implements ICameraInput<Ar
      */
     zoomingSensibility: number;
     /**
-     * Defines whether maintaining the alt key down switch the movement mode from
-     * orientation to zoom.
-     */
-    useAltToZoom: boolean;
-    /**
      * Rotation speed of the camera
      */
     angularSpeed: number;
+    private _useAltToZoom;
+    /**
+     * Defines whether alt+arrows/wasd triggers zoom instead of rotation/pan.
+     * When disabled, alt+keyboard events are ignored by the zoom inputMap entry.
+     * Setting this updates the corresponding inputMap entry on the camera's movement system.
+     * If set before the camera is attached, the value is cached and applied during `attachControl`.
+     */
+    get useAltToZoom(): boolean;
+    set useAltToZoom(value: boolean);
+    /**
+     * Applies the cached `_useAltToZoom` value to the camera's inputMap.
+     * Safe to call before the camera is attached: it is a no-op until `this.camera.movement` is available.
+     * Idempotent — calling it when the inputMap already matches the cached value is a no-op.
+     */
+    private _applyUseAltToZoomToInputMap;
     private _keys;
     private _ctrlPressed;
     private _altPressed;
@@ -56,6 +76,18 @@ export declare class ArcRotateCameraKeyboardMoveInput implements ICameraInput<Ar
     private _onKeyboardObserver;
     private _engine;
     private _scene;
+    /**
+     * Modifier state stored separately from `_keyboardConditions` so it can be typed as a
+     * concrete (non-optional) object. This avoids non-null assertions when updating modifier
+     * fields each frame, and the conditions object holds the same reference so
+     * resolveInteraction sees the live state.
+     */
+    private _keyboardModifiers;
+    /** Cached conditions object to avoid per-frame allocations in checkInputs */
+    private _keyboardConditions;
+    /** Reused accumulators for the per-frame keyboard rotate/pan directions, to avoid per-frame allocations */
+    private _rotateDirection;
+    private _panDirection;
     /**
      * Attach the input controls to a specific dom element to get the input from.
      * @param noPreventDefault Defines whether event caught by the controls should call preventdefault() (https://developer.mozilla.org/en-US/docs/Web/API/Event/preventDefault)

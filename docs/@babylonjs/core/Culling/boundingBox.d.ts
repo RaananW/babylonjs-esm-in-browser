@@ -1,9 +1,9 @@
-import type { DeepImmutable, Nullable } from "../types";
-import { Matrix, Vector3 } from "../Maths/math.vector";
-import type { BoundingSphere } from "../Culling/boundingSphere";
-import type { ICullable } from "./boundingInfo";
-import type { Plane } from "../Maths/math.plane";
-declare type DrawWrapper = import("../Materials/drawWrapper").DrawWrapper;
+import { type DeepImmutable, type Nullable } from "../types.js";
+import { Matrix, Vector3 } from "../Maths/math.vector.pure.js";
+import { type BoundingSphere } from "../Culling/boundingSphere.js";
+import { type ICullable } from "./boundingInfo.js";
+import { type Plane } from "../Maths/math.plane.js";
+import { type DrawWrapper } from "../Materials/drawWrapper.js";
 /**
  * Class used to store bounding box information
  */
@@ -21,11 +21,11 @@ export declare class BoundingBox implements ICullable {
      */
     readonly centerWorld: Vector3;
     /**
-     * Gets the extend size in local space
+     * Gets half the size of the extent in local space. Multiply by 2 to obtain the full size of the box!
      */
     readonly extendSize: Vector3;
     /**
-     * Gets the extend size in world space
+     * Gets half the size of the extent in world space. Multiply by 2 to obtain the full size of the box!
      */
     readonly extendSizeWorld: Vector3;
     /**
@@ -157,4 +157,3 @@ export declare class BoundingBox implements ICullable {
      */
     static IsInFrustum(boundingVectors: Array<DeepImmutable<Vector3>>, frustumPlanes: Array<DeepImmutable<Plane>>): boolean;
 }
-export {};

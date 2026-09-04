@@ -43,4 +43,17 @@ export declare class DataStorage {
      * @param value The value to write
      */
     static WriteNumber(key: string, value: number): void;
+    /**
+     * Reads a JSON value from the data storage
+     * @param key The key to read
+     * @param defaultValue The value if the key doesn't exist
+     * @returns The JSON value
+     */
+    static ReadJson<T>(key: string, defaultValue: T): T;
+    /**
+     * Writes a JSON value to the data storage
+     * @param key The key to write
+     * @param value The JSON value to write
+     */
+    static WriteJson<T>(key: string, value: T): void;
 }

@@ -1,2 +1,2 @@
-export * from "./packer";
-export * from "./frame";
+export * from "./packer.js";
+export * from "./frame.js";

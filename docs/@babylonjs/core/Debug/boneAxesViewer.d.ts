@@ -1,9 +1,9 @@
-import type { Nullable } from "../types";
-import { AxesViewer } from "../Debug/axesViewer";
-import { Vector3 } from "../Maths/math.vector";
-import type { Mesh } from "../Meshes/mesh";
-import type { Bone } from "../Bones/bone";
-import type { Scene } from "../scene";
+import { type Nullable } from "../types.js";
+import { AxesViewer } from "../Debug/axesViewer.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { type Mesh } from "../Meshes/mesh.js";
+import { type Bone } from "../Bones/bone.js";
+import { type Scene } from "../scene.js";
 /**
  * The BoneAxesViewer will attach 3 axes to a specific bone of a specific mesh
  * @see demo here: https://www.babylonjs-playground.com/#0DE8F4#8

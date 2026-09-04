@@ -1,21 +1,38 @@
-import type { IDisposable, Scene } from "../../scene";
-import { WebXRControllerComponent } from "./webXRControllerComponent";
-import { Observable } from "../../Misc/observable";
-import type { AbstractMesh } from "../../Meshes/abstractMesh";
-import type { Nullable } from "../../types";
+import { type IDisposable, type Scene } from "../../scene.js";
+import { WebXRControllerComponent } from "./webXRControllerComponent.js";
+import { Observable } from "../../Misc/observable.js";
+import { type AbstractMesh } from "../../Meshes/abstractMesh.js";
+import { type Nullable } from "../../types.js";
 /**
  * Handedness type in xrInput profiles. These can be used to define layouts in the Layout Map.
  */
-export declare type MotionControllerHandedness = "none" | "left" | "right";
+export type MotionControllerHandedness = "none" | "left" | "right";
 /**
  * The type of components available in motion controllers.
  * This is not the name of the component.
  */
-export declare type MotionControllerComponentType = "trigger" | "squeeze" | "touchpad" | "thumbstick" | "button";
+export type MotionControllerComponentType = "trigger" | "squeeze" | "touchpad" | "thumbstick" | "button";
 /**
  * The state of a controller component
  */
-export declare type MotionControllerComponentStateType = "default" | "touched" | "pressed";
+export type MotionControllerComponentStateType = "default" | "touched" | "pressed";
+/**
+ * The haptic capabilities exposed by a WebXR motion controller actuator.
+ */
+export interface IWebXRControllerHapticActuator {
+    /**
+     * The haptic effects reported as supported by this actuator.
+     */
+    readonly effects?: ReadonlyArray<GamepadHapticEffectType>;
+    /**
+     * Plays a haptic effect, when advanced haptic playback is supported.
+     */
+    playEffect?: GamepadHapticActuator["playEffect"];
+    /**
+     * Stops the active haptic effect, when reset is supported.
+     */
+    reset?: GamepadHapticActuator["reset"];
+}
 /**
  * The schema of motion controller layout.
  * No object will be initialized using this interface
@@ -205,9 +222,16 @@ export interface IMinimalMotionControllerObject {
     /**
      * EXPERIMENTAL haptic support.
      */
-    hapticActuators?: Array<{
+    hapticActuators?: Array<IWebXRControllerHapticActuator & {
+        /**
+         * Plays a legacy haptic pulse.
+         */
         pulse: (value: number, duration: number) => Promise<boolean>;
     }>;
+    /**
+     * The primary Gamepad vibration actuator used for advanced haptic effects.
+     */
+    vibrationActuator?: IWebXRControllerHapticActuator;
 }
 /**
  * An Abstract Motion controller
@@ -227,6 +251,7 @@ export declare abstract class WebXRAbstractMotionController implements IDisposab
     handedness: MotionControllerHandedness;
     /**
      * @internal
+     * [false]
      */
     _doNotLoadControllerMesh: boolean;
     private _controllerCache?;
@@ -275,12 +300,13 @@ export declare abstract class WebXRAbstractMotionController implements IDisposab
     handedness: MotionControllerHandedness, 
     /**
      * @internal
+     * [false]
      */
-    _doNotLoadControllerMesh?: boolean, _controllerCache?: {
+    _doNotLoadControllerMesh?: boolean, _controllerCache?: Array<{
         filename: string;
         path: string;
         meshes: AbstractMesh[];
-    }[] | undefined);
+    }> | undefined);
     /**
      * Dispose this controller, the model mesh and all its components
      */
@@ -329,6 +355,33 @@ export declare abstract class WebXRAbstractMotionController implements IDisposab
      */
     get handness(): MotionControllerHandedness;
     /**
+     * Gets the haptic effects reported as supported by an actuator.
+     * See https://playground.babylonjs.com/#ULVR1X#0 for an interactive example.
+     *
+     * @param hapticActuatorIndex index of the actuator (usually 0)
+     * @returns the effects reported by the actuator, or an empty array when effect discovery is unavailable
+     * @throws a RangeError when the actuator index is invalid
+     */
+    getHapticEffects(hapticActuatorIndex?: number): ReadonlyArray<GamepadHapticEffectType>;
+    /**
+     * Plays an advanced haptic effect on this controller.
+     *
+     * @param effectType the standard Gamepad haptic effect to play
+     * @param parameters effect duration, delay, and motor magnitudes
+     * @param hapticActuatorIndex index of the actuator (usually 0)
+     * @returns the native completion result from the actuator
+     * @throws an Error when the actuator or requested effect is unsupported, or a RangeError when the actuator index is invalid
+     */
+    playHapticEffectAsync(effectType: GamepadHapticEffectType, parameters?: GamepadEffectParameters, hapticActuatorIndex?: number): Promise<GamepadHapticsResult>;
+    /**
+     * Stops the active haptic effect on an actuator.
+     *
+     * @param hapticActuatorIndex index of the actuator (usually 0)
+     * @returns the native completion result from the actuator
+     * @throws an Error when reset is unsupported, or a RangeError when the actuator index is invalid
+     */
+    resetHapticActuatorAsync(hapticActuatorIndex?: number): Promise<GamepadHapticsResult>;
+    /**
      * Pulse (vibrate) this controller
      * If the controller does not support pulses, this function will fail silently and return Promise<false> directly after called
      * Consecutive calls to this function will cancel the last pulse call
@@ -339,6 +392,7 @@ export declare abstract class WebXRAbstractMotionController implements IDisposab
      * @returns a promise that will send true when the pulse has ended and false if the device doesn't support pulse or an error accrued
      */
     pulse(value: number, duration: number, hapticActuatorIndex?: number): Promise<boolean>;
+    private _getHapticActuator;
     protected _getChildByName(node: AbstractMesh, name: string): AbstractMesh | undefined;
     protected _getImmediateChildByName(node: AbstractMesh, name: string): AbstractMesh | undefined;
     /**

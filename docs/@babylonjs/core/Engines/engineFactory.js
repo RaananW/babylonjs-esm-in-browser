@@ -1,6 +1,6 @@
-import { Engine } from "./engine.js";
-import { NullEngine } from "./nullEngine.js";
-import { WebGPUEngine } from "./webgpuEngine.js";
+import { Engine } from "./engine.pure.js";
+import { NullEngine } from "./nullEngine.pure.js";
+import { WebGPUEngine } from "./webgpuEngine.pure.js";
 /**
  * Helper class to create the best engine depending on the current hardware
  */
@@ -11,20 +11,15 @@ export class EngineFactory {
      * @param options Defines the options passed to the engine to create the context dependencies
      * @returns a promise that resolves with the created engine
      */
-    static CreateAsync(canvas, options) {
-        return WebGPUEngine.IsSupportedAsync.then((supported) => {
-            if (supported) {
-                return WebGPUEngine.CreateAsync(canvas, options);
-            }
-            else if (Engine.IsSupported) {
-                return new Promise((resolve) => {
-                    resolve(new Engine(canvas, undefined, options));
-                });
-            }
-            return new Promise((resolve) => {
-                resolve(new NullEngine(options));
-            });
-        });
+    static async CreateAsync(canvas, options) {
+        const supported = await WebGPUEngine.IsSupportedAsync;
+        if (supported) {
+            return await WebGPUEngine.CreateAsync(canvas, options);
+        }
+        if (Engine.IsSupported) {
+            return new Engine(canvas, undefined, options);
+        }
+        return new NullEngine(options);
     }
 }
 //# sourceMappingURL=engineFactory.js.map

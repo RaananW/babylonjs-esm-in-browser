@@ -1,5 +1,5 @@
 import { WebXRLayerWrapper } from "../webXRLayerWrapper.js";
-import { WebXRLayerRenderTargetTextureProvider } from "../webXRRenderTargetTextureProvider.js";
+import { WebXRWebGLRenderTargetTextureProvider } from "../webXRWebGLRenderTargetTextureProvider.js";
 /**
  * Wraps XRWebGLLayer's created by Babylon Native.
  * @internal
@@ -14,7 +14,7 @@ export class NativeXRLayerWrapper extends WebXRLayerWrapper {
  * Provides render target textures for layers created by Babylon Native.
  * @internal
  */
-export class NativeXRLayerRenderTargetTextureProvider extends WebXRLayerRenderTargetTextureProvider {
+export class NativeXRLayerRenderTargetTextureProvider extends WebXRWebGLRenderTargetTextureProvider {
     constructor(sessionManager, layerWrapper) {
         super(sessionManager.scene, layerWrapper);
         this.layerWrapper = layerWrapper;

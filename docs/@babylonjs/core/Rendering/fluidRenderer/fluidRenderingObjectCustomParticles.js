@@ -1,6 +1,6 @@
-import { VertexBuffer } from "../../Buffers/buffer.js";
+import { VertexBuffer } from "../../Buffers/buffer.pure.js";
 
-import { EffectWrapper } from "../../Materials/effectRenderer.js";
+import { EffectWrapper } from "../../Materials/effectRenderer.pure.js";
 import { FluidRenderingObject } from "./fluidRenderingObject.js";
 /**
  * Defines a rendering object based on a list of custom buffers
@@ -8,20 +8,7 @@ import { FluidRenderingObject } from "./fluidRenderingObject.js";
  */
 export class FluidRenderingObjectCustomParticles extends FluidRenderingObject {
     /**
-     * Creates a new instance of the class
-     * @param scene The scene the particles should be rendered into
-     * @param buffers The list of buffers (must contain at least one "position" buffer!). Note that you don't have to pass all (or any!) buffers at once in the constructor, you can use the addBuffers method to add more later.
-     * @param numParticles Number of vertices to take into account from the buffers
-     */
-    constructor(scene, buffers, numParticles) {
-        super(scene);
-        this._numParticles = numParticles;
-        this._diffuseEffectWrapper = null;
-        this._vertexBuffers = {};
-        this.addBuffers(buffers);
-    }
-    /**
-     * Gets the name of the class
+     * @returns the name of the class
      */
     getClassName() {
         return "FluidRenderingObjectCustomParticles";
@@ -31,6 +18,20 @@ export class FluidRenderingObjectCustomParticles extends FluidRenderingObject {
      */
     get vertexBuffers() {
         return this._vertexBuffers;
+    }
+    /**
+     * Creates a new instance of the class
+     * @param scene The scene the particles should be rendered into
+     * @param buffers The list of buffers (must contain at least one "position" buffer!). Note that you don't have to pass all (or any!) buffers at once in the constructor, you can use the addBuffers method to add more later.
+     * @param numParticles Number of vertices to take into account from the buffers
+     * @param shaderLanguage The shader language to use
+     */
+    constructor(scene, buffers, numParticles, shaderLanguage) {
+        super(scene, shaderLanguage);
+        this._numParticles = numParticles;
+        this._diffuseEffectWrapper = null;
+        this._vertexBuffers = {};
+        this.addBuffers(buffers);
     }
     /**
      * Add some new buffers
@@ -44,6 +45,10 @@ export class FluidRenderingObjectCustomParticles extends FluidRenderingObject {
                 case "velocity":
                     stride = 3;
                     break;
+                case "size":
+                    stride = 2;
+                    this._effectsAreDirty = true;
+                    break;
                 case "offset":
                     instanced = false;
                     break;
@@ -51,10 +56,18 @@ export class FluidRenderingObjectCustomParticles extends FluidRenderingObject {
             this._vertexBuffers[name] = new VertexBuffer(this._engine, buffers[name], name, true, false, stride, instanced);
         }
     }
+    /**
+     * Per-particle sizing needs an actual "size" buffer; custom buffers are optional.
+     * @returns true if a "size" buffer was supplied
+     */
+    _supportsPerParticleSizeAttribute() {
+        return !!this._vertexBuffers["size"];
+    }
     _createEffects() {
         super._createEffects();
-        const uniformNames = ["view", "projection", "size"];
-        const attributeNames = ["position", "offset", "color"];
+        const uniformNames = this._usesPerParticleSizeAttribute ? ["view", "projection"] : ["view", "projection", "size"];
+        const attributeNames = this._usesPerParticleSizeAttribute ? ["position", "offset", "color", "size"] : ["position", "offset", "color"];
+        const defines = this._usesPerParticleSizeAttribute ? ["#define FLUIDRENDERING_PER_PARTICLE_SIZE"] : [];
         this._diffuseEffectWrapper = new EffectWrapper({
             engine: this._engine,
             useShaderStore: true,
@@ -63,6 +76,16 @@ export class FluidRenderingObjectCustomParticles extends FluidRenderingObject {
             attributeNames,
             uniformNames,
             samplerNames: [],
+            defines,
+            shaderLanguage: this._shaderLanguage,
+            extraInitializationsAsync: async () => {
+                if (this._shaderLanguage === 1 /* ShaderLanguage.WGSL */) {
+                    await import("../../ShadersWGSL/fluidRenderingParticleDiffuse.fragment.js");
+                }
+                else {
+                    await import("../../Shaders/fluidRenderingParticleDiffuse.fragment.js");
+                }
+            },
         });
     }
     /**
@@ -70,11 +93,10 @@ export class FluidRenderingObjectCustomParticles extends FluidRenderingObject {
      * @returns True if everything is ready for the object to be rendered, otherwise false
      */
     isReady() {
-        var _a, _b;
         if (!this._vertexBuffers["offset"]) {
             this._vertexBuffers["offset"] = new VertexBuffer(this._engine, [0, 0, 1, 0, 0, 1, 1, 1], "offset", false, false, 2);
         }
-        return super.isReady() && ((_b = (_a = this._diffuseEffectWrapper) === null || _a === void 0 ? void 0 : _a.effect.isReady()) !== null && _b !== void 0 ? _b : false);
+        return super.isReady() && (this._diffuseEffectWrapper?.effect.isReady() ?? false);
     }
     /**
      * Gets the number of particles in this object
@@ -98,13 +120,13 @@ export class FluidRenderingObjectCustomParticles extends FluidRenderingObject {
         if (!this._diffuseEffectWrapper || numParticles === 0) {
             return;
         }
-        const diffuseDrawWrapper = this._diffuseEffectWrapper._drawWrapper;
+        const diffuseDrawWrapper = this._diffuseEffectWrapper.drawWrapper;
         const diffuseEffect = diffuseDrawWrapper.effect;
         this._engine.enableEffect(diffuseDrawWrapper);
         this._engine.bindBuffers(this.vertexBuffers, this.indexBuffer, diffuseEffect);
         diffuseEffect.setMatrix("view", this._scene.getViewMatrix());
         diffuseEffect.setMatrix("projection", this._scene.getProjectionMatrix());
-        if (this._particleSize !== null) {
+        if (!this._usesPerParticleSizeAttribute) {
             diffuseEffect.setFloat2("size", this._particleSize, this._particleSize);
         }
         if (this.useInstancing) {
@@ -115,12 +137,11 @@ export class FluidRenderingObjectCustomParticles extends FluidRenderingObject {
         }
     }
     /**
-     * Releases the ressources used by the class
+     * Releases the resources used by the class
      */
     dispose() {
-        var _a;
         super.dispose();
-        (_a = this._diffuseEffectWrapper) === null || _a === void 0 ? void 0 : _a.dispose();
+        this._diffuseEffectWrapper?.dispose();
         for (const name in this._vertexBuffers) {
             this._vertexBuffers[name].dispose();
         }

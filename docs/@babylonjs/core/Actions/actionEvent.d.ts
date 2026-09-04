@@ -1,8 +1,8 @@
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import type { Nullable } from "../types";
-import type { Sprite } from "../Sprites/sprite";
-import type { Scene } from "../scene";
-import type { Vector2 } from "../Maths/math.vector";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { type Nullable } from "../types.js";
+import { type Sprite } from "../Sprites/sprite.js";
+import { type Scene } from "../scene.js";
+import { type Vector2 } from "../Maths/math.vector.js";
 /**
  * Interface used to define ActionEvent
  */
@@ -33,9 +33,9 @@ export declare class ActionEvent implements IActionEvent {
     /** The mesh that is currently pointed at (can be null) */
     meshUnderPointer: Nullable<AbstractMesh>;
     /** the original (browser) event that triggered the ActionEvent */
-    sourceEvent?: any;
+    sourceEvent?: any | undefined;
     /** additional data for the event */
-    additionalData?: any;
+    additionalData?: any | undefined;
     /**
      * Creates a new ActionEvent
      * @param source The mesh or sprite that triggered the action
@@ -55,9 +55,9 @@ export declare class ActionEvent implements IActionEvent {
     /** The mesh that is currently pointed at (can be null) */
     meshUnderPointer: Nullable<AbstractMesh>, 
     /** the original (browser) event that triggered the ActionEvent */
-    sourceEvent?: any, 
+    sourceEvent?: any | undefined, 
     /** additional data for the event */
-    additionalData?: any);
+    additionalData?: any | undefined);
     /**
      * Helper function to auto-create an ActionEvent from a source mesh.
      * @param source The source mesh that triggered the event

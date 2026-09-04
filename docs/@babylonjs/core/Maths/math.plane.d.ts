@@ -1,9 +1,10 @@
-import type { DeepImmutable } from "../types";
-import { Vector3, Matrix } from "./math.vector";
+import { type DeepImmutable } from "../types.js";
+import { Vector3, Matrix } from "./math.vector.pure.js";
+import { type IPlaneLike } from "./math.like.js";
 /**
  * Represents a plane by the equation ax + by + cz + d = 0
  */
-export declare class Plane {
+export declare class Plane implements IPlaneLike {
     private static _TmpMatrix;
     /**
      * Normal of the plane (a,b,c)
@@ -97,9 +98,16 @@ export declare class Plane {
      * @param origin origin of the plane to be constructed
      * @param normal normal of the plane to be constructed
      * @returns a new Plane the normal vector to this plane at the given origin point.
-     * Note : the vector "normal" is updated because normalized.
      */
     static FromPositionAndNormal(origin: DeepImmutable<Vector3>, normal: Vector3): Plane;
+    /**
+     * Updates the given Plane "result" from an origin point and a normal.
+     * @param origin origin of the plane to be constructed
+     * @param normal the normalized normals of the plane to be constructed
+     * @param result defines the Plane where to store the result
+     * @returns result input
+     */
+    static FromPositionAndNormalToRef<T extends Plane>(origin: DeepImmutable<Vector3>, normal: DeepImmutable<Vector3>, result: T): T;
     /**
      * Calculates the distance from a plane and a point
      * @param origin origin of the plane to be constructed

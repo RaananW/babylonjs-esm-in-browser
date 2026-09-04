@@ -1,6 +1,9 @@
-import type { InternalTexture } from "../Materials/Textures/internalTexture";
-import { Texture } from "../Materials/Textures/texture";
-import type { Scene } from "../scene";
+import { type BaseTexture } from "../Materials/Textures/baseTexture.js";
+import { type InternalTexture } from "../Materials/Textures/internalTexture.js";
+import { Texture } from "../Materials/Textures/texture.pure.js";
+import { type Scene } from "../scene.js";
+import { FromHalfFloat, ToHalfFloat } from "./halfFloat.js";
+export { FromHalfFloat, ToHalfFloat };
 /**
  * Uses the GPU to create a copy texture rescaled at a given size
  * @param texture Texture to copy from
@@ -18,21 +21,32 @@ export declare function CreateResizedCopy(texture: Texture, width: number, heigh
  * @param type type of the output texture. If not provided, use the one from internalTexture
  * @param samplingMode sampling mode to use to sample the source texture. If not provided, use the one from internalTexture
  * @param format format of the output texture. If not provided, use the one from internalTexture
+ * @param width width of the output texture. If not provided, use the one from internalTexture
+ * @param height height of the output texture. If not provided, use the one from internalTexture
  * @returns a promise with the internalTexture having its texture replaced by the result of the processing
  */
-export declare function ApplyPostProcess(postProcessName: string, internalTexture: InternalTexture, scene: Scene, type?: number, samplingMode?: number, format?: number): Promise<InternalTexture>;
+export declare function ApplyPostProcess(postProcessName: string, internalTexture: InternalTexture, scene: Scene, type?: number, samplingMode?: number, format?: number, width?: number, height?: number): Promise<InternalTexture>;
 /**
- * Converts a number to half float
- * @param value number to convert
- * @returns converted number
+ * Waits for when the given texture is ready to be used (downloaded, converted, mip mapped...)
+ * @param texture the texture to wait for
+ * @returns a promise that resolves when the texture is ready
  */
-export declare function ToHalfFloat(value: number): number;
+export declare function WhenTextureReadyAsync(texture: BaseTexture): Promise<void>;
 /**
- * Converts a half float to a number
- * @param value half float to convert
- * @returns converted half float
+ * Gets the pixel data of the specified texture, either by reading it directly
+ * or by rendering it to an intermediate RGBA texture and retrieving the bytes from it.
+ * This is convenient to get 8-bit RGBA values for a texture in a GPU compressed format.
+ * When direct readback returns non-RGBA channel layouts, the result is normalized to RGBA8.
+ * @param texture the source texture
+ * @param width the target width of the result, which does not have to match the source texture width
+ * @param height the target height of the result, which does not have to match the source texture height
+ * @param face if the texture has multiple faces, the face index to use for the source
+ * @param lod if the texture has multiple LODs, the lod index to use for the source
+ * @param forceRTT if true, forces the use of the RTT path for reading pixels (useful for cube maps to ensure correct orientation and gamma)
+ * @param slice if the texture is 3D, the depth slice index to use for the source
+ * @returns the 8-bit texture data
  */
-export declare function FromHalfFloat(value: number): number;
+export declare function GetTextureDataAsync(texture: BaseTexture, width?: number, height?: number, face?: number, lod?: number, forceRTT?: boolean, slice?: number): Promise<Uint8Array>;
 /**
  * Class used to host texture specific utilities
  */
@@ -69,4 +83,15 @@ export declare const TextureTools: {
      * @returns converted half float
      */
     FromHalfFloat: typeof FromHalfFloat;
+    /**
+     * Gets the data of the specified texture by rendering it to an intermediate RGBA texture and retrieving the bytes from it.
+     * This is convienent to get 8-bit RGBA values for a texture in a GPU compressed format.
+     * @param texture the source texture
+     * @param width the width of the result, which does not have to match the source texture width
+     * @param height the height of the result, which does not have to match the source texture height
+     * @param face if the texture has multiple faces, the face index to use for the source
+     * @param lod if the texture has multiple LODs, the lod index to use for the source
+     * @returns the 8-bit texture data
+     */
+    GetTextureDataAsync: typeof GetTextureDataAsync;
 };

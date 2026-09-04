@@ -1,10 +1,11 @@
-import type { Nullable } from "../types";
-import type { Camera } from "../Cameras/camera";
-import type { RenderTargetTexture } from "../Materials/Textures/renderTargetTexture";
-import type { PostProcess } from "./postProcess";
-import { PostProcessRenderEffect } from "../PostProcesses/RenderPipeline/postProcessRenderEffect";
-import { DepthOfFieldBlurPostProcess } from "./depthOfFieldBlurPostProcess";
-import type { Scene } from "../scene";
+import { type Nullable } from "../types.js";
+import { type Camera } from "../Cameras/camera.js";
+import { type RenderTargetTexture } from "../Materials/Textures/renderTargetTexture.js";
+import { type PostProcess } from "./postProcess.js";
+import { PostProcessRenderEffect } from "../PostProcesses/RenderPipeline/postProcessRenderEffect.js";
+import { DepthOfFieldBlurPostProcess } from "./depthOfFieldBlurPostProcess.pure.js";
+import { type Scene } from "../scene.js";
+import { type AbstractEngine } from "../Engines/abstractEngine.js";
 /**
  * Specifies the level of max blur that should be applied when using the depth of field effect
  */
@@ -57,15 +58,17 @@ export declare class DepthOfFieldEffect extends PostProcessRenderEffect {
      */
     set lensSize(value: number);
     get lensSize(): number;
+    private _thinDepthOfFieldEffect;
     /**
      * Creates a new instance DepthOfFieldEffect
-     * @param scene The scene the effect belongs to.
+     * @param sceneOrEngine The scene or engine the effect belongs to.
      * @param depthTexture The depth texture of the scene to compute the circle of confusion.This must be set in order for this to function but may be set after initialization if needed.
      * @param blurLevel
      * @param pipelineTextureType The type of texture to be used when performing the post processing.
      * @param blockCompilation If compilation of the shader should not be done in the constructor. The updateEffect method can be used to compile the shader at a later time. (default: false)
+     * @param depthNotNormalized If the depth from the depth texture is already normalized or if the normalization should be done at runtime in the shader (default: false)
      */
-    constructor(scene: Scene, depthTexture: Nullable<RenderTargetTexture>, blurLevel?: DepthOfFieldEffectBlurLevel, pipelineTextureType?: number, blockCompilation?: boolean);
+    constructor(sceneOrEngine: Scene | AbstractEngine, depthTexture: Nullable<RenderTargetTexture>, blurLevel?: DepthOfFieldEffectBlurLevel, pipelineTextureType?: number, blockCompilation?: boolean, depthNotNormalized?: boolean);
     /**
      * Get the current class name of the current effect
      * @returns "DepthOfFieldEffect"

@@ -5,6 +5,28 @@
  */
 export class ThinSprite {
     /**
+     * Returns a boolean indicating if the animation is started
+     */
+    get animationStarted() {
+        return this._animationStarted;
+    }
+    /** Gets the initial key for the animation (setting it will restart the animation)  */
+    get fromIndex() {
+        return this._fromIndex;
+    }
+    /** Gets or sets the end key for the animation (setting it will restart the animation)  */
+    get toIndex() {
+        return this._toIndex;
+    }
+    /** Gets or sets a boolean indicating if the animation is looping (setting it will restart the animation)  */
+    get loopAnimation() {
+        return this._loopAnimation;
+    }
+    /** Gets or sets the delay between cell changes (setting it will restart the animation)  */
+    get delay() {
+        return Math.max(this._delay, 1);
+    }
+    /**
      * Creates a new Thin Sprite
      */
     constructor() {
@@ -30,28 +52,6 @@ export class ThinSprite {
         this._onBaseAnimationEnd = null;
         this.position = { x: 1.0, y: 1.0, z: 1.0 };
         this.color = { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
-    }
-    /**
-     * Returns a boolean indicating if the animation is started
-     */
-    get animationStarted() {
-        return this._animationStarted;
-    }
-    /** Gets the initial key for the animation (setting it will restart the animation)  */
-    get fromIndex() {
-        return this._fromIndex;
-    }
-    /** Gets or sets the end key for the animation (setting it will restart the animation)  */
-    get toIndex() {
-        return this._toIndex;
-    }
-    /** Gets or sets a boolean indicating if the animation is looping (setting it will restart the animation)  */
-    get loopAnimation() {
-        return this._loopAnimation;
-    }
-    /** Gets or sets the delay between cell changes (setting it will restart the animation)  */
-    get delay() {
-        return Math.max(this._delay, 1);
     }
     /**
      * Starts an animation
@@ -99,7 +99,7 @@ export class ThinSprite {
                     this.cellIndex = this._direction > 0 ? this._fromIndex : this._toIndex;
                 }
                 else {
-                    this.cellIndex = this._toIndex;
+                    this.cellIndex = this._direction > 0 ? this._toIndex : this._fromIndex;
                     this._animationStarted = false;
                     if (this._onBaseAnimationEnd) {
                         this._onBaseAnimationEnd();

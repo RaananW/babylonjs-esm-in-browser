@@ -1,0 +1,68 @@
+/** This file must only contain pure code and pure imports */
+import { type NodeRenderGraphConnectionPoint, type Scene, type NodeRenderGraphBuildState, type FrameGraph } from "../../../../index.js";
+import { FrameGraphDepthOfFieldTask } from "../../../Tasks/PostProcesses/depthOfFieldTask.js";
+import { ThinDepthOfFieldEffectBlurLevel } from "../../../../PostProcesses/thinDepthOfFieldEffect.js";
+import { NodeRenderGraphBasePostProcessBlock } from "./basePostProcessBlock.js";
+/**
+ * Block that implements the depth of field post process
+ */
+export declare class NodeRenderGraphDepthOfFieldPostProcessBlock extends NodeRenderGraphBasePostProcessBlock {
+    protected _frameGraphTask: FrameGraphDepthOfFieldTask;
+    /**
+     * Gets the frame graph task associated with this block
+     */
+    get task(): FrameGraphDepthOfFieldTask;
+    /**
+     * Create a new NodeRenderGraphDepthOfFieldPostProcessBlock
+     * @param name defines the block name
+     * @param frameGraph defines the hosting frame graph
+     * @param scene defines the hosting scene
+     * @param blurLevel The quality of the depth of field effect (default: ThinDepthOfFieldEffectBlurLevel.Low)
+     * @param hdr If high dynamic range textures should be used (default: false)
+     */
+    constructor(name: string, frameGraph: FrameGraph, scene: Scene, blurLevel?: ThinDepthOfFieldEffectBlurLevel, hdr?: boolean);
+    private _createTask;
+    /** The quality of the blur effect */
+    get blurLevel(): ThinDepthOfFieldEffectBlurLevel;
+    set blurLevel(value: ThinDepthOfFieldEffectBlurLevel);
+    /** If high dynamic range textures should be used */
+    get hdr(): boolean;
+    set hdr(value: boolean);
+    /** Sampling mode used to sample from the depth texture */
+    get depthSamplingMode(): number;
+    set depthSamplingMode(value: number);
+    /** The focal the length of the camera used in the effect in scene units/1000 (eg. millimeter). */
+    get focalLength(): number;
+    set focalLength(value: number);
+    /** F-Stop of the effect's camera. The diameter of the resulting aperture can be computed by lensSize/fStop. */
+    get fStop(): number;
+    set fStop(value: number);
+    /** Distance away from the camera to focus on in scene units/1000 (eg. millimeter). */
+    get focusDistance(): number;
+    set focusDistance(value: number);
+    /** Max lens size in scene units/1000 (eg. millimeter). Standard cameras are 50mm. The diameter of the resulting aperture can be computed by lensSize/fStop. */
+    get lensSize(): number;
+    set lensSize(value: number);
+    /**
+     * Gets the current class name
+     * @returns the class name
+     */
+    getClassName(): string;
+    /**
+     * Gets the geometry view depth input component
+     */
+    get geomViewDepth(): NodeRenderGraphConnectionPoint;
+    /**
+     * Gets the camera input component
+     */
+    get camera(): NodeRenderGraphConnectionPoint;
+    protected _buildBlock(state: NodeRenderGraphBuildState): void;
+    protected _dumpPropertiesCode(): string;
+    serialize(): any;
+    _deserialize(serializationObject: any): void;
+}
+/**
+ * Register side effects for depthOfFieldPostProcessBlock.
+ * Safe to call multiple times; only the first call has an effect.
+ */
+export declare function RegisterDepthOfFieldPostProcessBlock(): void;

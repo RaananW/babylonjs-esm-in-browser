@@ -1,7 +1,9 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { ThinEngine } from "../../Engines/thinEngine.js";
-ThinEngine.prototype._debugPushGroup = function (groupName, targetObject) { };
-ThinEngine.prototype._debugPopGroup = function (targetObject) { };
-ThinEngine.prototype._debugInsertMarker = function (text, targetObject) { };
-ThinEngine.prototype._debugFlushPendingCommands = function () { };
+export * from "./engine.debugging.types.js";
+/**
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import engine.debugging.pure for tree-shakeable, side-effect-free usage.
+ */
+export * from "./engine.debugging.pure.js";
+import { RegisterEngineDebugging } from "./engine.debugging.pure.js";
+RegisterEngineDebugging();
 //# sourceMappingURL=engine.debugging.js.map

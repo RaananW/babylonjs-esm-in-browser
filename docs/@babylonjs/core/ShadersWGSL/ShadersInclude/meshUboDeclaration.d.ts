@@ -1,5 +1,5 @@
 /** @internal */
-export declare const meshUboDeclaration: {
+export declare const meshUboDeclarationWGSL: {
     name: string;
     shader: string;
 };

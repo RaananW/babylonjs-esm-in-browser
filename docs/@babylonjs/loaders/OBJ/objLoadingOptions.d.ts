@@ -1,8 +1,14 @@
-import type { Vector2 } from "@babylonjs/core/Maths/math.vector.js";
+import { type Vector2 } from "@babylonjs/core/Maths/math.vector.js";
 /**
  * Options for loading OBJ/MTL files
  */
-export declare type OBJLoadingOptions = {
+export type OBJLoadingOptions = {
+    /**
+     * Defines the character encoding used to decode OBJ and MTL files.
+     * Use "auto" to detect UTF-8/UTF-16 and fall back to GB18030, or provide an encoding label supported by TextDecoder.
+     * Defaults to "auto".
+     */
+    encoding?: string;
     /**
      * Defines if UVs are optimized by default during load.
      */
@@ -40,4 +46,8 @@ export declare type OBJLoadingOptions = {
      * When a material fails to load OBJ loader will silently fail and onSuccess() callback will be triggered.
      */
     materialLoadingFailsSilently: boolean;
+    /**
+     * Loads assets without handedness conversions. This flag is for compatibility. Use it only if absolutely required. Defaults to false.
+     */
+    useLegacyBehavior: boolean;
 };

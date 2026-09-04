@@ -1,8 +1,8 @@
-import type { AbstractMesh } from "../../../Meshes/abstractMesh";
-import type { Scene } from "../../../scene";
-import type { Nullable } from "../../../types";
-import { Color3, Color4 } from "../../../Maths/math.color";
-import { TexturePackerFrame } from "./frame";
+import { type AbstractMesh } from "../../../Meshes/abstractMesh.js";
+import { type Scene } from "../../../scene.js";
+import { type Nullable } from "../../../types.js";
+import { Color3, Color4 } from "../../../Maths/math.color.pure.js";
+import { TexturePackerFrame } from "./frame.js";
 /**
  * Defines the basic options interface of a TexturePacker
  */
@@ -128,7 +128,6 @@ export declare class TexturePacker {
     /**
      * Starts the package process
      * @param resolve The promises resolution function
-     * @returns TexturePacker
      */
     private _createFrames;
     /**

@@ -26,19 +26,21 @@ export class PressureObserverWrapper {
      * Returns true if PressureObserver is available for use, false otherwise.
      */
     static get IsAvailable() {
-        return typeof PressureObserver !== "undefined" && PressureObserver.supportedSources.includes("cpu");
+        return typeof PressureObserver !== "undefined" && PressureObserver.knownSources && PressureObserver.knownSources.includes("cpu");
     }
     /**
      * Method that must be called to begin observing changes, and triggering callbacks.
      * @param source defines the source to observe
      */
     observe(source) {
-        var _a;
         try {
-            (_a = this._observer) === null || _a === void 0 ? void 0 : _a.observe(source);
+            // eslint-disable-next-line github/no-then
+            this._observer?.observe(source).catch(() => {
+                // Ignore any error
+            });
             this.onPressureChanged.notifyObservers(this._currentState);
         }
-        catch (_b) {
+        catch {
             // Ignore error
         }
     }
@@ -47,11 +49,10 @@ export class PressureObserverWrapper {
      * @param source defines the source to unobserve
      */
     unobserve(source) {
-        var _a;
         try {
-            (_a = this._observer) === null || _a === void 0 ? void 0 : _a.unobserve(source);
+            this._observer?.unobserve(source);
         }
-        catch (_b) {
+        catch {
             // Ignore error
         }
     }
@@ -59,8 +60,7 @@ export class PressureObserverWrapper {
      * Release the associated resources.
      */
     dispose() {
-        var _a;
-        (_a = this._observer) === null || _a === void 0 ? void 0 : _a.disconnect();
+        this._observer?.disconnect();
         this._observer = null;
         this.onPressureChanged.clear();
     }

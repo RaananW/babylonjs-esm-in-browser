@@ -1,4 +1,4 @@
-import { Matrix, Vector3 } from "../Maths/math.vector.js";
+import { Matrix, Vector3 } from "../Maths/math.vector.pure.js";
 // This implementation was based on the original MIT-licensed TRACE repository
 // from https://github.com/septagon/TRACE.
 /**
@@ -11,33 +11,6 @@ var Levenshtein;
      * distance.
      */
     class Alphabet {
-        /**
-         * Create a new Alphabet.
-         * @param characters characters of the alphabet
-         * @param charToInsertionCost function mapping characters to insertion costs
-         * @param charToDeletionCost function mapping characters to deletion costs
-         * @param charsToSubstitutionCost function mapping character pairs to substitution costs
-         */
-        constructor(characters, charToInsertionCost = null, charToDeletionCost = null, charsToSubstitutionCost = null) {
-            charToInsertionCost = charToInsertionCost !== null && charToInsertionCost !== void 0 ? charToInsertionCost : (() => 1);
-            charToDeletionCost = charToDeletionCost !== null && charToDeletionCost !== void 0 ? charToDeletionCost : (() => 1);
-            charsToSubstitutionCost = charsToSubstitutionCost !== null && charsToSubstitutionCost !== void 0 ? charsToSubstitutionCost : ((a, b) => (a === b ? 0 : 1));
-            this._characterToIdx = new Map();
-            this._insertionCosts = new Array(characters.length);
-            this._deletionCosts = new Array(characters.length);
-            this._substitutionCosts = new Array(characters.length);
-            let c;
-            for (let outerIdx = 0; outerIdx < characters.length; ++outerIdx) {
-                c = characters[outerIdx];
-                this._characterToIdx.set(c, outerIdx);
-                this._insertionCosts[outerIdx] = charToInsertionCost(c);
-                this._deletionCosts[outerIdx] = charToDeletionCost(c);
-                this._substitutionCosts[outerIdx] = new Array(characters.length);
-                for (let innerIdx = outerIdx; innerIdx < characters.length; ++innerIdx) {
-                    this._substitutionCosts[outerIdx][innerIdx] = charsToSubstitutionCost(c, characters[innerIdx]);
-                }
-            }
-        }
         /**
          * Serialize the Alphabet to JSON string.
          * @returns JSON serialization
@@ -66,6 +39,33 @@ var Levenshtein;
             alphabet._deletionCosts = jsonObject["deletionCosts"];
             alphabet._substitutionCosts = jsonObject["substitutionCosts"];
             return alphabet;
+        }
+        /**
+         * Create a new Alphabet.
+         * @param characters characters of the alphabet
+         * @param charToInsertionCost function mapping characters to insertion costs
+         * @param charToDeletionCost function mapping characters to deletion costs
+         * @param charsToSubstitutionCost function mapping character pairs to substitution costs
+         */
+        constructor(characters, charToInsertionCost = null, charToDeletionCost = null, charsToSubstitutionCost = null) {
+            charToInsertionCost = charToInsertionCost ?? (() => 1);
+            charToDeletionCost = charToDeletionCost ?? (() => 1);
+            charsToSubstitutionCost = charsToSubstitutionCost ?? ((a, b) => (a === b ? 0 : 1));
+            this._characterToIdx = new Map();
+            this._insertionCosts = new Array(characters.length);
+            this._deletionCosts = new Array(characters.length);
+            this._substitutionCosts = new Array(characters.length);
+            let c;
+            for (let outerIdx = 0; outerIdx < characters.length; ++outerIdx) {
+                c = characters[outerIdx];
+                this._characterToIdx.set(c, outerIdx);
+                this._insertionCosts[outerIdx] = charToInsertionCost(c);
+                this._deletionCosts[outerIdx] = charToDeletionCost(c);
+                this._substitutionCosts[outerIdx] = new Array(characters.length);
+                for (let innerIdx = outerIdx; innerIdx < characters.length; ++innerIdx) {
+                    this._substitutionCosts[outerIdx][innerIdx] = charsToSubstitutionCost(c, characters[innerIdx]);
+                }
+            }
         }
         /**
          * Get the index (internally-assigned number) for a character.
@@ -112,18 +112,6 @@ var Levenshtein;
      */
     class Sequence {
         /**
-         * Create a new Sequence.
-         * @param characters characters in the new Sequence
-         * @param alphabet Alphabet, which must include all used characters
-         */
-        constructor(characters, alphabet) {
-            if (characters.length > Sequence._MAX_SEQUENCE_LENGTH) {
-                throw new Error("Sequences longer than " + Sequence._MAX_SEQUENCE_LENGTH + " not supported.");
-            }
-            this._alphabet = alphabet;
-            this._characters = characters.map((c) => this._alphabet.getCharacterIdx(c));
-        }
-        /**
          * Serialize to JSON string. JSON representation does NOT include the Alphabet
          * from which this Sequence was created; Alphabet must be independently
          * serialized.
@@ -144,6 +132,18 @@ var Levenshtein;
             const sequence = new Sequence([], alphabet);
             sequence._characters = JSON.parse(json);
             return sequence;
+        }
+        /**
+         * Create a new Sequence.
+         * @param characters characters in the new Sequence
+         * @param alphabet Alphabet, which must include all used characters
+         */
+        constructor(characters, alphabet) {
+            if (characters.length > Sequence._MAX_SEQUENCE_LENGTH) {
+                throw new Error("Sequences longer than " + Sequence._MAX_SEQUENCE_LENGTH + " not supported.");
+            }
+            this._alphabet = alphabet;
+            this._characters = characters.map((c) => this._alphabet.getCharacterIdx(c));
         }
         /**
          * Get the distance between this Sequence and another.
@@ -198,14 +198,6 @@ var Levenshtein;
  */
 export class Trajectory {
     /**
-     * Create a new empty Trajectory.
-     * @param segmentLength radius of discretization for Trajectory points
-     */
-    constructor(segmentLength = 0.01) {
-        this._points = [];
-        this._segmentLength = segmentLength;
-    }
-    /**
      * Serialize to JSON.
      * @returns serialized JSON string
      */
@@ -224,6 +216,14 @@ export class Trajectory {
             return new Vector3(pt["_x"], pt["_y"], pt["_z"]);
         });
         return trajectory;
+    }
+    /**
+     * Create a new empty Trajectory.
+     * @param segmentLength radius of discretization for Trajectory points
+     */
+    constructor(segmentLength = 0.01) {
+        this._points = [];
+        this._segmentLength = segmentLength;
     }
     /**
      * Get the length of the Trajectory.
@@ -261,9 +261,9 @@ export class Trajectory {
      */
     resampleAtTargetResolution(targetResolution) {
         const resampled = new Trajectory(this.getLength() / targetResolution);
-        this._points.forEach((pt) => {
+        for (const pt of this._points) {
             resampled.add(pt);
-        });
+        }
         return resampled;
     }
     /**
@@ -296,12 +296,12 @@ export class Trajectory {
      * @returns whether or not transformation was successful
      */
     static _TransformSegmentDirToRef(priorVec, fromVec, toVec, result) {
-        const DOT_PRODUCT_SAMPLE_REJECTION_THRESHOLD = 0.98;
+        const dotProductSampleRejectionThreshold = 0.98;
         fromVec.subtractToRef(priorVec, Trajectory._ForwardDir);
         Trajectory._ForwardDir.normalize();
         fromVec.scaleToRef(-1, Trajectory._InverseFromVec);
         Trajectory._InverseFromVec.normalize();
-        if (Math.abs(Vector3.Dot(Trajectory._ForwardDir, Trajectory._InverseFromVec)) > DOT_PRODUCT_SAMPLE_REJECTION_THRESHOLD) {
+        if (Math.abs(Vector3.Dot(Trajectory._ForwardDir, Trajectory._InverseFromVec)) > dotProductSampleRejectionThreshold) {
             return false;
         }
         Vector3.CrossToRef(Trajectory._ForwardDir, Trajectory._InverseFromVec, Trajectory._UpDir);
@@ -345,9 +345,6 @@ Trajectory._LookMatrix = new Matrix();
  * roughly evenly over the surface of the unit sphere.
  */
 class Vector3Alphabet {
-    constructor(size) {
-        this.chars = new Array(size);
-    }
     /**
      * Helper method to create new "spikeball" Vector3Alphabets. Uses a naive
      * optimize-from-random strategy to space points around the unit sphere
@@ -361,8 +358,8 @@ class Vector3Alphabet {
      * @returns a new randomly generated and optimized Vector3Alphabet of the specified size
      */
     static Generate(alphabetSize = 64, iterations = 256, startingStepSize = 0.1, endingStepSize = 0.001, fixedValues = []) {
-        const EPSILON = 0.001;
-        const EPSILON_SQUARED = EPSILON * EPSILON;
+        const epsilon = 0.001;
+        const epsilonSquared = epsilon * epsilon;
         const alphabet = new Vector3Alphabet(alphabetSize);
         for (let idx = 0; idx < alphabetSize; ++idx) {
             alphabet.chars[idx] = new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
@@ -380,13 +377,13 @@ class Vector3Alphabet {
             stepSize = lerp(startingStepSize, endingStepSize, iteration / (iterations - 1));
             for (let idx = fixedValues.length; idx < alphabet.chars.length; ++idx) {
                 force.copyFromFloats(0, 0, 0);
-                alphabet.chars.forEach((pt) => {
+                for (const pt of alphabet.chars) {
                     alphabet.chars[idx].subtractToRef(pt, scratch);
                     distSq = scratch.lengthSquared();
-                    if (distSq > EPSILON_SQUARED) {
+                    if (distSq > epsilonSquared) {
                         scratch.scaleAndAddToRef(1 / (scratch.lengthSquared() * distSq), force);
                     }
-                });
+                }
                 force.scaleInPlace(stepSize);
                 alphabet.chars[idx].addInPlace(force);
                 alphabet.chars[idx].normalize();
@@ -414,6 +411,9 @@ class Vector3Alphabet {
         }
         return alphabet;
     }
+    constructor(size) {
+        this.chars = new Array(size);
+    }
 }
 /**
  * Class which formalizes the manner in which a Vector3Alphabet is used to tokenize and
@@ -421,9 +421,6 @@ class Vector3Alphabet {
  * attributes of Trajectories are and are not considered important, such as scale.
  */
 class TrajectoryDescriptor {
-    constructor() {
-        this._sequences = [];
-    }
     /**
      * Serialize to JSON.
      * @returns JSON serialization
@@ -468,6 +465,9 @@ class TrajectoryDescriptor {
         descriptor._sequences = pyramid.map((tokens) => new Levenshtein.Sequence(tokens, levenshteinAlphabet));
         return descriptor;
     }
+    constructor() {
+        this._sequences = [];
+    }
     /**
      * Create the tokenization pyramid for the provided Trajectory according to the given
      * Vector3Alphabet.
@@ -507,16 +507,6 @@ TrajectoryDescriptor._FINEST_DESCRIPTOR_RESOLUTION = 32;
  */
 class TrajectoryClass {
     /**
-     * Create a new DescribedTrajectory.
-     * @param descriptors currently-known TrajectoryDescriptors, if any
-     */
-    constructor(descriptors = []) {
-        this._descriptors = descriptors;
-        this._centroidIdx = -1;
-        this._averageDistance = 0;
-        this._refreshDescription();
-    }
-    /**
      * Serialize to JSON.
      * @returns JSON serialization
      */
@@ -542,6 +532,16 @@ class TrajectoryClass {
         described._centroidIdx = jsonObject.centroidIdx;
         described._averageDistance = jsonObject.averageDistance;
         return described;
+    }
+    /**
+     * Create a new DescribedTrajectory.
+     * @param descriptors currently-known TrajectoryDescriptors, if any
+     */
+    constructor(descriptors = []) {
+        this._descriptors = descriptors;
+        this._centroidIdx = -1;
+        this._averageDistance = 0;
+        this._refreshDescription();
     }
     /**
      * Add a new TrajectoryDescriptor to the list of descriptors known to describe
@@ -580,9 +580,9 @@ class TrajectoryClass {
         let sum;
         const distances = this._descriptors.map((a) => {
             sum = 0;
-            this._descriptors.forEach((b) => {
+            for (const b of this._descriptors) {
                 sum += a.distance(b);
-            });
+            }
             return sum;
         });
         for (let idx = 0; idx < distances.length; ++idx) {
@@ -591,9 +591,9 @@ class TrajectoryClass {
             }
         }
         this._averageDistance = 0;
-        this._descriptors.forEach((desc) => {
+        for (const desc of this._descriptors) {
             this._averageDistance += desc.distance(this._descriptors[this._centroidIdx]);
-        });
+        }
         if (this._descriptors.length > 0) {
             this._averageDistance = Math.max(this._averageDistance / this._descriptors.length, TrajectoryClass._MIN_AVERAGE_DISTANCE);
         }
@@ -605,10 +605,6 @@ TrajectoryClass._MIN_AVERAGE_DISTANCE = 1;
  * added and using which Trajectories can be recognized.
  */
 export class TrajectoryClassifier {
-    constructor() {
-        this._maximumAllowableMatchCost = 4;
-        this._nameToDescribedTrajectory = new Map();
-    }
     /**
      * Serialize to JSON.
      * @returns JSON serialization
@@ -658,6 +654,10 @@ export class TrajectoryClassifier {
         trajectorySet._vector3Alphabet = vecs;
         trajectorySet._levenshteinAlphabet = alphabet;
         return trajectorySet;
+    }
+    constructor() {
+        this._maximumAllowableMatchCost = 4;
+        this._nameToDescribedTrajectory = new Map();
     }
     /**
      * Add a new Trajectory to the set with a given name.

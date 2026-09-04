@@ -121,6 +121,14 @@ export class Size {
         return r;
     }
     /**
+     * Scales the width and height
+     * @param scale the scale to multiply the width and height by
+     * @returns a new Size set with the multiplication result of the current Size and the given floats.
+     */
+    scale(scale) {
+        return new Size(this.width * scale, this.height * scale);
+    }
+    /**
      * Creates a new Size set at the linear interpolation "amount" between "start" and "end"
      * @param start starting size to lerp between
      * @param end end size to lerp between

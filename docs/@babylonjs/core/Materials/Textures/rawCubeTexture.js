@@ -1,9 +1,7 @@
-import { SerializationHelper } from "../../Misc/decorators.js";
-import { _UpdateRGBDAsync as UpdateRGBDAsyncEnvTools } from "../../Misc/environmentTextureTools.js";
-import { InternalTextureSource } from "./internalTexture.js";
-import { CubeTexture } from "./cubeTexture.js";
+import { SerializationHelper } from "../../Misc/decorators.serialization.js";
+import { _UpdateRGBDAsync as UpdateRGBDAsyncEnvTools } from "../../Misc/environmentTextureTools.pure.js";
+import { CubeTexture } from "./cubeTexture.pure.js";
 
-import "../../Engines/Extensions/engine.rawTexture.js";
 /**
  * Raw cube texture where the raw buffers are passed in
  */
@@ -14,7 +12,7 @@ export class RawCubeTexture extends CubeTexture {
      * @param data defines the array of data to use to create each face
      * @param size defines the size of the textures
      * @param format defines the format of the data
-     * @param type defines the type of the data (like Engine.TEXTURETYPE_UNSIGNED_INT)
+     * @param type defines the type of the data (like Engine.TEXTURETYPE_UNSIGNED_BYTE)
      * @param generateMipMaps  defines if the engine should generate the mip levels
      * @param invertY defines if data must be stored with Y axis inverted
      * @param samplingMode defines the required sampling mode (like Texture.NEAREST_SAMPLINGMODE)
@@ -28,7 +26,7 @@ export class RawCubeTexture extends CubeTexture {
      * Updates the raw cube texture.
      * @param data defines the data to store
      * @param format defines the data format
-     * @param type defines the type fo the data (Engine.TEXTURETYPE_UNSIGNED_INT by default)
+     * @param type defines the type fo the data (Engine.TEXTURETYPE_UNSIGNED_BYTE by default)
      * @param invertY defines if data must be stored with Y axis inverted
      * @param compression defines the compression used (null by default)
      */
@@ -43,7 +41,9 @@ export class RawCubeTexture extends CubeTexture {
      * @param lodOffset defines the offset applied to environment texture. This manages first LOD level used for IBL according to the roughness
      * @returns a promise that resolves when the operation is complete
      */
+    // eslint-disable-next-line @typescript-eslint/promise-function-async, no-restricted-syntax
     updateRGBDAsync(data, sphericalPolynomial = null, lodScale = 0.8, lodOffset = 0) {
+        // eslint-disable-next-line github/no-then
         return UpdateRGBDAsyncEnvTools(this._texture, data, sphericalPolynomial, lodScale, lodOffset).then(() => { });
     }
     /**
@@ -55,7 +55,8 @@ export class RawCubeTexture extends CubeTexture {
             const scene = this.getScene();
             const internalTexture = this._texture;
             const texture = new RawCubeTexture(scene, internalTexture._bufferViewArray, internalTexture.width, internalTexture.format, internalTexture.type, internalTexture.generateMipMaps, internalTexture.invertY, internalTexture.samplingMode, internalTexture._compression);
-            if (internalTexture.source === InternalTextureSource.CubeRawRGBD) {
+            if (internalTexture.source === 13 /* InternalTextureSource.CubeRawRGBD */) {
+                // eslint-disable-next-line @typescript-eslint/no-floating-promises
                 texture.updateRGBDAsync(internalTexture._bufferViewArrayArray, internalTexture._sphericalPolynomial, internalTexture._lodGenerationScale, internalTexture._lodGenerationOffset);
             }
             return texture;

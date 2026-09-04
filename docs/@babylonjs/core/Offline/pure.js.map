@@ -1,0 +1,1 @@
+{"version":3,"file":"pure.js","sourceRoot":"","sources":["../../../../dev/core/src/Offline/pure.ts"],"names":[],"mappings":"AAAA,6DAA6D;AAC7D,cAAc,iBAAiB,CAAC;AAChC,cAAc,oBAAoB,CAAC","sourcesContent":["/** Pure barrel — re-exports only side-effect-free modules */\nexport * from \"./database.pure\";\nexport * from \"./IOfflineProvider\";\n"]}

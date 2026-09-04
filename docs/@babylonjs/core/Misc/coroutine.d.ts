@@ -3,15 +3,15 @@
  * 1. An Iterator that yields void, returns a T, and is not passed values with calls to next.
  * 2. An IterableIterator of void (since it only yields void).
  */
-declare type CoroutineBase<TStep, TReturn> = Iterator<TStep, TReturn, void> & IterableIterator<TStep>;
+type CoroutineBase<TStep, TReturn> = Iterator<TStep, TReturn, void> & IterableIterator<TStep>;
 /** @internal */
-export declare type Coroutine<T> = CoroutineBase<void, T>;
+export type Coroutine<T> = CoroutineBase<void, T>;
 /** @internal */
-export declare type AsyncCoroutine<T> = CoroutineBase<void | Promise<void>, T>;
+export type AsyncCoroutine<T> = CoroutineBase<void | Promise<void>, T>;
 /** @internal */
-export declare type CoroutineStep<T> = IteratorResult<void, T>;
+export type CoroutineStep<T> = IteratorResult<void, T>;
 /** @internal */
-export declare type CoroutineScheduler<T> = (coroutine: AsyncCoroutine<T>, onStep: (stepResult: CoroutineStep<T>) => void, onError: (stepError: any) => void) => void;
+export type CoroutineScheduler<T> = (coroutine: AsyncCoroutine<T>, onStep: (stepResult: CoroutineStep<T>) => void, onError: (stepError: any) => void) => void;
 /**
  * @internal
  */

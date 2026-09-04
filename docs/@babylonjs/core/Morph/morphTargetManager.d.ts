@@ -1,42 +1,62 @@
-import type { Nullable } from "../types";
-import type { IDisposable, Scene } from "../scene";
-import { MorphTarget } from "./morphTarget";
-import type { Effect } from "../Materials/effect";
-import { RawTexture2DArray } from "../Materials/Textures/rawTexture2DArray";
-import type { AbstractScene } from "../abstractScene";
+import { type Nullable } from "../types.js";
+import { type IDisposable, type Scene } from "../scene.js";
+import { MorphTarget } from "./morphTarget.js";
+import { type Effect } from "../Materials/effect.js";
+import { RawTexture2DArray } from "../Materials/Textures/rawTexture2DArray.js";
+import { type IAssetContainer } from "../IAssetContainer.js";
 /**
  * This class is used to deform meshes using morphing between different targets
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/morphTargets
  */
 export declare class MorphTargetManager implements IDisposable {
+    meshName?: string | undefined;
     /** Enable storing morph target data into textures when set to true (true by default) */
     static EnableTextureStorage: boolean;
+    /** Maximum number of active morph targets supported in the "vertex attribute" mode (i.e., not the "texture" mode) */
+    static MaxActiveMorphTargetsInVertexAttributeMode: number;
+    /**
+     * When used in texture mode, if greather than 0, this will override the the morph manager numMaxInfluencers value.
+     */
+    static ConstantTargetCountForTextureMode: number;
     private _targets;
     private _targetInfluenceChangedObservers;
     private _targetDataLayoutChangedObservers;
     private _activeTargets;
     private _scene;
     private _influences;
-    private _morphTargetTextureIndices;
+    private _supportsPositions;
     private _supportsNormals;
     private _supportsTangents;
     private _supportsUVs;
+    private _supportsUV2s;
+    private _supportsColors;
     private _vertexCount;
-    private _textureVertexStride;
-    private _textureWidth;
-    private _textureHeight;
     private _uniqueId;
     private _tempInfluences;
     private _canUseTextureForTargets;
     private _blockCounter;
+    private _mustSynchronize;
+    private _forceUpdateWhenUnfrozen;
     /** @internal */
-    _parentContainer: Nullable<AbstractScene>;
+    _textureVertexStride: number;
+    /** @internal */
+    _textureWidth: number;
+    /** @internal */
+    _textureHeight: number;
+    /** @internal */
+    _morphTargetTextureIndices: Float32Array;
+    /** @internal */
+    _parentContainer: Nullable<IAssetContainer>;
     /** @internal */
     _targetStoreTexture: Nullable<RawTexture2DArray>;
     /**
      * Gets or sets a boolean indicating if influencers must be optimized (eg. recompiling the shader if less influencers are used)
      */
     optimizeInfluencers: boolean;
+    /**
+     * Gets or sets a boolean indicating if positions must be morphed
+     */
+    enablePositionMorphing: boolean;
     /**
      * Gets or sets a boolean indicating if normals must be morphed
      */
@@ -50,6 +70,14 @@ export declare class MorphTargetManager implements IDisposable {
      */
     enableUVMorphing: boolean;
     /**
+     * Gets or sets a boolean indicating if UV2 must be morphed
+     */
+    enableUV2Morphing: boolean;
+    /**
+     * Gets or sets a boolean indicating if colors must be morphed
+     */
+    enableColorMorphing: boolean;
+    /**
      * Sets a boolean indicating that adding new target or updating an existing target will not update the underlying data buffers
      */
     set areUpdatesFrozen(block: boolean);
@@ -57,8 +85,21 @@ export declare class MorphTargetManager implements IDisposable {
     /**
      * Creates a new MorphTargetManager
      * @param scene defines the current scene
+     * @param meshName name of the mesh this morph target manager is associated with
      */
-    constructor(scene?: Nullable<Scene>);
+    constructor(scene?: Nullable<Scene>, meshName?: string | undefined);
+    private _numMaxInfluencers;
+    /**
+     * Gets or sets the maximum number of influencers (targets) (default value: 0).
+     * Setting a value for this property can lead to a smoother experience, as only one shader will be compiled, which will use this value as the maximum number of influencers.
+     * If you leave the value at 0 (default), a new shader will be compiled every time the number of active influencers changes. This can cause problems, as compiling a shader takes time.
+     * If you assign a non-zero value to this property, you need to ensure that this value is greater than the maximum number of (active) influencers you'll need for this morph manager.
+     * Otherwise, the number of active influencers will be truncated at the value you set for this property, which can lead to unexpected results.
+     * Note that this property has no effect if "useTextureToStoreTargets" is false.
+     * Note as well that if MorphTargetManager.ConstantTargetCountForTextureMode is greater than 0, this property will be ignored and the constant value will be used instead.
+     */
+    get numMaxInfluencers(): number;
+    set numMaxInfluencers(value: number);
     /**
      * Gets the unique ID of this manager
      */
@@ -67,6 +108,10 @@ export declare class MorphTargetManager implements IDisposable {
      * Gets the number of vertices handled by this manager
      */
     get vertexCount(): number;
+    /**
+     * Gets a boolean indicating if this manager supports morphing of positions
+     */
+    get supportsPositions(): boolean;
     /**
      * Gets a boolean indicating if this manager supports morphing of normals
      */
@@ -79,6 +124,38 @@ export declare class MorphTargetManager implements IDisposable {
      * Gets a boolean indicating if this manager supports morphing of texture coordinates
      */
     get supportsUVs(): boolean;
+    /**
+     * Gets a boolean indicating if this manager supports morphing of texture coordinates 2
+     */
+    get supportsUV2s(): boolean;
+    /**
+     * Gets a boolean indicating if this manager supports morphing of colors
+     */
+    get supportsColors(): boolean;
+    /**
+     * Gets a boolean indicating if this manager has data for morphing positions
+     */
+    get hasPositions(): boolean;
+    /**
+     * Gets a boolean indicating if this manager has data for morphing normals
+     */
+    get hasNormals(): boolean;
+    /**
+     * Gets a boolean indicating if this manager has data for morphing tangents
+     */
+    get hasTangents(): boolean;
+    /**
+     * Gets a boolean indicating if this manager has data for morphing texture coordinates
+     */
+    get hasUVs(): boolean;
+    /**
+     * Gets a boolean indicating if this manager has data for morphing texture coordinates 2
+     */
+    get hasUV2s(): boolean;
+    /**
+     * Gets a boolean indicating if this manager has data for morphing colors
+     */
+    get hasColors(): boolean;
     /**
      * Gets the number of targets stored in this manager
      */
@@ -103,6 +180,10 @@ export declare class MorphTargetManager implements IDisposable {
      */
     get isUsingTextureForTargets(): boolean;
     /**
+     * Gets or sets an object used to store user defined information for the MorphTargetManager
+     */
+    metadata: any;
+    /**
      * Gets the active target at specified index. An active target is a target with an influence > 0
      * @param index defines the index to check
      * @returns the requested target
@@ -114,6 +195,14 @@ export declare class MorphTargetManager implements IDisposable {
      * @returns the requested target
      */
     getTarget(index: number): MorphTarget;
+    /**
+     * Gets the first target with the specified name
+     * @param name defines the name to check
+     * @returns the requested target
+     */
+    getTargetByName(name: string): Nullable<MorphTarget>;
+    private _influencesAreDirty;
+    private _needUpdateInfluences;
     /**
      * Add a new target to this manager
      * @param target defines the target to add

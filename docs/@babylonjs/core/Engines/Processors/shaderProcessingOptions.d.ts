@@ -1,14 +1,17 @@
-import type { IShaderProcessor } from "./iShaderProcessor";
-import type { Nullable } from "../../types";
+import { type IShaderProcessor } from "./iShaderProcessor.js";
+import { type Nullable } from "../../types.js";
 /**
  * Function for custom code generation
  */
-export declare type ShaderCustomProcessingFunction = (shaderType: string, code: string) => string;
+export type ShaderCustomProcessingFunction = (shaderType: string, code: string, defines?: string[]) => string;
 /** @internal */
-export interface ShaderProcessingContext {
+export interface _IShaderProcessingContext {
+    vertexBufferKindToNumberOfComponents?: {
+        [kind: string]: number;
+    };
 }
 /** @internal */
-export interface ProcessingOptions {
+export interface _IProcessingOptions {
     defines: string[];
     indexParameters: any;
     isFragment: boolean;
@@ -22,7 +25,7 @@ export interface ProcessingOptions {
     version: string;
     platformName: string;
     lookForClosingBracketForUniformBuffer?: boolean;
-    processingContext: Nullable<ShaderProcessingContext>;
+    processingContext: Nullable<_IShaderProcessingContext>;
     isNDCHalfZRange: boolean;
     useReverseDepthBuffer: boolean;
     processCodeAfterIncludes?: ShaderCustomProcessingFunction;

@@ -1,4 +1,5 @@
-import { Tools } from "../Misc/tools.js";
+import { Tools } from "../Misc/tools.pure.js";
+import { _ConsumeWebXRFeatureSpecificDisableWarning } from "./webXRFeatureWarningRegistry.js";
 /**
  * A list of the currently available features without referencing them
  */
@@ -77,6 +78,26 @@ WebXRFeatureName.WALKING_LOCOMOTION = "xr-walking-locomotion";
  */
 WebXRFeatureName.LAYERS = "xr-layers";
 /**
+ * The name of the depth sensing feature
+ */
+WebXRFeatureName.DEPTH_SENSING = "xr-depth-sensing";
+/**
+ * The name of the WebXR Space Warp feature
+ */
+WebXRFeatureName.SPACE_WARP = "xr-space-warp";
+/**
+ * The name of the WebXR Raw Camera Access feature
+ */
+WebXRFeatureName.RAW_CAMERA_ACCESS = "xr-raw-camera-access";
+/**
+ * The name of the body tracking feature
+ */
+WebXRFeatureName.BODY_TRACKING = "xr-body-tracking";
+/**
+ * The name of the tracked sources feature
+ */
+WebXRFeatureName.TRACKED_SOURCES = "xr-tracked-sources";
+/**
  * The WebXR features manager is responsible of enabling or disabling features required for the current XR session.
  * It is mainly used in AR sessions.
  *
@@ -93,22 +114,24 @@ export class WebXRFeaturesManager {
         this._features = {};
         // when session starts / initialized - attach
         this._xrSessionManager.onXRSessionInit.add(() => {
-            this.getEnabledFeatures().forEach((featureName) => {
+            const features = this.getEnabledFeatures();
+            for (const featureName of features) {
                 const feature = this._features[featureName];
                 if (feature.enabled && !feature.featureImplementation.attached && !feature.featureImplementation.disableAutoAttach) {
                     this.attachFeature(featureName);
                 }
-            });
+            }
         });
         // when session ends - detach
         this._xrSessionManager.onXRSessionEnded.add(() => {
-            this.getEnabledFeatures().forEach((featureName) => {
+            const features = this.getEnabledFeatures();
+            for (const featureName of features) {
                 const feature = this._features[featureName];
                 if (feature.enabled && feature.featureImplementation.attached) {
                     // detach, but don't disable!
                     this.detachFeature(featureName);
                 }
-            });
+            }
         });
     }
     /**
@@ -187,7 +210,23 @@ export class WebXRFeaturesManager {
     attachFeature(featureName) {
         const feature = this._features[featureName];
         if (feature && feature.enabled && !feature.featureImplementation.attached) {
-            feature.featureImplementation.attach();
+            const disableAutoAttachBeforeAttach = feature.featureImplementation.disableAutoAttach;
+            feature.featureImplementation._autoAttachPolicyBeforeAttach = disableAutoAttachBeforeAttach;
+            feature.featureImplementation.disableAutoAttach = false;
+            let attached;
+            try {
+                attached = feature.featureImplementation.attach();
+            }
+            finally {
+                delete feature.featureImplementation._autoAttachPolicyBeforeAttach;
+            }
+            const intentionallyDisabledDuringAttach = feature.featureImplementation.disableAutoAttach;
+            if (!intentionallyDisabledDuringAttach) {
+                feature.featureImplementation.disableAutoAttach = disableAutoAttachBeforeAttach;
+            }
+            if (!attached && !intentionallyDisabledDuringAttach) {
+                Tools.Warn(`Feature ${featureName} failed to attach`);
+            }
         }
     }
     /**
@@ -197,7 +236,10 @@ export class WebXRFeaturesManager {
     detachFeature(featureName) {
         const feature = this._features[featureName];
         if (feature && feature.featureImplementation.attached) {
-            feature.featureImplementation.detach();
+            const detached = feature.featureImplementation.detach();
+            if (!detached) {
+                Tools.Warn(`Feature ${featureName} failed to detach`);
+            }
         }
     }
     /**
@@ -223,9 +265,10 @@ export class WebXRFeaturesManager {
      * dispose this features manager
      */
     dispose() {
-        this.getEnabledFeatures().forEach((feature) => {
-            this.disableFeature(feature);
-        });
+        const features = this.getEnabledFeatures();
+        for (const featureName of features) {
+            this.disableFeature(featureName);
+        }
     }
     /**
      * Enable a feature using its name and a version. This will enable it in the scene, and will be responsible to attach it when the session starts.
@@ -242,7 +285,7 @@ export class WebXRFeaturesManager {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     featureName, version = "latest", moduleOptions = {}, attachIfPossible = true, required = true) {
         const name = typeof featureName === "string" ? featureName : featureName.Name;
-        let versionToLoad = 0;
+        let versionToLoad;
         if (typeof version === "string") {
             if (!version) {
                 throw new Error(`Error in provided version - ${name} (${version})`);
@@ -287,7 +330,10 @@ export class WebXRFeaturesManager {
                 throw new Error(`Dependant features missing. Make sure the following features are enabled - ${constructed.dependsOn.join(", ")}`);
             }
         }
-        if (constructed.isCompatible()) {
+        _ConsumeWebXRFeatureSpecificDisableWarning(constructed);
+        const isCompatible = constructed.isCompatible();
+        const emittedSpecificDisableWarning = _ConsumeWebXRFeatureSpecificDisableWarning(constructed);
+        if (isCompatible) {
             this._features[name] = {
                 featureImplementation: constructed,
                 enabled: true,
@@ -312,7 +358,9 @@ export class WebXRFeaturesManager {
                 throw new Error("required feature not compatible");
             }
             else {
-                Tools.Warn(`Feature ${name} not compatible with the current environment/browser and was not enabled.`);
+                if (!emittedSpecificDisableWarning) {
+                    Tools.Warn(`Feature ${name} not compatible with the current environment/browser and was not enabled.`);
+                }
                 return constructed;
             }
         }
@@ -360,6 +408,7 @@ export class WebXRFeaturesManager {
                 }
             }
             if (feature.featureImplementation.getXRSessionInitExtension) {
+                // eslint-disable-next-line no-await-in-loop
                 const extended = await feature.featureImplementation.getXRSessionInitExtension();
                 xrSessionInit = {
                     ...xrSessionInit,

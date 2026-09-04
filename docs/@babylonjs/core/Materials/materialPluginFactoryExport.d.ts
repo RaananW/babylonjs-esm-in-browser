@@ -1,6 +1,6 @@
-import type { Nullable } from "../types";
-import type { MaterialPluginBase } from "./materialPluginBase";
-declare type Material = import("./material").Material;
+import { type Nullable } from "../types.js";
+import { type MaterialPluginBase } from "./materialPluginBase.js";
+import { type Material } from "./material.js";
 /**
  * Creates an instance of the anisotropic plugin
  * @param material parent material the plugin will be created for
@@ -43,4 +43,3 @@ export declare function createPBRSubSurfacePlugin(material: Material): Nullable<
  * @returns the plugin instance or null if the plugin is incompatible with material
  */
 export declare function createDetailMapPlugin(material: Material): Nullable<MaterialPluginBase>;
-export {};

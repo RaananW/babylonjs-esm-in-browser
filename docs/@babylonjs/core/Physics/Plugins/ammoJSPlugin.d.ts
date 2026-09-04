@@ -1,1 +1,1 @@
-export * from "../v1/Plugins/ammoJSPlugin";
+export * from "../v1/Plugins/ammoJSPlugin.js";

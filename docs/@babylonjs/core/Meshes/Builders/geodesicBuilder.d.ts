@@ -1,8 +1,8 @@
-import type { Scene } from "../../scene";
-import type { Vector4 } from "../../Maths/math.vector";
-import type { Color4 } from "../../Maths/math.color";
-import type { Mesh } from "../../Meshes/mesh";
-import type { Nullable } from "../../types";
+import { type Scene } from "../../scene.js";
+import { type Vector4 } from "../../Maths/math.vector.js";
+import { type Color4 } from "../../Maths/math.color.js";
+import { type Mesh } from "../../Meshes/mesh.js";
+import { type Nullable } from "../../types.js";
 /**
  * Creates the Mesh for a Geodesic Polyhedron
  * @see https://en.wikipedia.org/wiki/Geodesic_polyhedron
@@ -22,19 +22,6 @@ import type { Nullable } from "../../types";
  * * sideOrientation optional and takes the values : Mesh.FRONTSIDE (default), Mesh.BACKSIDE or Mesh.DOUBLESIDE
  * * frontUvs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the front side, optional, default vector4 (0, 0, 1, 1)
  * * backUVs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the back side, optional, default vector4 (0, 0, 1, 1)
- * @param options.n
- * @param options.size
- * @param options.sizeX
- * @param options.sizeY
- * @param options.sizeZ
- * @param options.faceUV
- * @param options.faceColors
- * @param options.flat
- * @param options.updatable
- * @param options.sideOrientation
- * @param options.frontUVs
- * @param options.backUVs
- * @param options.m
  * @param scene defines the hosting scene
  * @returns Geodesic mesh
  */

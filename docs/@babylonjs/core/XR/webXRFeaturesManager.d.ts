@@ -1,5 +1,29 @@
-import type { WebXRSessionManager } from "./webXRSessionManager";
-import type { IDisposable } from "../scene";
+import { type Observable } from "../Misc/observable.js";
+import { type IDisposable } from "../scene.js";
+import { type IWebXRAnchorSystemOptions, type WebXRAnchorSystem } from "./features/WebXRAnchorSystem.js";
+import { type IWebXRBackgroundRemoverOptions, type WebXRBackgroundRemover } from "./features/WebXRBackgroundRemover.js";
+import { type IWebXRBodyTrackingOptions, type WebXRBodyTracking } from "./features/WebXRBodyTracking.js";
+import { type IWebXRControllerMovementOptions, type WebXRControllerMovement } from "./features/WebXRControllerMovement.js";
+import { type IWebXRControllerPhysicsOptions, type WebXRControllerPhysics } from "./features/WebXRControllerPhysics.js";
+import { type IWebXRControllerPointerSelectionOptions, type WebXRControllerPointerSelection } from "./features/WebXRControllerPointerSelection.js";
+import { type IWebXRTeleportationOptions, type WebXRMotionControllerTeleportation } from "./features/WebXRControllerTeleportation.js";
+import { type IWebXRDepthSensingOptions, type WebXRDepthSensing } from "./features/WebXRDepthSensing.js";
+import { type IWebXRDomOverlayOptions, type WebXRDomOverlay } from "./features/WebXRDOMOverlay.js";
+import { type WebXREyeTracking } from "./features/WebXREyeTracking.js";
+import { type WebXRFeaturePointSystem } from "./features/WebXRFeaturePointSystem.js";
+import { type IWebXRHandTrackingOptions, type WebXRHandTracking } from "./features/WebXRHandTracking.js";
+import { type IWebXRHitTestOptions, type WebXRHitTest } from "./features/WebXRHitTest.js";
+import { type IWebXRImageTrackingOptions, type WebXRImageTracking } from "./features/WebXRImageTracking.js";
+import { type IWebXRLayersOptions, type WebXRLayers } from "./features/WebXRLayers.js";
+import { type IWebXRLightEstimationOptions, type WebXRLightEstimation } from "./features/WebXRLightEstimation.js";
+import { type IWebXRMeshDetectorOptions, type WebXRMeshDetector } from "./features/WebXRMeshDetector.js";
+import { type IWebXRNearInteractionOptions, type WebXRNearInteraction } from "./features/WebXRNearInteraction.js";
+import { type IWebXRPlaneDetectorOptions, type WebXRPlaneDetector } from "./features/WebXRPlaneDetector.js";
+import { type IWebXRRawCameraAccessOptions, type WebXRRawCameraAccess } from "./features/WebXRRawCameraAccess.js";
+import { type WebXRSpaceWarp } from "./features/WebXRSpaceWarp.js";
+import { type WebXRTrackedSources } from "./features/WebXRTrackedSources.js";
+import { type IWebXRWalkingLocomotionOptions, type WebXRWalkingLocomotion } from "./features/WebXRWalkingLocomotion.js";
+import { type WebXRSessionManager } from "./webXRSessionManager.js";
 /**
  * Defining the interface required for a (webxr) feature
  */
@@ -12,6 +36,11 @@ export interface IWebXRFeature extends IDisposable {
      * Should auto-attach be disabled?
      */
     disableAutoAttach: boolean;
+    /**
+     * The auto-attach policy in effect before the features manager starts a manual attachment.
+     * @internal
+     */
+    _autoAttachPolicyBeforeAttach?: boolean;
     /**
      * Attach the feature to the session
      * Will usually be called by the features manager
@@ -50,6 +79,14 @@ export interface IWebXRFeature extends IDisposable {
      * If this feature requires to extend the XRSessionInit object, this function will return the partial XR session init object
      */
     getXRSessionInitExtension?: () => Promise<Partial<XRSessionInit>>;
+    /**
+     * Triggered when the feature is attached
+     */
+    onFeatureAttachObservable: Observable<IWebXRFeature>;
+    /**
+     * Triggered when the feature is detached
+     */
+    onFeatureDetachObservable: Observable<IWebXRFeature>;
 }
 /**
  * A list of the currently available features without referencing them
@@ -58,80 +95,220 @@ export declare class WebXRFeatureName {
     /**
      * The name of the anchor system feature
      */
-    static readonly ANCHOR_SYSTEM = "xr-anchor-system";
+    static readonly ANCHOR_SYSTEM: "xr-anchor-system";
     /**
      * The name of the background remover feature
      */
-    static readonly BACKGROUND_REMOVER = "xr-background-remover";
+    static readonly BACKGROUND_REMOVER: "xr-background-remover";
     /**
      * The name of the hit test feature
      */
-    static readonly HIT_TEST = "xr-hit-test";
+    static readonly HIT_TEST: "xr-hit-test";
     /**
      * The name of the mesh detection feature
      */
-    static readonly MESH_DETECTION = "xr-mesh-detection";
+    static readonly MESH_DETECTION: "xr-mesh-detection";
     /**
      * physics impostors for xr controllers feature
      */
-    static readonly PHYSICS_CONTROLLERS = "xr-physics-controller";
+    static readonly PHYSICS_CONTROLLERS: "xr-physics-controller";
     /**
      * The name of the plane detection feature
      */
-    static readonly PLANE_DETECTION = "xr-plane-detection";
+    static readonly PLANE_DETECTION: "xr-plane-detection";
     /**
      * The name of the pointer selection feature
      */
-    static readonly POINTER_SELECTION = "xr-controller-pointer-selection";
+    static readonly POINTER_SELECTION: "xr-controller-pointer-selection";
     /**
      * The name of the teleportation feature
      */
-    static readonly TELEPORTATION = "xr-controller-teleportation";
+    static readonly TELEPORTATION: "xr-controller-teleportation";
     /**
      * The name of the feature points feature.
      */
-    static readonly FEATURE_POINTS = "xr-feature-points";
+    static readonly FEATURE_POINTS: "xr-feature-points";
     /**
      * The name of the hand tracking feature.
      */
-    static readonly HAND_TRACKING = "xr-hand-tracking";
+    static readonly HAND_TRACKING: "xr-hand-tracking";
     /**
      * The name of the image tracking feature
      */
-    static readonly IMAGE_TRACKING = "xr-image-tracking";
+    static readonly IMAGE_TRACKING: "xr-image-tracking";
     /**
      * The name of the near interaction feature
      */
-    static readonly NEAR_INTERACTION = "xr-near-interaction";
+    static readonly NEAR_INTERACTION: "xr-near-interaction";
     /**
      * The name of the DOM overlay feature
      */
-    static readonly DOM_OVERLAY = "xr-dom-overlay";
+    static readonly DOM_OVERLAY: "xr-dom-overlay";
     /**
      * The name of the movement feature
      */
-    static readonly MOVEMENT = "xr-controller-movement";
+    static readonly MOVEMENT: "xr-controller-movement";
     /**
      * The name of the light estimation feature
      */
-    static readonly LIGHT_ESTIMATION = "xr-light-estimation";
+    static readonly LIGHT_ESTIMATION: "xr-light-estimation";
     /**
      * The name of the eye tracking feature
      */
-    static readonly EYE_TRACKING = "xr-eye-tracking";
+    static readonly EYE_TRACKING: "xr-eye-tracking";
     /**
      * The name of the walking locomotion feature
      */
-    static readonly WALKING_LOCOMOTION = "xr-walking-locomotion";
+    static readonly WALKING_LOCOMOTION: "xr-walking-locomotion";
     /**
      * The name of the composition layers feature
      */
-    static readonly LAYERS = "xr-layers";
+    static readonly LAYERS: "xr-layers";
+    /**
+     * The name of the depth sensing feature
+     */
+    static readonly DEPTH_SENSING: "xr-depth-sensing";
+    /**
+     * The name of the WebXR Space Warp feature
+     */
+    static readonly SPACE_WARP: "xr-space-warp";
+    /**
+     * The name of the WebXR Raw Camera Access feature
+     */
+    static readonly RAW_CAMERA_ACCESS: "xr-raw-camera-access";
+    /**
+     * The name of the body tracking feature
+     */
+    static readonly BODY_TRACKING: "xr-body-tracking";
+    /**
+     * The name of the tracked sources feature
+     */
+    static readonly TRACKED_SOURCES: "xr-tracked-sources";
 }
+export type WebXRFeatureNameType = (typeof WebXRFeatureName)[Exclude<keyof typeof WebXRFeatureName, "prototype">];
+/**
+ * Maps feature names to their corresponding feature implementation classes.
+ */
+export interface IWebXRFeatureNameTypeMap {
+    /** Anchor system feature implementation. */
+    [WebXRFeatureName.ANCHOR_SYSTEM]: WebXRAnchorSystem;
+    /** Background remover feature implementation. */
+    [WebXRFeatureName.BACKGROUND_REMOVER]: WebXRBackgroundRemover;
+    /** Depth sensing feature implementation. */
+    [WebXRFeatureName.DEPTH_SENSING]: WebXRDepthSensing;
+    /** DOM overlay feature implementation. */
+    [WebXRFeatureName.DOM_OVERLAY]: WebXRDomOverlay;
+    /** Eye tracking feature implementation. */
+    [WebXRFeatureName.EYE_TRACKING]: WebXREyeTracking;
+    /** Feature points feature implementation. */
+    [WebXRFeatureName.FEATURE_POINTS]: WebXRFeaturePointSystem;
+    /** Hand tracking feature implementation. */
+    [WebXRFeatureName.HAND_TRACKING]: WebXRHandTracking;
+    /** Hit test feature implementation. */
+    [WebXRFeatureName.HIT_TEST]: WebXRHitTest;
+    /** Image tracking feature implementation. */
+    [WebXRFeatureName.IMAGE_TRACKING]: WebXRImageTracking;
+    /** Layers feature implementation. */
+    [WebXRFeatureName.LAYERS]: WebXRLayers;
+    /** Light estimation feature implementation. */
+    [WebXRFeatureName.LIGHT_ESTIMATION]: WebXRLightEstimation;
+    /** Mesh detection feature implementation. */
+    [WebXRFeatureName.MESH_DETECTION]: WebXRMeshDetector;
+    /** Controller movement feature implementation. */
+    [WebXRFeatureName.MOVEMENT]: WebXRControllerMovement;
+    /** Near interaction feature implementation. */
+    [WebXRFeatureName.NEAR_INTERACTION]: WebXRNearInteraction;
+    /** Physics controllers feature implementation. */
+    [WebXRFeatureName.PHYSICS_CONTROLLERS]: WebXRControllerPhysics;
+    /** Plane detection feature implementation. */
+    [WebXRFeatureName.PLANE_DETECTION]: WebXRPlaneDetector;
+    /** Controller pointer selection feature implementation. */
+    [WebXRFeatureName.POINTER_SELECTION]: WebXRControllerPointerSelection;
+    /** Raw camera access feature implementation. */
+    [WebXRFeatureName.RAW_CAMERA_ACCESS]: WebXRRawCameraAccess;
+    /** Space warp feature implementation. */
+    [WebXRFeatureName.SPACE_WARP]: WebXRSpaceWarp;
+    /** Teleportation feature implementation. */
+    [WebXRFeatureName.TELEPORTATION]: WebXRMotionControllerTeleportation;
+    /** Walking locomotion feature implementation. */
+    [WebXRFeatureName.WALKING_LOCOMOTION]: WebXRWalkingLocomotion;
+    /** Body tracking feature implementation. */
+    [WebXRFeatureName.BODY_TRACKING]: WebXRBodyTracking;
+    /** Tracked sources feature implementation. */
+    [WebXRFeatureName.TRACKED_SOURCES]: WebXRTrackedSources;
+}
+/**
+ * Maps feature names to their corresponding options interfaces.
+ */
+export interface IWebXRFeatureNameOptionsMap {
+    /** Anchor system feature options. */
+    [WebXRFeatureName.ANCHOR_SYSTEM]: IWebXRAnchorSystemOptions;
+    /** Background remover feature options. */
+    [WebXRFeatureName.BACKGROUND_REMOVER]: IWebXRBackgroundRemoverOptions;
+    /** Depth sensing feature options. */
+    [WebXRFeatureName.DEPTH_SENSING]: IWebXRDepthSensingOptions;
+    /** DOM overlay feature options. */
+    [WebXRFeatureName.DOM_OVERLAY]: IWebXRDomOverlayOptions;
+    /** Eye tracking feature options. */
+    [WebXRFeatureName.EYE_TRACKING]: undefined;
+    /** Feature points feature options. */
+    [WebXRFeatureName.FEATURE_POINTS]: undefined;
+    /** Hand tracking feature options. */
+    [WebXRFeatureName.HAND_TRACKING]: IWebXRHandTrackingOptions;
+    /** Hit test feature options. */
+    [WebXRFeatureName.HIT_TEST]: IWebXRHitTestOptions;
+    /** Image tracking feature options. */
+    [WebXRFeatureName.IMAGE_TRACKING]: IWebXRImageTrackingOptions;
+    /** Layers feature options. */
+    [WebXRFeatureName.LAYERS]: IWebXRLayersOptions;
+    /** Light estimation feature options. */
+    [WebXRFeatureName.LIGHT_ESTIMATION]: IWebXRLightEstimationOptions;
+    /** Mesh detection feature options. */
+    [WebXRFeatureName.MESH_DETECTION]: IWebXRMeshDetectorOptions;
+    /** Controller movement feature options. */
+    [WebXRFeatureName.MOVEMENT]: IWebXRControllerMovementOptions;
+    /** Near interaction feature options. */
+    [WebXRFeatureName.NEAR_INTERACTION]: IWebXRNearInteractionOptions;
+    /** Physics controllers feature options. */
+    [WebXRFeatureName.PHYSICS_CONTROLLERS]: IWebXRControllerPhysicsOptions;
+    /** Plane detection feature options. */
+    [WebXRFeatureName.PLANE_DETECTION]: IWebXRPlaneDetectorOptions;
+    /** Controller pointer selection feature options. */
+    [WebXRFeatureName.POINTER_SELECTION]: IWebXRControllerPointerSelectionOptions;
+    /** Raw camera access feature options. */
+    [WebXRFeatureName.RAW_CAMERA_ACCESS]: IWebXRRawCameraAccessOptions;
+    /** Space warp feature options. */
+    [WebXRFeatureName.SPACE_WARP]: undefined;
+    /** Teleportation feature options. */
+    [WebXRFeatureName.TELEPORTATION]: IWebXRTeleportationOptions;
+    /** Walking locomotion feature options. */
+    [WebXRFeatureName.WALKING_LOCOMOTION]: IWebXRWalkingLocomotionOptions;
+    /** Body tracking feature options. */
+    [WebXRFeatureName.BODY_TRACKING]: IWebXRBodyTrackingOptions;
+    /** Tracked sources feature options. */
+    [WebXRFeatureName.TRACKED_SOURCES]: undefined;
+}
+/**
+ * Helper type that expands/flattens a type to show its properties inline in IntelliSense
+ */
+type Expand<T> = T extends infer O ? {
+    [K in keyof O]: O[K];
+} : never;
+/**
+ * Helper type to resolve the specific feature type based on the feature name,
+ * or fallback to IWebXRFeature if the feature name is not in the type map.
+ */
+export type ResolveWebXRFeature<T extends WebXRFeatureNameType> = T extends keyof IWebXRFeatureNameTypeMap ? IWebXRFeatureNameTypeMap[T] : IWebXRFeature;
+/**
+ * Helper type to resolve the options type for a specific feature based on the feature name,
+ * or fallback to any if the feature name is not in the type map.
+ * The Expand utility type flattens the interface to show properties inline in IntelliSense.
+ */
+export type ResolveWebXRFeatureOptions<T extends WebXRFeatureNameType> = T extends keyof IWebXRFeatureNameOptionsMap ? IWebXRFeatureNameOptionsMap[T] extends undefined ? undefined : Expand<IWebXRFeatureNameOptionsMap[T]> : any;
 /**
  * Defining the constructor of a feature. Used to register the modules.
  */
-export declare type WebXRFeatureConstructor = (xrSessionManager: WebXRSessionManager, options?: any) => () => IWebXRFeature;
+export type WebXRFeatureConstructor = (xrSessionManager: WebXRSessionManager, options?: any) => () => IWebXRFeature;
 /**
  * The WebXR features manager is responsible of enabling or disabling features required for the current XR session.
  * It is mainly used in AR sessions.
@@ -231,15 +408,15 @@ export declare class WebXRFeaturesManager implements IDisposable {
      * @param required is this feature required to the app. If set to true the session init will fail if the feature is not available.
      * @returns a new constructed feature or throws an error if feature not found or conflicts with another enabled feature.
      */
-    enableFeature(featureName: string | {
-        Name: string;
-    }, version?: number | string, moduleOptions?: any, attachIfPossible?: boolean, required?: boolean): IWebXRFeature;
+    enableFeature<T extends WebXRFeatureNameType>(featureName: T | {
+        Name: T;
+    }, version?: number | string, moduleOptions?: ResolveWebXRFeatureOptions<T>, attachIfPossible?: boolean, required?: boolean): ResolveWebXRFeature<T>;
     /**
      * get the implementation of an enabled feature.
      * @param featureName the name of the feature to load
      * @returns the feature class, if found
      */
-    getEnabledFeature(featureName: string): IWebXRFeature;
+    getEnabledFeature<T extends WebXRFeatureNameType>(featureName: T): ResolveWebXRFeature<T>;
     /**
      * Get the list of enabled features
      * @returns an array of enabled features
@@ -255,3 +432,4 @@ export declare class WebXRFeaturesManager implements IDisposable {
      */
     _extendXRSessionInitObject(xrSessionInit: XRSessionInit): Promise<XRSessionInit>;
 }
+export {};

@@ -1,17 +1,17 @@
-import { Tools } from "@babylonjs/core/Misc/tools.js";
-function validateAsync(data, rootUrl, fileName, getExternalResource) {
+import { Tools } from "@babylonjs/core/Misc/tools.pure.js";
+function ValidateAsync(data, rootUrl, fileName, getExternalResource) {
     const options = {
-        externalResourceFunction: (uri) => getExternalResource(uri).then((value) => new Uint8Array(value)),
+        externalResourceFunction: getExternalResource,
     };
     if (fileName) {
         options.uri = rootUrl === "file:" ? fileName : rootUrl + fileName;
     }
-    return data instanceof ArrayBuffer ? GLTFValidator.validateBytes(new Uint8Array(data), options) : GLTFValidator.validateString(data, options);
+    return ArrayBuffer.isView(data) ? GLTFValidator.validateBytes(data, options) : GLTFValidator.validateString(data, options);
 }
 /**
  * The worker function that gets converted to a blob url to pass into a worker.
  */
-function workerFunc() {
+function WorkerFunc() {
     const pendingExternalResources = [];
     onmessage = (message) => {
         const data = message.data;
@@ -21,7 +21,7 @@ function workerFunc() {
                 break;
             }
             case "validate": {
-                validateAsync(data.data, data.rootUrl, data.fileName, (uri) => new Promise((resolve, reject) => {
+                ValidateAsync(data.data, data.rootUrl, data.fileName, (uri) => new Promise((resolve, reject) => {
                     const index = pendingExternalResources.length;
                     pendingExternalResources.push({ resolve, reject });
                     postMessage({ id: "getExternalResource", index: index, uri: uri });
@@ -58,12 +58,13 @@ export class GLTFValidation {
     static ValidateAsync(data, rootUrl, fileName, getExternalResource) {
         if (typeof Worker === "function") {
             return new Promise((resolve, reject) => {
-                const workerContent = `${validateAsync}(${workerFunc})()`;
+                const workerContent = `${ValidateAsync}(${WorkerFunc})()`;
                 const workerBlobUrl = URL.createObjectURL(new Blob([workerContent], { type: "application/javascript" }));
                 const worker = new Worker(workerBlobUrl);
                 const onError = (error) => {
                     worker.removeEventListener("error", onError);
                     worker.removeEventListener("message", onMessage);
+                    // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
                     reject(error);
                 };
                 const onMessage = (message) => {
@@ -71,7 +72,7 @@ export class GLTFValidation {
                     switch (data.id) {
                         case "getExternalResource": {
                             getExternalResource(data.uri).then((value) => {
-                                worker.postMessage({ id: "getExternalResource.resolve", index: data.index, value: value }, [value]);
+                                worker.postMessage({ id: "getExternalResource.resolve", index: data.index, value: value }, [value.buffer]);
                             }, (reason) => {
                                 worker.postMessage({ id: "getExternalResource.reject", index: data.index, reason: reason });
                             });
@@ -80,6 +81,7 @@ export class GLTFValidation {
                         case "validate.resolve": {
                             worker.removeEventListener("error", onError);
                             worker.removeEventListener("message", onMessage);
+                            GLTFValidation._LastResults = data.value;
                             resolve(data.value);
                             worker.terminate();
                             break;
@@ -87,6 +89,7 @@ export class GLTFValidation {
                         case "validate.reject": {
                             worker.removeEventListener("error", onError);
                             worker.removeEventListener("message", onMessage);
+                            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
                             reject(data.reason);
                             worker.terminate();
                         }
@@ -94,24 +97,36 @@ export class GLTFValidation {
                 };
                 worker.addEventListener("error", onError);
                 worker.addEventListener("message", onMessage);
-                worker.postMessage({ id: "init", url: this.Configuration.url });
-                worker.postMessage({ id: "validate", data: data, rootUrl: rootUrl, fileName: fileName });
+                worker.postMessage({ id: "init", url: Tools.GetBabylonScriptURL(this.Configuration.url) });
+                if (ArrayBuffer.isView(data)) {
+                    // Slice the data to avoid copying the whole array buffer.
+                    const slicedData = data.slice();
+                    worker.postMessage({ id: "validate", data: slicedData, rootUrl: rootUrl, fileName: fileName }, [slicedData.buffer]);
+                }
+                else {
+                    worker.postMessage({ id: "validate", data: data, rootUrl: rootUrl, fileName: fileName });
+                }
             });
         }
         else {
             if (!this._LoadScriptPromise) {
-                this._LoadScriptPromise = Tools.LoadScriptAsync(this.Configuration.url);
+                this._LoadScriptPromise = Tools.LoadBabylonScriptAsync(this.Configuration.url);
             }
             return this._LoadScriptPromise.then(() => {
-                return validateAsync(data, rootUrl, fileName, getExternalResource);
+                return ValidateAsync(data, rootUrl, fileName, getExternalResource);
             });
         }
     }
 }
 /**
- * The configuration. Defaults to `{ url: "https://preview.babylonjs.com/gltf_validator.js" }`.
+ * The configuration. Defaults to `{ url: "https://cdn.babylonjs.com/gltf_validator.js" }`.
  */
 GLTFValidation.Configuration = {
-    url: "https://preview.babylonjs.com/gltf_validator.js",
+    url: `${Tools._DefaultCdnUrl}/gltf_validator.js`,
 };
+/**
+ * The most recent validation results.
+ * @internal - Used for back-compat in Sandbox with Inspector V2.
+ */
+GLTFValidation._LastResults = null;
 //# sourceMappingURL=glTFValidation.js.map

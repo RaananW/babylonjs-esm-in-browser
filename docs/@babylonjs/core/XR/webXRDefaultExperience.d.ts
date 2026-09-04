@@ -1,18 +1,14 @@
-import { WebXRExperienceHelper } from "./webXRExperienceHelper";
-import type { Scene } from "../scene";
-import type { IWebXRInputOptions } from "./webXRInput";
-import { WebXRInput } from "./webXRInput";
-import type { IWebXRControllerPointerSelectionOptions } from "./features/WebXRControllerPointerSelection";
-import { WebXRControllerPointerSelection } from "./features/WebXRControllerPointerSelection";
-import type { IWebXRNearInteractionOptions } from "./features/WebXRNearInteraction";
-import { WebXRNearInteraction } from "./features/WebXRNearInteraction";
-import type { WebXRRenderTarget } from "./webXRTypes";
-import type { WebXREnterExitUIOptions } from "./webXREnterExitUI";
-import { WebXREnterExitUI } from "./webXREnterExitUI";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import type { WebXRManagedOutputCanvasOptions } from "./webXRManagedOutputCanvas";
-import type { IWebXRTeleportationOptions } from "./features/WebXRControllerTeleportation";
-import { WebXRMotionControllerTeleportation } from "./features/WebXRControllerTeleportation";
+import { WebXRExperienceHelper } from "./webXRExperienceHelper.js";
+import { type Scene } from "../scene.js";
+import { type IWebXRInputOptions, WebXRInput } from "./webXRInput.js";
+import { type IWebXRControllerPointerSelectionOptions, WebXRControllerPointerSelection } from "./features/WebXRControllerPointerSelection.pure.js";
+import { type IWebXRNearInteractionOptions, WebXRNearInteraction } from "./features/WebXRNearInteraction.pure.js";
+import { type WebXRRenderTarget } from "./webXRTypes.js";
+import { type WebXREnterExitUIOptions, WebXREnterExitUI } from "./webXREnterExitUI.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { type WebXRManagedOutputCanvasOptions } from "./webXRManagedOutputCanvas.js";
+import { type IWebXRTeleportationOptions, WebXRMotionControllerTeleportation } from "./features/WebXRControllerTeleportation.pure.js";
+import { type IWebXRHandTrackingOptions } from "./features/WebXRHandTracking.pure.js";
 /**
  * Options for the default xr helper
  */
@@ -36,6 +32,10 @@ export declare class WebXRDefaultExperienceOptions {
      */
     disableNearInteraction?: boolean;
     /**
+     * Should hand tracking be disabled. Defaults to false.
+     */
+    disableHandTracking?: boolean;
+    /**
      * Floor meshes that will be used for teleport
      */
     floorMeshes?: Array<AbstractMesh>;
@@ -57,6 +57,10 @@ export declare class WebXRDefaultExperienceOptions {
      * optional configuration for near interaction
      */
     nearInteractionOptions?: Partial<IWebXRNearInteractionOptions>;
+    /**
+     * optional configuration for hand tracking
+     */
+    handSupportOptions?: Partial<IWebXRHandTrackingOptions>;
     /**
      * optional configuration for teleportation
      */
@@ -84,7 +88,7 @@ export declare class WebXRDefaultExperienceOptions {
     optionalFeatures?: boolean | string[];
 }
 /**
- * Default experience which provides a similar setup to the previous webVRExperience
+ * Default experience for webxr
  */
 export declare class WebXRDefaultExperience {
     /**

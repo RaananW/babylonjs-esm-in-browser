@@ -1,8 +1,8 @@
 
-import { Color3, Color4 } from "../../Maths/math.color.js";
-import { Matrix, Vector2, Vector3 } from "../../Maths/math.vector.js";
+import { Color3, Color4 } from "../../Maths/math.color.pure.js";
+import { Matrix, Vector2, Vector3 } from "../../Maths/math.vector.pure.js";
 import { Observable } from "../../Misc/observable.js";
-import { PostProcess } from "../../PostProcesses/postProcess.js";
+import { PostProcess } from "../../PostProcesses/postProcess.pure.js";
 import { FluidRenderingTextures } from "./fluidRenderingTextures.js";
 /**
  * Textures that can be displayed as a debugging tool
@@ -21,74 +21,6 @@ export var FluidRenderingDebug;
  * Class used to render an object as a fluid thanks to different render target textures (depth, thickness, diffuse)
  */
 export class FluidRenderingTargetRenderer {
-    /**
-     * Creates an instance of the class
-     * @param scene Scene used to render the fluid object into
-     * @param camera Camera used to render the fluid object. If not provided, use the active camera of the scene instead
-     */
-    constructor(scene, camera) {
-        this._generateDiffuseTexture = false;
-        /**
-         * Fluid color. Not used if generateDiffuseTexture is true
-         */
-        this.fluidColor = new Color3(0.085, 0.6375, 0.765);
-        /**
-         * Density of the fluid (positive number). The higher the value, the more opaque the fluid.
-         */
-        this.density = 2;
-        /**
-         * Strength of the refraction (positive number, but generally between 0 and 0.3).
-         */
-        this.refractionStrength = 0.1;
-        /**
-         * Strength of the fresnel effect (value between 0 and 1). Lower the value if you want to soften the specular effect
-         */
-        this.fresnelClamp = 1.0;
-        /**
-         * Strength of the specular power (positive number). Increase the value to make the specular effect more concentrated
-         */
-        this.specularPower = 250;
-        /**
-         * Minimum thickness of the particles (positive number). If useFixedThickness is true, minimumThickness is the thickness used
-         */
-        this.minimumThickness = 0;
-        /**
-         * Direction of the light. The fluid is assumed to be lit by a directional light
-         */
-        this.dirLight = new Vector3(-2, -1, 1).normalize();
-        this._debugFeature = FluidRenderingDebug.DepthBlurredTexture;
-        this._debug = false;
-        this._enableBlurDepth = true;
-        this._blurDepthSizeDivisor = 1;
-        this._blurDepthFilterSize = 7;
-        this._blurDepthNumIterations = 3;
-        this._blurDepthMaxFilterSize = 100;
-        this._blurDepthDepthScale = 10;
-        this._enableBlurThickness = true;
-        this._blurThicknessSizeDivisor = 1;
-        this._blurThicknessFilterSize = 5;
-        this._blurThicknessNumIterations = 1;
-        this._useFixedThickness = false;
-        /** @internal */
-        this._onUseVelocityChanged = new Observable();
-        this._useVelocity = false;
-        this._depthMapSize = null;
-        this._thicknessMapSize = null;
-        this._diffuseMapSize = null;
-        this._samples = 1;
-        this._scene = scene;
-        this._engine = scene.getEngine();
-        this._camera = camera !== null && camera !== void 0 ? camera : scene.activeCamera;
-        this._needInitialization = true;
-        this._bgDepthTexture = null;
-        this._invProjectionMatrix = new Matrix();
-        this._depthClearColor = new Color4(1e6, 1e6, 1e6, 1);
-        this._thicknessClearColor = new Color4(0, 0, 0, 1);
-        this._depthRenderTarget = null;
-        this._diffuseRenderTarget = null;
-        this._thicknessRenderTarget = null;
-        this._renderPostProcess = null;
-    }
     /**
      * Returns true if the class needs to be reinitialized (because of changes in parameterization)
      */
@@ -365,34 +297,126 @@ export class FluidRenderingTargetRenderer {
         this._needInitialization = true;
     }
     /**
+     * If compositeMode is true (default: false), when the alpha value of the background (the scene rendered without the fluid objects) is 0, the final alpha value of the pixel will be set to the thickness value.
+     * This way, it is possible to composite the fluid rendering on top of the HTML background.
+     */
+    get compositeMode() {
+        return this._compositeMode;
+    }
+    set compositeMode(value) {
+        if (this._compositeMode === value) {
+            return;
+        }
+        this._compositeMode = value;
+        this._needInitialization = true;
+    }
+    /**
      * Gets the camera used for the rendering
      */
     get camera() {
         return this._camera;
     }
+    /**
+     * Gets the shader language used in this renderer
+     */
+    get shaderLanguage() {
+        return this._shaderLanguage;
+    }
+    /**
+     * Creates an instance of the class
+     * @param scene Scene used to render the fluid object into
+     * @param camera Camera used to render the fluid object. If not provided, use the active camera of the scene instead
+     * @param shaderLanguage The shader language to use
+     */
+    constructor(scene, camera, shaderLanguage) {
+        this._generateDiffuseTexture = false;
+        /**
+         * Fluid color. Not used if generateDiffuseTexture is true
+         */
+        this.fluidColor = new Color3(0.085, 0.6375, 0.765);
+        /**
+         * Density of the fluid (positive number). The higher the value, the more opaque the fluid.
+         */
+        this.density = 2;
+        /**
+         * Strength of the refraction (positive number, but generally between 0 and 0.3).
+         */
+        this.refractionStrength = 0.1;
+        /**
+         * Strength of the fresnel effect (value between 0 and 1). Lower the value if you want to soften the specular effect
+         */
+        this.fresnelClamp = 1.0;
+        /**
+         * Strength of the specular power (positive number). Increase the value to make the specular effect more concentrated
+         */
+        this.specularPower = 250;
+        /**
+         * Minimum thickness of the particles (positive number). If useFixedThickness is true, minimumThickness is the thickness used
+         */
+        this.minimumThickness = 0;
+        /**
+         * Direction of the light. The fluid is assumed to be lit by a directional light
+         */
+        this.dirLight = new Vector3(-2, -1, 1).normalize();
+        this._debugFeature = 1 /* FluidRenderingDebug.DepthBlurredTexture */;
+        this._debug = false;
+        this._enableBlurDepth = true;
+        this._blurDepthSizeDivisor = 1;
+        this._blurDepthFilterSize = 7;
+        this._blurDepthNumIterations = 3;
+        this._blurDepthMaxFilterSize = 100;
+        this._blurDepthDepthScale = 10;
+        this._enableBlurThickness = true;
+        this._blurThicknessSizeDivisor = 1;
+        this._blurThicknessFilterSize = 5;
+        this._blurThicknessNumIterations = 1;
+        this._useFixedThickness = false;
+        /** @internal */
+        this._onUseVelocityChanged = new Observable();
+        this._useVelocity = false;
+        this._depthMapSize = null;
+        this._thicknessMapSize = null;
+        this._diffuseMapSize = null;
+        this._samples = 1;
+        this._compositeMode = false;
+        /** Shader language used by the renderer */
+        this._shaderLanguage = 0 /* ShaderLanguage.GLSL */;
+        this._scene = scene;
+        this._engine = scene.getEngine();
+        this._camera = camera ?? scene.activeCamera;
+        this._needInitialization = true;
+        this._bgDepthTexture = null;
+        this._invProjectionMatrix = new Matrix();
+        this._depthClearColor = new Color4(1e6, 1e6, 1e6, 1);
+        this._thicknessClearColor = new Color4(0, 0, 0, 1);
+        this._depthRenderTarget = null;
+        this._diffuseRenderTarget = null;
+        this._thicknessRenderTarget = null;
+        this._renderPostProcess = null;
+        this._shaderLanguage = shaderLanguage ?? (this._engine.isWebGPU ? 1 /* ShaderLanguage.WGSL */ : 0 /* ShaderLanguage.GLSL */);
+    }
     /** @internal */
     _initialize() {
-        var _a, _b, _c;
         this.dispose();
         this._needInitialization = false;
-        const depthWidth = (_a = this._depthMapSize) !== null && _a !== void 0 ? _a : this._engine.getRenderWidth();
+        const depthWidth = this._depthMapSize ?? this._engine.getRenderWidth();
         const depthHeight = this._depthMapSize !== null ? Math.round((this._depthMapSize * this._engine.getRenderHeight()) / this._engine.getRenderWidth()) : this._engine.getRenderHeight();
-        this._depthRenderTarget = new FluidRenderingTextures("Depth", this._scene, depthWidth, depthHeight, depthWidth, depthHeight, 1, 7, 1, 7, false, this._camera, true, this._samples);
+        this._depthRenderTarget = new FluidRenderingTextures("Depth", this._scene, depthWidth, depthHeight, depthWidth, depthHeight, 1, 7, 1, 7, false, this._camera, true, this._samples, this._shaderLanguage);
         this._initializeRenderTarget(this._depthRenderTarget);
         if (this.generateDiffuseTexture) {
-            const diffuseWidth = (_b = this._diffuseMapSize) !== null && _b !== void 0 ? _b : this._engine.getRenderWidth();
+            const diffuseWidth = this._diffuseMapSize ?? this._engine.getRenderWidth();
             const diffuseHeight = this._diffuseMapSize !== null
                 ? Math.round((this._diffuseMapSize * this._engine.getRenderHeight()) / this._engine.getRenderWidth())
                 : this._engine.getRenderHeight();
-            this._diffuseRenderTarget = new FluidRenderingTextures("Diffuse", this._scene, diffuseWidth, diffuseHeight, 0, 0, 0, 5, 0, 5, true, this._camera, true, this._samples);
+            this._diffuseRenderTarget = new FluidRenderingTextures("Diffuse", this._scene, diffuseWidth, diffuseHeight, 0, 0, 0, 5, 0, 5, true, this._camera, true, this._samples, this._shaderLanguage);
             this._initializeRenderTarget(this._diffuseRenderTarget);
         }
-        const thicknessWidth = (_c = this._thicknessMapSize) !== null && _c !== void 0 ? _c : this._engine.getRenderWidth();
+        const thicknessWidth = this._thicknessMapSize ?? this._engine.getRenderWidth();
         const thicknessHeight = this._thicknessMapSize !== null
             ? Math.round((this._thicknessMapSize * this._engine.getRenderHeight()) / this._engine.getRenderWidth())
             : this._engine.getRenderHeight();
         if (!this._useFixedThickness) {
-            this._thicknessRenderTarget = new FluidRenderingTextures("Thickness", this._scene, thicknessWidth, thicknessHeight, thicknessWidth, thicknessHeight, 2, 6, 2, 6, true, this._camera, false, this._samples);
+            this._thicknessRenderTarget = new FluidRenderingTextures("Thickness", this._scene, thicknessWidth, thicknessHeight, thicknessWidth, thicknessHeight, 2, 6, 2, 6, true, this._camera, false, this._samples, this._shaderLanguage);
             this._initializeRenderTarget(this._thicknessRenderTarget);
         }
         this._createLiquidRenderingPostProcess();
@@ -430,7 +454,6 @@ export class FluidRenderingTargetRenderer {
         renderTarget.initialize();
     }
     _createLiquidRenderingPostProcess() {
-        var _a;
         const engine = this._scene.getEngine();
         const uniformNames = [
             "viewMatrix",
@@ -452,8 +475,11 @@ export class FluidRenderingTargetRenderer {
         }
         const texture = this._depthRenderTarget.enableBlur ? this._depthRenderTarget.textureBlur : this._depthRenderTarget.texture;
         const texelSize = new Vector2(1 / texture.getSize().width, 1 / texture.getSize().height);
+        if (this._scene.useRightHandedSystem) {
+            defines.push("#define FLUIDRENDERING_RHS");
+        }
         if (this._environmentMap !== null) {
-            const envMap = (_a = this._environmentMap) !== null && _a !== void 0 ? _a : this._scene.environmentTexture;
+            const envMap = this._environmentMap ?? this._scene.environmentTexture;
             if (envMap) {
                 samplerNames.push("reflectionSampler");
                 defines.push("#define FLUIDRENDERING_ENVIRONMENT");
@@ -479,55 +505,68 @@ export class FluidRenderingTargetRenderer {
             uniformNames.push("minimumThickness");
             samplerNames.push("thicknessSampler");
         }
+        if (this._compositeMode) {
+            defines.push("#define FLUIDRENDERING_COMPOSITE_MODE");
+        }
         if (this._debug) {
             defines.push("#define FLUIDRENDERING_DEBUG");
-            if (this._debugFeature === FluidRenderingDebug.Normals) {
+            if (this._debugFeature === 5 /* FluidRenderingDebug.Normals */) {
                 defines.push("#define FLUIDRENDERING_DEBUG_SHOWNORMAL");
             }
-            else if (this._debugFeature === FluidRenderingDebug.DiffuseRendering) {
+            else if (this._debugFeature === 6 /* FluidRenderingDebug.DiffuseRendering */) {
                 defines.push("#define FLUIDRENDERING_DEBUG_DIFFUSERENDERING");
             }
             else {
                 defines.push("#define FLUIDRENDERING_DEBUG_TEXTURE");
                 samplerNames.push("debugSampler");
-                if (this._debugFeature === FluidRenderingDebug.DepthTexture || this._debugFeature === FluidRenderingDebug.DepthBlurredTexture) {
+                if (this._debugFeature === 0 /* FluidRenderingDebug.DepthTexture */ || this._debugFeature === 1 /* FluidRenderingDebug.DepthBlurredTexture */) {
                     defines.push("#define FLUIDRENDERING_DEBUG_DEPTH");
                 }
             }
         }
-        this._renderPostProcess = new PostProcess("FluidRendering", "fluidRenderingRender", uniformNames, samplerNames, 1, null, 2, engine, false, null, 0, undefined, undefined, true, undefined);
+        this._renderPostProcess = new PostProcess("FluidRendering", "fluidRenderingRender", uniformNames, samplerNames, 1, null, 2, engine, false, null, 0, undefined, undefined, true, undefined, this._shaderLanguage, 
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        async () => {
+            if (this._shaderLanguage === 1 /* ShaderLanguage.WGSL */) {
+                await import("../../ShadersWGSL/fluidRenderingRender.fragment.js");
+            }
+            else {
+                await import("../../Shaders/fluidRenderingRender.fragment.js");
+            }
+        });
         this._renderPostProcess.updateEffect(defines.join("\n"));
         this._renderPostProcess.samples = this._samples;
+        const engineWebGPU = engine;
+        const setTextureSampler = engineWebGPU.setTextureSampler;
         this._renderPostProcess.onApplyObservable.add((effect) => {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y;
             this._invProjectionMatrix.copyFrom(this._scene.getProjectionMatrix());
             this._invProjectionMatrix.invert();
-            if (engine.isWebGPU) {
-                effect.setTextureSampler("textureSamplerSampler", this._renderPostProcess.inputTexture.texture);
+            if (setTextureSampler) {
+                setTextureSampler.call(engineWebGPU, "textureSamplerSampler", this._renderPostProcess.inputTexture.texture);
             }
             if (!this._depthRenderTarget.enableBlur) {
                 effect.setTexture("depthSampler", this._depthRenderTarget.texture);
-                if (engine.isWebGPU) {
-                    effect.setTextureSampler("depthSamplerSampler", (_b = (_a = this._depthRenderTarget.texture) === null || _a === void 0 ? void 0 : _a.getInternalTexture()) !== null && _b !== void 0 ? _b : null);
+                if (setTextureSampler) {
+                    setTextureSampler.call(engineWebGPU, "depthSamplerSampler", this._depthRenderTarget.texture?.getInternalTexture() ?? null);
                 }
             }
             else {
                 effect.setTexture("depthSampler", this._depthRenderTarget.textureBlur);
-                if (engine.isWebGPU) {
-                    effect.setTextureSampler("depthSamplerSampler", (_d = (_c = this._depthRenderTarget.textureBlur) === null || _c === void 0 ? void 0 : _c.getInternalTexture()) !== null && _d !== void 0 ? _d : null);
+                if (setTextureSampler) {
+                    setTextureSampler.call(engineWebGPU, "depthSamplerSampler", this._depthRenderTarget.textureBlur?.getInternalTexture() ?? null);
                 }
             }
             if (this._diffuseRenderTarget) {
                 if (!this._diffuseRenderTarget.enableBlur) {
                     effect.setTexture("diffuseSampler", this._diffuseRenderTarget.texture);
-                    if (engine.isWebGPU) {
-                        effect.setTextureSampler("diffuseSamplerSampler", (_f = (_e = this._diffuseRenderTarget.texture) === null || _e === void 0 ? void 0 : _e.getInternalTexture()) !== null && _f !== void 0 ? _f : null);
+                    if (setTextureSampler) {
+                        setTextureSampler.call(engineWebGPU, "diffuseSamplerSampler", this._diffuseRenderTarget.texture?.getInternalTexture() ?? null);
                     }
                 }
                 else {
                     effect.setTexture("diffuseSampler", this._diffuseRenderTarget.textureBlur);
-                    if (engine.isWebGPU) {
-                        effect.setTextureSampler("diffuseSamplerSampler", (_h = (_g = this._diffuseRenderTarget.textureBlur) === null || _g === void 0 ? void 0 : _g.getInternalTexture()) !== null && _h !== void 0 ? _h : null);
+                    if (setTextureSampler) {
+                        setTextureSampler.call(engineWebGPU, "diffuseSamplerSampler", this._diffuseRenderTarget.textureBlur?.getInternalTexture() ?? null);
                     }
                 }
             }
@@ -537,31 +576,31 @@ export class FluidRenderingTargetRenderer {
             if (this._useFixedThickness) {
                 effect.setFloat("thickness", this.minimumThickness);
                 effect._bindTexture("bgDepthSampler", this._bgDepthTexture);
-                if (engine.isWebGPU) {
-                    effect.setTextureSampler("bgDepthSamplerSampler", (_j = this._bgDepthTexture) !== null && _j !== void 0 ? _j : null);
+                if (setTextureSampler) {
+                    setTextureSampler.call(engineWebGPU, "bgDepthSamplerSampler", this._bgDepthTexture ?? null);
                 }
             }
             else {
                 if (!this._thicknessRenderTarget.enableBlur) {
                     effect.setTexture("thicknessSampler", this._thicknessRenderTarget.texture);
-                    if (engine.isWebGPU) {
-                        effect.setTextureSampler("thicknessSamplerSampler", (_l = (_k = this._thicknessRenderTarget.texture) === null || _k === void 0 ? void 0 : _k.getInternalTexture()) !== null && _l !== void 0 ? _l : null);
+                    if (setTextureSampler) {
+                        setTextureSampler.call(engineWebGPU, "thicknessSamplerSampler", this._thicknessRenderTarget.texture?.getInternalTexture() ?? null);
                     }
                 }
                 else {
                     effect.setTexture("thicknessSampler", this._thicknessRenderTarget.textureBlur);
-                    if (engine.isWebGPU) {
-                        effect.setTextureSampler("thicknessSamplerSampler", (_o = (_m = this._thicknessRenderTarget.textureBlur) === null || _m === void 0 ? void 0 : _m.getInternalTexture()) !== null && _o !== void 0 ? _o : null);
+                    if (setTextureSampler) {
+                        setTextureSampler.call(engineWebGPU, "thicknessSamplerSampler", this._thicknessRenderTarget.textureBlur?.getInternalTexture() ?? null);
                     }
                 }
                 effect.setFloat("minimumThickness", this.minimumThickness);
             }
             if (this._environmentMap !== null) {
-                const envMap = (_p = this._environmentMap) !== null && _p !== void 0 ? _p : this._scene.environmentTexture;
+                const envMap = this._environmentMap ?? this._scene.environmentTexture;
                 if (envMap) {
                     effect.setTexture("reflectionSampler", envMap);
-                    if (engine.isWebGPU) {
-                        effect.setTextureSampler("reflectionSamplerSampler", (_q = envMap === null || envMap === void 0 ? void 0 : envMap.getInternalTexture()) !== null && _q !== void 0 ? _q : null);
+                    if (setTextureSampler) {
+                        setTextureSampler.call(engineWebGPU, "reflectionSamplerSampler", envMap?.getInternalTexture() ?? null);
                     }
                 }
             }
@@ -578,28 +617,28 @@ export class FluidRenderingTargetRenderer {
             if (this._debug) {
                 let texture = null;
                 switch (this._debugFeature) {
-                    case FluidRenderingDebug.DepthTexture:
+                    case 0 /* FluidRenderingDebug.DepthTexture */:
                         texture = this._depthRenderTarget.texture;
                         break;
-                    case FluidRenderingDebug.DepthBlurredTexture:
+                    case 1 /* FluidRenderingDebug.DepthBlurredTexture */:
                         texture = this._depthRenderTarget.enableBlur ? this._depthRenderTarget.textureBlur : this._depthRenderTarget.texture;
                         break;
-                    case FluidRenderingDebug.ThicknessTexture:
-                        texture = (_s = (_r = this._thicknessRenderTarget) === null || _r === void 0 ? void 0 : _r.texture) !== null && _s !== void 0 ? _s : null;
+                    case 2 /* FluidRenderingDebug.ThicknessTexture */:
+                        texture = this._thicknessRenderTarget?.texture ?? null;
                         break;
-                    case FluidRenderingDebug.ThicknessBlurredTexture:
-                        texture = ((_t = this._thicknessRenderTarget) === null || _t === void 0 ? void 0 : _t.enableBlur) ? (_v = (_u = this._thicknessRenderTarget) === null || _u === void 0 ? void 0 : _u.textureBlur) !== null && _v !== void 0 ? _v : null : (_x = (_w = this._thicknessRenderTarget) === null || _w === void 0 ? void 0 : _w.texture) !== null && _x !== void 0 ? _x : null;
+                    case 3 /* FluidRenderingDebug.ThicknessBlurredTexture */:
+                        texture = this._thicknessRenderTarget?.enableBlur ? (this._thicknessRenderTarget?.textureBlur ?? null) : (this._thicknessRenderTarget?.texture ?? null);
                         break;
-                    case FluidRenderingDebug.DiffuseTexture:
+                    case 4 /* FluidRenderingDebug.DiffuseTexture */:
                         if (this._diffuseRenderTarget) {
                             texture = this._diffuseRenderTarget.texture;
                         }
                         break;
                 }
-                if (this._debugFeature !== FluidRenderingDebug.Normals) {
+                if (this._debugFeature !== 5 /* FluidRenderingDebug.Normals */) {
                     effect.setTexture("debugSampler", texture);
-                    if (engine.isWebGPU) {
-                        effect.setTextureSampler("debugSamplerSampler", (_y = texture === null || texture === void 0 ? void 0 : texture.getInternalTexture()) !== null && _y !== void 0 ? _y : null);
+                    if (setTextureSampler) {
+                        setTextureSampler.call(engineWebGPU, "debugSamplerSampler", texture?.getInternalTexture() ?? null);
                     }
                 }
             }
@@ -607,18 +646,17 @@ export class FluidRenderingTargetRenderer {
     }
     /** @internal */
     _clearTargets() {
-        var _a, _b, _c;
-        if ((_a = this._depthRenderTarget) === null || _a === void 0 ? void 0 : _a.renderTarget) {
+        if (this._depthRenderTarget?.renderTarget) {
             this._engine.bindFramebuffer(this._depthRenderTarget.renderTarget);
             this._engine.clear(this._depthClearColor, true, true, false);
             this._engine.unBindFramebuffer(this._depthRenderTarget.renderTarget);
         }
-        if ((_b = this._diffuseRenderTarget) === null || _b === void 0 ? void 0 : _b.renderTarget) {
+        if (this._diffuseRenderTarget?.renderTarget) {
             this._engine.bindFramebuffer(this._diffuseRenderTarget.renderTarget);
             this._engine.clear(this._thicknessClearColor, true, true, false);
             this._engine.unBindFramebuffer(this._diffuseRenderTarget.renderTarget);
         }
-        if ((_c = this._thicknessRenderTarget) === null || _c === void 0 ? void 0 : _c.renderTarget) {
+        if (this._thicknessRenderTarget?.renderTarget) {
             this._engine.bindFramebuffer(this._thicknessRenderTarget.renderTarget);
             // we don't clear the depth buffer because it is the depth buffer that is coming from the scene and that we reuse in the thickness rendering pass
             this._engine.clear(this._thicknessClearColor, true, false, false);
@@ -627,7 +665,6 @@ export class FluidRenderingTargetRenderer {
     }
     /** @internal */
     _render(fluidObject) {
-        var _a, _b, _c, _d, _e, _f;
         if (this._needInitialization || !fluidObject.isReady()) {
             return;
         }
@@ -637,53 +674,53 @@ export class FluidRenderingTargetRenderer {
         this._engine.setDepthWrite(true);
         this._engine.setAlphaMode(0);
         // Render the particles in the depth texture
-        if ((_a = this._depthRenderTarget) === null || _a === void 0 ? void 0 : _a.renderTarget) {
+        if (this._depthRenderTarget?.renderTarget) {
             this._engine.bindFramebuffer(this._depthRenderTarget.renderTarget);
             fluidObject.renderDepthTexture();
             this._engine.unbindInstanceAttributes();
             this._engine.unBindFramebuffer(this._depthRenderTarget.renderTarget);
         }
         // Render the particles in the diffuse texture
-        if ((_b = this._diffuseRenderTarget) === null || _b === void 0 ? void 0 : _b.renderTarget) {
+        if (this._diffuseRenderTarget?.renderTarget) {
             this._engine.bindFramebuffer(this._diffuseRenderTarget.renderTarget);
             fluidObject.renderDiffuseTexture();
             this._engine.unbindInstanceAttributes();
             this._engine.unBindFramebuffer(this._diffuseRenderTarget.renderTarget);
         }
         // Render the particles in the thickness texture
-        if ((_c = this._thicknessRenderTarget) === null || _c === void 0 ? void 0 : _c.renderTarget) {
+        if (this._thicknessRenderTarget?.renderTarget) {
             this._engine.bindFramebuffer(this._thicknessRenderTarget.renderTarget);
             fluidObject.renderThicknessTexture();
             this._engine.unbindInstanceAttributes();
             this._engine.unBindFramebuffer(this._thicknessRenderTarget.renderTarget);
         }
         // Run the blur post processes
-        (_d = this._depthRenderTarget) === null || _d === void 0 ? void 0 : _d.applyBlurPostProcesses();
-        (_e = this._diffuseRenderTarget) === null || _e === void 0 ? void 0 : _e.applyBlurPostProcesses();
-        (_f = this._thicknessRenderTarget) === null || _f === void 0 ? void 0 : _f.applyBlurPostProcesses();
+        this._depthRenderTarget?.applyBlurPostProcesses();
+        this._diffuseRenderTarget?.applyBlurPostProcesses();
+        this._thicknessRenderTarget?.applyBlurPostProcesses();
         if (currentRenderTarget) {
             this._engine.bindFramebuffer(currentRenderTarget);
         }
     }
     /**
-     * Releases all the ressources used by the class
-     * @param onlyPostProcesses If true, releases only the ressources used by the render post processes
+     * Releases all the resources used by the class
+     * @param onlyPostProcesses If true, releases only the resources used by the render post processes
      */
     dispose(onlyPostProcesses = false) {
-        var _a, _b, _c, _d;
         if (!onlyPostProcesses) {
-            (_a = this._depthRenderTarget) === null || _a === void 0 ? void 0 : _a.dispose();
+            this._depthRenderTarget?.dispose();
             this._depthRenderTarget = null;
-            (_b = this._diffuseRenderTarget) === null || _b === void 0 ? void 0 : _b.dispose();
+            this._diffuseRenderTarget?.dispose();
             this._diffuseRenderTarget = null;
-            (_c = this._thicknessRenderTarget) === null || _c === void 0 ? void 0 : _c.dispose();
+            this._thicknessRenderTarget?.dispose();
             this._thicknessRenderTarget = null;
         }
         if (this._renderPostProcess && this._camera) {
             this._camera.detachPostProcess(this._renderPostProcess);
         }
-        (_d = this._renderPostProcess) === null || _d === void 0 ? void 0 : _d.dispose();
+        this._renderPostProcess?.dispose();
         this._renderPostProcess = null;
+        this._onUseVelocityChanged.clear();
         this._needInitialization = false;
     }
 }

@@ -1,12 +1,12 @@
-import type { AnimationGroup } from "@babylonjs/core/Animations/animationGroup.js";
-import type { Skeleton } from "@babylonjs/core/Bones/skeleton.js";
-import type { Material } from "@babylonjs/core/Materials/material.js";
-import type { TransformNode } from "@babylonjs/core/Meshes/transformNode.js";
-import type { Buffer, VertexBuffer } from "@babylonjs/core/Buffers/buffer.js";
-import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh.js";
-import type { Mesh } from "@babylonjs/core/Meshes/mesh.js";
-import type { Camera } from "@babylonjs/core/Cameras/camera.js";
-import type { Light } from "@babylonjs/core/Lights/light.js";
+import { type AnimationGroup } from "@babylonjs/core/Animations/animationGroup.js";
+import { type Skeleton } from "@babylonjs/core/Bones/skeleton.js";
+import { type Material } from "@babylonjs/core/Materials/material.js";
+import { type TransformNode } from "@babylonjs/core/Meshes/transformNode.js";
+import { type Buffer, type VertexBuffer } from "@babylonjs/core/Buffers/buffer.js";
+import { type AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh.js";
+import { type Mesh } from "@babylonjs/core/Meshes/mesh.js";
+import { type Camera } from "@babylonjs/core/Cameras/camera.js";
+import { type Light } from "@babylonjs/core/Lights/light.js";
 import type * as GLTF2 from "babylonjs-gltf2interface";
 /**
  * Loader interface with an index field.
@@ -161,6 +161,8 @@ export interface INode extends GLTF2.INode, IArrayItem {
     _primitiveBabylonMeshes?: AbstractMesh[];
     /** @internal */
     _numMorphTargets?: number;
+    /** @internal */
+    _isJoint?: boolean;
 }
 /** @internal */
 export interface _ISamplerData {
@@ -243,7 +245,18 @@ export interface IGLTF extends GLTF2.IGLTF {
 /**
  * Loader interface with additional members.
  */
+/** @internal */
 export interface IKHRLightsPunctual_Light extends GLTF2.IKHRLightsPunctual_Light, IArrayItem {
+    /** @hidden */
+    _babylonLight?: Light;
+}
+/** @internal */
+export interface IEXTLightsIES_Light extends GLTF2.IEXTLightsIES_Light, IArrayItem {
+    /** @hidden */
+    _babylonLight?: Light;
+}
+/** @internal */
+export interface IEXTLightsArea_Light extends GLTF2.IEXTLightsArea_Light, IArrayItem {
     /** @hidden */
     _babylonLight?: Light;
 }

@@ -1,6 +1,6 @@
-import type { DeepImmutable } from "../types";
-import { Matrix, Vector3 } from "../Maths/math.vector";
-import type { Plane } from "../Maths/math.plane";
+import { type DeepImmutable } from "../types.js";
+import { Matrix, Vector3 } from "../Maths/math.vector.pure.js";
+import { type Plane } from "../Maths/math.plane.js";
 /**
  * Class used to store bounding sphere information
  */

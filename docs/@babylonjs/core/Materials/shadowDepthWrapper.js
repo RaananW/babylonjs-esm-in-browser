@@ -25,6 +25,18 @@ class MapMap {
  * Class that can be used to wrap a base material to generate accurate shadows when using custom vertex/fragment code in the base material
  */
 export class ShadowDepthWrapper {
+    /** Gets the standalone status of the wrapper */
+    get standalone() {
+        return this._options?.standalone ?? false;
+    }
+    /** Gets the base material the wrapper is built upon */
+    get baseMaterial() {
+        return this._baseMaterial;
+    }
+    /** Gets the doNotInjectCode status of the wrapper */
+    get doNotInjectCode() {
+        return this._options?.doNotInjectCode ?? false;
+    }
     /**
      * Instantiate a new shadow depth wrapper.
      * It works by injecting some specific code in the vertex/fragment shaders of the base material and is used by a shadow generator to
@@ -36,7 +48,7 @@ export class ShadowDepthWrapper {
      */
     constructor(baseMaterial, scene, options) {
         this._baseMaterial = baseMaterial;
-        this._scene = scene !== null && scene !== void 0 ? scene : EngineStore.LastCreatedScene;
+        this._scene = scene ?? EngineStore.LastCreatedScene;
         this._options = options;
         this._subMeshToEffect = new Map();
         this._subMeshToDepthWrapper = new MapMap();
@@ -44,38 +56,35 @@ export class ShadowDepthWrapper {
         // Register for onEffectCreated to store the effect of the base material when it is (re)generated. This effect will be used
         // to create the depth effect later on
         this._onEffectCreatedObserver = this._baseMaterial.onEffectCreatedObservable.add((params) => {
-            var _a;
-            const mesh = (_a = params.subMesh) === null || _a === void 0 ? void 0 : _a.getMesh();
+            const mesh = params.subMesh?.getMesh();
             if (mesh && !this._meshes.has(mesh)) {
                 // Register for mesh onDispose to clean up our internal maps when a mesh is disposed
                 this._meshes.set(mesh, mesh.onDisposeObservable.add((mesh) => {
                     const iterator = this._subMeshToEffect.keys();
                     for (let key = iterator.next(); key.done !== true; key = iterator.next()) {
                         const subMesh = key.value;
-                        if ((subMesh === null || subMesh === void 0 ? void 0 : subMesh.getMesh()) === mesh) {
+                        if (subMesh?.getMesh() === mesh) {
                             this._subMeshToEffect.delete(subMesh);
-                            this._subMeshToDepthWrapper.mm.delete(subMesh);
+                            this._deleteDepthWrapperEffect(subMesh);
                         }
                     }
                 }));
             }
-            this._subMeshToEffect.set(params.subMesh, [params.effect, this._scene.getEngine().currentRenderPassId]);
-            this._subMeshToDepthWrapper.mm.delete(params.subMesh); // trigger a depth effect recreation
+            if (this._subMeshToEffect.get(params.subMesh)?.[0] !== params.effect) {
+                this._subMeshToEffect.set(params.subMesh, [params.effect, this._scene.getEngine().currentRenderPassId]);
+                this._deleteDepthWrapperEffect(params.subMesh);
+            }
         });
     }
-    /** Gets the standalone status of the wrapper */
-    get standalone() {
-        var _a, _b;
-        return (_b = (_a = this._options) === null || _a === void 0 ? void 0 : _a.standalone) !== null && _b !== void 0 ? _b : false;
-    }
-    /** Gets the base material the wrapper is built upon */
-    get baseMaterial() {
-        return this._baseMaterial;
-    }
-    /** Gets the doNotInjectCode status of the wrapper */
-    get doNotInjectCode() {
-        var _a, _b;
-        return (_b = (_a = this._options) === null || _a === void 0 ? void 0 : _a.doNotInjectCode) !== null && _b !== void 0 ? _b : false;
+    _deleteDepthWrapperEffect(subMesh) {
+        const depthWrapperEntries = this._subMeshToDepthWrapper.mm.get(subMesh);
+        if (depthWrapperEntries) {
+            // find and release the previous depth effect
+            depthWrapperEntries.forEach((depthWrapper) => {
+                depthWrapper.mainDrawWrapper.effect?.dispose();
+            });
+            this._subMeshToDepthWrapper.mm.delete(subMesh); // trigger a depth effect recreation
+        }
     }
     /**
      * Gets the effect to use to generate the depth map
@@ -85,8 +94,7 @@ export class ShadowDepthWrapper {
      * @returns the effect to use to generate the depth map for the subMesh + shadow generator specified
      */
     getEffect(subMesh, shadowGenerator, passIdForDrawWrapper) {
-        var _a;
-        const entry = (_a = this._subMeshToDepthWrapper.mm.get(subMesh)) === null || _a === void 0 ? void 0 : _a.get(shadowGenerator);
+        const entry = this._subMeshToDepthWrapper.mm.get(subMesh)?.get(shadowGenerator);
         if (!entry) {
             return null;
         }
@@ -107,14 +115,13 @@ export class ShadowDepthWrapper {
      * @returns a boolean indicating that the submesh is ready or not
      */
     isReadyForSubMesh(subMesh, defines, shadowGenerator, useInstances, passIdForDrawWrapper) {
-        var _a, _b;
         if (this.standalone) {
             // will ensure the effect is (re)created for the base material
             if (!this._baseMaterial.isReadyForSubMesh(subMesh.getMesh(), subMesh, useInstances)) {
                 return false;
             }
         }
-        return (_b = (_a = this._makeEffect(subMesh, defines, shadowGenerator, passIdForDrawWrapper)) === null || _a === void 0 ? void 0 : _a.isReady()) !== null && _b !== void 0 ? _b : false;
+        return this._makeEffect(subMesh, defines, shadowGenerator, passIdForDrawWrapper)?.isReady() ?? false;
     }
     /**
      * Disposes the resources
@@ -129,17 +136,20 @@ export class ShadowDepthWrapper {
         }
     }
     _makeEffect(subMesh, defines, shadowGenerator, passIdForDrawWrapper) {
-        var _a, _b, _c;
         const engine = this._scene.getEngine();
         const origEffectAndRenderPassId = this._subMeshToEffect.get(subMesh);
         if (!origEffectAndRenderPassId) {
             return null;
         }
         const [origEffect, origRenderPassId] = origEffectAndRenderPassId;
+        if (!origEffect.isReady()) {
+            return null;
+        }
         let params = this._subMeshToDepthWrapper.get(subMesh, shadowGenerator);
         if (!params) {
             const mainDrawWrapper = new DrawWrapper(engine);
-            mainDrawWrapper.defines = (_b = (_a = subMesh._getDrawWrapper(origRenderPassId)) === null || _a === void 0 ? void 0 : _a.defines) !== null && _b !== void 0 ? _b : null;
+            const originalDefines = subMesh._getDrawWrapper(origRenderPassId)?.defines;
+            mainDrawWrapper.defines = typeof originalDefines === "string" ? null : (originalDefines ?? null);
             params = {
                 drawWrapper: [],
                 mainDrawWrapper,
@@ -160,22 +170,31 @@ export class ShadowDepthWrapper {
         const uniforms = origEffect.getUniformNames().slice();
         // the depth effect is either out of date or has not been created yet
         let vertexCode = origEffect.vertexSourceCodeBeforeMigration, fragmentCode = origEffect.fragmentSourceCodeBeforeMigration;
+        if (!vertexCode && !fragmentCode) {
+            return null;
+        }
         if (!this.doNotInjectCode) {
-            // vertex code
+            // Declare the shadow map includes
             const vertexNormalBiasCode = this._options && this._options.remappedVariables
                 ? `#include<shadowMapVertexNormalBias>(${this._options.remappedVariables.join(",")})`
-                : Effect.IncludesShadersStore["shadowMapVertexNormalBias"], vertexMetricCode = this._options && this._options.remappedVariables
+                : `#include<shadowMapVertexNormalBias>`, vertexMetricCode = this._options && this._options.remappedVariables
                 ? `#include<shadowMapVertexMetric>(${this._options.remappedVariables.join(",")})`
-                : Effect.IncludesShadersStore["shadowMapVertexMetric"], fragmentSoftTransparentShadow = this._options && this._options.remappedVariables
+                : `#include<shadowMapVertexMetric>`, fragmentSoftTransparentShadow = this._options && this._options.remappedVariables
                 ? `#include<shadowMapFragmentSoftTransparentShadow>(${this._options.remappedVariables.join(",")})`
-                : Effect.IncludesShadersStore["shadowMapFragmentSoftTransparentShadow"], fragmentBlockCode = Effect.IncludesShadersStore["shadowMapFragment"];
-            vertexCode = vertexCode.replace(/void\s+?main/g, Effect.IncludesShadersStore["shadowMapVertexExtraDeclaration"] + "\r\nvoid main");
+                : `#include<shadowMapFragmentSoftTransparentShadow>`, fragmentBlockCode = `#include<shadowMapFragment>`, vertexExtraDeclartion = `#include<shadowMapVertexExtraDeclaration>`;
+            // vertex code
+            if (origEffect.shaderLanguage === 0 /* ShaderLanguage.GLSL */) {
+                vertexCode = vertexCode.replace(/void\s+?main/g, `\n${vertexExtraDeclartion}\nvoid main`);
+            }
+            else {
+                vertexCode = vertexCode.replace(/@vertex/g, `\n${vertexExtraDeclartion}\n@vertex`);
+            }
             vertexCode = vertexCode.replace(/#define SHADOWDEPTH_NORMALBIAS|#define CUSTOM_VERTEX_UPDATE_WORLDPOS/g, vertexNormalBiasCode);
             if (vertexCode.indexOf("#define SHADOWDEPTH_METRIC") !== -1) {
                 vertexCode = vertexCode.replace(/#define SHADOWDEPTH_METRIC/g, vertexMetricCode);
             }
             else {
-                vertexCode = vertexCode.replace(/}\s*$/g, vertexMetricCode + "\r\n}");
+                vertexCode = vertexCode.replace(/}\s*$/g, vertexMetricCode + "\n}");
             }
             vertexCode = vertexCode.replace(/#define SHADER_NAME.*?\n|out vec4 glFragColor;\n/g, "");
             // fragment code
@@ -183,17 +202,17 @@ export class ShadowDepthWrapper {
             const hasLocationForFragment = fragmentCode.indexOf("#define SHADOWDEPTH_FRAGMENT") !== -1;
             let fragmentCodeToInjectAtEnd = "";
             if (!hasLocationForSoftTransparentShadow) {
-                fragmentCodeToInjectAtEnd = fragmentSoftTransparentShadow + "\r\n";
+                fragmentCodeToInjectAtEnd = fragmentSoftTransparentShadow + "\n";
             }
             else {
                 fragmentCode = fragmentCode.replace(/#define SHADOWDEPTH_SOFTTRANSPARENTSHADOW|#define CUSTOM_FRAGMENT_BEFORE_FOG/g, fragmentSoftTransparentShadow);
             }
-            fragmentCode = fragmentCode.replace(/void\s+?main/g, Effect.IncludesShadersStore["shadowMapFragmentExtraDeclaration"] + "\r\nvoid main");
+            fragmentCode = fragmentCode.replace(/void\s+?main/g, Effect.IncludesShadersStore["shadowMapFragmentExtraDeclaration"] + "\nvoid main");
             if (hasLocationForFragment) {
                 fragmentCode = fragmentCode.replace(/#define SHADOWDEPTH_FRAGMENT/g, fragmentBlockCode);
             }
             else {
-                fragmentCodeToInjectAtEnd += fragmentBlockCode + "\r\n";
+                fragmentCodeToInjectAtEnd += fragmentBlockCode + "\n";
             }
             if (fragmentCodeToInjectAtEnd) {
                 fragmentCode = fragmentCode.replace(/}\s*$/g, fragmentCodeToInjectAtEnd + "}");
@@ -212,10 +231,11 @@ export class ShadowDepthWrapper {
             samplers: origEffect.getSamplers(),
             defines: join + "\n" + origEffect.defines.replace("#define SHADOWS", "").replace(/#define SHADOW\d/g, ""),
             indexParameters: origEffect.getIndexParameters(),
+            shaderLanguage: origEffect.shaderLanguage,
         }, engine);
         for (let id = 0; id < params.drawWrapper.length; ++id) {
             if (id !== passIdForDrawWrapper) {
-                (_c = params.drawWrapper[id]) === null || _c === void 0 ? void 0 : _c.setEffect(params.mainDrawWrapper.effect, params.mainDrawWrapper.defines);
+                params.drawWrapper[id]?.setEffect(params.mainDrawWrapper.effect, params.mainDrawWrapper.defines);
             }
         }
         return params.mainDrawWrapper.effect;

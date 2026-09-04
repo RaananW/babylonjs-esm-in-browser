@@ -1,6 +1,5 @@
-import type { VertexBuffer } from "../../Buffers/buffer";
-import type { Nullable } from "../../types";
-import { WebGPUCacheRenderPipeline } from "./webgpuCacheRenderPipeline";
+import { type Nullable } from "../../types.js";
+import { WebGPUCacheRenderPipeline } from "./webgpuCacheRenderPipeline.js";
 /** @internal */
 declare class NodeState {
     values: {
@@ -20,7 +19,8 @@ export declare class WebGPUCacheRenderPipelineTree extends WebGPUCacheRenderPipe
     };
     static _GetPipelines(node: NodeState, pipelines: Array<Array<number>>, curPath: Array<number>, curPathLen: number): void;
     static GetPipelines(): Array<Array<number>>;
-    constructor(device: GPUDevice, emptyVertexBuffer: VertexBuffer, useTextureStage: boolean);
+    static ResetCache(): void;
+    reset(): void;
     protected _getRenderPipeline(param: {
         token: any;
         pipeline: Nullable<GPURenderPipeline>;

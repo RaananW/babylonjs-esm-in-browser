@@ -1,4 +1,4 @@
-import { Observable } from "../Misc/observable";
+import { Observable } from "../Misc/observable.js";
 /**
  * Represents a gamepad control stick position
  */
@@ -136,12 +136,12 @@ export declare class Gamepad {
     browserGamepad: any, leftStickX?: number, leftStickY?: number, rightStickX?: number, rightStickY?: number);
     /**
      * Callback triggered when the left joystick has changed
-     * @param callback
+     * @param callback callback to trigger
      */
     onleftstickchanged(callback: (values: StickValues) => void): void;
     /**
      * Callback triggered when the right joystick has changed
-     * @param callback
+     * @param callback callback to trigger
      */
     onrightstickchanged(callback: (values: StickValues) => void): void;
     /**

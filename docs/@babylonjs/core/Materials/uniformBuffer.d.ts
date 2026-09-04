@@ -1,10 +1,10 @@
-import type { Nullable, FloatArray } from "../types";
-import type { IMatrixLike, IVector3Like, IVector4Like, IColor3Like, IColor4Like } from "../Maths/math.like";
-import type { Effect } from "./effect";
-import type { ThinTexture } from "../Materials/Textures/thinTexture";
-import type { DataBuffer } from "../Buffers/dataBuffer";
-import type { ThinEngine } from "../Engines/thinEngine";
-import "../Engines/Extensions/engine.uniformBuffer";
+import { type Nullable, type FloatArray } from "../types.js";
+import { type IMatrixLike, type IVector3Like, type IVector4Like, type IColor3Like, type IColor4Like } from "../Maths/math.like.js";
+import { type Effect } from "./effect.js";
+import { type ThinTexture } from "../Materials/Textures/thinTexture.js";
+import { type DataBuffer } from "../Buffers/dataBuffer.js";
+import { type InternalTexture } from "./Textures/internalTexture.js";
+import { type AbstractEngine } from "../Engines/abstractEngine.js";
 /**
  * Uniform buffer objects.
  *
@@ -16,21 +16,19 @@ import "../Engines/Extensions/engine.uniformBuffer";
  * https://www.khronos.org/opengl/wiki/Uniform_Buffer_Object
  */
 export declare class UniformBuffer {
-    /** @internal */
-    static _UpdatedUbosInFrame: {
-        [name: string]: number;
-    };
     private _engine;
     private _buffer;
     private _buffers;
     private _bufferIndex;
+    private _bufferUpdatedLastFrame;
     private _createBufferOnWrite;
     private _data;
     private _bufferData;
-    private _dynamic?;
+    private _dynamic;
     private _uniformLocations;
     private _uniformSizes;
     private _uniformArraySizes;
+    private _uniformNames;
     private _uniformLocationPointer;
     private _needSync;
     private _noUBO;
@@ -38,9 +36,11 @@ export declare class UniformBuffer {
     private _currentEffectName;
     private _name;
     private _currentFrameId;
+    private _trackUBOsInFrame;
     private static _MAX_UNIFORM_SIZE;
     private static _TempBuffer;
     private static _TempBufferInt32View;
+    private static _TempBufferUInt32View;
     /**
      * Lambda to Update a 3x3 Matrix in a uniform buffer.
      * This is dynamic to allow compat with webgl 1 and 2.
@@ -58,7 +58,7 @@ export declare class UniformBuffer {
      * This is dynamic to allow compat with webgl 1 and 2.
      * You will need to pass the name of the uniform as well as the value.
      */
-    updateFloat: (name: string, x: number) => void;
+    updateFloat: (name: string, x: number, suffix?: string) => void;
     /**
      * Lambda to Update a vec2 of float in a uniform buffer.
      * This is dynamic to allow compat with webgl 1 and 2.
@@ -82,7 +82,7 @@ export declare class UniformBuffer {
      * This is dynamic to allow compat with webgl 1 and 2.
      * You will need to pass the name of the uniform as well as the value.
      */
-    updateFloatArray: (name: string, array: Float32Array) => void;
+    updateFloatArray: (name: string, array: Float32Array, suffix?: string) => void;
     /**
      * Lambda to Update an array of number in a uniform buffer.
      * This is dynamic to allow compat with webgl 1 and 2.
@@ -95,6 +95,12 @@ export declare class UniformBuffer {
      * You will need to pass the name of the uniform as well as the value.
      */
     updateIntArray: (name: string, array: Int32Array) => void;
+    /**
+     * Lambda to Update an array of number in a uniform buffer.
+     * This is dynamic to allow compat with webgl 1 and 2.
+     * You will need to pass the name of the uniform as well as the value.
+     */
+    updateUIntArray: (name: string, array: Uint32Array) => void;
     /**
      * Lambda to Update a 4x4 Matrix in a uniform buffer.
      * This is dynamic to allow compat with webgl 1 and 2.
@@ -162,6 +168,30 @@ export declare class UniformBuffer {
      */
     updateInt4: (name: string, x: number, y: number, z: number, w: number, suffix?: string) => void;
     /**
+     * Lambda to Update a unsigned int a uniform buffer.
+     * This is dynamic to allow compat with webgl 1 and 2.
+     * You will need to pass the name of the uniform as well as the value.
+     */
+    updateUInt: (name: string, x: number, suffix?: string) => void;
+    /**
+     * Lambda to Update a vec2 of unsigned int in a uniform buffer.
+     * This is dynamic to allow compat with webgl 1 and 2.
+     * You will need to pass the name of the uniform as well as the value.
+     */
+    updateUInt2: (name: string, x: number, y: number, suffix?: string) => void;
+    /**
+     * Lambda to Update a vec3 of unsigned int in a uniform buffer.
+     * This is dynamic to allow compat with webgl 1 and 2.
+     * You will need to pass the name of the uniform as well as the value.
+     */
+    updateUInt3: (name: string, x: number, y: number, z: number, suffix?: string) => void;
+    /**
+     * Lambda to Update a vec4 of unsigned int in a uniform buffer.
+     * This is dynamic to allow compat with webgl 1 and 2.
+     * You will need to pass the name of the uniform as well as the value.
+     */
+    updateUInt4: (name: string, x: number, y: number, z: number, w: number, suffix?: string) => void;
+    /**
      * Instantiates a new Uniform buffer objects.
      *
      * Handles blocks of uniform on the GPU.
@@ -175,8 +205,9 @@ export declare class UniformBuffer {
      * @param dynamic Define if the buffer is updatable
      * @param name to assign to the buffer (debugging purpose)
      * @param forceNoUniformBuffer define that this object must not rely on UBO objects
+     * @param trackUBOsInFrame define if the UBOs should be tracked in the frame (default: undefined - will use the value from Engine._features.trackUbosInFrame)
      */
-    constructor(engine: ThinEngine, data?: number[], dynamic?: boolean, name?: string, forceNoUniformBuffer?: boolean);
+    constructor(engine: AbstractEngine, data?: number[], dynamic?: boolean, name?: string, forceNoUniformBuffer?: boolean, trackUBOsInFrame?: boolean);
     /**
      * Indicates if the buffer is using the WebGL2 UBO implementation,
      * or just falling back on setUniformXXX calls.
@@ -204,6 +235,11 @@ export declare class UniformBuffer {
      * @returns the webgl buffer
      */
     getBuffer(): Nullable<DataBuffer>;
+    /**
+     * The names of the uniforms in the buffer.
+     * @returns an array of uniform names
+     */
+    getUniformNames(): string[];
     /**
      * std140 layout specifies how to align data within an UBO structure.
      * See https://khronos.org/registry/OpenGL/specs/gl/glspec45.core.pdf#page=159
@@ -275,14 +311,20 @@ export declare class UniformBuffer {
      * Effectively creates the WebGL Uniform Buffer, once layout is completed with `addUniform`.
      */
     create(): void;
+    private _getNamesDebug;
     /** @internal */
     _rebuild(): void;
+    /** @internal */
+    _rebuildAfterContextLost(): void;
     /** @internal */
     get _numBuffers(): number;
     /** @internal */
     get _indexBuffer(): number;
-    /** Gets the name of this buffer */
+    /** Gets or sets the name of this buffer */
     get name(): string;
+    set name(value: string);
+    /** Gets the current effect */
+    get currentEffect(): Nullable<Effect>;
     private _buffersEqual;
     private _copyBuffer;
     /**
@@ -327,6 +369,8 @@ export declare class UniformBuffer {
     private _updateArrayForUniform;
     private _updateIntArrayForEffect;
     private _updateIntArrayForUniform;
+    private _updateUIntArrayForEffect;
+    private _updateUIntArrayForUniform;
     private _updateMatrixForEffect;
     private _updateMatrixForUniform;
     private _updateMatricesForEffect;
@@ -349,12 +393,32 @@ export declare class UniformBuffer {
     private _updateInt3ForUniform;
     private _updateInt4ForEffect;
     private _updateInt4ForUniform;
+    private _updateUIntForEffect;
+    private _updateUIntForUniform;
+    private _updateUInt2ForEffect;
+    private _updateUInt2ForUniform;
+    private _updateUInt3ForEffect;
+    private _updateUInt3ForUniform;
+    private _updateUInt4ForEffect;
+    private _updateUInt4ForUniform;
     /**
      * Sets a sampler uniform on the effect.
      * @param name Define the name of the sampler.
      * @param texture Define the texture to set in the sampler
      */
     setTexture(name: string, texture: Nullable<ThinTexture>): void;
+    /**
+     * Sets an array of sampler uniforms on the effect.
+     * @param name Define the name of uniform.
+     * @param textures Define the textures to set in the array of samplers
+     */
+    setTextureArray(name: string, textures: ThinTexture[]): void;
+    /**
+     * Sets a sampler uniform on the effect.
+     * @param name Define the name of the sampler.
+     * @param texture Define the (internal) texture to set in the sampler
+     */
+    bindTexture(name: string, texture: Nullable<InternalTexture>): void;
     /**
      * Directly updates the value of the uniform in the cache AND on the GPU.
      * @param uniformName Define the name of the uniform, as used in the uniform block in the shader.
@@ -382,6 +446,12 @@ export declare class UniformBuffer {
      * @returns true if the buffer has been found and the class internal state points to it, else false
      */
     setDataBuffer(dataBuffer: DataBuffer): boolean;
+    /**
+     * Checks if the uniform buffer has a uniform with the given name.
+     * @param name Name of the uniform to check
+     * @returns True if the uniform exists, false otherwise.
+     */
+    has(name: string): boolean;
     /**
      * Disposes the uniform buffer.
      */

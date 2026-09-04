@@ -1,9 +1,12 @@
 // Do not edit.
 import { ShaderStore } from "../../Engines/shaderStore.js";
 const name = "boundingBoxRendererFragmentDeclaration";
-const shader = `uniform vec4 color;`;
+const shader = `uniform vec4 color;
+`;
 // Sideeffect
-ShaderStore.IncludesShadersStore[name] = shader;
+if (!ShaderStore.IncludesShadersStore[name]) {
+    ShaderStore.IncludesShadersStore[name] = shader;
+}
 /** @internal */
 export const boundingBoxRendererFragmentDeclaration = { name, shader };
 //# sourceMappingURL=boundingBoxRendererFragmentDeclaration.js.map

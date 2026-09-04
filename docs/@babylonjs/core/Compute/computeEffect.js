@@ -1,9 +1,9 @@
 import { Logger } from "../Misc/logger.js";
 import { Observable } from "../Misc/observable.js";
 import { GetDOMTextContent, IsWindowObjectExist } from "../Misc/domManagement.js";
-import { ShaderProcessor } from "../Engines/Processors/shaderProcessor.js";
+import { Finalize, Initialize, PreProcess } from "../Engines/Processors/shaderProcessor.js";
 import { ShaderStore } from "../Engines/shaderStore.js";
-import { ShaderLanguage } from "../Materials/shaderLanguage.js";
+import { _RetryWithInterval } from "../Misc/timingTools.js";
 /**
  * Effect wrapping a compute shader and let execute (dispatch) the shader
  */
@@ -16,11 +16,6 @@ export class ComputeEffect {
      * @param key Effect Key identifying uniquely compiled shader variants
      */
     constructor(baseName, options, engine, key = "") {
-        var _a, _b;
-        /**
-         * Name of the effect.
-         */
-        this.name = null;
         /**
          * String container all the define statements that should be set on the shader.
          */
@@ -64,29 +59,32 @@ export class ComputeEffect {
         this._pipelineContext = null;
         /** @internal */
         this._computeSourceCode = "";
+        /** @internal */
+        this._useExplicitComputePipelineLayout = false;
         this._rawComputeSourceCode = "";
-        this._shaderLanguage = ShaderLanguage.WGSL;
+        this._shaderLanguage = 1 /* ShaderLanguage.WGSL */;
         this.name = baseName;
         this._key = key;
         this._engine = engine;
         this.uniqueId = ComputeEffect._UniqueIdSeed++;
-        this.defines = (_a = options.defines) !== null && _a !== void 0 ? _a : "";
+        this.defines = options.defines ?? "";
         this.onError = options.onError;
         this.onCompiled = options.onCompiled;
-        this._entryPoint = (_b = options.entryPoint) !== null && _b !== void 0 ? _b : "main";
+        this._entryPoint = options.entryPoint ?? "main";
+        this._useExplicitComputePipelineLayout = !!options.useExplicitComputePipelineLayout;
         this._shaderStore = ShaderStore.GetShadersStore(this._shaderLanguage);
         this._shaderRepository = ShaderStore.GetShadersRepository(this._shaderLanguage);
         this._includeShaderStore = ShaderStore.GetIncludesShadersStore(this._shaderLanguage);
         let computeSource;
         const hostDocument = IsWindowObjectExist() ? this._engine.getHostDocument() : null;
-        if (baseName.computeSource) {
+        if (typeof baseName === "string") {
+            computeSource = baseName;
+        }
+        else if (typeof baseName.computeSource === "string") {
             computeSource = "source:" + baseName.computeSource;
         }
-        else if (baseName.computeElement) {
-            computeSource = hostDocument ? hostDocument.getElementById(baseName.computeElement) : null;
-            if (!computeSource) {
-                computeSource = baseName.computeElement;
-            }
+        else if (typeof baseName.computeElement === "string") {
+            computeSource = hostDocument?.getElementById(baseName.computeElement) || baseName.computeElement;
         }
         else {
             computeSource = baseName.compute || baseName;
@@ -105,15 +103,33 @@ export class ComputeEffect {
             processingContext: null,
             isNDCHalfZRange: this._engine.isNDCHalfZRange,
             useReverseDepthBuffer: this._engine.useReverseDepthBuffer,
+            processCodeAfterIncludes: (shaderType, code, defines) => {
+                if (!defines) {
+                    return code;
+                }
+                // We need to convert #define key value to a const
+                for (const define of defines) {
+                    const keyValue = define.replace("#define", "").replace(";", "").trim();
+                    const split = keyValue.split(" ");
+                    if (split.length === 2) {
+                        const key = split[0];
+                        const value = split[1];
+                        if (!isNaN(parseInt(value)) || !isNaN(parseFloat(value))) {
+                            code = `const ${key} = ${value};\n` + code;
+                        }
+                    }
+                }
+                return code;
+            },
         };
         this._loadShader(computeSource, "Compute", "", (computeCode) => {
-            ShaderProcessor.Initialize(processorOptions);
-            ShaderProcessor.PreProcess(computeCode, processorOptions, (migratedCommputeCode) => {
+            Initialize(processorOptions);
+            PreProcess(computeCode, processorOptions, (migratedComputeCode) => {
                 this._rawComputeSourceCode = computeCode;
                 if (options.processFinalCode) {
-                    migratedCommputeCode = options.processFinalCode(migratedCommputeCode);
+                    migratedComputeCode = options.processFinalCode(migratedComputeCode);
                 }
-                const finalShaders = ShaderProcessor.Finalize(migratedCommputeCode, "", processorOptions);
+                const finalShaders = Finalize(migratedComputeCode, "", processorOptions);
                 this._useFinalCode(finalShaders.vertexCode, baseName);
             }, this._engine);
         });
@@ -142,7 +158,7 @@ export class ComputeEffect {
         try {
             return this._isReadyInternal();
         }
-        catch (_a) {
+        catch {
             return false;
         }
     }
@@ -189,24 +205,15 @@ export class ComputeEffect {
             func(effect);
         });
         if (!this._pipelineContext || this._pipelineContext.isAsync) {
-            setTimeout(() => {
-                this._checkIsReady(null);
-            }, 16);
+            this._checkIsReady(null);
         }
     }
     _checkIsReady(previousPipelineContext) {
-        try {
-            if (this._isReadyInternal()) {
-                return;
-            }
-        }
-        catch (e) {
+        _RetryWithInterval(() => this._isReadyInternal(), () => {
+            // no-op, all work is done in _isReadyInternal
+        }, (e) => {
             this._processCompilationErrors(e, previousPipelineContext);
-            return;
-        }
-        setTimeout(() => {
-            this._checkIsReady(previousPipelineContext);
-        }, 16);
+        }, undefined, undefined, false);
     }
     _loadShader(shader, key, optionalKey, callback) {
         if (typeof HTMLElement !== "undefined") {
@@ -218,13 +225,13 @@ export class ComputeEffect {
             }
         }
         // Direct source ?
-        if (shader.substr(0, 7) === "source:") {
-            callback(shader.substr(7));
+        if (shader.substring(0, 7) === "source:") {
+            callback(shader.substring(7));
             return;
         }
         // Base64 encoded ?
-        if (shader.substr(0, 7) === "base64:") {
-            const shaderBinary = window.atob(shader.substr(7));
+        if (shader.substring(0, 7) === "base64:") {
+            const shaderBinary = window.atob(shader.substring(7));
             callback(shaderBinary);
             return;
         }
@@ -250,8 +257,7 @@ export class ComputeEffect {
      * Gets the compute shader source code of this effect
      */
     get computeSourceCode() {
-        var _a, _b;
-        return this._computeSourceCodeOverride ? this._computeSourceCodeOverride : (_b = (_a = this._pipelineContext) === null || _a === void 0 ? void 0 : _a._getComputeShaderCode()) !== null && _b !== void 0 ? _b : this._computeSourceCode;
+        return this._computeSourceCodeOverride ? this._computeSourceCodeOverride : (this._pipelineContext?._getComputeShaderCode() ?? this._computeSourceCode);
     }
     /**
      * Gets the compute shader source code before it has been processed by the preprocessor
@@ -272,7 +278,11 @@ export class ComputeEffect {
             this._pipelineContext = engine.createComputePipelineContext();
             this._pipelineContext._name = this._key;
             engine._prepareComputePipelineContext(this._pipelineContext, this._computeSourceCodeOverride ? this._computeSourceCodeOverride : this._computeSourceCode, this._rawComputeSourceCode, this._computeSourceCodeOverride ? null : defines, this._entryPoint);
-            engine._executeWhenComputeStateIsCompiled(this._pipelineContext, () => {
+            engine._executeWhenComputeStateIsCompiled(this._pipelineContext, (messages) => {
+                if (messages && messages.numErrors > 0) {
+                    this._processCompilationErrors(messages, previousPipelineContext);
+                    return;
+                }
                 this._compilationError = "";
                 this._isReady = true;
                 if (this.onCompiled) {
@@ -289,52 +299,58 @@ export class ComputeEffect {
             }
         }
         catch (e) {
-            this._processCompilationErrors(e, previousPipelineContext);
-        }
-    }
-    _getShaderCodeAndErrorLine(code, error) {
-        const regexp = /COMPUTE SHADER ERROR: 0:(\d+?):/;
-        let errorLine = null;
-        if (error && code) {
-            const res = error.match(regexp);
-            if (res && res.length === 2) {
-                const lineNumber = parseInt(res[1]);
-                const lines = code.split("\n", -1);
-                if (lines.length >= lineNumber) {
-                    errorLine = `Offending line [${lineNumber}] in compute code: ${lines[lineNumber - 1]}`;
-                }
+            let err = "" + e;
+            if (e instanceof Error && e.stack) {
+                err = e.stack;
             }
+            this._processCompilationErrors(err, previousPipelineContext);
         }
-        return [code, errorLine];
     }
     _processCompilationErrors(e, previousPipelineContext = null) {
-        var _a;
-        this._compilationError = e.message;
-        // Let's go through fallbacks then
+        this._compilationError = "";
         Logger.Error("Unable to compile compute effect:");
-        Logger.Error("Defines:\r\n" + this.defines);
+        if (this.defines) {
+            Logger.Error("Defines:\n" + this.defines);
+        }
         if (ComputeEffect.LogShaderCodeOnCompilationError) {
-            let lineErrorVertex = null, code = null;
-            if ((_a = this._pipelineContext) === null || _a === void 0 ? void 0 : _a._getComputeShaderCode()) {
-                [code, lineErrorVertex] = this._getShaderCodeAndErrorLine(this._pipelineContext._getComputeShaderCode(), this._compilationError);
-                if (code) {
-                    Logger.Error("Compute code:");
-                    Logger.Error(code);
-                }
-            }
-            if (lineErrorVertex) {
-                Logger.Error(lineErrorVertex);
+            const code = this._pipelineContext?._getComputeShaderCode();
+            if (code) {
+                Logger.Error("Compute code:");
+                Logger.Error(code);
             }
         }
-        Logger.Error("Error: " + this._compilationError);
+        if (typeof e === "string") {
+            this._compilationError = e;
+            Logger.Error("Error: " + this._compilationError);
+        }
+        else {
+            for (const message of e.messages) {
+                let msg = "";
+                if (message.line !== undefined) {
+                    msg += "Line " + message.line + ", ";
+                }
+                if (message.offset !== undefined) {
+                    msg += "Offset " + message.offset + ", ";
+                }
+                if (message.length !== undefined) {
+                    msg += "Length " + message.length + ", ";
+                }
+                msg += message.type + ": " + message.text;
+                if (this._compilationError) {
+                    this._compilationError += "\n";
+                }
+                this._compilationError += msg;
+                Logger.Error(msg);
+            }
+        }
         if (previousPipelineContext) {
             this._pipelineContext = previousPipelineContext;
             this._isReady = true;
-            if (this.onError) {
-                this.onError(this, this._compilationError);
-            }
-            this.onErrorObservable.notifyObservers(this);
         }
+        if (this.onError) {
+            this.onError(this, this._compilationError);
+        }
+        this.onErrorObservable.notifyObservers(this);
     }
     /**
      * Release all associated resources.
@@ -351,7 +367,7 @@ export class ComputeEffect {
      * @param computeShader compute shader content
      */
     static RegisterShader(name, computeShader) {
-        ShaderStore.GetShadersStore(ShaderLanguage.WGSL)[`${name}ComputeShader`] = computeShader;
+        ShaderStore.GetShadersStore(1 /* ShaderLanguage.WGSL */)[`${name}ComputeShader`] = computeShader;
     }
 }
 ComputeEffect._UniqueIdSeed = 0;

@@ -2,68 +2,100 @@
 /** Defines the cross module used constants to avoid circular dependencies */
 export class Constants {
 }
+/** Sampler suffix when associated with a texture name */
+Constants.AUTOSAMPLERSUFFIX = "Sampler";
+/** Flag used to disable diagnostics for WebGPU */
+Constants.DISABLEUA = "#define DISABLE_UNIFORMITY_ANALYSIS";
 /** Defines that alpha blending is disabled */
 Constants.ALPHA_DISABLE = 0;
-/** Defines that alpha blending is SRC ALPHA * SRC + DEST */
+/** Defines that alpha blending is COLOR=SRC_ALPHA * SRC + DEST, ALPHA=DEST_ALPHA */
 Constants.ALPHA_ADD = 1;
-/** Defines that alpha blending is SRC ALPHA * SRC + (1 - SRC ALPHA) * DEST */
-Constants.ALPHA_COMBINE = 2;
-/** Defines that alpha blending is DEST - SRC * DEST */
-Constants.ALPHA_SUBTRACT = 3;
-/** Defines that alpha blending is SRC * DEST */
-Constants.ALPHA_MULTIPLY = 4;
-/** Defines that alpha blending is SRC ALPHA * SRC + (1 - SRC) * DEST */
-Constants.ALPHA_MAXIMIZED = 5;
-/** Defines that alpha blending is SRC + DEST */
-Constants.ALPHA_ONEONE = 6;
-/** Defines that alpha blending is SRC + (1 - SRC ALPHA) * DEST */
-Constants.ALPHA_PREMULTIPLIED = 7;
 /**
- * Defines that alpha blending is SRC + (1 - SRC ALPHA) * DEST
- * Alpha will be set to (1 - SRC ALPHA) * DEST ALPHA
+ *  Defines that alpha blending is COLOR=SRC_ALPHA * SRC + (1 - SRC_ALPHA) * DEST, ALPHA=SRC_ALPHA + DEST_ALPHA
+ *  Go-to for transparency. 100% alpha means source, 0% alpha means background. Glass, UI fade, smoke
  */
+Constants.ALPHA_COMBINE = 2;
+/**
+ * Defines that alpha blending is COLOR=(1 - SRC) * DEST, ALPHA=SRC_ALPHA + DEST_ALPHA
+ * Subtracts source from destination, leading to darker results
+ * */
+Constants.ALPHA_SUBTRACT = 3;
+/** Defines that alpha blending is COLOR=DEST * SRC, ALPHA=SRC_ALPHA + DEST_ALPHA */
+Constants.ALPHA_MULTIPLY = 4;
+/**
+ * Defines that alpha blending is COLOR=SRC_ALPHA * SRC + (1 - SRC) * DEST, ALPHA=SRC_ALPHA + DEST_ALPHA
+ * Prioritizes area with high source alpha, strongly emphasizes the source
+ */
+Constants.ALPHA_MAXIMIZED = 5;
+/**
+ * Defines that alpha blending is COLOR=SRC + DEST, ALPHA=DEST_ALPHA
+ * Source color is added to the destination color without alpha affecting the result. Great for additive glow effects (fire, magic, lasers)
+ */
+Constants.ALPHA_ONEONE = 6;
+/** Defines that alpha blending is COLOR=SRC + (1 - SRC_ALPHA) * DEST, ALPHA=SRC_ALPHA + DEST_ALPHA */
+Constants.ALPHA_PREMULTIPLIED = 7;
+/** Defines that alpha blending is COLOR=SRC + (1 - SRC_ALPHA) * DEST, ALPHA=SRC_ALPHA + (1 - SRC_ALPHA) * DEST_ALPHA */
 Constants.ALPHA_PREMULTIPLIED_PORTERDUFF = 8;
-/** Defines that alpha blending is CST * SRC + (1 - CST) * DEST */
+/**
+ * Defines that alpha blending is COLOR=CST * SRC + (1 - CST) * DEST, ALPHA=CST_ALPHA * SRC + (1 - CST_ALPHA) * DEST_ALPHA
+ * Where CST is user-supplied color
+ */
 Constants.ALPHA_INTERPOLATE = 9;
 /**
- * Defines that alpha blending is SRC + (1 - SRC) * DEST
- * Alpha will be set to SRC ALPHA + (1 - SRC ALPHA) * DEST ALPHA
+ * Defines that alpha blending is COLOR=SRC + (1 - SRC) * DEST, ALPHA=SRC_ALPHA + (1 - SRC_ALPHA) * DEST_ALPHA
+ * Brightens, good for soft light or UI highlights (like photoshop's screen blend)
  */
 Constants.ALPHA_SCREENMODE = 10;
 /**
- * Defines that alpha blending is SRC + DST
- * Alpha will be set to SRC ALPHA + DST ALPHA
+ * Defines that alpha blending is COLOR=SRC + DST, ALPHA=SRC_ALPHA + DEST_ALPHA
+ * Straight addition of color and alpha- use when you want both source and destination colors and opacities to stack
  */
 Constants.ALPHA_ONEONE_ONEONE = 11;
 /**
- * Defines that alpha blending is SRC * DST ALPHA + DST
- * Alpha will be set to 0
+ * Defines that alpha blending is COLOR=DEST_ALPHA * SRC + DST, ALPHA=0
  */
 Constants.ALPHA_ALPHATOCOLOR = 12;
 /**
- * Defines that alpha blending is SRC * (1 - DST) + DST * (1 - SRC)
+ * Defines that alpha blending is COLOR=(1 - DEST) * SRC + (1 - SRC) * DEST, ALPHA=(1 - DEST_ALPHA) * SRC_ALPHA + (1 - SRC_ALPHA) * DEST_ALPHA
+ * Result is between source and destination, used for experimental blending or styled effects
  */
 Constants.ALPHA_REVERSEONEMINUS = 13;
 /**
- * Defines that alpha blending is SRC + DST * (1 - SRC ALPHA)
- * Alpha will be set to SRC ALPHA + DST ALPHA * (1 - SRC ALPHA)
+ * Defines that alpha blending is ALPHA=SRC + (1 - SRC ALPHA) * DEST, ALPHA=SRC_ALPHA + (1 - SRC ALPHA) * DEST_ALPHA
+ * Smooths blending between source and destination, useful in layered alpha masks
  */
 Constants.ALPHA_SRC_DSTONEMINUSSRCALPHA = 14;
 /**
- * Defines that alpha blending is SRC + DST
- * Alpha will be set to SRC ALPHA
+ * Defines that alpha blending is COLOR=SRC + DST, ALPHA=SRC_ALPHA
+ * Color stacks, but only source alpha is kept
  */
 Constants.ALPHA_ONEONE_ONEZERO = 15;
 /**
- * Defines that alpha blending is SRC * (1 - DST) + DST * (1 - SRC)
- * Alpha will be set to DST ALPHA
+ * Defines that alpha blending is COLOR=(1 - DEST) * SRC + (1 - SRC) * DEST, ALPHA=DEST_ALPHA
+ * Produces inverted look (negative space), like 'exclusion' mode in photoshop
  */
 Constants.ALPHA_EXCLUSION = 16;
 /**
- * Defines that alpha blending is SRC * SRC ALPHA + DST * (1 - SRC ALPHA)
- * Alpha will be set to SRC ALPHA + (1 - SRC ALPHA) * DST ALPHA
+ * Defines that alpha blending is COLOR=SRC_ALPHA * SRC + (1 - SRC ALPHA) * DEST, ALPHA=SRC_ALPHA + (1 - SRC_ALPHA) * DEST_ALPHA
+ * Great for layered rendering (particles, fog volumes), accumulates transparency in a more physically accurate way
  */
 Constants.ALPHA_LAYER_ACCUMULATE = 17;
+/**
+ * Defines that alpha blending is COLOR=MIN(SRC, DEST), ALPHA=MIN(SRC_ALPHA, DEST_ALPHA)
+ */
+Constants.ALPHA_MIN = 18;
+/**
+ * Defines that alpha blending is COLOR=MAX(SRC, DEST), ALPHA=MAX(SRC_ALPHA, DEST_ALPHA)
+ */
+Constants.ALPHA_MAX = 19;
+/**
+ * Defines that alpha blending uses dual source blending and is COLOR=SRC + SRC1 * DEST, ALPHA=DST_ALPHA
+ */
+Constants.ALPHA_DUAL_SRC0_ADD_SRC1xDST = 20;
+/**
+ * Defines that alpha blending is COLOR=SRC, ALPHA=SRC_ALPHA + (1 - SRC_ALPHA) * DEST_ALPHA
+ */
+Constants.ALPHA_REPLACE_COLOR = 21;
 /** Defines that alpha blending equation a SUM */
 Constants.ALPHA_EQUATION_ADD = 0;
 /** Defines that alpha blending equation a SUBSTRACTION */
@@ -127,6 +159,16 @@ Constants.TEXTURE_CLAMP_ADDRESSMODE = 0;
 Constants.TEXTURE_WRAP_ADDRESSMODE = 1;
 /** Texture is repeating and mirrored */
 Constants.TEXTURE_MIRROR_ADDRESSMODE = 2;
+/** No texture repetition breaking — standard tiling (1 texture fetch) */
+Constants.TEXTURE_REPETITION_NONE = 0;
+/** Noise-driven offset blending to break texture repetition (3 texture fetches). Based on Inigo Quilez's technique 3. */
+Constants.TEXTURE_REPETITION_NOISE_BLEND = 1;
+/** Hex-tile grid with per-tile rotation and luminance-weighted blending (3 texture fetches). Based on Mikkelsen, "Practical Real-Time Hex-Tiling", JCGT 2022. */
+Constants.TEXTURE_REPETITION_HEX_TILING = 2;
+/** Per-tile random offset and mirror to break texture repetition (4 texture fetches). Based on Inigo Quilez's technique 1. */
+Constants.TEXTURE_REPETITION_TILE_RANDOMIZATION = 3;
+/** Smooth Voronoi bombing with Gaussian-weighted blending (9 texture fetches). Based on Inigo Quilez's technique 2. */
+Constants.TEXTURE_REPETITION_VORONOI_BOMBING = 4;
 /** Flag to create a storage texture */
 Constants.TEXTURE_CREATIONFLAG_STORAGE = 1;
 /** ALPHA */
@@ -143,6 +185,22 @@ Constants.TEXTUREFORMAT_RGBA = 5;
 Constants.TEXTUREFORMAT_RED = 6;
 /** RED (2nd reference) */
 Constants.TEXTUREFORMAT_R = 6;
+/** RED unsigned short normed to [0, 1] **/
+Constants.TEXTUREFORMAT_R16_UNORM = 0x822a;
+/** RG unsigned short normed to [0, 1] **/
+Constants.TEXTUREFORMAT_RG16_UNORM = 0x822c;
+/** RGB unsigned short normed to [0, 1] **/
+Constants.TEXTUREFORMAT_RGB16_UNORM = 0x8054;
+/** RGBA unsigned short normed to [0, 1] **/
+Constants.TEXTUREFORMAT_RGBA16_UNORM = 0x805b;
+/** RED signed short normed to [-1, 1] **/
+Constants.TEXTUREFORMAT_R16_SNORM = 0x8f98;
+/** RG signed short normed to [-1, 1] **/
+Constants.TEXTUREFORMAT_RG16_SNORM = 0x8f99;
+/** RGB signed short normed to [-1, 1] **/
+Constants.TEXTUREFORMAT_RGB16_SNORM = 0x8f9a;
+/** RGBA signed short normed to [-1, 1] **/
+Constants.TEXTUREFORMAT_RGBA16_SNORM = 0x8f9b;
 /** RG */
 Constants.TEXTUREFORMAT_RG = 7;
 /** RED_INTEGER */
@@ -169,9 +227,13 @@ Constants.TEXTUREFORMAT_DEPTH24 = 16;
 Constants.TEXTUREFORMAT_DEPTH24UNORM_STENCIL8 = 17;
 /** Depth 32 bits float + Stencil 8 bits */
 Constants.TEXTUREFORMAT_DEPTH32FLOAT_STENCIL8 = 18;
+/** Stencil 8 bits */
+Constants.TEXTUREFORMAT_STENCIL8 = 19;
+/** UNDEFINED */
+Constants.TEXTUREFORMAT_UNDEFINED = 0xffffffff;
 /** Compressed BC7 */
 Constants.TEXTUREFORMAT_COMPRESSED_RGBA_BPTC_UNORM = 36492;
-/** Compressed BC7 (SRGB) */
+/** Compressed BC7 (SRGB+A) */
 Constants.TEXTUREFORMAT_COMPRESSED_SRGB_ALPHA_BPTC_UNORM = 36493;
 /** Compressed BC6 unsigned float */
 Constants.TEXTUREFORMAT_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT = 36495;
@@ -179,11 +241,11 @@ Constants.TEXTUREFORMAT_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT = 36495;
 Constants.TEXTUREFORMAT_COMPRESSED_RGB_BPTC_SIGNED_FLOAT = 36494;
 /** Compressed BC3 */
 Constants.TEXTUREFORMAT_COMPRESSED_RGBA_S3TC_DXT5 = 33779;
-/** Compressed BC3 (SRGB) */
+/** Compressed BC3 (SRGB+A) */
 Constants.TEXTUREFORMAT_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT = 35919;
 /** Compressed BC2 */
 Constants.TEXTUREFORMAT_COMPRESSED_RGBA_S3TC_DXT3 = 33778;
-/** Compressed BC2 (SRGB) */
+/** Compressed BC2 (SRGB+A) */
 Constants.TEXTUREFORMAT_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT = 35918;
 /** Compressed BC1 (RGBA) */
 Constants.TEXTUREFORMAT_COMPRESSED_RGBA_S3TC_DXT1 = 33777;
@@ -195,8 +257,60 @@ Constants.TEXTUREFORMAT_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT = 35917;
 Constants.TEXTUREFORMAT_COMPRESSED_SRGB_S3TC_DXT1_EXT = 35916;
 /** Compressed ASTC 4x4 */
 Constants.TEXTUREFORMAT_COMPRESSED_RGBA_ASTC_4x4 = 37808;
-/** Compressed ASTC 4x4 (SRGB) */
+/** Compressed ASTC 5x4 */
+Constants.TEXTUREFORMAT_COMPRESSED_RGBA_ASTC_5x4 = 37809;
+/** Compressed ASTC 5x5 */
+Constants.TEXTUREFORMAT_COMPRESSED_RGBA_ASTC_5x5 = 37810;
+/** Compressed ASTC 6x5 */
+Constants.TEXTUREFORMAT_COMPRESSED_RGBA_ASTC_6x5 = 37811;
+/** Compressed ASTC 6x6 */
+Constants.TEXTUREFORMAT_COMPRESSED_RGBA_ASTC_6x6 = 37812;
+/** Compressed ASTC 8x5 */
+Constants.TEXTUREFORMAT_COMPRESSED_RGBA_ASTC_8x5 = 37813;
+/** Compressed ASTC 8x6 */
+Constants.TEXTUREFORMAT_COMPRESSED_RGBA_ASTC_8x6 = 37814;
+/** Compressed ASTC 8x8 */
+Constants.TEXTUREFORMAT_COMPRESSED_RGBA_ASTC_8x8 = 37815;
+/** Compressed ASTC 10x5 */
+Constants.TEXTUREFORMAT_COMPRESSED_RGBA_ASTC_10x5 = 37816;
+/** Compressed ASTC 10x6 */
+Constants.TEXTUREFORMAT_COMPRESSED_RGBA_ASTC_10x6 = 37817;
+/** Compressed ASTC 10x8 */
+Constants.TEXTUREFORMAT_COMPRESSED_RGBA_ASTC_10x8 = 37818;
+/** Compressed ASTC 10x10 */
+Constants.TEXTUREFORMAT_COMPRESSED_RGBA_ASTC_10x10 = 37819;
+/** Compressed ASTC 12x10 */
+Constants.TEXTUREFORMAT_COMPRESSED_RGBA_ASTC_12x10 = 37820;
+/** Compressed ASTC 12x12 */
+Constants.TEXTUREFORMAT_COMPRESSED_RGBA_ASTC_12x12 = 37821;
+/** Compressed ASTC 4x4 (SRGB+A) */
 Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR = 37840;
+/** Compressed ASTC 5x4 (SRGB+A) */
+Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_ALPHA8_ASTC_5x4_KHR = 37841;
+/** Compressed ASTC 5x5 (SRGB+A) */
+Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_ALPHA8_ASTC_5x5_KHR = 37842;
+/** Compressed ASTC 6x5 (SRGB+A) */
+Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_ALPHA8_ASTC_6x5_KHR = 37843;
+/** Compressed ASTC 6x6 (SRGB+A) */
+Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_ALPHA8_ASTC_6x6_KHR = 37844;
+/** Compressed ASTC 8x5 (SRGB+A) */
+Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_ALPHA8_ASTC_8x5_KHR = 37845;
+/** Compressed ASTC 8x6 (SRGB+A) */
+Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_ALPHA8_ASTC_8x6_KHR = 37846;
+/** Compressed ASTC 8x8 (SRGB+A) */
+Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_ALPHA8_ASTC_8x8_KHR = 37847;
+/** Compressed ASTC 10x5 (SRGB+A) */
+Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_ALPHA8_ASTC_10x5_KHR = 37848;
+/** Compressed ASTC 10x6 (SRGB+A) */
+Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_ALPHA8_ASTC_10x6_KHR = 37849;
+/** Compressed ASTC 10x8 (SRGB+A) */
+Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_ALPHA8_ASTC_10x8_KHR = 37850;
+/** Compressed ASTC 10x10 (SRGB+A) */
+Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR = 37851;
+/** Compressed ASTC 12x10 (SRGB+A) */
+Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR = 37852;
+/** Compressed ASTC 12x12 (SRGB+A) */
+Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR = 37853;
 /** Compressed ETC1 (RGB) */
 Constants.TEXTUREFORMAT_COMPRESSED_RGB_ETC1_WEBGL = 36196;
 /** Compressed ETC2 (RGB) */
@@ -207,13 +321,13 @@ Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_ETC2 = 37493;
 Constants.TEXTUREFORMAT_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2 = 37494;
 /** Compressed ETC2 (SRGB+A1)*/
 Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2 = 37495;
-/** Compressed ETC2 (RGB+A) */
+/** Compressed ETC2 (RGBA) */
 Constants.TEXTUREFORMAT_COMPRESSED_RGBA8_ETC2_EAC = 37496;
-/** Compressed ETC2 (SRGB+1) */
+/** Compressed ETC2 (SRGB+A) */
 Constants.TEXTUREFORMAT_COMPRESSED_SRGB8_ALPHA8_ETC2_EAC = 37497;
 /** UNSIGNED_BYTE */
 Constants.TEXTURETYPE_UNSIGNED_BYTE = 0;
-/** UNSIGNED_BYTE (2nd reference) */
+/** @deprecated use more explicit TEXTURETYPE_UNSIGNED_BYTE instead. Use TEXTURETYPE_UNSIGNED_INTEGER for 32bits values.*/
 Constants.TEXTURETYPE_UNSIGNED_INT = 0;
 /** FLOAT */
 Constants.TEXTURETYPE_FLOAT = 1;
@@ -247,6 +361,16 @@ Constants.TEXTURETYPE_UNSIGNED_INT_5_9_9_9_REV = 14;
 Constants.TEXTURETYPE_FLOAT_32_UNSIGNED_INT_24_8_REV = 15;
 /** UNDEFINED */
 Constants.TEXTURETYPE_UNDEFINED = 16;
+/** 2D Texture target*/
+Constants.TEXTURE_2D = 3553;
+/** 2D Array Texture target */
+Constants.TEXTURE_2D_ARRAY = 35866;
+/** Cube Map Texture target */
+Constants.TEXTURE_CUBE_MAP = 34067;
+/** Cube Map Array Texture target */
+Constants.TEXTURE_CUBE_MAP_ARRAY = 0xdeadbeef;
+/** 3D Texture target */
+Constants.TEXTURE_3D = 32879;
 /** nearest is mag = nearest and min = nearest and no mip */
 Constants.TEXTURE_NEAREST_SAMPLINGMODE = 1;
 /** mag = nearest and min = nearest and mip = none */
@@ -337,9 +461,13 @@ Constants.MATERIAL_MiscDirtyFlag = 16;
  */
 Constants.MATERIAL_PrePassDirtyFlag = 32;
 /**
+ * The dirty image processing flag value
+ */
+Constants.MATERIAL_ImageProcessingDirtyFlag = 64;
+/**
  * The all dirty flag value
  */
-Constants.MATERIAL_AllDirtyFlag = 63;
+Constants.MATERIAL_AllDirtyFlag = 127;
 /**
  * Returns the triangle fill mode
  */
@@ -384,6 +512,46 @@ Constants.MATERIAL_ClockWiseSideOrientation = 0;
  * Stores the counter clock-wise side orientation
  */
 Constants.MATERIAL_CounterClockWiseSideOrientation = 1;
+/**
+ * Energy-conserving Oren Nayar diffuse model type.
+ */
+Constants.MATERIAL_DIFFUSE_MODEL_E_OREN_NAYAR = 0;
+/**
+ * Burley diffuse model type.
+ */
+Constants.MATERIAL_DIFFUSE_MODEL_BURLEY = 1;
+/**
+ * Lambertian diffuse model type.
+ */
+Constants.MATERIAL_DIFFUSE_MODEL_LAMBERT = 2;
+/**
+ * Babylon.js version less than 8.x
+ * IBL Lambert + Burley diffuse model type.
+ */
+Constants.MATERIAL_DIFFUSE_MODEL_LEGACY = 3;
+/**
+ * Specular lighting for dielectric materials follows the logic
+ * in the glTF specification and KHR_materials_specular extension.
+ * Specular colour is applied only at normal incidence (i.e. F0) while
+ * glancing angles (i.e. F90) tend towards white.
+ */
+Constants.MATERIAL_DIELECTRIC_SPECULAR_MODEL_GLTF = 0;
+/**
+ * Specular lighting for dielectric materials follows the logic
+ * in the OpenPBR specification. Specular colour is applied to all
+ * dielectric reflection, not just at normal incidence (i.e. F0).
+ */
+Constants.MATERIAL_DIELECTRIC_SPECULAR_MODEL_OPENPBR = 1;
+/**
+ * Specular lighting for metals follows the logic in the glTF specification.
+ * Base colour is applied at F0 while glancing angles tend towards white.
+ */
+Constants.MATERIAL_CONDUCTOR_SPECULAR_MODEL_GLTF = 0;
+/**
+ * Specular lighting for metals follows the logic in the OpenPBR specification.
+ * Specular colour is applied to glancing angles using the F82 spec.
+ */
+Constants.MATERIAL_CONDUCTOR_SPECULAR_MODEL_OPENPBR = 1;
 /**
  * Nothing
  * @see https://doc.babylonjs.com/features/featuresDeepDive/events/actions#triggers
@@ -537,18 +705,18 @@ Constants.SCENELOADER_SUMMARY_LOGGING = 2;
  */
 Constants.SCENELOADER_DETAILED_LOGGING = 3;
 /**
- * Constant used to retrieve the irradiance texture index in the textures array in the prepass
- * using getIndex(Constants.PREPASS_IRRADIANCE_TEXTURE_TYPE)
+ * Constant used to retrieve the legacy irradiance texture index in the textures array in the prepass
+ * using getIndex(Constants.PREPASS_IRRADIANCE_LEGACY_TEXTURE_TYPE)
  */
-Constants.PREPASS_IRRADIANCE_TEXTURE_TYPE = 0;
+Constants.PREPASS_IRRADIANCE_LEGACY_TEXTURE_TYPE = 0;
 /**
  * Constant used to retrieve the position texture index in the textures array in the prepass
- * using getIndex(Constants.PREPASS_POSITION_TEXTURE_INDEX)
+ * using getIndex(Constants.PREPASS_POSITION_TEXTURE_TYPE)
  */
 Constants.PREPASS_POSITION_TEXTURE_TYPE = 1;
 /**
  * Constant used to retrieve the velocity texture index in the textures array in the prepass
- * using getIndex(Constants.PREPASS_VELOCITY_TEXTURE_INDEX)
+ * using getIndex(Constants.PREPASS_VELOCITY_TEXTURE_TYPE)
  */
 Constants.PREPASS_VELOCITY_TEXTURE_TYPE = 2;
 /**
@@ -562,7 +730,7 @@ Constants.PREPASS_REFLECTIVITY_TEXTURE_TYPE = 3;
  */
 Constants.PREPASS_COLOR_TEXTURE_TYPE = 4;
 /**
- * Constant used to retrieve depth index in the textures array in the prepass
+ * Constant used to retrieve (camera view) depth index in the textures array in the prepass
  * using the getIndex(Constants.PREPASS_DEPTH_TEXTURE_TYPE)
  */
 Constants.PREPASS_DEPTH_TEXTURE_TYPE = 5;
@@ -572,10 +740,44 @@ Constants.PREPASS_DEPTH_TEXTURE_TYPE = 5;
  */
 Constants.PREPASS_NORMAL_TEXTURE_TYPE = 6;
 /**
- * Constant used to retrieve albedo index in the textures array in the prepass
+ * Constant used to retrieve (sqrt) albedo index in the textures array in the prepass
  * using the getIndex(Constants.PREPASS_ALBEDO_SQRT_TEXTURE_TYPE)
  */
 Constants.PREPASS_ALBEDO_SQRT_TEXTURE_TYPE = 7;
+/**
+ * Constant used to retrieve world normal index in the textures array in the prepass
+ * using the getIndex(Constants.PREPASS_WORLD_NORMAL_TEXTURE_TYPE)
+ */
+Constants.PREPASS_WORLD_NORMAL_TEXTURE_TYPE = 8;
+/**
+ * Constant used to retrieve the local position texture index in the textures array in the prepass
+ * using getIndex(Constants.PREPASS_LOCAL_POSITION_TEXTURE_TYPE)
+ */
+Constants.PREPASS_LOCAL_POSITION_TEXTURE_TYPE = 9;
+/**
+ * Constant used to retrieve screen-space (non-linear) depth index in the textures array in the prepass
+ * using the getIndex(Constants.PREPASS_SCREENSPACE_DEPTH_TEXTURE_TYPE)
+ */
+Constants.PREPASS_SCREENSPACE_DEPTH_TEXTURE_TYPE = 10;
+/**
+ * Constant used to retrieve the velocity texture index in the textures array in the prepass
+ * using getIndex(Constants.PREPASS_VELOCITY_LINEAR_TEXTURE_TYPE)
+ */
+Constants.PREPASS_VELOCITY_LINEAR_TEXTURE_TYPE = 11;
+/**
+ * Constant used to retrieve albedo index in the textures array in the prepass
+ * using the getIndex(Constants.PREPASS_ALBEDO_TEXTURE_TYPE)
+ */
+Constants.PREPASS_ALBEDO_TEXTURE_TYPE = 12;
+/**
+ * Constant used to retrieve normalized camera view depth geometry texture
+ */
+Constants.PREPASS_NORMALIZED_VIEW_DEPTH_TEXTURE_TYPE = 13;
+/**
+ * Constant used to retrieve the irradiance texture index in the textures array in the prepass
+ * using getIndex(Constants.PREPASS_IRRADIANCE_TEXTURE_TYPE)
+ */
+Constants.PREPASS_IRRADIANCE_TEXTURE_TYPE = 14;
 /** Flag to create a readable buffer (the buffer can be the source of a copy) */
 Constants.BUFFER_CREATIONFLAG_READ = 1;
 /** Flag to create a writable buffer (the buffer can be the destination of a copy) */
@@ -590,6 +792,8 @@ Constants.BUFFER_CREATIONFLAG_VERTEX = 8;
 Constants.BUFFER_CREATIONFLAG_INDEX = 16;
 /** Flag to create a buffer suitable to be used as a storage buffer */
 Constants.BUFFER_CREATIONFLAG_STORAGE = 32;
+/** Flag to create a buffer suitable to be used for indirect calls, such as `dispatchIndirect` */
+Constants.BUFFER_CREATIONFLAG_INDIRECT = 64;
 /**
  * Prefixes used by the engine for sub mesh draw wrappers
  */
@@ -674,10 +878,6 @@ Constants.RIG_MODE_STEREOSCOPIC_INTERLACED = 14;
  */
 Constants.RIG_MODE_VR = 20;
 /**
- * Defines that both eyes of the camera should be renderered in a VR mode (webVR).
- */
-Constants.RIG_MODE_WEBVR = 21;
-/**
  * Custom rig mode allowing rig cameras to be populated manually with any number of cameras
  */
 Constants.RIG_MODE_CUSTOM = 22;
@@ -724,6 +924,173 @@ Constants.GL_ALPHA_FUNCTION_ONE_MINUS_CONSTANT_COLOR = 0x8002;
 Constants.GL_ALPHA_FUNCTION_CONSTANT_ALPHA = 0x8003;
 /** Alpha blend function: ONE_MINUS_CONSTANT_ALPHA */
 Constants.GL_ALPHA_FUNCTION_ONE_MINUS_CONSTANT_ALPHA = 0x8004;
+/** Alpha blend function: SRC1 */
+Constants.GL_ALPHA_FUNCTION_SRC1_COLOR = 0x88f9;
+/** Alpha blend function: SRC1 */
+Constants.GL_ALPHA_FUNCTION_ONE_MINUS_SRC1_COLOR = 0x88fa;
+/** Alpha blend function: SRC1 */
+Constants.GL_ALPHA_FUNCTION_SRC1_ALPHA = 0x8589;
+/** Alpha blend function: SRC1 */
+Constants.GL_ALPHA_FUNCTION_ONE_MINUS_SRC1_ALPHA = 0x88fb;
 /** URL to the snippet server. Points to the public snippet server by default */
 Constants.SnippetUrl = "https://snippet.babylonjs.com";
+/** The fog is deactivated */
+Constants.FOGMODE_NONE = 0;
+/** The fog density is following an exponential function */
+Constants.FOGMODE_EXP = 1;
+/** The fog density is following an exponential function faster than FOGMODE_EXP */
+Constants.FOGMODE_EXP2 = 2;
+/** The fog density is following a linear function. */
+Constants.FOGMODE_LINEAR = 3;
+/**
+ * The byte type.
+ */
+Constants.BYTE = 5120;
+/**
+ * The unsigned byte type.
+ */
+Constants.UNSIGNED_BYTE = 5121;
+/**
+ * The short type.
+ */
+Constants.SHORT = 5122;
+/**
+ * The unsigned short type.
+ */
+Constants.UNSIGNED_SHORT = 5123;
+/**
+ * The integer type.
+ */
+Constants.INT = 5124;
+/**
+ * The unsigned integer type.
+ */
+Constants.UNSIGNED_INT = 5125;
+/**
+ * The float type.
+ */
+Constants.FLOAT = 5126;
+/**
+ * The half float type.
+ */
+Constants.HALF_FLOAT = 5131;
+/**
+ * Positions
+ */
+Constants.PositionKind = "position";
+/**
+ * Normals
+ */
+Constants.NormalKind = "normal";
+/**
+ * Tangents
+ */
+Constants.TangentKind = "tangent";
+/**
+ * Texture coordinates
+ */
+Constants.UVKind = "uv";
+/**
+ * Texture coordinates 2
+ */
+Constants.UV2Kind = "uv2";
+/**
+ * Texture coordinates 3
+ */
+Constants.UV3Kind = "uv3";
+/**
+ * Texture coordinates 4
+ */
+Constants.UV4Kind = "uv4";
+/**
+ * Texture coordinates 5
+ */
+Constants.UV5Kind = "uv5";
+/**
+ * Texture coordinates 6
+ */
+Constants.UV6Kind = "uv6";
+/**
+ * Colors
+ */
+Constants.ColorKind = "color";
+/**
+ * Instance Colors
+ */
+Constants.ColorInstanceKind = "instanceColor";
+/**
+ * Matrix indices (for bones)
+ */
+Constants.MatricesIndicesKind = "matricesIndices";
+/**
+ * Matrix weights (for bones)
+ */
+Constants.MatricesWeightsKind = "matricesWeights";
+/**
+ * Additional matrix indices (for bones)
+ */
+Constants.MatricesIndicesExtraKind = "matricesIndicesExtra";
+/**
+ * Additional matrix weights (for bones)
+ */
+Constants.MatricesWeightsExtraKind = "matricesWeightsExtra";
+// Animation type
+/**
+ * Float animation type
+ */
+Constants.ANIMATIONTYPE_FLOAT = 0;
+/**
+ * Vector3 animation type
+ */
+Constants.ANIMATIONTYPE_VECTOR3 = 1;
+/**
+ * Quaternion animation type
+ */
+Constants.ANIMATIONTYPE_QUATERNION = 2;
+/**
+ * Matrix animation type
+ */
+Constants.ANIMATIONTYPE_MATRIX = 3;
+/**
+ * Color3 animation type
+ */
+Constants.ANIMATIONTYPE_COLOR3 = 4;
+/**
+ * Color3 animation type
+ */
+Constants.ANIMATIONTYPE_COLOR4 = 7;
+/**
+ * Vector2 animation type
+ */
+Constants.ANIMATIONTYPE_VECTOR2 = 5;
+/**
+ * Size animation type
+ */
+Constants.ANIMATIONTYPE_SIZE = 6;
+/**
+ * The default minZ value for the near plane of a frustum light
+ */
+Constants.ShadowMinZ = 0;
+/**
+ * The default maxZ value for the far plane of a frustum light
+ */
+Constants.ShadowMaxZ = 10000;
+/**
+ * Used for Selection Outline Layer sampling methods
+ *
+ * Optimized brute force 3 directional sampling
+ *
+ * This method uses 1 center sample and 3 additional samples to compute the outline mask
+ * It is optimized but may produce artifacts when the outline thickness is set to high values.
+ */
+Constants.OUTLINELAYER_SAMPLING_TRIDIRECTIONAL = 0;
+/**
+ * Used for Selection Outline Layer sampling methods
+ *
+ * Brute force 8 directional sampling
+ *
+ * This method uses 1 center sample and 8 additional samples to compute the outline mask
+ * It is more precise but less optimized.
+ */
+Constants.OUTLINELAYER_SAMPLING_OCTADIRECTIONAL = 1;
 //# sourceMappingURL=constants.js.map

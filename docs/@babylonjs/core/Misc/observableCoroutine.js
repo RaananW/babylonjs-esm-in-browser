@@ -1,40 +1,9 @@
-import { Observable } from "./observable.js";
-import { runCoroutineAsync, inlineScheduler } from "./coroutine.js";
-function CreateObservableScheduler(observable) {
-    const coroutines = new Array();
-    const onSteps = new Array();
-    const onErrors = new Array();
-    const observer = observable.add(() => {
-        const count = coroutines.length;
-        for (let i = 0; i < count; i++) {
-            inlineScheduler(coroutines.shift(), onSteps.shift(), onErrors.shift());
-        }
-    });
-    const scheduler = (coroutine, onStep, onError) => {
-        coroutines.push(coroutine);
-        onSteps.push(onStep);
-        onErrors.push(onError);
-    };
-    return {
-        scheduler: scheduler,
-        dispose: () => {
-            observable.remove(observer);
-        },
-    };
-}
-Observable.prototype.runCoroutineAsync = function (coroutine) {
-    if (!this._coroutineScheduler) {
-        const schedulerAndDispose = CreateObservableScheduler(this);
-        this._coroutineScheduler = schedulerAndDispose.scheduler;
-        this._coroutineSchedulerDispose = schedulerAndDispose.dispose;
-    }
-    return runCoroutineAsync(coroutine, this._coroutineScheduler);
-};
-Observable.prototype.cancelAllCoroutines = function () {
-    if (this._coroutineSchedulerDispose) {
-        this._coroutineSchedulerDispose();
-    }
-    this._coroutineScheduler = undefined;
-    this._coroutineSchedulerDispose = undefined;
-};
+export * from "./observableCoroutine.types.js";
+/**
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import observableCoroutine.pure for tree-shakeable, side-effect-free usage.
+ */
+export * from "./observableCoroutine.pure.js";
+import { RegisterObservableCoroutine } from "./observableCoroutine.pure.js";
+RegisterObservableCoroutine();
 //# sourceMappingURL=observableCoroutine.js.map

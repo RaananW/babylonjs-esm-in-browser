@@ -1,14 +1,15 @@
-import { Vector3, Vector4 } from "../Maths/math.vector.js";
-import { Color3, Color4 } from "../Maths/math.color.js";
-import { Condition, ValueCondition } from "./condition.js";
-import { Action } from "./action.js";
-import { DoNothingAction } from "./directActions.js";
+import { Vector3, Vector4 } from "../Maths/math.vector.pure.js";
+import { Color3, Color4 } from "../Maths/math.color.pure.js";
+import { Condition, RegisterCondition, ValueCondition } from "./condition.pure.js";
+import { Action, RegisterAction } from "./action.pure.js";
+import { DoNothingAction, RegisterDirectActions } from "./directActions.pure.js";
 import { EngineStore } from "../Engines/engineStore.js";
 import { Logger } from "../Misc/logger.js";
 import { DeepCopier } from "../Misc/deepCopier.js";
 import { GetClass } from "../Misc/typeStore.js";
 import { AbstractActionManager } from "./abstractActionManager.js";
 
+import { _IsSideEffectImplemented } from "../Misc/devTools.js";
 /**
  * Action Manager manages all events to be triggered on a given mesh or the global scene.
  * A single scene can have many Action Managers to handle predefined actions on specific meshes.
@@ -33,7 +34,7 @@ export class ActionManager extends AbstractActionManager {
      * Releases all associated resources
      */
     dispose() {
-        const index = this._scene.actionManagers.indexOf(this);
+        const sceneIndex = this._scene.actionManagers.indexOf(this);
         for (let i = 0; i < this.actions.length; i++) {
             const action = this.actions[i];
             ActionManager.Triggers[action.trigger]--;
@@ -41,8 +42,13 @@ export class ActionManager extends AbstractActionManager {
                 delete ActionManager.Triggers[action.trigger];
             }
         }
-        if (index > -1) {
-            this._scene.actionManagers.splice(index, 1);
+        this.actions.length = 0;
+        if (sceneIndex > -1) {
+            this._scene.actionManagers.splice(sceneIndex, 1);
+        }
+        const ownerMeshes = this._scene.meshes.filter((m) => m.actionManager === this);
+        for (const ownerMesh of ownerMeshes) {
+            ownerMesh.actionManager = null;
         }
     }
     /**
@@ -111,7 +117,9 @@ export class ActionManager extends AbstractActionManager {
         for (let index = 0; index < this.actions.length; index++) {
             const action = this.actions[index];
             if (action.trigger >= ActionManager.OnPickTrigger && action.trigger <= ActionManager.OnPointerOutTrigger) {
-                return true;
+                if (action._evaluateConditionForCurrentFrame()) {
+                    return true;
+                }
             }
         }
         return false;
@@ -123,7 +131,9 @@ export class ActionManager extends AbstractActionManager {
         for (let index = 0; index < this.actions.length; index++) {
             const action = this.actions[index];
             if (action.trigger >= ActionManager.OnPickTrigger && action.trigger <= ActionManager.OnPickUpTrigger) {
-                return true;
+                if (action._evaluateConditionForCurrentFrame()) {
+                    return true;
+                }
             }
         }
         return false;
@@ -183,7 +193,12 @@ export class ActionManager extends AbstractActionManager {
                 if (evt) {
                     if (trigger === ActionManager.OnKeyUpTrigger || trigger === ActionManager.OnKeyDownTrigger) {
                         const parameter = action.getTriggerParameter();
-                        if (parameter && parameter !== evt.sourceEvent.keyCode) {
+                        if (typeof parameter === "function") {
+                            if (!parameter(evt)) {
+                                continue;
+                            }
+                        }
+                        else if (parameter && parameter !== evt.sourceEvent.keyCode) {
                             if (!parameter.toLowerCase) {
                                 continue;
                             }
@@ -226,30 +241,33 @@ export class ActionManager extends AbstractActionManager {
      */
     serialize(name) {
         const root = {
-            children: new Array(),
+            children: [],
             name: name,
-            type: 3,
-            properties: new Array(), // Empty for root but required
+            type: 3, // Root node
+            properties: [], // Empty for root but required
         };
         for (let i = 0; i < this.actions.length; i++) {
             const triggerObject = {
-                type: 0,
-                children: new Array(),
+                type: 0, // Trigger
+                children: [],
                 name: ActionManager.GetTriggerName(this.actions[i].trigger),
-                properties: new Array(),
+                properties: [],
             };
             const triggerOptions = this.actions[i].triggerOptions;
             if (triggerOptions && typeof triggerOptions !== "number") {
                 if (triggerOptions.parameter instanceof Node) {
                     triggerObject.properties.push(Action._GetTargetProperty(triggerOptions.parameter));
                 }
-                else {
+                else if (typeof triggerOptions.parameter === "object") {
                     const parameter = {};
                     DeepCopier.DeepCopy(triggerOptions.parameter, parameter, ["mesh"]);
                     if (triggerOptions.parameter && triggerOptions.parameter.mesh) {
                         parameter._meshId = triggerOptions.parameter.mesh.id;
                     }
                     triggerObject.properties.push({ name: "parameter", targetType: null, value: parameter });
+                }
+                else {
+                    triggerObject.properties.push({ name: "parameter", targetType: null, value: triggerOptions.parameter });
                 }
             }
             // Serialize child action, recursively
@@ -266,6 +284,9 @@ export class ActionManager extends AbstractActionManager {
      * @param scene defines the hosting scene
      */
     static Parse(parsedActions, object, scene) {
+        RegisterAction();
+        RegisterCondition();
+        RegisterDirectActions();
         const actionManager = new ActionManager(scene);
         if (object === null) {
             scene.actionManager = actionManager;
@@ -273,15 +294,10 @@ export class ActionManager extends AbstractActionManager {
         else {
             object.actionManager = actionManager;
         }
-        // instanciate a new object
-        const instanciate = (name, params) => {
+        // instantiate a new object
+        const instantiate = (name, params) => {
             const internalClassType = GetClass("BABYLON." + name);
-            if (internalClassType) {
-                const newInstance = Object.create(internalClassType.prototype);
-                // eslint-disable-next-line prefer-spread
-                newInstance.constructor.apply(newInstance, params);
-                return newInstance;
-            }
+            return internalClassType && new internalClassType(...params);
         };
         const parseParameter = (name, value, target, propertyPath) => {
             if (propertyPath === null) {
@@ -308,7 +324,7 @@ export class ActionManager extends AbstractActionManager {
                 return values[0];
             }
             // Parameters with multiple values such as Vector3 etc.
-            const split = new Array();
+            const split = [];
             for (let i = 0; i < values.length; i++) {
                 split.push(parseFloat(values[i]));
             }
@@ -331,7 +347,7 @@ export class ActionManager extends AbstractActionManager {
             if (parsedAction.detached) {
                 return;
             }
-            const parameters = new Array();
+            const parameters = [];
             let target = null;
             let propertyPath = null;
             const combine = parsedAction.combine && parsedAction.combine.length > 0;
@@ -343,7 +359,7 @@ export class ActionManager extends AbstractActionManager {
                 parameters.push(trigger);
             }
             if (combine) {
-                const actions = new Array();
+                const actions = [];
                 for (let j = 0; j < parsedAction.combine.length; j++) {
                     traverse(parsedAction.combine[j], ActionManager.NothingTrigger, condition, action, actions);
                 }
@@ -355,8 +371,11 @@ export class ActionManager extends AbstractActionManager {
                     const name = parsedAction.properties[i].name;
                     const targetType = parsedAction.properties[i].targetType;
                     if (name === "target") {
-                        if (targetType !== null && targetType === "SceneProperties") {
+                        if (targetType === "SceneProperties") {
                             value = target = scene;
+                        }
+                        else if (targetType === "MaterialProperties") {
+                            value = target = scene.getMaterialByName(value);
                         }
                         else {
                             value = target = scene.getNodeByName(value);
@@ -367,7 +386,7 @@ export class ActionManager extends AbstractActionManager {
                     }
                     else if (name === "sound") {
                         // Can not externalize to component, so only checks for the presence off the API.
-                        if (scene.getSoundByName) {
+                        if (_IsSideEffectImplemented(scene.getSoundByName)) {
                             value = scene.getSoundByName(value);
                         }
                     }
@@ -398,10 +417,11 @@ export class ActionManager extends AbstractActionManager {
                 parameters[parameters.length - 2] = condition;
             }
             // Action or condition(s) and not CombineAction
-            let newAction = instanciate(parsedAction.name, parameters);
+            let newAction = instantiate(parsedAction.name, parameters);
             if (newAction instanceof Condition && condition !== null) {
                 const nothing = new DoNothingAction(trigger, condition);
                 if (action) {
+                    // eslint-disable-next-line github/no-then
                     action.then(nothing);
                 }
                 else {
@@ -417,6 +437,7 @@ export class ActionManager extends AbstractActionManager {
                 else {
                     condition = null;
                     if (action) {
+                        // eslint-disable-next-line github/no-then
                         action.then(newAction);
                     }
                     else {
@@ -473,24 +494,26 @@ export class ActionManager extends AbstractActionManager {
             case 5:
                 return "OnPickDownTrigger";
             case 6:
-                return "OnPickUpTrigger";
+                return "OnDoublePickTrigger"; // start;
             case 7:
-                return "OnLongPressTrigger";
+                return "OnPickUpTrigger";
             case 8:
-                return "OnPointerOverTrigger";
+                return "OnLongPressTrigger";
             case 9:
-                return "OnPointerOutTrigger";
+                return "OnPointerOverTrigger";
             case 10:
-                return "OnEveryFrameTrigger";
+                return "OnPointerOutTrigger";
             case 11:
-                return "OnIntersectionEnterTrigger";
+                return "OnEveryFrameTrigger";
             case 12:
-                return "OnIntersectionExitTrigger";
+                return "OnIntersectionEnterTrigger";
             case 13:
-                return "OnKeyDownTrigger";
+                return "OnIntersectionExitTrigger";
             case 14:
-                return "OnKeyUpTrigger";
+                return "OnKeyDownTrigger";
             case 15:
+                return "OnKeyUpTrigger";
+            case 16:
                 return "OnPickOutTrigger";
             default:
                 return "";

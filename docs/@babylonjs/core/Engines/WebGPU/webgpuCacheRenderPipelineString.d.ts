@@ -1,5 +1,5 @@
-import type { Nullable } from "../../types";
-import { WebGPUCacheRenderPipeline } from "./webgpuCacheRenderPipeline";
+import { type Nullable } from "../../types.js";
+import { WebGPUCacheRenderPipeline } from "./webgpuCacheRenderPipeline.js";
 /**
  * Class not used, WebGPUCacheRenderPipelineTree is faster
  * @internal

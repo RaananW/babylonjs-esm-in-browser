@@ -1,9 +1,10 @@
 import { WebXRExperienceHelper } from "./webXRExperienceHelper.js";
 import { WebXRInput } from "./webXRInput.js";
-import { WebXRControllerPointerSelection } from "./features/WebXRControllerPointerSelection.js";
-import { WebXRNearInteraction } from "./features/WebXRNearInteraction.js";
+import { RegisterWebXRControllerPointerSelection, WebXRControllerPointerSelection, } from "./features/WebXRControllerPointerSelection.pure.js";
+import { RegisterWebXRNearInteraction, WebXRNearInteraction } from "./features/WebXRNearInteraction.pure.js";
 import { WebXREnterExitUI } from "./webXREnterExitUI.js";
-import { WebXRMotionControllerTeleportation } from "./features/WebXRControllerTeleportation.js";
+import { RegisterWebXRControllerTeleportation, WebXRMotionControllerTeleportation } from "./features/WebXRControllerTeleportation.pure.js";
+import { RegisterWebXRHandTracking, WebXRHandTracking } from "./features/WebXRHandTracking.pure.js";
 import { Logger } from "../Misc/logger.js";
 /**
  * Options for the default xr helper
@@ -11,7 +12,7 @@ import { Logger } from "../Misc/logger.js";
 export class WebXRDefaultExperienceOptions {
 }
 /**
- * Default experience which provides a similar setup to the previous webVRExperience
+ * Default experience for webxr
  */
 export class WebXRDefaultExperience {
     constructor() { }
@@ -21,7 +22,11 @@ export class WebXRDefaultExperience {
      * @param options options for basic configuration
      * @returns resulting WebXRDefaultExperience
      */
-    static CreateAsync(scene, options = {}) {
+    static async CreateAsync(scene, options = {}) {
+        RegisterWebXRControllerPointerSelection();
+        RegisterWebXRControllerTeleportation();
+        RegisterWebXRNearInteraction();
+        RegisterWebXRHandTracking();
         const result = new WebXRDefaultExperience();
         scene.onDisposeObservable.addOnce(() => {
             result.dispose();
@@ -42,14 +47,17 @@ export class WebXRDefaultExperience {
             }
             result.enterExitUI = new WebXREnterExitUI(scene, uiOptions);
         }
-        // Create base experience
-        return WebXRExperienceHelper.CreateAsync(scene)
-            .then((xrHelper) => {
+        try {
+            // Create base experience
+            const xrHelper = await WebXRExperienceHelper.CreateAsync(scene);
+            // eslint-disable-next-line require-atomic-updates
             result.baseExperience = xrHelper;
             if (options.ignoreNativeCameraTransformation) {
+                // eslint-disable-next-line require-atomic-updates
                 result.baseExperience.camera.compensateOnFirstFrame = false;
             }
             // Add controller support
+            // eslint-disable-next-line require-atomic-updates
             result.input = new WebXRInput(xrHelper.sessionManager, xrHelper.camera, {
                 controllerOptions: {
                     renderingGroupId: options.renderingGroupId,
@@ -63,7 +71,7 @@ export class WebXRDefaultExperience {
                     xrInput: result.input,
                     renderingGroupId: options.renderingGroupId,
                 };
-                result.pointerSelection = (result.baseExperience.featuresManager.enableFeature(WebXRControllerPointerSelection.Name, options.useStablePlugins ? "stable" : "latest", pointerSelectionOptions));
+                result.pointerSelection = result.baseExperience.featuresManager.enableFeature(WebXRControllerPointerSelection.Name, options.useStablePlugins ? "stable" : "latest", pointerSelectionOptions);
                 if (!options.disableTeleportation) {
                     // Add default teleportation, including rotation
                     result.teleportation = result.baseExperience.featuresManager.enableFeature(WebXRMotionControllerTeleportation.Name, options.useStablePlugins ? "stable" : "latest", {
@@ -86,24 +94,26 @@ export class WebXRDefaultExperience {
                     ...options.nearInteractionOptions,
                 });
             }
+            if (!options.disableHandTracking) {
+                // Add default hand tracking
+                result.baseExperience.featuresManager.enableFeature(WebXRHandTracking.Name, options.useStablePlugins ? "stable" : "latest", {
+                    xrInput: result.input,
+                    ...options.handSupportOptions,
+                }, undefined, false);
+            }
             // Create the WebXR output target
             result.renderTarget = result.baseExperience.sessionManager.getWebXRRenderTarget(options.outputCanvasOptions);
             if (!options.disableDefaultUI) {
                 // Create ui for entering/exiting xr
-                return result.enterExitUI.setHelperAsync(result.baseExperience, result.renderTarget);
+                await result.enterExitUI.setHelperAsync(result.baseExperience, result.renderTarget);
             }
-            else {
-                return;
-            }
-        })
-            .then(() => {
             return result;
-        })
-            .catch((error) => {
+        }
+        catch (error) {
             Logger.Error("Error initializing XR");
             Logger.Error(error);
             return result;
-        });
+        }
     }
     /**
      * Disposes of the experience helper

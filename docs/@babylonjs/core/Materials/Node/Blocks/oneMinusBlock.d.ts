@@ -1,27 +1,5 @@
-import { NodeMaterialBlock } from "../nodeMaterialBlock";
-import type { NodeMaterialBuildState } from "../nodeMaterialBuildState";
-import type { NodeMaterialConnectionPoint } from "../nodeMaterialBlockConnectionPoint";
 /**
- * Block used to get the opposite (1 - x) of a value
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import oneMinusBlock.pure for tree-shakeable, side-effect-free usage.
  */
-export declare class OneMinusBlock extends NodeMaterialBlock {
-    /**
-     * Creates a new OneMinusBlock
-     * @param name defines the block name
-     */
-    constructor(name: string);
-    /**
-     * Gets the current class name
-     * @returns the class name
-     */
-    getClassName(): string;
-    /**
-     * Gets the input component
-     */
-    get input(): NodeMaterialConnectionPoint;
-    /**
-     * Gets the output component
-     */
-    get output(): NodeMaterialConnectionPoint;
-    protected _buildBlock(state: NodeMaterialBuildState): this;
-}
+export * from "./oneMinusBlock.pure.js";

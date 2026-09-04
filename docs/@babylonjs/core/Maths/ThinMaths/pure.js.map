@@ -1,0 +1,1 @@
+{"version":3,"file":"pure.js","sourceRoot":"","sources":["../../../../../dev/core/src/Maths/ThinMaths/pure.ts"],"names":[],"mappings":"AAAA,6DAA6D;AAC7D,cAAc,mBAAmB,CAAC;AAClC,cAAc,6BAA6B,CAAC","sourcesContent":["/** Pure barrel — re-exports only side-effect-free modules */\nexport * from \"./thinMath.matrix\";\nexport * from \"./thinMath.matrix.functions\";\n"]}

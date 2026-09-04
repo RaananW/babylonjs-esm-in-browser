@@ -1,9 +1,80 @@
-import type { Nullable } from "../types";
-import { Vector2, Vector3, Vector4 } from "../Maths/math.vector";
-import { Color4 } from "../Maths/math.color";
-import type { ParticleSystem } from "./particleSystem";
-import type { SubEmitter } from "./subEmitter";
-import type { ColorGradient, FactorGradient } from "../Misc/gradients";
+import { type Nullable } from "../types.js";
+import { Vector2, Vector3, Vector4 } from "../Maths/math.vector.pure.js";
+import { Color4 } from "../Maths/math.color.pure.js";
+import { type SubEmitter } from "./subEmitter.js";
+import { type ColorGradient, type FactorGradient } from "../Misc/gradients.js";
+import { type ThinParticleSystem } from "./thinParticleSystem.js";
+/**
+ * @internal
+ * Holds all internal properties of a Particle, grouped into a single sub-object
+ * to keep the Particle's own property count low (V8 in-object property limit).
+ */
+declare class ParticleInternalProperties {
+    /** @internal */
+    randomCellOffset?: number;
+    /** @internal */
+    initialDirection: Nullable<Vector3>;
+    /** @internal */
+    attachedSubEmitters: Nullable<Array<SubEmitter>>;
+    /** @internal */
+    initialStartSpriteCellId: number;
+    /** @internal */
+    initialEndSpriteCellId: number;
+    /** @internal */
+    initialSpriteCellLoop: boolean;
+    /** @internal */
+    currentColorGradient: Nullable<ColorGradient>;
+    /** @internal */
+    currentColor1: Color4;
+    /** @internal */
+    currentColor2: Color4;
+    /** @internal */
+    currentSizeGradient: Nullable<FactorGradient>;
+    /** @internal */
+    currentSize1: number;
+    /** @internal */
+    currentSize2: number;
+    /** @internal */
+    currentAngularSpeedGradient: Nullable<FactorGradient>;
+    /** @internal */
+    currentAngularSpeed1: number;
+    /** @internal */
+    currentAngularSpeed2: number;
+    /** @internal */
+    currentVelocityGradient: Nullable<FactorGradient>;
+    /** @internal */
+    currentVelocity1: number;
+    /** @internal */
+    currentVelocity2: number;
+    /** @internal */
+    directionScale: number;
+    /** @internal */
+    scaledDirection: Vector3;
+    /** @internal */
+    currentLimitVelocityGradient: Nullable<FactorGradient>;
+    /** @internal */
+    currentLimitVelocity1: number;
+    /** @internal */
+    currentLimitVelocity2: number;
+    /** @internal */
+    currentDragGradient: Nullable<FactorGradient>;
+    /** @internal */
+    currentDrag1: number;
+    /** @internal */
+    currentDrag2: number;
+    /** @internal */
+    randomNoiseCoordinates1: Nullable<Vector3>;
+    /** @internal */
+    randomNoiseCoordinates2: Nullable<Vector3>;
+    /** @internal */
+    localPosition?: Vector3;
+    /**
+     * Callback triggered when the particle is reset
+     */
+    onReset: Nullable<() => void>;
+    /** @internal */
+    reset(): void;
+}
 /**
  * A particle represents one of the element emitted by a particle system.
  * This is mainly define by its coordinates, direction, velocity and age.
@@ -12,7 +83,7 @@ export declare class Particle {
     /**
      * The particle system the particle belongs to.
      */
-    particleSystem: ParticleSystem;
+    particleSystem: ThinParticleSystem;
     private static _Count;
     /**
      * Unique ID of the particle
@@ -34,6 +105,14 @@ export declare class Particle {
      * The color change of the particle per step.
      */
     colorStep: Color4;
+    /**
+     * The creation color of the particle.
+     */
+    initialColor: Color4;
+    /**
+     * The color used when the end of life of the particle.
+     */
+    colorDead: Color4;
     /**
      * Defines how long will the life of the particle be.
      */
@@ -66,60 +145,12 @@ export declare class Particle {
      * The information required to support color remapping
      */
     remapData: Vector4;
+    /**
+     * Gets or sets an object used to store user defined information for the particle
+     */
+    metadata: any;
     /** @internal */
-    _randomCellOffset?: number;
-    /** @internal */
-    _initialDirection: Nullable<Vector3>;
-    /** @internal */
-    _attachedSubEmitters: Nullable<Array<SubEmitter>>;
-    /** @internal */
-    _initialStartSpriteCellID: number;
-    /** @internal */
-    _initialEndSpriteCellID: number;
-    /** @internal */
-    _initialSpriteCellLoop: boolean;
-    /** @internal */
-    _currentColorGradient: Nullable<ColorGradient>;
-    /** @internal */
-    _currentColor1: Color4;
-    /** @internal */
-    _currentColor2: Color4;
-    /** @internal */
-    _currentSizeGradient: Nullable<FactorGradient>;
-    /** @internal */
-    _currentSize1: number;
-    /** @internal */
-    _currentSize2: number;
-    /** @internal */
-    _currentAngularSpeedGradient: Nullable<FactorGradient>;
-    /** @internal */
-    _currentAngularSpeed1: number;
-    /** @internal */
-    _currentAngularSpeed2: number;
-    /** @internal */
-    _currentVelocityGradient: Nullable<FactorGradient>;
-    /** @internal */
-    _currentVelocity1: number;
-    /** @internal */
-    _currentVelocity2: number;
-    /** @internal */
-    _currentLimitVelocityGradient: Nullable<FactorGradient>;
-    /** @internal */
-    _currentLimitVelocity1: number;
-    /** @internal */
-    _currentLimitVelocity2: number;
-    /** @internal */
-    _currentDragGradient: Nullable<FactorGradient>;
-    /** @internal */
-    _currentDrag1: number;
-    /** @internal */
-    _currentDrag2: number;
-    /** @internal */
-    _randomNoiseCoordinates1: Vector3;
-    /** @internal */
-    _randomNoiseCoordinates2: Vector3;
-    /** @internal */
-    _localPosition?: Vector3;
+    _properties: ParticleInternalProperties;
     /**
      * Creates a new instance Particle
      * @param particleSystem the particle system the particle belongs to
@@ -128,7 +159,7 @@ export declare class Particle {
     /**
      * The particle system the particle belongs to.
      */
-    particleSystem: ParticleSystem);
+    particleSystem: ThinParticleSystem);
     private _updateCellInfoFromSystem;
     /**
      * Defines how the sprite cell index is updated for the particle
@@ -148,3 +179,4 @@ export declare class Particle {
      */
     copyTo(other: Particle): void;
 }
+export {};

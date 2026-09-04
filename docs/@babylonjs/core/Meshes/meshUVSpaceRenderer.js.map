@@ -1,0 +1,1 @@
+{"version":3,"file":"meshUVSpaceRenderer.js","sourceRoot":"","sources":["../../../../dev/core/src/Meshes/meshUVSpaceRenderer.ts"],"names":[],"mappings":"AAAA,cAAc,4BAA4B,CAAC","sourcesContent":["export * from \"./meshUVSpaceRenderer.pure\";\nexport type * from \"./meshUVSpaceRenderer.types\";\n"]}

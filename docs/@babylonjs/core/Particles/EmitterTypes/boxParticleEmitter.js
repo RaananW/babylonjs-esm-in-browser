@@ -1,6 +1,6 @@
+import { Vector3 } from "../../Maths/math.vector.pure.js";
+import { RandomRange } from "../../Maths/math.scalar.functions.js";
 import { DeepCopier } from "../../Misc/deepCopier.js";
-import { Vector3 } from "../../Maths/math.vector.js";
-import { Scalar } from "../../Maths/math.scalar.js";
 /**
  * Particle emitter emitting particles from the inside of a box.
  * It emits the particles randomly between 2 given directions.
@@ -35,9 +35,9 @@ export class BoxParticleEmitter {
      * @param isLocal defines if the direction should be set in local space
      */
     startDirectionFunction(worldMatrix, directionToUpdate, particle, isLocal) {
-        const randX = Scalar.RandomRange(this.direction1.x, this.direction2.x);
-        const randY = Scalar.RandomRange(this.direction1.y, this.direction2.y);
-        const randZ = Scalar.RandomRange(this.direction1.z, this.direction2.z);
+        const randX = RandomRange(this.direction1.x, this.direction2.x);
+        const randY = RandomRange(this.direction1.y, this.direction2.y);
+        const randZ = RandomRange(this.direction1.z, this.direction2.z);
         if (isLocal) {
             directionToUpdate.x = randX;
             directionToUpdate.y = randY;
@@ -54,9 +54,9 @@ export class BoxParticleEmitter {
      * @param isLocal defines if the position should be set in local space
      */
     startPositionFunction(worldMatrix, positionToUpdate, particle, isLocal) {
-        const randX = Scalar.RandomRange(this.minEmitBox.x, this.maxEmitBox.x);
-        const randY = Scalar.RandomRange(this.minEmitBox.y, this.maxEmitBox.y);
-        const randZ = Scalar.RandomRange(this.minEmitBox.z, this.maxEmitBox.z);
+        const randX = RandomRange(this.minEmitBox.x, this.maxEmitBox.x);
+        const randY = RandomRange(this.minEmitBox.y, this.maxEmitBox.y);
+        const randZ = RandomRange(this.minEmitBox.z, this.maxEmitBox.z);
         if (isLocal) {
             positionToUpdate.x = randX;
             positionToUpdate.y = randY;

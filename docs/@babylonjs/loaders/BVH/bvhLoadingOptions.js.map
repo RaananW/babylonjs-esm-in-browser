@@ -1,0 +1,1 @@
+{"version":3,"file":"bvhLoadingOptions.js","sourceRoot":"","sources":["../../../../dev/loaders/src/BVH/bvhLoadingOptions.ts"],"names":[],"mappings":"","sourcesContent":["/**\n * Options for loading BVH files\n */\nexport type BVHLoadingOptions = {\n    /**\n     * Defines the loop mode of the animation to load.\n     */\n    loopMode: number;\n};\n"]}

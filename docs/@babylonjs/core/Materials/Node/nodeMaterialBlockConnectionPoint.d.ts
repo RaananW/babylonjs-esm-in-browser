@@ -1,9 +1,9 @@
-import { NodeMaterialBlockConnectionPointTypes } from "./Enums/nodeMaterialBlockConnectionPointTypes";
-import { NodeMaterialBlockTargets } from "./Enums/nodeMaterialBlockTargets";
-import type { Nullable } from "../../types";
-import type { InputBlock } from "./Blocks/Input/inputBlock";
-import { Observable } from "../../Misc/observable";
-import type { NodeMaterialBlock } from "./nodeMaterialBlock";
+import { NodeMaterialBlockConnectionPointTypes } from "./Enums/nodeMaterialBlockConnectionPointTypes.js";
+import { NodeMaterialBlockTargets } from "./Enums/nodeMaterialBlockTargets.js";
+import { type Nullable } from "../../types.js";
+import { type InputBlock } from "./Blocks/Input/inputBlock.js";
+import { Observable } from "../../Misc/observable.js";
+import { type NodeMaterialBlock } from "./nodeMaterialBlock.js";
 /**
  * Enum used to define the compatibility state between two connection points
  */
@@ -38,23 +38,50 @@ export declare class NodeMaterialConnectionPoint {
      */
     static AreEquivalentTypes(type1: number, type2: number): boolean;
     /** @internal */
-    _ownerBlock: NodeMaterialBlock;
+    _isInactive: boolean;
+    /**
+     * Boolean used to provide visual clue to users when some ports are not active in the current block configuration
+     */
+    get isInactive(): boolean;
     /** @internal */
-    _connectedPoint: Nullable<NodeMaterialConnectionPoint>;
-    private _endpoints;
+    _preventBubbleUp: boolean;
+    /** @internal */
+    readonly _ownerBlock: NodeMaterialBlock;
+    private _connectedPointBackingField;
+    private _connectedPointTypeChangedObserver;
+    private get _connectedPoint();
+    private set _connectedPoint(value);
+    private readonly _endpoints;
     private _associatedVariableName;
-    private _direction;
+    private readonly _direction;
     /** @internal */
-    _typeConnectionSource: Nullable<NodeMaterialConnectionPoint>;
+    _redirectedSource: Nullable<NodeMaterialConnectionPoint>;
+    private _typeConnectionSourceBackingField;
+    private _typeConnectionSourceTypeChangedObserver;
     /** @internal */
-    _defaultConnectionPointType: Nullable<NodeMaterialBlockConnectionPointTypes>;
+    get _typeConnectionSource(): Nullable<NodeMaterialConnectionPoint>;
     /** @internal */
-    _linkedConnectionSource: Nullable<NodeMaterialConnectionPoint>;
+    set _typeConnectionSource(value: Nullable<NodeMaterialConnectionPoint>);
+    private _defaultConnectionPointTypeBackingField;
+    /** @internal */
+    get _defaultConnectionPointType(): Nullable<NodeMaterialBlockConnectionPointTypes>;
+    /** @internal */
+    set _defaultConnectionPointType(value: Nullable<NodeMaterialBlockConnectionPointTypes>);
+    /** @internal */
+    _isMainLinkSource: boolean;
+    private _linkedConnectionSourceBackingField;
+    private _linkedConnectionSourceTypeChangedObserver;
+    /** @internal */
+    get _linkedConnectionSource(): Nullable<NodeMaterialConnectionPoint>;
+    /** @internal */
+    set _linkedConnectionSource(value: Nullable<NodeMaterialConnectionPoint>);
     /** @internal */
     _acceptedConnectionPointType: Nullable<NodeMaterialConnectionPoint>;
     private _type;
     /** @internal */
     _enforceAssociatedVariableName: boolean;
+    /** @internal */
+    _forPostBuild: boolean;
     /** Gets the direction of the point */
     get direction(): NodeMaterialConnectionPointDirection;
     /** Indicates that this connection point needs dual validation before being connected to another point */
@@ -70,7 +97,20 @@ export declare class NodeMaterialConnectionPoint {
     /**
      * Observable triggered when this point is connected
      */
-    onConnectionObservable: Observable<NodeMaterialConnectionPoint>;
+    readonly onConnectionObservable: Observable<NodeMaterialConnectionPoint>;
+    /**
+     * Observable triggered when this point is disconnected
+     */
+    readonly onDisconnectionObservable: Observable<NodeMaterialConnectionPoint>;
+    /**
+     * Observable triggered when the type of the connection point is changed
+     */
+    readonly onTypeChangedObservable: Observable<NodeMaterialBlockConnectionPointTypes>;
+    private _isTypeChangeObservableNotifying;
+    /**
+     * Gets the declaration variable name in the shader
+     */
+    get declarationVariableName(): string;
     /**
      * Gets or sets the associated variable name in the shader
      */
@@ -86,7 +126,7 @@ export declare class NodeMaterialConnectionPoint {
     /**
      * Gets or sets the connection point name
      */
-    name: string;
+    readonly name: string;
     /**
      * Gets or sets the connection point name
      */
@@ -201,4 +241,6 @@ export declare class NodeMaterialConnectionPoint {
      * Release resources
      */
     dispose(): void;
+    private _updateTypeDependentState;
+    private _notifyTypeChanged;
 }

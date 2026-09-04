@@ -1,4 +1,4 @@
-import type { IStencilState } from "./IStencilState";
+import { type IStencilState } from "./IStencilState.js";
 /**
  * @internal
  **/
@@ -15,12 +15,18 @@ export declare class StencilStateComposer {
     protected _opStencilFail: number;
     protected _opDepthFail: number;
     protected _opStencilDepthPass: number;
+    protected _backFunc: number;
+    protected _backOpStencilFail: number;
+    protected _backOpDepthFail: number;
+    protected _backOpStencilDepthPass: number;
     stencilGlobal: IStencilState;
     stencilMaterial: IStencilState | undefined;
     useStencilGlobalOnly: boolean;
     get isDirty(): boolean;
     get func(): number;
     set func(value: number);
+    get backFunc(): number;
+    set backFunc(value: number);
     get funcRef(): number;
     set funcRef(value: number);
     get funcMask(): number;
@@ -31,6 +37,12 @@ export declare class StencilStateComposer {
     set opDepthFail(value: number);
     get opStencilDepthPass(): number;
     set opStencilDepthPass(value: number);
+    get backOpStencilFail(): number;
+    set backOpStencilFail(value: number);
+    get backOpDepthFail(): number;
+    set backOpDepthFail(value: number);
+    get backOpStencilDepthPass(): number;
+    set backOpStencilDepthPass(value: number);
     get mask(): number;
     set mask(value: number);
     get enabled(): boolean;

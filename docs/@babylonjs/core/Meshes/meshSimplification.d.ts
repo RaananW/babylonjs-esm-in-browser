@@ -1,4 +1,7 @@
-import { Mesh } from "../Meshes/mesh";
+import { Mesh } from "../Meshes/mesh.pure.js";
+import { type ISimplificationSettings, SimplificationType } from "./meshSimplification.common.js";
+export { SimplificationSettings, SimplificationType } from "./meshSimplification.common.js";
+export { type ISimplificationSettings } from "./meshSimplification.common.js";
 /**
  * A simplifier interface for future simplification implementations
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/simplifyingMeshes
@@ -12,50 +15,6 @@ export interface ISimplifier {
      * @param errorCallback in case of an error, this callback will be called. optional.
      */
     simplify(settings: ISimplificationSettings, successCallback: (simplifiedMeshes: Mesh) => void, errorCallback?: () => void): void;
-}
-/**
- * Expected simplification settings.
- * Quality should be between 0 and 1 (1 being 100%, 0 being 0%)
- * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/simplifyingMeshes
- */
-export interface ISimplificationSettings {
-    /**
-     * Gets or sets the expected quality
-     */
-    quality: number;
-    /**
-     * Gets or sets the distance when this optimized version should be used
-     */
-    distance: number;
-    /**
-     * Gets an already optimized mesh
-     */
-    optimizeMesh?: boolean;
-}
-/**
- * Class used to specify simplification options
- * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/simplifyingMeshes
- */
-export declare class SimplificationSettings implements ISimplificationSettings {
-    /** expected quality */
-    quality: number;
-    /** distance when this optimized version should be used */
-    distance: number;
-    /** already optimized mesh  */
-    optimizeMesh?: boolean | undefined;
-    /**
-     * Creates a SimplificationSettings
-     * @param quality expected quality
-     * @param distance distance when this optimized version should be used
-     * @param optimizeMesh already optimized mesh
-     */
-    constructor(
-    /** expected quality */
-    quality: number, 
-    /** distance when this optimized version should be used */
-    distance: number, 
-    /** already optimized mesh  */
-    optimizeMesh?: boolean | undefined);
 }
 /**
  * Interface used to define a simplification task
@@ -113,19 +72,9 @@ export declare class SimplificationQueue {
     private _getSimplifier;
 }
 /**
- * The implemented types of simplification
- * At the moment only Quadratic Error Decimation is implemented
- * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/simplifyingMeshes
- */
-export declare enum SimplificationType {
-    /** Quadratic error decimation */
-    QUADRATIC = 0
-}
-/**
  * An implementation of the Quadratic Error simplification algorithm.
  * Original paper : http://www1.cs.columbia.edu/~cs4162/html05s/garland97.pdf
  * Ported mostly from QSlim and http://voxels.blogspot.de/2014/05/quadric-mesh-simplification-with-source.html to babylon JS
- * @author RaananW
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/simplifyingMeshes
  */
 export declare class QuadraticErrorSimplification implements ISimplifier {

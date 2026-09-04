@@ -1,12 +1,12 @@
-import { Color3 } from "../Maths/math.color";
-import type { Scene } from "../scene";
-import type { Nullable } from "../types";
-import type { Skeleton } from "../Bones/skeleton";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import type { LinesMesh } from "../Meshes/linesMesh";
-import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer";
-import { ShaderMaterial } from "../Materials/shaderMaterial";
-import type { ISkeletonViewerOptions, IBoneWeightShaderOptions, ISkeletonMapShaderOptions } from "./ISkeletonViewer";
+import { Color3 } from "../Maths/math.color.pure.js";
+import { type Scene } from "../scene.js";
+import { type Nullable } from "../types.js";
+import { type Skeleton } from "../Bones/skeleton.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { type LinesMesh } from "../Meshes/linesMesh.js";
+import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer.js";
+import { ShaderMaterial } from "../Materials/shaderMaterial.pure.js";
+import { type ISkeletonViewerOptions, type IBoneWeightShaderOptions, type ISkeletonMapShaderOptions } from "./ISkeletonViewer.js";
 /**
  * Class used to render a debug view of a given skeleton
  * @see http://www.babylonjs-playground.com/#1BZJVJ#8
@@ -15,12 +15,12 @@ export declare class SkeletonViewer {
     /** defines the skeleton to render */
     skeleton: Skeleton;
     /** defines the mesh attached to the skeleton */
-    mesh: AbstractMesh;
-    /** defines a boolean indicating if bones matrices must be forced to update before rendering (true by default)  */
+    mesh: Nullable<AbstractMesh>;
+    /** [true] defines a boolean indicating if bones matrices must be forced to update before rendering (true by default)  */
     autoUpdateBonesMatrices: boolean;
-    /** defines the rendering group id to use with the viewer */
+    /** [2] defines the rendering group id to use with the viewer */
     renderingGroupId: number;
-    /** is the options for the viewer */
+    /** [Object] is the options for the viewer */
     options: Partial<ISkeletonViewerOptions>;
     /** public Display constants BABYLON.SkeletonViewer.DISPLAY_LINES */
     static readonly DISPLAY_LINES = 0;
@@ -72,13 +72,15 @@ export declare class SkeletonViewer {
     /** Gets the utilityLayer. */
     get utilityLayer(): Nullable<UtilityLayerRenderer>;
     /** Checks Ready Status. */
-    get isReady(): Boolean;
+    get isReady(): boolean;
     /** Sets Ready Status. */
     set ready(value: boolean);
     /** Gets the debugMesh */
     get debugMesh(): Nullable<AbstractMesh> | Nullable<LinesMesh>;
     /** Sets the debugMesh */
     set debugMesh(value: Nullable<AbstractMesh> | Nullable<LinesMesh>);
+    /** Gets the local axes mesh */
+    get debugLocalAxesMesh(): Nullable<LinesMesh>;
     /** Gets the displayMode */
     get displayMode(): number;
     /** Sets the displayMode */
@@ -96,14 +98,14 @@ export declare class SkeletonViewer {
     /** defines the skeleton to render */
     skeleton: Skeleton, 
     /** defines the mesh attached to the skeleton */
-    mesh: AbstractMesh, 
+    mesh: Nullable<AbstractMesh>, 
     /** The Scene scope*/
     scene: Scene, 
-    /** defines a boolean indicating if bones matrices must be forced to update before rendering (true by default)  */
+    /** [true] defines a boolean indicating if bones matrices must be forced to update before rendering (true by default)  */
     autoUpdateBonesMatrices?: boolean, 
-    /** defines the rendering group id to use with the viewer */
+    /** [2] defines the rendering group id to use with the viewer */
     renderingGroupId?: number, 
-    /** is the options for the viewer */
+    /** [Object] is the options for the viewer */
     options?: Partial<ISkeletonViewerOptions>);
     /** The Dynamic bindings for the update functions */
     private _bindObs;
@@ -120,12 +122,8 @@ export declare class SkeletonViewer {
      * @param animationState
      */
     private _revert;
-    /**
-     * function to get the absolute bind pose of a bone by accumulating transformations up the bone hierarchy.
-     * @param bone
-     * @param matrix
-     */
-    private _getAbsoluteBindPoseToRef;
+    private _createSpur;
+    private _getBoundingSphereForBone;
     /**
      * function to build and bind sphere joint points and spur bone representations.
      * @param spheresOnly
@@ -153,7 +151,7 @@ export declare class SkeletonViewer {
      * @param option String of the option name
      * @param value The numerical option value
      */
-    changeDisplayOptions(option: string, value: number): void;
+    changeDisplayOptions(option: string, value: number | boolean): void;
     /** Release associated resources */
     dispose(): void;
 }

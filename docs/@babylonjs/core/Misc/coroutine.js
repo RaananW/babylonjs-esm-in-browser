@@ -17,6 +17,7 @@ export function inlineScheduler(coroutine, onStep, onError) {
             onStep(step);
         }
         else {
+            // eslint-disable-next-line github/no-then
             step.value.then(() => {
                 step.value = undefined;
                 onStep(step);
@@ -108,9 +109,9 @@ export function runCoroutineSync(coroutine, abortSignal) {
 /**
  * @internal
  */
-export function runCoroutineAsync(coroutine, scheduler, abortSignal) {
+export async function runCoroutineAsync(coroutine, scheduler, abortSignal) {
     // Run the coroutine with a yielding scheduler, resolving or rejecting the result promise when the coroutine finishes.
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
         runCoroutine(coroutine, scheduler, resolve, reject, abortSignal);
     });
 }
@@ -138,6 +139,7 @@ export function makeSyncFunction(coroutineFactory, abortSignal) {
  * @internal
  */
 export function makeAsyncFunction(coroutineFactory, scheduler, abortSignal) {
+    // eslint-disable-next-line @typescript-eslint/promise-function-async
     return (...params) => {
         // Run the coroutine asynchronously.
         return runCoroutineAsync(coroutineFactory(...params), scheduler, abortSignal);

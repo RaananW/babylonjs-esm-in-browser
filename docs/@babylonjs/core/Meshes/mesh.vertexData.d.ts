@@ -1,12 +1,10 @@
-import type { Nullable, FloatArray, IndicesArray } from "../types";
-import type { Matrix, Vector2 } from "../Maths/math.vector";
-import { Vector3, Vector4 } from "../Maths/math.vector";
-import type { Color3 } from "../Maths/math.color";
-import { Color4 } from "../Maths/math.color";
-import type { Coroutine } from "../Misc/coroutine";
-import type { ICreateCapsuleOptions } from "./Builders/capsuleBuilder";
-declare type Geometry = import("../Meshes/geometry").Geometry;
-declare type Mesh = import("../Meshes/mesh").Mesh;
+import { type Nullable, type FloatArray, type IndicesArray } from "../types.js";
+import { type Matrix, type Vector2, Vector3, Vector4 } from "../Maths/math.vector.pure.js";
+import { type Color3, Color4 } from "../Maths/math.color.pure.js";
+import { type Coroutine } from "../Misc/coroutine.js";
+import { type ICreateCapsuleOptions } from "./Builders/capsuleBuilder.js";
+import { type Geometry } from "../Meshes/geometry.js";
+import { type Mesh } from "../Meshes/mesh.js";
 /**
  * Define an interface for all classes that will get and set the data on vertices
  */
@@ -39,7 +37,7 @@ export interface IGetSetVerticesData {
      * @param updatable defines if the vertex must be flagged as updatable (false as default)
      * @param stride defines the stride to use (0 by default). This value is deduced from the kind value if not specified
      */
-    setVerticesData(kind: string, data: FloatArray, updatable: boolean): void;
+    setVerticesData(kind: string, data: FloatArray, updatable: boolean, stride?: number): void;
     /**
      * Update a specific associated vertex buffer
      * @param kind defines which buffer to write to (positions, indices, normals, etc). Possible `kind` values :
@@ -68,10 +66,88 @@ export interface IGetSetVerticesData {
      */
     setIndices(indices: IndicesArray, totalVertices: Nullable<number>, updatable?: boolean): void;
 }
+/** Class used to attach material info to sub section of a vertex data class */
+export declare class VertexDataMaterialInfo {
+    /** Defines the material index to use */
+    materialIndex: number;
+    /** Defines vertex index start*/
+    verticesStart: number;
+    /** Defines vertices count */
+    verticesCount: number;
+    /** Defines index start */
+    indexStart: number;
+    /** Defines indices count */
+    indexCount: number;
+}
+/**
+ * Interface used to define a object like a vertex data structure
+ */
+export interface IVertexDataLike {
+    /**
+     * An array of the x, y, z position of each vertex  [...., x, y, z, .....]
+     */
+    positions: Nullable<FloatArray>;
+    /**
+     * An array of the x, y, z normal vector of each vertex  [...., x, y, z, .....]
+     */
+    normals?: Nullable<FloatArray>;
+    /**
+     * An array of the x, y, z, w tangent vector of each vertex  [...., x, y, z, w, .....]
+     */
+    tangents?: Nullable<FloatArray>;
+    /**
+     * An array of u,v which maps a texture image onto each vertex  [...., u, v, .....]
+     */
+    uvs?: Nullable<FloatArray>;
+    /**
+     * A second array of u,v which maps a texture image onto each vertex  [...., u, v, .....]
+     */
+    uvs2?: Nullable<FloatArray>;
+    /**
+     * A third array of u,v which maps a texture image onto each vertex  [...., u, v, .....]
+     */
+    uvs3?: Nullable<FloatArray>;
+    /**
+     * A fourth array of u,v which maps a texture image onto each vertex  [...., u, v, .....]
+     */
+    uvs4?: Nullable<FloatArray>;
+    /**
+     * A fifth array of u,v which maps a texture image onto each vertex  [...., u, v, .....]
+     */
+    uvs5?: Nullable<FloatArray>;
+    /**
+     * A sixth array of u,v which maps a texture image onto each vertex  [...., u, v, .....]
+     */
+    uvs6?: Nullable<FloatArray>;
+    /**
+     * An array of the r, g, b, a, color of each vertex  [...., r, g, b, a, .....]
+     */
+    colors?: Nullable<FloatArray>;
+    /**
+     * An array containing the list of indices to the array of matrices produced by bones, each vertex have up to 4 indices (8 if the matricesIndicesExtra is set).
+     */
+    matricesIndices?: Nullable<FloatArray>;
+    /**
+     * An array containing the list of weights defining the weight of each indexed matrix in the final computation
+     */
+    matricesWeights?: Nullable<FloatArray>;
+    /**
+     * An array extending the number of possible indices
+     */
+    matricesIndicesExtra?: Nullable<FloatArray>;
+    /**
+     * An array extending the number of possible weights when the number of indices is extended
+     */
+    matricesWeightsExtra?: Nullable<FloatArray>;
+    /**
+     * An array of i, j, k the three vertex indices required for each triangular facet  [...., i, j, k .....]
+     */
+    indices?: Nullable<IndicesArray>;
+}
 /**
  * This class contains the various kinds of data on every vertex of a mesh used in determining its shape and appearance
  */
-export declare class VertexData {
+export declare class VertexData implements IVertexDataLike {
     /**
      * Mesh side orientation : usually the external or front surface
      */
@@ -88,6 +164,7 @@ export declare class VertexData {
      * Mesh side orientation : by default, `FRONTSIDE`
      */
     static readonly DEFAULTSIDE = 0;
+    private static _UniqueIdGenerator;
     /**
      * An array of the x, y, z position of each vertex  [...., x, y, z, .....]
      */
@@ -97,7 +174,7 @@ export declare class VertexData {
      */
     normals: Nullable<FloatArray>;
     /**
-     * An array of the x, y, z tangent vector of each vertex  [...., x, y, z, .....]
+     * An array of the x, y, z, w tangent vector of each vertex  [...., x, y, z, w, .....]
      */
     tangents: Nullable<FloatArray>;
     /**
@@ -149,6 +226,26 @@ export declare class VertexData {
      */
     indices: Nullable<IndicesArray>;
     /**
+     * An array defining material association for sub sections of the vertex data
+     */
+    materialInfos: Nullable<Array<VertexDataMaterialInfo>>;
+    /**
+     * Gets the unique ID of this vertex Data
+     */
+    uniqueId: number;
+    /**
+     * Metadata used to store contextual values
+     */
+    metadata: any;
+    /**
+     * Gets or sets a value indicating that the mesh must be flagged with hasVertexAlpha = true
+     */
+    hasVertexAlpha: boolean;
+    /**
+     * Creates a new VertexData
+     */
+    constructor();
+    /**
      * Uses the passed data array to set the set the values for the specified kind of data
      * @param data a linear array of floating numbers
      * @param kind the type of data that is being set, eg positions, colors etc
@@ -199,19 +296,34 @@ export declare class VertexData {
      */
     transform(matrix: Matrix): VertexData;
     /**
+     * Generates an array of vertex data where each vertex data only has one material info
+     * @returns An array of VertexData
+     */
+    splitBasedOnMaterialID(): VertexData[];
+    /**
      * Merges the passed VertexData into the current one
      * @param others the VertexData to be merged into the current one
      * @param use32BitsIndices defines a boolean indicating if indices must be store in a 32 bits array
      * @param forceCloneIndices defines a boolean indicating if indices are forced to be cloned
+     * @param mergeMaterialIds defines a boolean indicating if we need to merge the material infos
+     * @param enableCompletion defines a boolean indicating if the vertex data should be completed to be compatible
      * @returns the modified VertexData
      */
-    merge(others: VertexData | VertexData[], use32BitsIndices?: boolean, forceCloneIndices?: boolean): VertexData;
+    merge(others: VertexData | VertexData[], use32BitsIndices?: boolean, forceCloneIndices?: boolean, mergeMaterialIds?: boolean, enableCompletion?: boolean): VertexData;
     /**
      * @internal
      */
-    _mergeCoroutine(transform: Matrix | undefined, vertexDatas: (readonly [vertexData: VertexData, transform?: Matrix])[], use32BitsIndices: boolean | undefined, isAsync: boolean, forceCloneIndices: boolean): Coroutine<VertexData>;
+    _mergeCoroutine(transform: Matrix | undefined, vertexDatas: {
+        vertexData: VertexData;
+        transform?: Matrix;
+    }[], use32BitsIndices: boolean | undefined, isAsync: boolean, forceCloneIndices: boolean, mergeMaterialIds?: boolean, enableCompletion?: boolean): Coroutine<VertexData>;
     private static _MergeElement;
     private _validate;
+    /**
+     * Clone the current vertex data
+     * @returns a copy of the current data
+     */
+    clone(): VertexData;
     /**
      * Serializes the VertexData
      * @returns a serialized object
@@ -247,16 +359,6 @@ export declare class VertexData {
      * * invertUV swaps in the U and V coordinates when applying a texture, optional, default false
      * * uvs a linear array, of length 2 * number of vertices, of custom UV values, optional
      * * colors a linear array, of length 4 * number of vertices, of custom color values, optional
-     * @param options.pathArray
-     * @param options.closeArray
-     * @param options.closePath
-     * @param options.offset
-     * @param options.sideOrientation
-     * @param options.frontUVs
-     * @param options.backUVs
-     * @param options.invertUV
-     * @param options.uvs
-     * @param options.colors
      * @returns the VertexData of the ribbon
      * @deprecated use CreateRibbonVertexData instead
      */
@@ -284,15 +386,6 @@ export declare class VertexData {
      * * sideOrientation optional and takes the values : Mesh.FRONTSIDE (default), Mesh.BACKSIDE or Mesh.DOUBLESIDE
      * * frontUvs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the front side, optional, default vector4 (0, 0, 1, 1)
      * * backUVs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the back side, optional, default vector4 (0, 0, 1, 1)
-     * @param options.size
-     * @param options.width
-     * @param options.height
-     * @param options.depth
-     * @param options.faceUV
-     * @param options.faceColors
-     * @param options.sideOrientation
-     * @param options.frontUVs
-     * @param options.backUVs
      * @returns the VertexData of the box
      * @deprecated Please use CreateBoxVertexData from the BoxBuilder file instead
      */
@@ -310,22 +403,18 @@ export declare class VertexData {
     /**
      * Creates the VertexData for a tiled box
      * @param options an object used to set the following optional parameters for the box, required but can be empty
-     * * faceTiles sets the pattern, tile size and number of tiles for a face
-     * * faceUV an array of 6 Vector4 elements used to set different images to each box side
-     * * faceColors an array of 6 Color3 elements used to set different colors to each box side
-     * * sideOrientation optional and takes the values : Mesh.FRONTSIDE (default), Mesh.BACKSIDE or Mesh.DOUBLESIDE
-     * @param options.pattern
-     * @param options.width
-     * @param options.height
-     * @param options.depth
-     * @param options.tileSize
-     * @param options.tileWidth
-     * @param options.tileHeight
-     * @param options.alignHorizontal
-     * @param options.alignVertical
-     * @param options.faceUV
-     * @param options.faceColors
-     * @param options.sideOrientation
+     * - `pattern` sets the pattern
+     * - `width` sets the width
+     * - `height` sets the height
+     * - `depth` sets the depth
+     * - `tileSize` sets the tile size
+     * - `tileWidth` sets the tile width
+     * - `tileHeight` sets the tile height
+     * - `alignHorizontal` sets the horizontal alignment
+     * - `alignVertical` sets the vertical alignment
+     * - `faceUV` an array of 6 Vector4 elements used to set different images to each box side
+     * - `faceColors` an array of 6 Color3 elements used to set different colors to each box side
+     * - `sideOrientation` optional and takes the values : Mesh.FRONTSIDE (default), Mesh.BACKSIDE or Mesh.DOUBLESIDE
      * @returns the VertexData of the box
      * @deprecated Please use CreateTiledBoxVertexData instead
      */
@@ -353,18 +442,6 @@ export declare class VertexData {
      * * sideOrientation optional and takes the values : Mesh.FRONTSIDE (default), Mesh.BACKSIDE or Mesh.DOUBLESIDE
      * * frontUvs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the front side, optional, default vector4 (0, 0, 1, 1)
      * * backUVs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the back side, optional, default vector4 (0, 0, 1, 1)
-     * @param options.pattern
-     * @param options.tileSize
-     * @param options.tileWidth
-     * @param options.tileHeight
-     * @param options.size
-     * @param options.width
-     * @param options.height
-     * @param options.alignHorizontal
-     * @param options.alignVertical
-     * @param options.sideOrientation
-     * @param options.frontUVs
-     * @param options.backUVs
      * @returns the VertexData of the tiled plane
      * @deprecated use CreateTiledPlaneVertexData instead
      */
@@ -395,16 +472,6 @@ export declare class VertexData {
      * * sideOrientation optional and takes the values : Mesh.FRONTSIDE (default), Mesh.BACKSIDE or Mesh.DOUBLESIDE
      * * frontUvs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the front side, optional, default vector4 (0, 0, 1, 1)
      * * backUVs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the back side, optional, default vector4 (0, 0, 1, 1)
-     * @param options.segments
-     * @param options.diameter
-     * @param options.diameterX
-     * @param options.diameterY
-     * @param options.diameterZ
-     * @param options.arc
-     * @param options.slice
-     * @param options.sideOrientation
-     * @param options.frontUVs
-     * @param options.backUVs
      * @returns the VertexData of the ellipsoid
      * @deprecated use CreateSphereVertexData instead
      */
@@ -428,7 +495,7 @@ export declare class VertexData {
      * * diameterBottom sets the diameter of the bottom of the cone, overwrites diameter,  optional, default diameter
      * * diameter sets the diameter of the top and bottom of the cone, optional default 1
      * * tessellation the number of prism sides, 3 for a triangular prism, optional, default 24
-     * * subdivisions` the number of rings along the cylinder height, optional, default 1
+     * * `subdivisions` the number of rings along the cylinder height, optional, default 1
      * * arc a number from 0 to 1, to create an unclosed cylinder based on the fraction of the circumference given by the arc value, optional, default 1
      * * faceColors an array of Color3 elements used to set different colors to the top, rings and bottom respectively
      * * faceUV an array of Vector4 elements used to set different images to the top, rings and bottom respectively
@@ -437,20 +504,6 @@ export declare class VertexData {
      * * sideOrientation optional and takes the values : Mesh.FRONTSIDE (default), Mesh.BACKSIDE or Mesh.DOUBLESIDE
      * * frontUvs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the front side, optional, default vector4 (0, 0, 1, 1)
      * * backUVs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the back side, optional, default vector4 (0, 0, 1, 1)
-     * @param options.height
-     * @param options.diameterTop
-     * @param options.diameterBottom
-     * @param options.diameter
-     * @param options.tessellation
-     * @param options.subdivisions
-     * @param options.arc
-     * @param options.faceColors
-     * @param options.faceUV
-     * @param options.hasRings
-     * @param options.enclose
-     * @param options.sideOrientation
-     * @param options.frontUVs
-     * @param options.backUVs
      * @returns the VertexData of the cylinder, cone or prism
      * @deprecated please use CreateCylinderVertexData instead
      */
@@ -479,12 +532,6 @@ export declare class VertexData {
      * * sideOrientation optional and takes the values : Mesh.FRONTSIDE (default), Mesh.BACKSIDE or Mesh.DOUBLESIDE
      * * frontUvs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the front side, optional, default vector4 (0, 0, 1, 1)
      * * backUVs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the back side, optional, default vector4 (0, 0, 1, 1)
-     * @param options.diameter
-     * @param options.thickness
-     * @param options.tessellation
-     * @param options.sideOrientation
-     * @param options.frontUVs
-     * @param options.backUVs
      * @returns the VertexData of the torus
      * @deprecated use CreateTorusVertexData instead
      */
@@ -501,8 +548,6 @@ export declare class VertexData {
      * @param options an object used to set the following optional parameters for the LineSystem, required but can be empty
      *  - lines an array of lines, each line being an array of successive Vector3
      *  - colors an array of line colors, each of the line colors being an array of successive Color4, one per line point
-     * @param options.lines
-     * @param options.colors
      * @returns the VertexData of the LineSystem
      * @deprecated use CreateLineSystemVertexData instead
      */
@@ -517,10 +562,6 @@ export declare class VertexData {
      *  - dashSize the size of the dashes relative to the dash number, optional, default 3
      *  - gapSize the size of the gap between two successive dashes relative to the dash number, optional, default 1
      *  - dashNb the intended total number of dashes, optional, default 200
-     * @param options.points
-     * @param options.dashSize
-     * @param options.gapSize
-     * @param options.dashNb
      * @returns the VertexData for the DashedLines
      * @deprecated use CreateDashedLinesVertexData instead
      */
@@ -536,11 +577,6 @@ export declare class VertexData {
      *  - width the width (x direction) of the ground, optional, default 1
      *  - height the height (z direction) of the ground, optional, default 1
      *  - subdivisions the number of subdivisions per side, optional, default 1
-     * @param options.width
-     * @param options.height
-     * @param options.subdivisions
-     * @param options.subdivisionsX
-     * @param options.subdivisionsY
      * @returns the VertexData of the Ground
      * @deprecated Please use CreateGroundVertexData instead
      */
@@ -558,18 +594,8 @@ export declare class VertexData {
      * * zmin the ground minimum Z coordinate, optional, default -1
      * * xmax the ground maximum X coordinate, optional, default 1
      * * zmax the ground maximum Z coordinate, optional, default 1
-     * * subdivisions a javascript object {w: positive integer, h: positive integer}, `w` and `h` are the numbers of subdivisions on the ground width and height creating 'tiles', default {w: 6, h: 6}
-     * * precision a javascript object {w: positive integer, h: positive integer}, `w` and `h` are the numbers of subdivisions on the tile width and height, default {w: 2, h: 2}
-     * @param options.xmin
-     * @param options.zmin
-     * @param options.xmax
-     * @param options.zmax
-     * @param options.subdivisions
-     * @param options.subdivisions.w
-     * @param options.subdivisions.h
-     * @param options.precision
-     * @param options.precision.w
-     * @param options.precision.h
+     * * subdivisions a javascript object `\{w: positive integer, h: positive integer\}`, `w` and `h` are the numbers of subdivisions on the ground width and height creating 'tiles', default `\{w: 6, h: 6\}`
+     * * precision a javascript object `\{w: positive integer, h: positive integer\}`, `w` and `h` are the numbers of subdivisions on the tile width and height, default `\{w: 2, h: 2\}`
      * @returns the VertexData of the TiledGround
      * @deprecated use CreateTiledGroundVertexData instead
      */
@@ -600,16 +626,6 @@ export declare class VertexData {
      * * bufferWidth the width of image
      * * bufferHeight the height of image
      * * alphaFilter Remove any data where the alpha channel is below this value, defaults 0 (all data visible)
-     * @param options.width
-     * @param options.height
-     * @param options.subdivisions
-     * @param options.minHeight
-     * @param options.maxHeight
-     * @param options.colorFilter
-     * @param options.buffer
-     * @param options.bufferWidth
-     * @param options.bufferHeight
-     * @param options.alphaFilter
      * @returns the VertexData of the Ground designed from a heightmap
      * @deprecated use CreateGroundFromHeightMapVertexData instead
      */
@@ -634,12 +650,6 @@ export declare class VertexData {
      * * sideOrientation optional and takes the values : Mesh.FRONTSIDE (default), Mesh.BACKSIDE or Mesh.DOUBLESIDE
      * * frontUvs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the front side, optional, default vector4 (0, 0, 1, 1)
      * * backUVs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the back side, optional, default vector4 (0, 0, 1, 1)
-     * @param options.size
-     * @param options.width
-     * @param options.height
-     * @param options.sideOrientation
-     * @param options.frontUVs
-     * @param options.backUVs
      * @returns the VertexData of the box
      * @deprecated use CreatePlaneVertexData instead
      */
@@ -660,12 +670,6 @@ export declare class VertexData {
      * * sideOrientation optional and takes the values : Mesh.FRONTSIDE (default), Mesh.BACKSIDE or Mesh.DOUBLESIDE
      * * frontUvs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the front side, optional, default vector4 (0, 0, 1, 1)
      * * backUVs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the back side, optional, default vector4 (0, 0, 1, 1)
-     * @param options.radius
-     * @param options.tessellation
-     * @param options.arc
-     * @param options.sideOrientation
-     * @param options.frontUVs
-     * @param options.backUVs
      * @returns the VertexData of the box
      * @deprecated use CreateDiscVertexData instead
      */
@@ -703,15 +707,6 @@ export declare class VertexData {
      * * sideOrientation optional and takes the values : Mesh.FRONTSIDE (default), Mesh.BACKSIDE or Mesh.DOUBLESIDE
      * * frontUvs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the front side, optional, default vector4 (0, 0, 1, 1)
      * * backUVs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the back side, optional, default vector4 (0, 0, 1, 1)
-     * @param options.radius
-     * @param options.radiusX
-     * @param options.radiusY
-     * @param options.radiusZ
-     * @param options.flat
-     * @param options.subdivisions
-     * @param options.sideOrientation
-     * @param options.frontUVs
-     * @param options.backUVs
      * @returns the VertexData of the IcoSphere
      * @deprecated use CreateIcoSphereVertexData instead
      */
@@ -744,18 +739,6 @@ export declare class VertexData {
      * * sideOrientation optional and takes the values : Mesh.FRONTSIDE (default), Mesh.BACKSIDE or Mesh.DOUBLESIDE
      * * frontUvs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the front side, optional, default vector4 (0, 0, 1, 1)
      * * backUVs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the back side, optional, default vector4 (0, 0, 1, 1)
-     * @param options.type
-     * @param options.size
-     * @param options.sizeX
-     * @param options.sizeY
-     * @param options.sizeZ
-     * @param options.custom
-     * @param options.faceUV
-     * @param options.faceColors
-     * @param options.flat
-     * @param options.sideOrientation
-     * @param options.frontUVs
-     * @param options.backUVs
      * @returns the VertexData of the Polyhedron
      * @deprecated use CreatePolyhedronVertexData instead
      */
@@ -792,15 +775,6 @@ export declare class VertexData {
      * * sideOrientation optional and takes the values : Mesh.FRONTSIDE (default), Mesh.BACKSIDE or Mesh.DOUBLESIDE
      * * frontUvs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the front side, optional, default vector4 (0, 0, 1, 1)
      * * backUVs only usable when you create a double-sided mesh, used to choose what parts of the texture image to crop and apply on the back side, optional, default vector4 (0, 0, 1, 1)
-     * @param options.radius
-     * @param options.tube
-     * @param options.radialSegments
-     * @param options.tubularSegments
-     * @param options.p
-     * @param options.q
-     * @param options.sideOrientation
-     * @param options.frontUVs
-     * @param options.backUVs
      * @returns the VertexData of the Torus Knot
      * @deprecated use CreateTorusKnotVertexData instead
      */
@@ -832,17 +806,6 @@ export declare class VertexData {
      * * depthSort : optional boolean to enable the facet depth sort computation
      * * distanceTo : optional Vector3 to compute the facet depth from this location
      * * depthSortedFacets : optional array of depthSortedFacets to store the facet distances from the reference location
-     * @param options.facetNormals
-     * @param options.facetPositions
-     * @param options.facetPartitioning
-     * @param options.ratio
-     * @param options.bInfo
-     * @param options.bbSize
-     * @param options.subDiv
-     * @param options.useRightHandedSystem
-     * @param options.depthSort
-     * @param options.distanceTo
-     * @param options.depthSortedFacets
      */
     static ComputeNormals(positions: any, indices: any, normals: any, options?: {
         facetNormals?: any;
@@ -862,10 +825,15 @@ export declare class VertexData {
      */
     static _ComputeSides(sideOrientation: number, positions: FloatArray, indices: FloatArray | IndicesArray, normals: FloatArray, uvs: FloatArray, frontUVs?: Vector4, backUVs?: Vector4): void;
     /**
+     * Creates a VertexData from serialized data
+     * @param parsedVertexData the parsed data from an imported file
+     * @returns a VertexData
+     */
+    static Parse(parsedVertexData: any): VertexData;
+    /**
      * Applies VertexData created from the imported parameters to the geometry
      * @param parsedVertexData the parsed data from an imported file
      * @param geometry the geometry to apply the VertexData to
      */
     static ImportVertexData(parsedVertexData: any, geometry: Geometry): void;
 }
-export {};

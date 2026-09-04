@@ -1,7 +1,7 @@
-import type { Nullable } from "../../types";
-import type { ArcRotateCamera } from "../../Cameras/arcRotateCamera";
-import type { ICameraInput } from "../../Cameras/cameraInputsManager";
-import { Gamepad } from "../../Gamepads/gamepad";
+import { type Nullable } from "../../types.js";
+import { type ArcRotateCamera } from "../../Cameras/arcRotateCamera.js";
+import { type ICameraInput } from "../../Cameras/cameraInputsManager.js";
+import { Gamepad } from "../../Gamepads/gamepad.js";
 /**
  * Manage the gamepad inputs to control an arc rotate camera.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs

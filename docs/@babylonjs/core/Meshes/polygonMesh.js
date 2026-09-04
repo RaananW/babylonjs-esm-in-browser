@@ -1,7 +1,7 @@
 import { Logger } from "../Misc/logger.js";
-import { Vector3, Vector2 } from "../Maths/math.vector.js";
-import { VertexBuffer } from "../Buffers/buffer.js";
-import { Mesh } from "../Meshes/mesh.js";
+import { Vector3, Vector2 } from "../Maths/math.vector.pure.js";
+import { VertexBuffer } from "../Buffers/buffer.pure.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
 import { VertexData } from "../Meshes/mesh.vertexData.js";
 import { Path2 } from "../Maths/math.path.js";
 import { Epsilon } from "../Maths/math.constants.js";
@@ -10,6 +10,7 @@ import { EngineStore } from "../Engines/engineStore.js";
  * Vector2 wth index property
  */
 class IndexedVector2 extends Vector2 {
+    /** @internal */
     constructor(original, 
     /** Index of the vector2 */
     index) {
@@ -22,21 +23,24 @@ class IndexedVector2 extends Vector2 {
  */
 class PolygonPoints {
     constructor() {
-        this.elements = new Array();
+        /** @internal */
+        this.elements = [];
     }
+    /** @internal */
     add(originalPoints) {
-        const result = new Array();
-        originalPoints.forEach((point) => {
+        const result = [];
+        for (const point of originalPoints) {
             const newPoint = new IndexedVector2(point, this.elements.length);
             result.push(newPoint);
             this.elements.push(newPoint);
-        });
+        }
         return result;
     }
+    /** @internal */
     computeBounds() {
         const lmin = new Vector2(this.elements[0].x, this.elements[0].y);
         const lmax = new Vector2(this.elements[0].x, this.elements[0].y);
-        this.elements.forEach((point) => {
+        for (const point of this.elements) {
             // x
             if (point.x < lmin.x) {
                 lmin.x = point.x;
@@ -51,7 +55,7 @@ class PolygonPoints {
             else if (point.y > lmax.y) {
                 lmax.y = point.y;
             }
-        });
+        }
         return {
             min: lmin,
             max: lmax,
@@ -85,7 +89,7 @@ export class Polygon {
      * @returns points that make the resulting circle
      */
     static Circle(radius, cx = 0, cy = 0, numberOfSides = 32) {
-        const result = new Array();
+        const result = [];
         let angle = 0;
         const increment = (Math.PI * 2) / numberOfSides;
         for (let i = 0; i < numberOfSides; i++) {
@@ -126,6 +130,11 @@ export class Polygon {
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/creation/param/polyMeshBuilder
  */
 export class PolygonMeshBuilder {
+    _addToepoint(points) {
+        for (const p of points) {
+            this._epoints.push(p.x, p.y);
+        }
+    }
     /**
      * Creates a PolygonMeshBuilder
      * @param name name of the builder
@@ -154,11 +163,6 @@ export class PolygonMeshBuilder {
         this._outlinepoints.add(points);
         if (typeof this.bjsEarcut === "undefined") {
             Logger.Warn("Earcut was not found, the polygon will not be built.");
-        }
-    }
-    _addToepoint(points) {
-        for (const p of points) {
-            this._epoints.push(p.x, p.y);
         }
     }
     /**
@@ -199,28 +203,28 @@ export class PolygonMeshBuilder {
      */
     buildVertexData(depth = 0, smoothingThreshold = 2) {
         const result = new VertexData();
-        const normals = new Array();
-        const positions = new Array();
-        const uvs = new Array();
+        const normals = [];
+        const positions = [];
+        const uvs = [];
         const bounds = this._points.computeBounds();
-        this._points.elements.forEach((p) => {
+        for (const p of this._points.elements) {
             normals.push(0, 1.0, 0);
             positions.push(p.x, 0, p.y);
             uvs.push((p.x - bounds.min.x) / bounds.width, (p.y - bounds.min.y) / bounds.height);
-        });
-        const indices = new Array();
+        }
+        const indices = [];
         const res = this.bjsEarcut(this._epoints, this._eholes, 2);
         for (let i = 0; i < res.length; i++) {
             indices.push(res[i]);
         }
         if (depth > 0) {
             const positionscount = positions.length / 3; //get the current pointcount
-            this._points.elements.forEach((p) => {
+            for (const p of this._points.elements) {
                 //add the elements at the depth
                 normals.push(0, -1.0, 0);
                 positions.push(p.x, -depth, p.y);
                 uvs.push(1 - (p.x - bounds.min.x) / bounds.width, 1 - (p.y - bounds.min.y) / bounds.height);
-            });
+            }
             const totalCount = indices.length;
             for (let i = 0; i < totalCount; i += 3) {
                 const i0 = indices[i + 0];
@@ -232,9 +236,9 @@ export class PolygonMeshBuilder {
             }
             //Add the sides
             this._addSide(positions, normals, uvs, indices, bounds, this._outlinepoints, depth, false, smoothingThreshold);
-            this._holes.forEach((hole) => {
+            for (const hole of this._holes) {
                 this._addSide(positions, normals, uvs, indices, bounds, hole, depth, true, smoothingThreshold);
-            });
+            }
         }
         result.indices = indices;
         result.positions = positions;
@@ -274,45 +278,45 @@ export class PolygonMeshBuilder {
                 vp = vp.scale(-1);
                 vn = vn.scale(-1);
             }
-            const vc_norm = vc.normalizeToNew();
-            let vp_norm = vp.normalizeToNew();
-            let vn_norm = vn.normalizeToNew();
-            const dotp = Vector3.Dot(vp_norm, vc_norm);
+            const vcNorm = vc.normalizeToNew();
+            let vpNorm = vp.normalizeToNew();
+            let vnNorm;
+            const dotp = Vector3.Dot(vpNorm, vcNorm);
             if (dotp > smoothingThreshold) {
                 if (dotp < Epsilon - 1) {
-                    vp_norm = new Vector3(p.x, 0, p.y).subtract(new Vector3(p1.x, 0, p1.y)).normalize();
+                    vpNorm = new Vector3(p.x, 0, p.y).subtract(new Vector3(p1.x, 0, p1.y)).normalize();
                 }
                 else {
                     // cheap average weighed by side length
-                    vp_norm = vp.add(vc).normalize();
+                    vpNorm = vp.add(vc).normalize();
                 }
             }
             else {
-                vp_norm = vc_norm;
+                vpNorm = vcNorm;
             }
             const dotn = Vector3.Dot(vn, vc);
             if (dotn > smoothingThreshold) {
                 if (dotn < Epsilon - 1) {
                     // back to back
-                    vn_norm = new Vector3(p1.x, 0, p1.y).subtract(new Vector3(p.x, 0, p.y)).normalize();
+                    vnNorm = new Vector3(p1.x, 0, p1.y).subtract(new Vector3(p.x, 0, p.y)).normalize();
                 }
                 else {
                     // cheap average weighed by side length
-                    vn_norm = vn.add(vc).normalize();
+                    vnNorm = vn.add(vc).normalize();
                 }
             }
             else {
-                vn_norm = vc_norm;
+                vnNorm = vcNorm;
             }
             uvs.push(ulength / bounds.width, 0);
             uvs.push(ulength / bounds.width, 1);
             ulength += vc.length();
             uvs.push(ulength / bounds.width, 0);
             uvs.push(ulength / bounds.width, 1);
-            normals.push(vp_norm.x, vp_norm.y, vp_norm.z);
-            normals.push(vp_norm.x, vp_norm.y, vp_norm.z);
-            normals.push(vn_norm.x, vn_norm.y, vn_norm.z);
-            normals.push(vn_norm.x, vn_norm.y, vn_norm.z);
+            normals.push(vpNorm.x, vpNorm.y, vpNorm.z);
+            normals.push(vpNorm.x, vpNorm.y, vpNorm.z);
+            normals.push(vnNorm.x, vnNorm.y, vnNorm.z);
+            normals.push(vnNorm.x, vnNorm.y, vnNorm.z);
             if (!flip) {
                 indices.push(startIndex);
                 indices.push(startIndex + 1);

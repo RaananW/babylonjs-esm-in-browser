@@ -1,5 +1,6 @@
-import type { Mesh } from "../../Meshes/mesh";
-import type { Behavior } from "../behavior";
+import { type Mesh } from "../../Meshes/mesh.js";
+import { type Behavior } from "../behavior.js";
+import { type Nullable } from "../../types.js";
 /**
  * A behavior that when attached to a mesh will allow the mesh to be scaled
  */
@@ -11,6 +12,10 @@ export declare class MultiPointerScaleBehavior implements Behavior<Mesh> {
     private _targetScale;
     private _ownerNode;
     private _sceneRenderObserver;
+    /**
+     * Attached node of this behavior
+     */
+    get attachedNode(): Nullable<Mesh>;
     /**
      * Instantiate a new behavior that when attached to a mesh will allow the mesh to be scaled
      */

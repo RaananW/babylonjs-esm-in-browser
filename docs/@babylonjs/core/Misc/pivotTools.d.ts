@@ -1,4 +1,4 @@
-import type { TransformNode } from "../Meshes/transformNode";
+import { type TransformNode } from "../Meshes/transformNode.js";
 /**
  * Class containing a set of static utilities functions for managing Pivots
  * @internal

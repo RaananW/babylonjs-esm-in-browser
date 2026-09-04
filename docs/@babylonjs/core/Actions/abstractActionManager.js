@@ -9,11 +9,15 @@ export class AbstractActionManager {
         /** Gets the cursor to use when hovering items */
         this.hoverCursor = "";
         /** Gets the list of actions */
-        this.actions = new Array();
+        this.actions = [];
         /**
          * Gets or sets a boolean indicating that the manager is recursive meaning that it can trigger action from children
          */
         this.isRecursive = false;
+        /**
+         * Gets or sets a boolean indicating if this ActionManager should be disposed once the last Mesh using it is disposed
+         */
+        this.disposeWhenUnowned = true;
     }
     /**
      * Does exist one action manager with at least one trigger

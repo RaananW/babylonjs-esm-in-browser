@@ -1,4 +1,4 @@
-import { MultiRenderTarget } from "./multiRenderTarget.js";
+import { MultiRenderTarget } from "./multiRenderTarget.pure.js";
 import { ImageProcessingPostProcess } from "../../PostProcesses/imageProcessingPostProcess.js";
 /**
  * A multi render target designed to render the prepass.

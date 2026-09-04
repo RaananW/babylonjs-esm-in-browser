@@ -1,19 +1,19 @@
-import type { DeviceType } from "./deviceEnums";
-import { Observable } from "../../Misc/observable";
-import type { DeviceInput } from "./deviceTypes";
-import type { IDeviceInputSystem } from "../inputInterfaces";
-import type { IKeyboardEvent, IPointerEvent, IWheelEvent } from "../../Events/deviceInputEvents";
+import { type DeviceType } from "./deviceEnums.js";
+import { Observable } from "../../Misc/observable.js";
+import { type DeviceInput } from "./deviceTypes.js";
+import { type IDeviceInputSystem } from "../inputInterfaces.js";
+import { type IKeyboardEvent, type IPointerEvent, type IWheelEvent } from "../../Events/deviceInputEvents.js";
 /**
  * Subset of DeviceInput that only handles pointers and keyboard
  */
-export declare type DeviceSourceEvent<T extends DeviceType> = T extends DeviceType.Keyboard ? IKeyboardEvent : T extends DeviceType.Mouse ? IWheelEvent | IPointerEvent : T extends DeviceType.Touch ? IPointerEvent : never;
+export type DeviceSourceEvent<T extends DeviceType> = T extends DeviceType.Keyboard ? IKeyboardEvent : T extends DeviceType.Mouse ? IWheelEvent | IPointerEvent : T extends DeviceType.Touch ? IPointerEvent : never;
 /**
  * Class that handles all input for a specific device
  */
 export declare class DeviceSource<T extends DeviceType> {
     /** Type of device */
     readonly deviceType: T;
-    /** "Slot" or index that device is referenced in */
+    /** [0] "Slot" or index that device is referenced in */
     readonly deviceSlot: number;
     /**
      * Observable to handle device input changes per device
@@ -29,7 +29,7 @@ export declare class DeviceSource<T extends DeviceType> {
     constructor(deviceInputSystem: IDeviceInputSystem, 
     /** Type of device */
     deviceType: T, 
-    /** "Slot" or index that device is referenced in */
+    /** [0] "Slot" or index that device is referenced in */
     deviceSlot?: number);
     /**
      * Get input for specific input

@@ -1,5 +1,5 @@
 /** @internal */
-export declare const morphTargetsVertex: {
+export declare const morphTargetsVertexWGSL: {
     name: string;
     shader: string;
 };

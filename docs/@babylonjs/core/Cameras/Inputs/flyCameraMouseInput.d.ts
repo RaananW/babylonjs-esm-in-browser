@@ -1,5 +1,5 @@
-import type { ICameraInput } from "../../Cameras/cameraInputsManager";
-import type { FlyCamera } from "../../Cameras/flyCamera";
+import { type ICameraInput } from "../../Cameras/cameraInputsManager.js";
+import { type FlyCamera } from "../../Cameras/flyCamera.js";
 /**
  * Listen to mouse events to control the camera.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs
@@ -46,7 +46,8 @@ export declare class FlyCameraMouseInput implements ICameraInput<FlyCamera> {
     private _rollObserver;
     private _previousPosition;
     private _noPreventDefault;
-    private _element;
+    /** Reused conditions object for `resolveInteraction` to avoid per-move allocations. */
+    private readonly _pointerConditions;
     /**
      * Listen to mouse events to control the camera.
      * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs

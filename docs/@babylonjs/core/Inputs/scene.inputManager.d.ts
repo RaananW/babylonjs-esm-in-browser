@@ -1,11 +1,11 @@
-import type { EventState, Observer } from "../Misc/observable";
-import { PointerInfo } from "../Events/pointerEvents";
-import type { Nullable } from "../types";
-import { PickingInfo } from "../Collisions/pickingInfo";
-import { Vector2 } from "../Maths/math.vector";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import type { IMouseEvent } from "../Events/deviceInputEvents";
-declare type Scene = import("../scene").Scene;
+import { type EventState, type Observer } from "../Misc/observable.js";
+import { PointerInfo } from "../Events/pointerEvents.js";
+import { type Nullable } from "../types.js";
+import { PickingInfo } from "../Collisions/pickingInfo.js";
+import { Vector2 } from "../Maths/math.vector.pure.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { type IMouseEvent, type IPointerEvent } from "../Events/deviceInputEvents.js";
+import { type Scene } from "../scene.js";
 /**
  * Class used to manage all inputs for the scene.
  */
@@ -16,7 +16,11 @@ export declare class InputManager {
     static LongPressDelay: number;
     /** Time in milliseconds with two consecutive clicks will be considered as a double click */
     static DoubleClickDelay: number;
-    /** If you need to check double click without raising a single click at first click, enable this flag */
+    /**
+     * This flag will modify the behavior so that, when true, a click will happen if and only if
+     * another click DOES NOT happen within the DoubleClickDelay time frame.  If another click does
+     * happen within that time frame, the first click will not fire an event and and a double click will occur.
+     */
     static ExclusiveDoubleClickMode: boolean;
     /** This is a defensive check to not allow control attachment prior to an already active one. If already attached, previous control is unattached before attaching the new one. */
     private _alreadyAttached;
@@ -27,17 +31,18 @@ export declare class InputManager {
     private _initClickEvent;
     private _initActionManager;
     private _delayedSimpleClick;
-    private _delayedSimpleClickTimeout;
-    private _previousDelayedSimpleClickTimeout;
     private _meshPickProceed;
     private _previousButtonPressed;
     private _currentPickResult;
     private _previousPickResult;
-    private _totalPointersPressed;
+    private _activePointerIds;
+    /** Tracks the count of used slots in _activePointerIds for perf */
+    private _activePointerIdsCount;
     private _doubleClickOccured;
     private _isSwiping;
     private _swipeButtonPressed;
     private _skipPointerTap;
+    private _isMultiTouchGesture;
     private _pointerOverMesh;
     private _pickedDownMesh;
     private _pickedUpMesh;
@@ -53,10 +58,12 @@ export declare class InputManager {
     private _meshUnderPointerId;
     private _movePointerInfo;
     private _cameraObserverCount;
+    private _delayedClicks;
     private _onKeyDown;
     private _onKeyUp;
     private _scene;
     private _deviceSourceManager;
+    _originMouseEvent: IMouseEvent;
     /**
      * Creates a new InputManager
      * @param scene - defines the hosting scene
@@ -101,7 +108,7 @@ export declare class InputManager {
     private _checkForPicking;
     private _checkPrePointerObservable;
     /** @internal */
-    _pickMove(pointerId: number): PickingInfo;
+    _pickMove(evt: IPointerEvent): PickingInfo;
     private _setCursorAndPointerOverMesh;
     /**
      * Use this method to simulate a pointer move on a mesh
@@ -151,12 +158,13 @@ export declare class InputManager {
      */
     detachControl(): void;
     /**
-     * Force the value of meshUnderPointer
+     * Set the value of meshUnderPointer for a given pointerId
      * @param mesh - defines the mesh to use
      * @param pointerId - optional pointer id when using more than one pointer. Defaults to 0
      * @param pickResult - optional pickingInfo data used to find mesh
+     * @param evt - optional pointer event
      */
-    setPointerOverMesh(mesh: Nullable<AbstractMesh>, pointerId?: number, pickResult?: Nullable<PickingInfo>): void;
+    setPointerOverMesh(mesh: Nullable<AbstractMesh>, pointerId?: number, pickResult?: Nullable<PickingInfo>, evt?: IPointerEvent): void;
     /**
      * Gets the mesh under the pointer
      * @returns a Mesh or null if no mesh is under the pointer
@@ -168,4 +176,3 @@ export declare class InputManager {
      */
     _invalidateMesh(mesh: AbstractMesh): void;
 }
-export {};

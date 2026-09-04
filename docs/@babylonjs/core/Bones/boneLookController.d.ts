@@ -1,7 +1,7 @@
-import { Vector3 } from "../Maths/math.vector";
-import type { TransformNode } from "../Meshes/transformNode";
-import type { Bone } from "./bone";
-import { Space } from "../Maths/math.axis";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { type TransformNode } from "../Meshes/transformNode.js";
+import { type Bone } from "./bone.js";
+import { Space } from "../Maths/math.axis.js";
 /**
  * Class used to make a bone look toward a point in space
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/bonesSkeletons#bonelookcontroller
@@ -76,6 +76,10 @@ export declare class BoneLookController {
     get maxYaw(): number;
     set maxYaw(value: number);
     /**
+     * Use the absolute value for yaw when checking the min/max constraints
+     */
+    useAbsoluteValueForYaw: boolean;
+    /**
      * Gets or sets the minimum pitch angle that the bone can look to
      */
     get minPitch(): number;
@@ -129,6 +133,7 @@ export declare class BoneLookController {
         adjustYaw?: number;
         adjustPitch?: number;
         adjustRoll?: number;
+        useAbsoluteValueForYaw?: boolean;
     });
     /**
      * Update the bone to look at the target.  This should be called before the scene is rendered (use scene.registerBeforeRender())

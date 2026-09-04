@@ -1,5 +1,5 @@
-import { Matrix, Quaternion, Vector3 } from "../../Maths/math.vector.js";
-import { Scalar } from "../../Maths/math.scalar.js";
+import { Matrix, Quaternion, Vector3 } from "../../Maths/math.vector.pure.js";
+import { Clamp } from "../../Maths/math.scalar.functions.js";
 import { Epsilon } from "../../Maths/math.constants.js";
 /**
  * A behavior that when attached to a mesh will follow a camera
@@ -163,19 +163,19 @@ export class FollowBehavior {
             direction.scaleInPlace(currentDistance / currentDistance2D);
             currentDistance = currentDistance2D;
         }
-        let clampedDistance = currentDistance;
+        let clampedDistance;
         if (moveToDefault) {
             clampedDistance = defaultDistance;
         }
         else {
-            clampedDistance = Scalar.Clamp(currentDistance, minDistance, maxDistance);
+            clampedDistance = Clamp(currentDistance, minDistance, maxDistance);
         }
         currentToTarget.copyFrom(direction).scaleInPlace(clampedDistance);
         return currentDistance !== clampedDistance;
     }
     _applyVerticalClamp(currentToTarget) {
         if (this.verticalMaxDistance !== 0) {
-            currentToTarget.y = Scalar.Clamp(currentToTarget.y, -this.verticalMaxDistance, this.verticalMaxDistance);
+            currentToTarget.y = Clamp(currentToTarget.y, -this.verticalMaxDistance, this.verticalMaxDistance);
         }
     }
     _toOrientationQuatToRef(vector, quaternion) {
@@ -250,7 +250,6 @@ export class FollowBehavior {
         return angularClamped;
     }
     _orientationClamp(currentToTarget, rotationQuaternion) {
-        var _a;
         // Construct a rotation quat from up vector and target vector
         const toFollowed = this._tmpVectors[0];
         toFollowed.copyFrom(currentToTarget).scaleInPlace(-1).normalize();
@@ -266,7 +265,7 @@ export class FollowBehavior {
         }
         right.normalizeFromLength(length);
         Vector3.CrossToRef(right, toFollowed, up);
-        if ((_a = this.attachedNode) === null || _a === void 0 ? void 0 : _a.getScene().useRightHandedSystem) {
+        if (this.attachedNode?.getScene().useRightHandedSystem) {
             Quaternion.FromLookDirectionRHToRef(toFollowed, up, rotationQuaternion);
         }
         else {
@@ -347,6 +346,7 @@ export class FollowBehavior {
         if (!this.interpolatePose) {
             this.attachedNode.position.copyFrom(this.followedCamera.globalPosition).addInPlace(this._workingPosition);
             this.attachedNode.rotationQuaternion.copyFrom(this._workingQuaternion);
+            this.attachedNode.setParent(oldParent);
             return;
         }
         // position

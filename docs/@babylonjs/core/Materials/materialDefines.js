@@ -7,6 +7,7 @@ export class MaterialDefines {
      * @param externalProperties list of external properties to inject into the object
      */
     constructor(externalProperties) {
+        this.VERTEXOUTPUT_INVARIANT = false;
         /** @internal */
         this._keys = [];
         this._isDirty = true;
@@ -79,6 +80,7 @@ export class MaterialDefines {
         this._areLightsDirty = true;
         this._areFresnelDirty = true;
         this._areMiscDirty = true;
+        this._arePrePassDirty = true;
         this._areImageProcessingDirty = true;
         this._isDirty = true;
     }
@@ -186,21 +188,22 @@ export class MaterialDefines {
      * Resets the material define values
      */
     reset() {
-        this._keys.forEach((prop) => this._setDefaultValue(prop));
+        for (const prop of this._keys) {
+            this._setDefaultValue(prop);
+        }
     }
     _setDefaultValue(prop) {
-        var _a, _b, _c, _d, _e;
-        const type = (_c = (_b = (_a = this._externalProperties) === null || _a === void 0 ? void 0 : _a[prop]) === null || _b === void 0 ? void 0 : _b.type) !== null && _c !== void 0 ? _c : typeof this[prop];
-        const defValue = (_e = (_d = this._externalProperties) === null || _d === void 0 ? void 0 : _d[prop]) === null || _e === void 0 ? void 0 : _e.default;
+        const type = this._externalProperties?.[prop]?.type ?? typeof this[prop];
+        const defValue = this._externalProperties?.[prop]?.default;
         switch (type) {
             case "number":
-                this[prop] = defValue !== null && defValue !== void 0 ? defValue : 0;
+                this[prop] = defValue ?? 0;
                 break;
             case "string":
-                this[prop] = defValue !== null && defValue !== void 0 ? defValue : "";
+                this[prop] = defValue ?? "";
                 break;
             default:
-                this[prop] = defValue !== null && defValue !== void 0 ? defValue : false;
+                this[prop] = defValue ?? false;
                 break;
         }
     }

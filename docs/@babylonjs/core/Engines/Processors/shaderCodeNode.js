@@ -1,5 +1,5 @@
-const defaultAttributeKeywordName = "attribute";
-const defaultVaryingKeywordName = "varying";
+const DefaultAttributeKeywordName = "attribute";
+const DefaultVaryingKeywordName = "varying";
 /** @internal */
 export class ShaderCodeNode {
     constructor() {
@@ -9,8 +9,7 @@ export class ShaderCodeNode {
     isValid(preprocessors) {
         return true;
     }
-    process(preprocessors, options) {
-        var _a, _b, _c, _d, _e, _f;
+    process(preprocessors, options, preProcessorsFromCode) {
         let result = "";
         if (this.line) {
             let value = this.line;
@@ -20,16 +19,17 @@ export class ShaderCodeNode {
                 if (processor.lineProcessor) {
                     value = processor.lineProcessor(value, options.isFragment, options.processingContext);
                 }
-                const attributeKeyword = (_b = (_a = options.processor) === null || _a === void 0 ? void 0 : _a.attributeKeywordName) !== null && _b !== void 0 ? _b : defaultAttributeKeywordName;
-                const varyingKeyword = options.isFragment && ((_c = options.processor) === null || _c === void 0 ? void 0 : _c.varyingFragmentKeywordName)
-                    ? (_d = options.processor) === null || _d === void 0 ? void 0 : _d.varyingFragmentKeywordName
-                    : !options.isFragment && ((_e = options.processor) === null || _e === void 0 ? void 0 : _e.varyingVertexKeywordName)
-                        ? (_f = options.processor) === null || _f === void 0 ? void 0 : _f.varyingVertexKeywordName
-                        : defaultVaryingKeywordName;
+                const attributeKeyword = options.processor?.attributeKeywordName ?? DefaultAttributeKeywordName;
+                const varyingKeyword = options.isFragment && options.processor?.varyingFragmentKeywordName
+                    ? options.processor?.varyingFragmentKeywordName
+                    : !options.isFragment && options.processor?.varyingVertexKeywordName
+                        ? options.processor?.varyingVertexKeywordName
+                        : DefaultVaryingKeywordName;
                 if (!options.isFragment && processor.attributeProcessor && this.line.startsWith(attributeKeyword)) {
                     value = processor.attributeProcessor(this.line, preprocessors, options.processingContext);
                 }
-                else if (processor.varyingProcessor && this.line.startsWith(varyingKeyword)) {
+                else if (processor.varyingProcessor &&
+                    (processor.varyingCheck?.(this.line, options.isFragment) || (!processor.varyingCheck && this.line.startsWith(varyingKeyword)))) {
                     value = processor.varyingProcessor(this.line, options.isFragment, preprocessors, options.processingContext);
                 }
                 else if (processor.uniformProcessor && processor.uniformRegexp && processor.uniformRegexp.test(this.line)) {
@@ -69,13 +69,14 @@ export class ShaderCodeNode {
                     }
                 }
             }
-            result += value + "\r\n";
+            result += value + "\n";
         }
-        this.children.forEach((child) => {
-            result += child.process(preprocessors, options);
-        });
+        for (const child of this.children) {
+            result += child.process(preprocessors, options, preProcessorsFromCode);
+        }
         if (this.additionalDefineKey) {
             preprocessors[this.additionalDefineKey] = this.additionalDefineValue || "true";
+            preProcessorsFromCode[this.additionalDefineKey] = preprocessors[this.additionalDefineKey];
         }
         return result;
     }

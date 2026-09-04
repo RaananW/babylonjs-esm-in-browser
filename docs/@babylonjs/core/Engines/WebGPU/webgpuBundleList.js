@@ -1,3 +1,4 @@
+import { WebGPUTextureHelper } from "./webgpuTextureHelper.js";
 /** @internal */
 export class WebGPURenderItemViewport {
     constructor(x, y, w, h) {
@@ -124,7 +125,7 @@ export class WebGPUBundleList {
             this._bundleEncoder = this._device.createRenderBundleEncoder({
                 colorFormats,
                 depthStencilFormat,
-                sampleCount,
+                sampleCount: WebGPUTextureHelper.GetSample(sampleCount),
             });
         }
         return this._bundleEncoder;

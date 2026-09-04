@@ -1,9 +1,9 @@
-import type { Nullable } from "../../types";
-import type { Camera } from "../../Cameras/camera";
-import type { Engine } from "../../Engines/engine";
-import type { PostProcessRenderEffect } from "./postProcessRenderEffect";
-import type { IInspectable } from "../../Misc/iInspectable";
-declare type PrePassRenderer = import("../../Rendering/prePassRenderer").PrePassRenderer;
+import { type Nullable } from "../../types.js";
+import { type Camera } from "../../Cameras/camera.js";
+import { type AbstractEngine } from "../../Engines/abstractEngine.js";
+import { type PostProcessRenderEffect } from "./postProcessRenderEffect.js";
+import { type IInspectable } from "../../Misc/iInspectable.js";
+import { type PrePassRenderer } from "../../Rendering/prePassRenderer.js";
 /**
  * PostProcessRenderPipeline
  * @see https://doc.babylonjs.com/features/featuresDeepDive/postProcesses/postProcessRenderPipeline
@@ -29,14 +29,22 @@ export declare class PostProcessRenderPipeline {
      * Gets pipeline name
      */
     get name(): string;
+    /**
+     * Gets the unique id of the post process rendering pipeline
+     */
+    readonly uniqueId: number;
     /** Gets the list of attached cameras */
     get cameras(): Camera[];
+    /**
+     * Gets the active engine
+     */
+    get engine(): AbstractEngine;
     /**
      * Initializes a PostProcessRenderPipeline
      * @param _engine engine to add the pipeline to
      * @param name name of the pipeline
      */
-    constructor(_engine: Engine, name: string);
+    constructor(_engine: AbstractEngine, name: string);
     /**
      * Gets the class name
      * @returns "PostProcessRenderPipeline"
@@ -75,6 +83,11 @@ export declare class PostProcessRenderPipeline {
     _reset(): void;
     protected _enableMSAAOnFirstPostProcess(sampleCount: number): boolean;
     /**
+     * Ensures that all post processes in the pipeline are the correct size according to the
+     * the viewport's required size
+     */
+    protected _adaptPostProcessesToViewPort(): void;
+    /**
      * Sets the required values to the prepass renderer.
      * @param prePassRenderer defines the prepass renderer to setup.
      * @returns true if the pre pass is needed.
@@ -85,4 +98,3 @@ export declare class PostProcessRenderPipeline {
      */
     dispose(): void;
 }
-export {};

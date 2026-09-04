@@ -1,0 +1,236 @@
+// Do not edit.
+import { ShaderStore } from "../../Engines/shaderStore.js";
+const name = "openpbrIblFunctions";
+const shader = `#ifdef REFLECTION
+fn sampleIrradiance(
+surfaceNormal: vec3f
+#if defined(NORMAL) && defined(USESPHERICALINVERTEX)
+,vEnvironmentIrradianceSH: vec3f
+#endif
+#if (defined(USESPHERICALFROMREFLECTIONMAP) && (!defined(NORMAL) || !defined(USESPHERICALINVERTEX))) || (defined(USEIRRADIANCEMAP) && defined(REFLECTIONMAP_3D))
+,iblMatrix: mat4x4f
+#endif
+#ifdef USEIRRADIANCEMAP
+#ifdef REFLECTIONMAP_3D
+,irradianceSampler: texture_cube<f32>
+,irradianceSamplerSampler: sampler
+#else
+,irradianceSampler: texture_2d<f32>
+,irradianceSamplerSampler: sampler
+#endif
+#ifdef USE_IRRADIANCE_DOMINANT_DIRECTION
+,reflectionDominantDirection: vec3f
+#endif
+#endif
+#ifdef REALTIME_FILTERING
+,reflectionFilteringInfo: vec2f
+#ifdef IBL_CDF_FILTERING
+,icdfSampler: texture_2d<f32>
+,icdfSamplerSampler: sampler
+#endif
+#endif
+,reflectionInfos: vec2f
+,viewDirectionW: vec3f
+,diffuseRoughness: f32
+,surfaceAlbedo: vec3f
+)->vec3f {var environmentIrradiance=vec3f(0.,0.,0.);
+#if (defined(USESPHERICALFROMREFLECTIONMAP) && (!defined(NORMAL) || !defined(USESPHERICALINVERTEX))) || (defined(USEIRRADIANCEMAP) && defined(REFLECTIONMAP_3D))
+var irradianceVector=(iblMatrix*vec4f(surfaceNormal,0.0f)).xyz;var irradianceView=(iblMatrix*vec4f(viewDirectionW,0.0f)).xyz;
+#if !defined(USE_IRRADIANCE_DOMINANT_DIRECTION) && !defined(REALTIME_FILTERING)
+#if BASE_DIFFUSE_MODEL != BRDF_DIFFUSE_MODEL_LAMBERT && BASE_DIFFUSE_MODEL != BRDF_DIFFUSE_MODEL_LEGACY
+{let NdotV=max(dot(surfaceNormal,viewDirectionW),0.0f);irradianceVector=mix(irradianceVector,irradianceView,(0.5f*(1.0f-NdotV))*diffuseRoughness);}
+#endif
+#endif
+#ifdef REFLECTIONMAP_OPPOSITEZ
+irradianceVector.z*=-1.0;irradianceView.z*=-1.0;
+#endif
+#ifdef INVERTCUBICMAP
+irradianceVector.y*=-1.0;irradianceView.y*=-1.0;
+#endif
+#endif
+#ifdef USESPHERICALFROMREFLECTIONMAP
+#if defined(NORMAL) && defined(USESPHERICALINVERTEX)
+environmentIrradiance=vEnvironmentIrradianceSH;
+#else
+#if defined(REALTIME_FILTERING)
+environmentIrradiance=irradiance(reflectionSampler,reflectionSamplerSampler,irradianceVector,reflectionFilteringInfo,diffuseRoughness,surfaceAlbedo,irradianceView
+#ifdef IBL_CDF_FILTERING
+,icdfSampler
+,icdfSamplerSampler
+#endif
+);
+#else
+environmentIrradiance=computeEnvironmentIrradiance(irradianceVector);
+#endif
+#endif
+#elif defined(USEIRRADIANCEMAP)
+#ifdef REFLECTIONMAP_3D
+let environmentIrradianceFromTexture: vec4f=textureSample(irradianceSampler,irradianceSamplerSampler,irradianceVector);
+#else
+let environmentIrradianceFromTexture: vec4f=textureSample(irradianceSampler,irradianceSamplerSampler,reflectionCoords);
+#endif
+environmentIrradiance=environmentIrradianceFromTexture.rgb;
+#ifdef RGBDREFLECTION
+environmentIrradiance.rgb=fromRGBD(environmentIrradianceFromTexture);
+#endif
+#ifdef GAMMAREFLECTION
+environmentIrradiance.rgb=toLinearSpaceVec3(environmentIrradiance.rgb);
+#endif
+#ifdef USE_IRRADIANCE_DOMINANT_DIRECTION
+let Ls: vec3f=normalize(reflectionDominantDirection);let NoL: f32=dot(irradianceVector,Ls);let NoV: f32=dot(irradianceVector,irradianceView);var diffuseRoughnessTerm=vec3f(1.0f);
+#if BASE_DIFFUSE_MODEL==BRDF_DIFFUSE_MODEL_EON
+let LoV: f32=dot (Ls,irradianceView);let mag: f32=length(reflectionDominantDirection)*2.0f;let clampedAlbedo: vec3f=clamp(surfaceAlbedo,vec3f(0.1f),vec3f(1.0f));diffuseRoughnessTerm=diffuseBRDF_EON(clampedAlbedo,diffuseRoughness,NoL,NoV,LoV)*PI;diffuseRoughnessTerm=diffuseRoughnessTerm/clampedAlbedo;diffuseRoughnessTerm=mix(vec3f(1.0f),diffuseRoughnessTerm,sqrt(clamp(mag*NoV,0.0f,1.0f)));
+#elif BASE_DIFFUSE_MODEL==BRDF_DIFFUSE_MODEL_BURLEY
+let H: vec3f=(irradianceView+Ls)*0.5f;let VoH: f32=dot(irradianceView,H);diffuseRoughnessTerm=vec3f(diffuseBRDF_Burley(NoL,NoV,VoH,diffuseRoughness)*PI);
+#endif
+environmentIrradiance=environmentIrradiance.rgb*diffuseRoughnessTerm;
+#endif
+#endif
+environmentIrradiance*=reflectionInfos.x;return environmentIrradiance;}
+#ifdef REFLECTIONMAP_3D
+fn createReflectionCoords(vPositionW: vec3f,normalW: vec3f)->vec3f
+#else
+fn createReflectionCoords(vPositionW: vec3f,normalW: vec3f)->vec2f
+#endif
+{var reflectionVector: vec3f=computeReflectionCoords(vec4f(vPositionW,1.0f),normalW);
+#ifdef REFLECTIONMAP_OPPOSITEZ
+reflectionVector.z*=-1.0;
+#endif
+#ifdef REFLECTIONMAP_3D
+var reflectionCoords: vec3f=reflectionVector;
+#else
+var reflectionCoords: vec2f=reflectionVector.xy;
+#ifdef REFLECTIONMAP_PROJECTION
+reflectionCoords/=reflectionVector.z;
+#endif
+reflectionCoords.y=1.0f-reflectionCoords.y;
+#endif
+return reflectionCoords;}
+fn sampleRadiance(
+alphaG: f32
+,reflectionMicrosurfaceInfos: vec3f
+,reflectionInfos: vec2f
+,geoInfo: geometryInfoOutParams
+#ifdef REFLECTIONMAP_3D
+,reflectionSampler: texture_cube<f32>
+,reflectionSamplerSampler: sampler
+,reflectionCoords: vec3f
+#else
+,reflectionSampler: texture_2d<f32>
+,reflectionSamplerSampler: sampler
+,reflectionCoords: vec2f
+#endif
+#ifdef REALTIME_FILTERING
+,reflectionFilteringInfo: vec2f
+#endif
+)->vec3f {var environmentRadiance: vec4f=vec4f(0.f,0.f,0.f,0.f);
+#if defined(LODINREFLECTIONALPHA) && !defined(REFLECTIONMAP_SKYBOX)
+var reflectionLOD: f32=getLodFromAlphaG(reflectionMicrosurfaceInfos.x,alphaG,geoInfo.NdotVUnclamped);
+#elif defined(LINEARSPECULARREFLECTION)
+var reflectionLOD: f32=getLinearLodFromRoughness(reflectionMicrosurfaceInfos.x,roughness);
+#else
+var reflectionLOD: f32=getLodFromAlphaG(reflectionMicrosurfaceInfos.x,alphaG);
+#endif
+reflectionLOD=reflectionLOD*reflectionMicrosurfaceInfos.y+reflectionMicrosurfaceInfos.z;
+#ifdef REALTIME_FILTERING
+environmentRadiance=vec4f(radiance(alphaG,reflectionSampler,reflectionSamplerSampler,reflectionCoords,reflectionFilteringInfo),1.0f);
+#else
+environmentRadiance=textureSampleLevel(reflectionSampler,reflectionSamplerSampler,reflectionCoords,reflectionLOD);
+#endif
+var envRadiance: vec3f=environmentRadiance.rgb;
+#ifdef RGBDREFLECTION
+envRadiance=fromRGBD(environmentRadiance);
+#endif
+#ifdef GAMMAREFLECTION
+envRadiance=toLinearSpaceVec3(environmentRadiance.rgb);
+#endif
+envRadiance*=reflectionInfos.x;return envRadiance;}
+#if defined(ANISOTROPIC)
+fn sampleRadianceAnisotropic(
+alphaG: f32
+,reflectionMicrosurfaceInfos: vec3f
+,reflectionInfos: vec2f
+,geoInfo: geometryInfoAnisoOutParams
+,normalW: vec3f
+,viewDirectionW: vec3f
+,positionW: vec3f
+,noise: vec3f
+,isRefraction: bool
+,ior: f32
+#ifdef REFLECTIONMAP_3D
+,reflectionSampler: texture_cube<f32>
+,reflectionSamplerSampler: sampler
+#else
+,reflectionSampler: texture_2d<f32>
+,reflectionSamplerSampler: sampler
+#endif
+#ifdef REALTIME_FILTERING
+,reflectionFilteringInfo: vec2f
+#endif
+)->vec3f {var environmentRadiance: vec4f=vec4f(0.f,0.f,0.f,0.f);let alphaT=alphaG*sqrt(2.0f/(1.0f+(1.0f-geoInfo.anisotropy)*(1.0f-geoInfo.anisotropy)));let alphaB=(1.0f-geoInfo.anisotropy)*alphaT;let modifiedAlphaG=alphaB;
+#if defined(LODINREFLECTIONALPHA) && !defined(REFLECTIONMAP_SKYBOX)
+var reflectionLOD: f32=getLodFromAlphaG(reflectionMicrosurfaceInfos.x,modifiedAlphaG,geoInfo.NdotVUnclamped);
+#elif defined(LINEARSPECULARREFLECTION)
+var reflectionLOD: f32=getLinearLodFromRoughness(reflectionMicrosurfaceInfos.x,roughness);
+#else
+var reflectionLOD: f32=getLodFromAlphaG(reflectionMicrosurfaceInfos.x,modifiedAlphaG);
+#endif
+reflectionLOD=reflectionLOD*reflectionMicrosurfaceInfos.y+reflectionMicrosurfaceInfos.z;
+#ifdef REALTIME_FILTERING
+var view=(uniforms.reflectionMatrix*vec4f(viewDirectionW,0.0f)).xyz;var tangent=(uniforms.reflectionMatrix*vec4f(geoInfo.anisotropicTangent,0.0f)).xyz;var bitangent=(uniforms.reflectionMatrix*vec4f(geoInfo.anisotropicBitangent,0.0f)).xyz;var normal=(uniforms.reflectionMatrix*vec4f(normalW,0.0f)).xyz;
+#ifdef REFLECTIONMAP_OPPOSITEZ
+view.z*=-1.0f;tangent.z*=-1.0f;bitangent.z*=-1.0f;normal.z*=-1.0f;
+#endif
+environmentRadiance =
+vec4f(radianceAnisotropic(alphaT,alphaB,reflectionSampler,reflectionSamplerSampler,
+view,tangent,
+bitangent,normal,
+reflectionFilteringInfo,noise.xy,isRefraction,ior),
+1.0f);
+#else
+const samples: i32=16;var radianceSample=vec4f(0.0);var accumulatedRadiance=vec3f(0.0);var sample_weight=0.0f;var total_weight=0.0f;let step=1.0f/f32(max(samples-1,1));for (var i: i32=0; i<samples; i++) {var t: f32=mix(-1.0,1.0,f32(i)*step);t+=step*2.0*noise.x;sample_weight=max(1.0-abs(t),0.001);sample_weight*=sample_weight;t*=min(4.0*alphaT*geoInfo.anisotropy,1.0);var bentNormal: vec3f;if (t<0.0) {let blend: f32=t+1.0;bentNormal=normalize(mix(-geoInfo.anisotropicTangent,normalW,blend));} else if (t>0.0) {let blend: f32=t;bentNormal=normalize(mix(normalW,geoInfo.anisotropicTangent,blend));} else {bentNormal=normalW;}
+#ifdef REFLECTIONMAP_3D
+var reflectionCoords: vec3f;if (isRefraction) {reflectionCoords=double_refract(-viewDirectionW,bentNormal,ior);} else {reflectionCoords=reflect(-viewDirectionW,bentNormal);}
+reflectionCoords=(uniforms.reflectionMatrix*vec4f(reflectionCoords,0.f)).xyz;
+#ifdef REFLECTIONMAP_OPPOSITEZ
+reflectionCoords.z*=-1.0f;
+#endif
+#else
+var sampleDirection: vec3f;if (isRefraction) {sampleDirection=double_refract(-viewDirectionW,bentNormal,ior);} else {sampleDirection=reflect(-viewDirectionW,bentNormal);}
+let originalViewDirectionW: vec3f=normalize(scene.vEyePosition.xyz-positionW);let mappingNormalCandidate: vec3f=originalViewDirectionW+sampleDirection;var mappingNormal: vec3f;if (dot(mappingNormalCandidate,mappingNormalCandidate)>Epsilon) {mappingNormal=normalize(mappingNormalCandidate);} else {let perpendicularAxis: vec3f=select(vec3f(0.0f,1.0f,0.0f),vec3f(1.0f,0.0f,0.0f),abs(originalViewDirectionW.x)<0.9f);mappingNormal=normalize(cross(originalViewDirectionW,perpendicularAxis));}
+let reflectionCoords: vec2f=createReflectionCoords(positionW,mappingNormal);
+#endif
+radianceSample=textureSampleLevel(reflectionSampler,reflectionSamplerSampler,reflectionCoords,reflectionLOD);
+#ifdef RGBDREFLECTION
+accumulatedRadiance+=vec3f(sample_weight)*fromRGBD(radianceSample);
+#elif defined(GAMMAREFLECTION)
+accumulatedRadiance+=vec3f(sample_weight)*toLinearSpaceVec3(radianceSample.rgb);
+#else
+accumulatedRadiance+=vec3f(sample_weight)*radianceSample.rgb;
+#endif
+total_weight+=sample_weight;}
+environmentRadiance=vec4f(accumulatedRadiance/vec3f(total_weight),1.0f);
+#endif
+environmentRadiance=vec4f(environmentRadiance.rgb*reflectionInfos.xxx,environmentRadiance.a);return environmentRadiance.rgb;}
+#endif
+#endif
+#ifdef ENVIRONMENTBRDF
+fn computeDielectricIblFresnel(reflectance: ReflectanceParams,environmentBrdf: vec3f)->f32
+{let dielectricIblFresnel: f32=getReflectanceFromBRDFWithEnvLookup(vec3f(reflectance.F0),vec3f(reflectance.F90),environmentBrdf).r;let dielectricECF: f32=1.0+reflectance.F0*(1.0/environmentBrdf.y-1.0);return clamp(dielectricIblFresnel*dielectricECF,0.0,1.0);}
+fn computeConductorIblFresnel(reflectance: ReflectanceParams,environmentBrdf: vec3f)->vec3f
+{
+#if (CONDUCTOR_SPECULAR_MODEL==CONDUCTOR_SPECULAR_MODEL_OPENPBR)
+let openPBRBrdf: vec3f=vec3f(environmentBrdf.xy,environmentBrdf.z/BRDF_Z_SCALE);let b: vec3f =getF82B(reflectance.coloredF0,reflectance.coloredF90);let E_F82: vec3f=getF82DirectionalAlbedo(reflectance.coloredF0,vec3f(1.0),b,openPBRBrdf);let F_avg: vec3f=getF82AverageFresnel(reflectance.coloredF0,b);let ECF: vec3f =vec3f(1.0)+F_avg*(vec3f(1.0)/openPBRBrdf.y-vec3f(1.0));return clamp(E_F82*ECF,vec3f(0.0),vec3f(1.0));
+#else
+return getReflectanceFromBRDFLookup(reflectance.coloredF0,reflectance.coloredF90,environmentBrdf);
+#endif
+}
+#endif
+`;
+// Sideeffect
+if (!ShaderStore.IncludesShadersStoreWGSL[name]) {
+    ShaderStore.IncludesShadersStoreWGSL[name] = shader;
+}
+/** @internal */
+export const openpbrIblFunctionsWGSL = { name, shader };
+//# sourceMappingURL=openpbrIblFunctions.js.map

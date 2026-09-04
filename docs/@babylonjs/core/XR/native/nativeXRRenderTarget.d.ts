@@ -1,10 +1,10 @@
-import type { RenderTargetTexture } from "../../Materials/Textures/renderTargetTexture";
-import type { Viewport } from "../../Maths/math.viewport";
-import type { Nullable } from "../../types";
-import { WebXRLayerWrapper } from "../webXRLayerWrapper";
-import { WebXRLayerRenderTargetTextureProvider } from "../webXRRenderTargetTextureProvider";
-import type { WebXRSessionManager } from "../webXRSessionManager";
-import type { WebXRRenderTarget } from "../webXRTypes";
+import { type RenderTargetTexture } from "../../Materials/Textures/renderTargetTexture.js";
+import { type Viewport } from "../../Maths/math.viewport.js";
+import { type Nullable } from "../../types.js";
+import { WebXRLayerWrapper } from "../webXRLayerWrapper.js";
+import { WebXRWebGLRenderTargetTextureProvider } from "../webXRWebGLRenderTargetTextureProvider.js";
+import { type WebXRSessionManager } from "../webXRSessionManager.js";
+import { type WebXRRenderTarget } from "../webXRTypes.js";
 /**
  * Wraps XRWebGLLayer's created by Babylon Native.
  * @internal
@@ -17,7 +17,7 @@ export declare class NativeXRLayerWrapper extends WebXRLayerWrapper {
  * Provides render target textures for layers created by Babylon Native.
  * @internal
  */
-export declare class NativeXRLayerRenderTargetTextureProvider extends WebXRLayerRenderTargetTextureProvider {
+export declare class NativeXRLayerRenderTargetTextureProvider extends WebXRWebGLRenderTargetTextureProvider {
     readonly layerWrapper: NativeXRLayerWrapper;
     private _nativeRTTProvider;
     private _nativeLayer;

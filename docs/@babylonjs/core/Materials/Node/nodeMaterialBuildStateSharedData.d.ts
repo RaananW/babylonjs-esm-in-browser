@@ -1,13 +1,17 @@
-import type { NodeMaterialConnectionPoint } from "./nodeMaterialBlockConnectionPoint";
-import type { NodeMaterialBlock } from "./nodeMaterialBlock";
-import type { InputBlock } from "./Blocks/Input/inputBlock";
-import type { Scene } from "../../scene";
-import type { Immutable } from "../../types";
-import type { NodeMaterialTextureBlocks } from "./nodeMaterial";
+import { type NodeMaterialConnectionPoint } from "./nodeMaterialBlockConnectionPoint.js";
+import { type NodeMaterialBlock } from "./nodeMaterialBlock.js";
+import { type InputBlock } from "./Blocks/Input/inputBlock.js";
+import { type Scene } from "../../scene.js";
+import { type Immutable, type Nullable } from "../../types.js";
+import { type NodeMaterial, type NodeMaterialTextureBlocks } from "./nodeMaterial.js";
 /**
  * Class used to store shared data between 2 NodeMaterialBuildState
  */
 export declare class NodeMaterialBuildStateSharedData {
+    /**
+     * The node material we are currently building
+     */
+    nodeMaterial: NodeMaterial;
     /**
      * Gets the list of emitted varyings
      */
@@ -17,9 +21,19 @@ export declare class NodeMaterialBuildStateSharedData {
      */
     varyings: string[];
     /**
-     * Gets the varying declaration string
+     * Gets the varying declaration string (for vertex shader)
      */
     varyingDeclaration: string;
+    /**
+     * Gets the varying declaration string (for fragment shader)
+     * This is potentially different from varyingDeclaration only in WebGPU
+     */
+    varyingDeclarationFragment: string;
+    /**
+     * Gets the varying initialization string (for fragment shader)
+     * Only used in WebGPU, to reconstruct the varying values from the vertex shader if their types is mat4x4f
+     */
+    varyingInitializationsFragment: string;
     /**
      * List of the fragment output nodes
      */
@@ -65,6 +79,19 @@ export declare class NodeMaterialBuildStateSharedData {
      */
     animatedInputs: InputBlock[];
     /**
+     * Defines to inject in the vertex and fragment shaders
+     */
+    defines: {
+        [key: string]: string;
+    };
+    /**
+     * Configurations used to format the generated code
+     */
+    formatConfig: {
+        getUniformAnnotation: Nullable<(name: string) => string>;
+        formatVariablename: (name: string) => string;
+    };
+    /**
      * Build Id used to avoid multiple recompilations
      */
     buildId: number;
@@ -98,6 +125,7 @@ export declare class NodeMaterialBuildStateSharedData {
         emitVertex: boolean;
         emitFragment: boolean;
         notConnectedNonOptionalInputs: NodeMaterialConnectionPoint[];
+        customErrors: string[];
     };
     /**
      * Is vertex program allowed to be empty?
@@ -106,7 +134,13 @@ export declare class NodeMaterialBuildStateSharedData {
     /** Creates a new shared data */
     constructor();
     /**
-     * Emits console errors and exceptions if there is a failing check
+     * Push a new error to the build state, avoiding exceptions that can break the build process
+     * @param message defines the error message to push
      */
-    emitErrors(): void;
+    raiseBuildError(message: string): void;
+    /**
+     * Emits console errors and exceptions if there is a failing check
+     * @returns true if all checks pass
+     */
+    emitErrors(): boolean;
 }

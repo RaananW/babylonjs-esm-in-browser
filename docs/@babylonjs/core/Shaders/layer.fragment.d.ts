@@ -1,4 +1,3 @@
-import "./ShadersInclude/helperFunctions";
 /** @internal */
 export declare const layerPixelShader: {
     name: string;

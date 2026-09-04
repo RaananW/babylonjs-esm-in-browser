@@ -1,5 +1,5 @@
-import { Camera } from "../camera";
+import { Camera } from "../camera.pure.js";
 /**
  * @internal
  */
-export declare function setStereoscopicRigMode(camera: Camera): void;
+export declare function _SetStereoscopicRigMode(camera: Camera): void;

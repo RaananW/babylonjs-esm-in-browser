@@ -1,7 +1,5 @@
 
-import { PostProcess } from "../PostProcesses/postProcess.js";
-import "../Shaders/rgbdDecode.fragment.js";
-import "../Engines/Extensions/engine.renderTarget.js";
+import { PostProcess } from "../PostProcesses/postProcess.pure.js";
 import { ApplyPostProcess } from "./textureTools.js";
 /**
  * Class used to host RGBD texture specific utilities
@@ -37,28 +35,37 @@ export class RGBDTextureTools {
             internalTexture._isRGBD = false;
             internalTexture.invertY = false;
         }
-        const expandRGBDTexture = () => {
+        const expandRgbdTextureAsync = async () => {
+            const isWebGpu = engine.isWebGPU;
+            const shaderLanguage = isWebGpu ? 1 /* ShaderLanguage.WGSL */ : 0 /* ShaderLanguage.GLSL */;
+            internalTexture.isReady = false;
+            if (isWebGpu) {
+                await import("../ShadersWGSL/rgbdDecode.fragment.js");
+            }
+            else {
+                await import("../Shaders/rgbdDecode.fragment.js");
+            }
             // Expand the texture if possible
-            if (expandTexture) {
-                // Simply run through the decode PP.
-                const rgbdPostProcess = new PostProcess("rgbdDecode", "rgbdDecode", null, null, 1, null, 3, engine, false, undefined, internalTexture.type, undefined, null, false);
-                rgbdPostProcess.externalTextureSamplerBinding = true;
-                // Hold the output of the decoding.
-                const expandedTexture = engine.createRenderTargetTexture(internalTexture.width, {
-                    generateDepthBuffer: false,
-                    generateMipMaps: false,
-                    generateStencilBuffer: false,
-                    samplingMode: internalTexture.samplingMode,
-                    type: internalTexture.type,
-                    format: 5,
-                });
-                rgbdPostProcess.getEffect().executeWhenCompiled(() => {
+            // Simply run through the decode PP.
+            const rgbdPostProcess = new PostProcess("rgbdDecode", "rgbdDecode", null, null, 1, null, 3, engine, false, undefined, internalTexture.type, undefined, null, false, undefined, shaderLanguage);
+            rgbdPostProcess.externalTextureSamplerBinding = true;
+            // Hold the output of the decoding.
+            const expandedTexture = engine.createRenderTargetTexture(internalTexture.width, {
+                generateDepthBuffer: false,
+                generateMipMaps: false,
+                generateStencilBuffer: false,
+                samplingMode: internalTexture.samplingMode,
+                type: internalTexture.type,
+                format: 5,
+            });
+            rgbdPostProcess.onEffectCreatedObservable.addOnce((e) => {
+                e.executeWhenCompiled(() => {
                     // PP Render Pass
                     rgbdPostProcess.onApply = (effect) => {
                         effect._bindTexture("textureSampler", internalTexture);
                         effect.setFloat2("scale", 1, 1);
                     };
-                    texture.getScene().postProcessManager.directRender([rgbdPostProcess], expandedTexture, true);
+                    texture.getScene()?.postProcessManager.directRender([rgbdPostProcess], expandedTexture, true);
                     // Cleanup
                     engine.restoreDefaultFramebuffer();
                     engine._releaseTexture(internalTexture);
@@ -70,13 +77,17 @@ export class RGBDTextureTools {
                     // Ready to get rolling again.
                     internalTexture.isReady = true;
                 });
-            }
+            });
         };
-        if (isReady) {
-            expandRGBDTexture();
-        }
-        else {
-            texture.onLoadObservable.addOnce(expandRGBDTexture);
+        if (expandTexture) {
+            if (isReady) {
+                // eslint-disable-next-line @typescript-eslint/no-floating-promises
+                expandRgbdTextureAsync();
+            }
+            else {
+                // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                texture.onLoadObservable.addOnce(expandRgbdTextureAsync);
+            }
         }
     }
     /**
@@ -86,8 +97,16 @@ export class RGBDTextureTools {
      * @param outputTextureType type of the texture in which the encoding is performed
      * @returns a promise with the internalTexture having its texture replaced by the result of the processing
      */
-    static EncodeTextureToRGBD(internalTexture, scene, outputTextureType = 0) {
-        return ApplyPostProcess("rgbdEncode", internalTexture, scene, outputTextureType, 1, 5);
+    // Should have "Async" in the name but this is a breaking change.
+    // eslint-disable-next-line no-restricted-syntax
+    static async EncodeTextureToRGBD(internalTexture, scene, outputTextureType = 0) {
+        if (!scene.getEngine().isWebGPU) {
+            await import("../Shaders/rgbdEncode.fragment.js");
+        }
+        else {
+            await import("../ShadersWGSL/rgbdEncode.fragment.js");
+        }
+        return await ApplyPostProcess("rgbdEncode", internalTexture, scene, outputTextureType, 1, 5);
     }
 }
 //# sourceMappingURL=rgbdTextureTools.js.map

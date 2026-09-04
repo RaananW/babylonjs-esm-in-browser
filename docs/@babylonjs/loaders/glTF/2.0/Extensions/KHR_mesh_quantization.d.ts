@@ -1,21 +1,6 @@
-import type { IGLTFLoaderExtension } from "../glTFLoaderExtension";
-import { GLTFLoader } from "../glTFLoader";
 /**
- * [Specification](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md)
+ * Re-exports the pure implementation and applies the runtime registration side effect.
+ * Import "./KHR_mesh_quantization.pure" for tree-shakeable, side-effect-free usage.
  */
-export declare class KHR_mesh_quantization implements IGLTFLoaderExtension {
-    /**
-     * The name of this extension.
-     */
-    readonly name = "KHR_mesh_quantization";
-    /**
-     * Defines whether this extension is enabled.
-     */
-    enabled: boolean;
-    /**
-     * @internal
-     */
-    constructor(loader: GLTFLoader);
-    /** @internal */
-    dispose(): void;
-}
+export * from "./KHR_mesh_quantization.types.js";
+export * from "./KHR_mesh_quantization.pure.js";

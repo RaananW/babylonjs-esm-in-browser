@@ -1,5 +1,5 @@
 import { BackEase, EasingFunction } from "../../Animations/easing.js";
-import { Animation } from "../../Animations/animation.js";
+import { Animation } from "../../Animations/animation.pure.js";
 /**
  * Add a bouncing effect to an ArcRotateCamera when reaching a specified minimum and maximum radius
  * @see https://doc.babylonjs.com/features/featuresDeepDive/behaviors/cameraBehaviors#bouncing-behavior
@@ -19,6 +19,8 @@ export class BouncingBehavior {
          */
         this.upperRadiusTransitionRange = -2;
         this._autoTransitionRange = false;
+        // Connection
+        this._attachedCamera = null;
         // Animations
         this._radiusIsAnimating = false;
         this._radiusBounceTransition = null;
@@ -50,19 +52,27 @@ export class BouncingBehavior {
             return;
         }
         if (value) {
-            this._onMeshTargetChangedObserver = camera.onMeshTargetChangedObservable.add((mesh) => {
-                if (!mesh) {
+            this._onMeshTargetChangedObserver = camera.onMeshTargetChangedObservable.add((transformNode) => {
+                if (!transformNode) {
                     return;
                 }
-                mesh.computeWorldMatrix(true);
-                const diagonal = mesh.getBoundingInfo().diagonalLength;
-                this.lowerRadiusTransitionRange = diagonal * 0.05;
-                this.upperRadiusTransitionRange = diagonal * 0.05;
+                transformNode.computeWorldMatrix(true);
+                if (transformNode.getBoundingInfo) {
+                    const diagonal = transformNode.getBoundingInfo().diagonalLength;
+                    this.lowerRadiusTransitionRange = diagonal * 0.05;
+                    this.upperRadiusTransitionRange = diagonal * 0.05;
+                }
             });
         }
         else if (this._onMeshTargetChangedObserver) {
             camera.onMeshTargetChangedObservable.remove(this._onMeshTargetChangedObserver);
         }
+    }
+    /**
+     * Attached node of this behavior
+     */
+    get attachedNode() {
+        return this._attachedCamera;
     }
     /**
      * Initializes the behavior.

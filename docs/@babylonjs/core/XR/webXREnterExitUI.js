@@ -1,6 +1,5 @@
 import { Observable } from "../Misc/observable.js";
-import { WebXRState } from "./webXRTypes.js";
-import { Tools } from "../Misc/tools.js";
+import { Tools } from "../Misc/tools.pure.js";
 /**
  * Button which can be used to enter a different mode of XR
  */
@@ -75,7 +74,8 @@ export class WebXREnterExitUI {
             //     });
             // } else
             if (this._helper) {
-                this._enterXRWithButtonIndex(0);
+                // eslint-disable-next-line @typescript-eslint/no-floating-promises
+                this._enterXRWithButtonIndexAsync(0);
             }
         };
         this.overlay = document.createElement("div");
@@ -138,24 +138,25 @@ export class WebXREnterExitUI {
     async setHelperAsync(helper, renderTarget) {
         this._helper = helper;
         this._renderTarget = renderTarget;
-        const supportedPromises = this._buttons.map((btn) => {
-            return helper.sessionManager.isSessionSupportedAsync(btn.sessionMode);
+        const supportedPromises = this._buttons.map(async (btn) => {
+            return await helper.sessionManager.isSessionSupportedAsync(btn.sessionMode);
         });
         helper.onStateChangedObservable.add((state) => {
-            if (state == WebXRState.NOT_IN_XR) {
+            if (state == 3 /* WebXRState.NOT_IN_XR */) {
                 this._updateButtons(null);
             }
         });
         const results = await Promise.all(supportedPromises);
-        results.forEach((supported, i) => {
+        for (let i = 0; i < results.length; i++) {
+            const supported = results[i];
             if (supported) {
                 this.overlay.appendChild(this._buttons[i].element);
-                this._buttons[i].element.onclick = this._enterXRWithButtonIndex.bind(this, i);
+                this._buttons[i].element.onclick = this._enterXRWithButtonIndexAsync.bind(this, i);
             }
             else {
                 Tools.Warn(`Session mode "${this._buttons[i].sessionMode}" not supported in browser`);
             }
-        });
+        }
     }
     /**
      * Creates UI to allow the user to enter/exit XR mode
@@ -169,12 +170,12 @@ export class WebXREnterExitUI {
         await ui.setHelperAsync(helper, options.renderTarget || undefined);
         return ui;
     }
-    async _enterXRWithButtonIndex(idx = 0) {
-        if (this._helper.state == WebXRState.IN_XR) {
+    async _enterXRWithButtonIndexAsync(idx = 0) {
+        if (this._helper.state == 2 /* WebXRState.IN_XR */) {
             await this._helper.exitXRAsync();
             this._updateButtons(null);
         }
-        else if (this._helper.state == WebXRState.NOT_IN_XR) {
+        else if (this._helper.state == 3 /* WebXRState.NOT_IN_XR */) {
             try {
                 await this._helper.enterXRAsync(this._buttons[idx].sessionMode, this._buttons[idx].referenceSpaceType, this._renderTarget, {
                     optionalFeatures: this.options.optionalFeatures,
@@ -208,9 +209,9 @@ export class WebXREnterExitUI {
     }
     _updateButtons(activeButton) {
         this._activeButton = activeButton;
-        this._buttons.forEach((b) => {
+        for (const b of this._buttons) {
             b.update(this._activeButton);
-        });
+        }
         this.activeButtonChangedObservable.notifyObservers(this._activeButton);
     }
 }

@@ -1,7 +1,7 @@
-import type { Vector3 } from "../Maths/math.vector";
-import type { PhysicsRaycastResult } from "./physicsRaycastResult";
-import type { IPhysicsEnginePlugin as IPhysicsEnginePluginV1 } from "./v1/IPhysicsEnginePlugin";
-import type { IPhysicsEnginePluginV2 } from "./v2/IPhysicsEnginePlugin";
+import { type Vector3 } from "../Maths/math.vector.js";
+import { type PhysicsRaycastResult, type IRaycastQuery } from "./physicsRaycastResult.js";
+import { type IPhysicsEnginePlugin as IPhysicsEnginePluginV1 } from "./v1/IPhysicsEnginePlugin.js";
+import { type IPhysicsEnginePluginV2 } from "./v2/IPhysicsEnginePlugin.js";
 /**
  * Interface used to define a physics engine
  * @see https://doc.babylonjs.com/features/featuresDeepDive/physics/usingPhysicsEngine
@@ -11,9 +11,6 @@ export interface IPhysicsEngine {
      * Gets the gravity vector used by the simulation
      */
     gravity: Vector3;
-    /**
-     *
-     */
     getPluginVersion(): number;
     /**
      * Sets the gravity vector used by the simulation
@@ -65,7 +62,7 @@ export interface IPhysicsEngine {
      * @param to when should the ray end?
      * @returns PhysicsRaycastResult
      */
-    raycast(from: Vector3, to: Vector3): PhysicsRaycastResult;
+    raycast(from: Vector3, to: Vector3, query?: IRaycastQuery): PhysicsRaycastResult;
     /**
      * Called by the scene. No need to call it.
      * @param delta defines the timespan between frames

@@ -1,27 +1,5 @@
-import { NodeMaterialBlock } from "../../nodeMaterialBlock";
-import type { NodeMaterialBuildState } from "../../nodeMaterialBuildState";
-import type { NodeMaterialConnectionPoint } from "../../nodeMaterialBlockConnectionPoint";
 /**
- * Block used to discard a pixel if a value is smaller than a cutoff
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import discardBlock.pure for tree-shakeable, side-effect-free usage.
  */
-export declare class DiscardBlock extends NodeMaterialBlock {
-    /**
-     * Create a new DiscardBlock
-     * @param name defines the block name
-     */
-    constructor(name: string);
-    /**
-     * Gets the current class name
-     * @returns the class name
-     */
-    getClassName(): string;
-    /**
-     * Gets the color input component
-     */
-    get value(): NodeMaterialConnectionPoint;
-    /**
-     * Gets the cutoff input component
-     */
-    get cutoff(): NodeMaterialConnectionPoint;
-    protected _buildBlock(state: NodeMaterialBuildState): this | undefined;
-}
+export * from "./discardBlock.pure.js";

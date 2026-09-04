@@ -1,7 +1,7 @@
-import type { Nullable, IndicesArray } from "../types";
-import { Vector3 } from "../Maths/math.vector";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import { Plane } from "../Maths/math.plane";
+import { type Nullable, type IndicesArray } from "../types.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { Plane } from "../Maths/math.plane.js";
 /** @internal */
 export declare class Collider {
     /** Define if a collision was found */
@@ -79,5 +79,5 @@ export declare class Collider {
     /**
      * @internal
      */
-    _getResponse(pos: Vector3, vel: Vector3): void;
+    _getResponse(pos: Vector3, vel: Vector3, slideOnCollide: boolean): void;
 }

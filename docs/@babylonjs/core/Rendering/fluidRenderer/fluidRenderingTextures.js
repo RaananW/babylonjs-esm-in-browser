@@ -1,42 +1,10 @@
 
-import { Texture } from "../../Materials/Textures/texture.js";
-import { Vector2 } from "../../Maths/math.vector.js";
-import { PostProcess } from "../../PostProcesses/postProcess.js";
+import { Texture } from "../../Materials/Textures/texture.pure.js";
+import { Vector2 } from "../../Maths/math.vector.pure.js";
+import { PostProcess } from "../../PostProcesses/postProcess.pure.js";
 import { Observable } from "../../Misc/observable.js";
 /** @internal */
 export class FluidRenderingTextures {
-    constructor(name, scene, width, height, blurTextureSizeX, blurTextureSizeY, textureType = 1, textureFormat = 6, blurTextureType = 1, blurTextureFormat = 6, useStandardBlur = false, camera = null, generateDepthBuffer = true, samples = 1) {
-        this.enableBlur = true;
-        this.blurSizeDivisor = 1;
-        this.blurFilterSize = 7;
-        this._blurNumIterations = 3;
-        this.blurMaxFilterSize = 100;
-        this.blurDepthScale = 10;
-        this.particleSize = 0.02;
-        this.onDisposeObservable = new Observable();
-        this._name = name;
-        this._scene = scene;
-        this._camera = camera;
-        this._engine = scene.getEngine();
-        this._width = width;
-        this._height = height;
-        this._blurTextureSizeX = blurTextureSizeX;
-        this._blurTextureSizeY = blurTextureSizeY;
-        this._textureType = textureType;
-        this._textureFormat = textureFormat;
-        this._blurTextureType = blurTextureType;
-        this._blurTextureFormat = blurTextureFormat;
-        this._useStandardBlur = useStandardBlur;
-        this._generateDepthBuffer = generateDepthBuffer;
-        this._samples = samples;
-        this._postProcessRunningIndex = 0;
-        this.enableBlur = blurTextureSizeX !== 0 && blurTextureSizeY !== 0;
-        this._rt = null;
-        this._texture = null;
-        this._rtBlur = null;
-        this._textureBlurred = null;
-        this._blurPostProcesses = null;
-    }
     get blurNumIterations() {
         return this._blurNumIterations;
     }
@@ -66,6 +34,47 @@ export class FluidRenderingTextures {
     get textureBlur() {
         return this._textureBlurred;
     }
+    /**
+     * Gets the shader language used in the texture
+     */
+    get shaderLanguage() {
+        return this._shaderLanguage;
+    }
+    constructor(name, scene, width, height, blurTextureSizeX, blurTextureSizeY, textureType = 1, textureFormat = 6, blurTextureType = 1, blurTextureFormat = 6, useStandardBlur = false, camera = null, generateDepthBuffer = true, samples = 1, shaderLanguage) {
+        this.enableBlur = true;
+        this.blurSizeDivisor = 1;
+        this.blurFilterSize = 7;
+        this._blurNumIterations = 3;
+        this.blurMaxFilterSize = 100;
+        this.blurDepthScale = 10;
+        this.particleSize = 0.02;
+        this.onDisposeObservable = new Observable();
+        /** Shader language used by the texture */
+        this._shaderLanguage = 0 /* ShaderLanguage.GLSL */;
+        this._name = name;
+        this._scene = scene;
+        this._camera = camera;
+        this._engine = scene.getEngine();
+        this._width = width;
+        this._height = height;
+        this._blurTextureSizeX = blurTextureSizeX;
+        this._blurTextureSizeY = blurTextureSizeY;
+        this._textureType = textureType;
+        this._textureFormat = textureFormat;
+        this._blurTextureType = blurTextureType;
+        this._blurTextureFormat = blurTextureFormat;
+        this._useStandardBlur = useStandardBlur;
+        this._generateDepthBuffer = generateDepthBuffer;
+        this._samples = samples;
+        this._postProcessRunningIndex = 0;
+        this.enableBlur = blurTextureSizeX !== 0 && blurTextureSizeY !== 0;
+        this._rt = null;
+        this._texture = null;
+        this._rtBlur = null;
+        this._textureBlurred = null;
+        this._blurPostProcesses = null;
+        this._shaderLanguage = shaderLanguage ?? (this._engine.isWebGPU ? 1 /* ShaderLanguage.WGSL */ : 0 /* ShaderLanguage.GLSL */);
+    }
     initialize() {
         this.dispose();
         this._createRenderTarget();
@@ -92,6 +101,7 @@ export class FluidRenderingTextures {
             generateDepthBuffer: this._generateDepthBuffer,
             generateStencilBuffer: false,
             samples: this._samples,
+            label: `FluidRenderingRTT-${this._name}`,
         });
         const renderTexture = this._rt.texture;
         renderTexture.incrementReferences();
@@ -115,6 +125,7 @@ export class FluidRenderingTextures {
             generateDepthBuffer: false,
             generateStencilBuffer: false,
             samples: this._samples,
+            label: `FluidRenderingRTTBlur-${debugName}`,
         });
         const renderTexture = rtBlur.texture;
         renderTexture.incrementReferences();
@@ -125,7 +136,16 @@ export class FluidRenderingTextures {
         texture.wrapV = Texture.CLAMP_ADDRESSMODE;
         texture.anisotropicFilteringLevel = 1;
         if (useStandardBlur) {
-            const kernelBlurXPostprocess = new PostProcess("BilateralBlurX", "fluidRenderingStandardBlur", ["filterSize", "blurDir"], null, 1, null, 1, engine, true, null, textureType, undefined, undefined, undefined, textureFormat);
+            const kernelBlurXPostprocess = new PostProcess("BilateralBlurX", "fluidRenderingStandardBlur", ["filterSize", "blurDir"], null, 1, null, 1, engine, true, null, textureType, undefined, undefined, undefined, textureFormat, this._shaderLanguage, 
+            // Keeping this issue for further discussion - extraInitialization should return Promise<void>
+            async () => {
+                if (this.shaderLanguage === 1 /* ShaderLanguage.WGSL */) {
+                    await import("../../ShadersWGSL/fluidRenderingStandardBlur.fragment.js");
+                }
+                else {
+                    await import("../../Shaders/fluidRenderingStandardBlur.fragment.js");
+                }
+            });
             kernelBlurXPostprocess.samples = this._samples;
             kernelBlurXPostprocess.externalTextureSamplerBinding = true;
             kernelBlurXPostprocess.onApplyObservable.add((effect) => {
@@ -146,7 +166,14 @@ export class FluidRenderingTextures {
                 });
             });
             this._fixReusablePostProcess(kernelBlurXPostprocess);
-            const kernelBlurYPostprocess = new PostProcess("BilateralBlurY", "fluidRenderingStandardBlur", ["filterSize", "blurDir"], null, 1, null, 1, engine, true, null, textureType, undefined, undefined, undefined, textureFormat);
+            const kernelBlurYPostprocess = new PostProcess("BilateralBlurY", "fluidRenderingStandardBlur", ["filterSize", "blurDir"], null, 1, null, 1, engine, true, null, textureType, undefined, undefined, undefined, textureFormat, this._shaderLanguage, async () => {
+                if (this.shaderLanguage === 1 /* ShaderLanguage.WGSL */) {
+                    await import("../../ShadersWGSL/fluidRenderingStandardBlur.fragment.js");
+                }
+                else {
+                    await import("../../Shaders/fluidRenderingStandardBlur.fragment.js");
+                }
+            });
             kernelBlurYPostprocess.samples = this._samples;
             kernelBlurYPostprocess.onApplyObservable.add((effect) => {
                 effect.setInt("filterSize", this.blurFilterSize);
@@ -170,7 +197,14 @@ export class FluidRenderingTextures {
         }
         else {
             const uniforms = ["maxFilterSize", "blurDir", "projectedParticleConstant", "depthThreshold"];
-            const kernelBlurXPostprocess = new PostProcess("BilateralBlurX", "fluidRenderingBilateralBlur", uniforms, null, 1, null, 1, engine, true, null, textureType, undefined, undefined, undefined, textureFormat);
+            const kernelBlurXPostprocess = new PostProcess("BilateralBlurX", "fluidRenderingBilateralBlur", uniforms, null, 1, null, 1, engine, true, null, textureType, undefined, undefined, undefined, textureFormat, this._shaderLanguage, async () => {
+                if (this.shaderLanguage === 1 /* ShaderLanguage.WGSL */) {
+                    await import("../../ShadersWGSL/fluidRenderingBilateralBlur.fragment.js");
+                }
+                else {
+                    await import("../../Shaders/fluidRenderingBilateralBlur.fragment.js");
+                }
+            });
             kernelBlurXPostprocess.samples = this._samples;
             kernelBlurXPostprocess.externalTextureSamplerBinding = true;
             kernelBlurXPostprocess.onApplyObservable.add((effect) => {
@@ -193,7 +227,14 @@ export class FluidRenderingTextures {
                 });
             });
             this._fixReusablePostProcess(kernelBlurXPostprocess);
-            const kernelBlurYPostprocess = new PostProcess("BilateralBlurY", "fluidRenderingBilateralBlur", uniforms, null, 1, null, 1, engine, true, null, textureType, undefined, undefined, undefined, textureFormat);
+            const kernelBlurYPostprocess = new PostProcess("BilateralBlurY", "fluidRenderingBilateralBlur", uniforms, null, 1, null, 1, engine, true, null, textureType, undefined, undefined, undefined, textureFormat, this._shaderLanguage, async () => {
+                if (this.shaderLanguage === 1 /* ShaderLanguage.WGSL */) {
+                    await import("../../ShadersWGSL/fluidRenderingBilateralBlur.fragment.js");
+                }
+                else {
+                    await import("../../Shaders/fluidRenderingBilateralBlur.fragment.js");
+                }
+            });
             kernelBlurYPostprocess.samples = this._samples;
             kernelBlurYPostprocess.onApplyObservable.add((effect) => {
                 effect.setInt("maxFilterSize", this.blurMaxFilterSize);
@@ -232,24 +273,23 @@ export class FluidRenderingTextures {
         });
     }
     _getProjectedParticleConstant() {
-        var _a, _b;
-        return (this.blurFilterSize * this.particleSize * 0.05 * (this._height / 2)) / Math.tan(((_b = (_a = this._camera) === null || _a === void 0 ? void 0 : _a.fov) !== null && _b !== void 0 ? _b : (45 * Math.PI) / 180) / 2);
+        return (this.blurFilterSize * this.particleSize * 0.05 * (this._height / 2)) / Math.tan((this._camera?.fov ?? (45 * Math.PI) / 180) / 2);
     }
     _getDepthThreshold() {
         return (this.particleSize / 2) * this.blurDepthScale;
     }
     dispose() {
-        var _a, _b, _c, _d;
         if (this.onDisposeObservable.hasObservers()) {
             this.onDisposeObservable.notifyObservers(this);
         }
-        (_a = this._rt) === null || _a === void 0 ? void 0 : _a.dispose();
+        this.onDisposeObservable.clear();
+        this._rt?.dispose();
         this._rt = null;
-        (_b = this._texture) === null || _b === void 0 ? void 0 : _b.dispose();
+        this._texture?.dispose();
         this._texture = null;
-        (_c = this._rtBlur) === null || _c === void 0 ? void 0 : _c.dispose();
+        this._rtBlur?.dispose();
         this._rtBlur = null;
-        (_d = this._textureBlurred) === null || _d === void 0 ? void 0 : _d.dispose();
+        this._textureBlurred?.dispose();
         this._textureBlurred = null;
         if (this._blurPostProcesses) {
             this._blurPostProcesses[0].dispose();

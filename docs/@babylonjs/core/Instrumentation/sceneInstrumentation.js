@@ -1,100 +1,10 @@
-import { Tools } from "../Misc/tools.js";
+import { Tools } from "../Misc/tools.pure.js";
 import { PerfCounter } from "../Misc/perfCounter.js";
 /**
  * This class can be used to get instrumentation data from a Babylon engine
  * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/optimize_your_scene#sceneinstrumentation
  */
 export class SceneInstrumentation {
-    /**
-     * Instantiates a new scene instrumentation.
-     * This class can be used to get instrumentation data from a Babylon engine
-     * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/optimize_your_scene#sceneinstrumentation
-     * @param scene Defines the scene to instrument
-     */
-    constructor(
-    /**
-     * Defines the scene to instrument
-     */
-    scene) {
-        this.scene = scene;
-        this._captureActiveMeshesEvaluationTime = false;
-        this._activeMeshesEvaluationTime = new PerfCounter();
-        this._captureRenderTargetsRenderTime = false;
-        this._renderTargetsRenderTime = new PerfCounter();
-        this._captureFrameTime = false;
-        this._frameTime = new PerfCounter();
-        this._captureRenderTime = false;
-        this._renderTime = new PerfCounter();
-        this._captureInterFrameTime = false;
-        this._interFrameTime = new PerfCounter();
-        this._captureParticlesRenderTime = false;
-        this._particlesRenderTime = new PerfCounter();
-        this._captureSpritesRenderTime = false;
-        this._spritesRenderTime = new PerfCounter();
-        this._capturePhysicsTime = false;
-        this._physicsTime = new PerfCounter();
-        this._captureAnimationsTime = false;
-        this._animationsTime = new PerfCounter();
-        this._captureCameraRenderTime = false;
-        this._cameraRenderTime = new PerfCounter();
-        // Observers
-        this._onBeforeActiveMeshesEvaluationObserver = null;
-        this._onAfterActiveMeshesEvaluationObserver = null;
-        this._onBeforeRenderTargetsRenderObserver = null;
-        this._onAfterRenderTargetsRenderObserver = null;
-        this._onAfterRenderObserver = null;
-        this._onBeforeDrawPhaseObserver = null;
-        this._onAfterDrawPhaseObserver = null;
-        this._onBeforeAnimationsObserver = null;
-        this._onBeforeParticlesRenderingObserver = null;
-        this._onAfterParticlesRenderingObserver = null;
-        this._onBeforeSpritesRenderingObserver = null;
-        this._onAfterSpritesRenderingObserver = null;
-        this._onBeforePhysicsObserver = null;
-        this._onAfterPhysicsObserver = null;
-        this._onAfterAnimationsObserver = null;
-        this._onBeforeCameraRenderObserver = null;
-        this._onAfterCameraRenderObserver = null;
-        // Before render
-        this._onBeforeAnimationsObserver = scene.onBeforeAnimationsObservable.add(() => {
-            if (this._captureActiveMeshesEvaluationTime) {
-                this._activeMeshesEvaluationTime.fetchNewFrame();
-            }
-            if (this._captureRenderTargetsRenderTime) {
-                this._renderTargetsRenderTime.fetchNewFrame();
-            }
-            if (this._captureFrameTime) {
-                Tools.StartPerformanceCounter("Scene rendering");
-                this._frameTime.beginMonitoring();
-            }
-            if (this._captureInterFrameTime) {
-                this._interFrameTime.endMonitoring();
-            }
-            if (this._captureParticlesRenderTime) {
-                this._particlesRenderTime.fetchNewFrame();
-            }
-            if (this._captureSpritesRenderTime) {
-                this._spritesRenderTime.fetchNewFrame();
-            }
-            if (this._captureAnimationsTime) {
-                this._animationsTime.beginMonitoring();
-            }
-            this.scene.getEngine()._drawCalls.fetchNewFrame();
-        });
-        // After render
-        this._onAfterRenderObserver = scene.onAfterRenderObservable.add(() => {
-            if (this._captureFrameTime) {
-                Tools.EndPerformanceCounter("Scene rendering");
-                this._frameTime.endMonitoring();
-            }
-            if (this._captureRenderTime) {
-                this._renderTime.endMonitoring(false);
-            }
-            if (this._captureInterFrameTime) {
-                this._interFrameTime.beginMonitoring();
-            }
-        });
-    }
     // Properties
     /**
      * Gets the perf counter used for active meshes evaluation time
@@ -123,7 +33,7 @@ export class SceneInstrumentation {
             });
             this._onAfterActiveMeshesEvaluationObserver = this.scene.onAfterActiveMeshesEvaluationObservable.add(() => {
                 Tools.EndPerformanceCounter("Active meshes evaluation");
-                this._activeMeshesEvaluationTime.endMonitoring();
+                this._activeMeshesEvaluationTime.endMonitoring(false);
             });
         }
         else {
@@ -154,20 +64,25 @@ export class SceneInstrumentation {
         }
         this._captureRenderTargetsRenderTime = value;
         if (value) {
-            this._onBeforeRenderTargetsRenderObserver = this.scene.onBeforeRenderTargetsRenderObservable.add(() => {
-                Tools.StartPerformanceCounter("Render targets rendering");
-                this._renderTargetsRenderTime.beginMonitoring();
-            });
-            this._onAfterRenderTargetsRenderObserver = this.scene.onAfterRenderTargetsRenderObservable.add(() => {
-                Tools.EndPerformanceCounter("Render targets rendering");
-                this._renderTargetsRenderTime.endMonitoring(false);
-            });
+            for (const objectRenderer of this.scene.objectRenderers) {
+                this._onBeforeRenderTargetsRenderObserver.push(objectRenderer.onInitRenderingObservable.add(() => {
+                    Tools.StartPerformanceCounter("Render targets rendering");
+                    this._renderTargetsRenderTime.beginMonitoring();
+                }));
+                this._onAfterRenderTargetsRenderObserver.push(objectRenderer.onFinishRenderingObservable.add(() => {
+                    Tools.EndPerformanceCounter("Render targets rendering");
+                    this._renderTargetsRenderTime.endMonitoring(false);
+                }));
+            }
         }
         else {
-            this.scene.onBeforeRenderTargetsRenderObservable.remove(this._onBeforeRenderTargetsRenderObserver);
-            this._onBeforeRenderTargetsRenderObserver = null;
-            this.scene.onAfterRenderTargetsRenderObservable.remove(this._onAfterRenderTargetsRenderObserver);
-            this._onAfterRenderTargetsRenderObserver = null;
+            for (let i = 0; i < this.scene.objectRenderers.length; ++i) {
+                const objectRenderer = this.scene.objectRenderers[i];
+                objectRenderer.onInitRenderingObservable.remove(this._onBeforeRenderTargetsRenderObserver[i]);
+                objectRenderer.onFinishRenderingObservable.remove(this._onAfterRenderTargetsRenderObserver[i]);
+            }
+            this._onBeforeRenderTargetsRenderObserver.length = 0;
+            this._onAfterRenderTargetsRenderObserver.length = 0;
         }
     }
     /**
@@ -374,20 +289,27 @@ export class SceneInstrumentation {
         }
         this._captureRenderTime = value;
         if (value) {
-            this._onBeforeDrawPhaseObserver = this.scene.onBeforeDrawPhaseObservable.add(() => {
+            this._onBeforeDrawPhaseObserver.push(this.scene.onBeforeDrawPhaseObservable.add(() => {
                 this._renderTime.beginMonitoring();
                 Tools.StartPerformanceCounter("Main render");
-            });
-            this._onAfterDrawPhaseObserver = this.scene.onAfterDrawPhaseObservable.add(() => {
+            }));
+            this._onAfterDrawPhaseObserver.push(this.scene.onAfterDrawPhaseObservable.add(() => {
                 this._renderTime.endMonitoring(false);
                 Tools.EndPerformanceCounter("Main render");
-            });
+            }));
+            for (const objectRenderer of this.scene.objectRenderers) {
+                this._onBeforeDrawPhaseObserver.push(objectRenderer.onBeforeRenderingManagerRenderObservable.add(() => {
+                    this._renderTime.beginMonitoring();
+                    Tools.StartPerformanceCounter("Main render");
+                }));
+                this._onAfterDrawPhaseObserver.push(objectRenderer.onAfterRenderingManagerRenderObservable.add(() => {
+                    this._renderTime.endMonitoring(false);
+                    Tools.EndPerformanceCounter("Main render");
+                }));
+            }
         }
         else {
-            this.scene.onBeforeDrawPhaseObservable.remove(this._onBeforeDrawPhaseObserver);
-            this._onBeforeDrawPhaseObserver = null;
-            this.scene.onAfterDrawPhaseObservable.remove(this._onAfterDrawPhaseObserver);
-            this._onAfterDrawPhaseObserver = null;
+            this._removeRenderTimeObservers();
         }
     }
     /**
@@ -434,19 +356,154 @@ export class SceneInstrumentation {
         return this.scene.getEngine()._drawCalls;
     }
     /**
+     * Instantiates a new scene instrumentation.
+     * This class can be used to get instrumentation data from a Babylon engine
+     * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/optimize_your_scene#sceneinstrumentation
+     * @param scene Defines the scene to instrument
+     */
+    constructor(
+    /**
+     * Defines the scene to instrument
+     */
+    scene) {
+        this.scene = scene;
+        this._captureActiveMeshesEvaluationTime = false;
+        this._activeMeshesEvaluationTime = new PerfCounter();
+        this._captureRenderTargetsRenderTime = false;
+        this._renderTargetsRenderTime = new PerfCounter();
+        this._captureFrameTime = false;
+        this._frameTime = new PerfCounter();
+        this._captureRenderTime = false;
+        this._renderTime = new PerfCounter();
+        this._captureInterFrameTime = false;
+        this._interFrameTime = new PerfCounter();
+        this._captureParticlesRenderTime = false;
+        this._particlesRenderTime = new PerfCounter();
+        this._captureSpritesRenderTime = false;
+        this._spritesRenderTime = new PerfCounter();
+        this._capturePhysicsTime = false;
+        this._physicsTime = new PerfCounter();
+        this._captureAnimationsTime = false;
+        this._animationsTime = new PerfCounter();
+        this._captureCameraRenderTime = false;
+        this._cameraRenderTime = new PerfCounter();
+        // Observers
+        this._onBeforeActiveMeshesEvaluationObserver = null;
+        this._onAfterActiveMeshesEvaluationObserver = null;
+        this._onBeforeRenderTargetsRenderObserver = [];
+        this._onAfterRenderTargetsRenderObserver = [];
+        this._onAfterRenderObserver = null;
+        this._onBeforeDrawPhaseObserver = [];
+        this._onAfterDrawPhaseObserver = [];
+        this._onBeforeAnimationsObserver = null;
+        this._onBeforeParticlesRenderingObserver = null;
+        this._onAfterParticlesRenderingObserver = null;
+        this._onBeforeSpritesRenderingObserver = null;
+        this._onAfterSpritesRenderingObserver = null;
+        this._onBeforePhysicsObserver = null;
+        this._onAfterPhysicsObserver = null;
+        this._onAfterAnimationsObserver = null;
+        this._onBeforeCameraRenderObserver = null;
+        this._onAfterCameraRenderObserver = null;
+        this._disposed = false;
+        // Before render
+        this._onBeforeAnimationsObserver = scene.onBeforeAnimationsObservable.add(() => {
+            if (this._captureActiveMeshesEvaluationTime) {
+                this._activeMeshesEvaluationTime.fetchNewFrame();
+            }
+            if (this._captureRenderTargetsRenderTime) {
+                this._renderTargetsRenderTime.fetchNewFrame();
+            }
+            if (this._captureFrameTime) {
+                Tools.StartPerformanceCounter("Scene rendering");
+                this._frameTime.beginMonitoring();
+            }
+            if (this._captureInterFrameTime) {
+                this._interFrameTime.endMonitoring();
+            }
+            if (this._captureParticlesRenderTime) {
+                this._particlesRenderTime.fetchNewFrame();
+            }
+            if (this._captureSpritesRenderTime) {
+                this._spritesRenderTime.fetchNewFrame();
+            }
+            if (this._captureAnimationsTime) {
+                this._animationsTime.beginMonitoring();
+            }
+            if (this._captureRenderTime) {
+                this._renderTime.fetchNewFrame();
+            }
+            if (this._captureCameraRenderTime) {
+                this._cameraRenderTime.fetchNewFrame();
+            }
+            this.scene.getEngine()._drawCalls.fetchNewFrame();
+        });
+        // After render
+        this._onAfterRenderObserver = scene.onAfterRenderObservable.add(() => {
+            if (this._captureFrameTime) {
+                Tools.EndPerformanceCounter("Scene rendering");
+                this._frameTime.endMonitoring();
+            }
+            if (this._captureRenderTime) {
+                this._renderTime.endMonitoring(false);
+            }
+            if (this._captureInterFrameTime) {
+                this._interFrameTime.beginMonitoring();
+            }
+            if (this._captureActiveMeshesEvaluationTime) {
+                this._activeMeshesEvaluationTime.endFrame();
+            }
+            if (this._captureRenderTargetsRenderTime) {
+                this._renderTargetsRenderTime.endFrame();
+            }
+            if (this._captureParticlesRenderTime) {
+                this._particlesRenderTime.endFrame();
+            }
+            if (this._captureSpritesRenderTime) {
+                this._spritesRenderTime.endFrame();
+            }
+            if (this._captureRenderTime) {
+                this._renderTime.endFrame();
+            }
+            if (this._captureCameraRenderTime) {
+                this._cameraRenderTime.endFrame();
+            }
+        });
+    }
+    _removeRenderTargetsObservers() {
+        for (let i = 0; i < this.scene.objectRenderers.length; ++i) {
+            const objectRenderer = this.scene.objectRenderers[i];
+            objectRenderer.onInitRenderingObservable.remove(this._onBeforeRenderTargetsRenderObserver[i]);
+            objectRenderer.onFinishRenderingObservable.remove(this._onAfterRenderTargetsRenderObserver[i]);
+        }
+        this._onBeforeRenderTargetsRenderObserver.length = 0;
+        this._onAfterRenderTargetsRenderObserver.length = 0;
+    }
+    _removeRenderTimeObservers() {
+        this.scene.onBeforeDrawPhaseObservable.remove(this._onBeforeDrawPhaseObserver[0]);
+        this._onBeforeDrawPhaseObserver.length = 0;
+        this.scene.onAfterDrawPhaseObservable.remove(this._onAfterDrawPhaseObserver[0]);
+        this._onAfterDrawPhaseObserver.length = 0;
+        for (let i = 1; i < this._onBeforeDrawPhaseObserver.length; i++) {
+            const objectRenderer = this.scene.objectRenderers[i - 1];
+            objectRenderer.onBeforeRenderingManagerRenderObservable.remove(this._onBeforeDrawPhaseObserver[i]);
+            objectRenderer.onAfterRenderingManagerRenderObservable.remove(this._onAfterDrawPhaseObserver[i]);
+        }
+    }
+    /**
      * Dispose and release associated resources.
      */
     dispose() {
+        if (this._disposed) {
+            return;
+        }
         this.scene.onAfterRenderObservable.remove(this._onAfterRenderObserver);
         this._onAfterRenderObserver = null;
         this.scene.onBeforeActiveMeshesEvaluationObservable.remove(this._onBeforeActiveMeshesEvaluationObserver);
         this._onBeforeActiveMeshesEvaluationObserver = null;
         this.scene.onAfterActiveMeshesEvaluationObservable.remove(this._onAfterActiveMeshesEvaluationObserver);
         this._onAfterActiveMeshesEvaluationObserver = null;
-        this.scene.onBeforeRenderTargetsRenderObservable.remove(this._onBeforeRenderTargetsRenderObserver);
-        this._onBeforeRenderTargetsRenderObserver = null;
-        this.scene.onAfterRenderTargetsRenderObservable.remove(this._onAfterRenderTargetsRenderObserver);
-        this._onAfterRenderTargetsRenderObserver = null;
+        this._removeRenderTargetsObservers();
         this.scene.onBeforeAnimationsObservable.remove(this._onBeforeAnimationsObserver);
         this._onBeforeAnimationsObserver = null;
         this.scene.onBeforeParticlesRenderingObservable.remove(this._onBeforeParticlesRenderingObserver);
@@ -461,10 +518,7 @@ export class SceneInstrumentation {
             this.scene.onAfterSpritesRenderingObservable.remove(this._onAfterSpritesRenderingObserver);
             this._onAfterSpritesRenderingObserver = null;
         }
-        this.scene.onBeforeDrawPhaseObservable.remove(this._onBeforeDrawPhaseObserver);
-        this._onBeforeDrawPhaseObserver = null;
-        this.scene.onAfterDrawPhaseObservable.remove(this._onAfterDrawPhaseObserver);
-        this._onAfterDrawPhaseObserver = null;
+        this._removeRenderTimeObservers();
         if (this._onBeforePhysicsObserver) {
             this.scene.onBeforePhysicsObservable.remove(this._onBeforePhysicsObserver);
             this._onBeforePhysicsObserver = null;
@@ -480,6 +534,7 @@ export class SceneInstrumentation {
         this.scene.onAfterCameraRenderObservable.remove(this._onAfterCameraRenderObserver);
         this._onAfterCameraRenderObserver = null;
         this.scene = null;
+        this._disposed = true;
     }
 }
 //# sourceMappingURL=sceneInstrumentation.js.map

@@ -1,26 +1,26 @@
-import type { Observer } from "../Misc/observable";
-import { Observable } from "../Misc/observable";
-import type { Nullable } from "../types";
-import type { PointerInfo } from "../Events/pointerEvents";
-import type { Scene, IDisposable } from "../scene";
-import type { Node } from "../node";
-import { AbstractMesh } from "../Meshes/abstractMesh";
-import type { Mesh } from "../Meshes/mesh";
-import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer";
-import { Color3 } from "../Maths/math.color";
-import { SixDofDragBehavior } from "../Behaviors/Meshes/sixDofDragBehavior";
-import type { GizmoAxisCache } from "./gizmo";
-import type { IRotationGizmo } from "./rotationGizmo";
-import type { IPositionGizmo } from "./positionGizmo";
-import type { IScaleGizmo } from "./scaleGizmo";
-import type { IBoundingBoxGizmo } from "./boundingBoxGizmo";
+import { type Observer, Observable } from "../Misc/observable.js";
+import { type Nullable } from "../types.js";
+import { type PointerInfo } from "../Events/pointerEvents.js";
+import { type Scene, type IDisposable } from "../scene.js";
+import { type Node } from "../node.js";
+import { AbstractMesh } from "../Meshes/abstractMesh.pure.js";
+import { type Mesh } from "../Meshes/mesh.js";
+import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer.js";
+import { Color3 } from "../Maths/math.color.pure.js";
+import { SixDofDragBehavior } from "../Behaviors/Meshes/sixDofDragBehavior.js";
+import { type GizmoAxisCache, GizmoCoordinatesMode } from "./gizmo.js";
+import { type IRotationGizmo } from "./rotationGizmo.js";
+import { type IPositionGizmo } from "./positionGizmo.js";
+import { type IScaleGizmo } from "./scaleGizmo.js";
+import { type IBoundingBoxGizmo } from "./boundingBoxGizmo.js";
+import { type TransformNode } from "../Meshes/transformNode.js";
 /**
- * Helps setup gizmo's in the scene to rotate/scale/position nodes
+ * Helps set up gizmos in the scene to rotate/scale/position nodes
  */
 export declare class GizmoManager implements IDisposable {
     private _scene;
     /**
-     * Gizmo's created by the gizmo manager, gizmo will be null until gizmo has been enabled for the first time
+     * Gizmos created by the gizmo manager, gizmo will be null until gizmo has been enabled for the first time
      */
     gizmos: {
         positionGizmo: Nullable<IPositionGizmo>;
@@ -50,6 +50,8 @@ export declare class GizmoManager implements IDisposable {
     protected _defaultKeepDepthUtilityLayer: UtilityLayerRenderer;
     protected _thickness: number;
     protected _scaleRatio: number;
+    protected _coordinatesMode: GizmoCoordinatesMode;
+    protected _additionalTransformNode?: TransformNode;
     /** Node Caching for quick lookup */
     private _gizmoAxisCache;
     /**
@@ -81,10 +83,33 @@ export declare class GizmoManager implements IDisposable {
      */
     get isHovered(): boolean;
     /**
+     * True when the mouse pointer is dragging a gizmo mesh
+     */
+    get isDragging(): boolean;
+    /**
      * Ratio for the scale of the gizmo (Default: 1)
      */
     set scaleRatio(value: number);
     get scaleRatio(): number;
+    /**
+     * Set the coordinate system to use. By default it's local.
+     * But it's possible for a user to tweak so its local for translation and world for rotation.
+     * In that case, setting the coordinate system will change `updateGizmoRotationToMatchAttachedMesh` and `updateGizmoPositionToMatchAttachedMesh`
+     */
+    set coordinatesMode(coordinatesMode: GizmoCoordinatesMode);
+    get coordinatesMode(): GizmoCoordinatesMode;
+    /**
+     * The mesh the gizmo's is attached to
+     */
+    get attachedMesh(): Nullable<AbstractMesh>;
+    /**
+     * The node the gizmo's is attached to
+     */
+    get attachedNode(): Nullable<Node>;
+    /**
+     * Additional transform node that will be used to transform all the gizmos
+     */
+    get additionalTransformNode(): TransformNode | undefined;
     /**
      * Instantiates a gizmo manager
      * @param _scene the scene to overlay the gizmos on top of
@@ -94,8 +119,10 @@ export declare class GizmoManager implements IDisposable {
      */
     constructor(_scene: Scene, thickness?: number, utilityLayer?: UtilityLayerRenderer, keepDepthUtilityLayer?: UtilityLayerRenderer);
     /**
+     * @internal
      * Subscribes to pointer down events, for attaching and detaching mesh
      * @param scene The scene layer the observer will be added to
+     * @returns the pointer observer
      */
     private _attachToMeshPointerObserver;
     /**
@@ -129,10 +156,20 @@ export declare class GizmoManager implements IDisposable {
     set boundingBoxGizmoEnabled(value: boolean);
     get boundingBoxGizmoEnabled(): boolean;
     /**
+     * Sets the additional transform applied to all the gizmos.
+     * @See Gizmo.additionalTransformNode for more detail
+     */
+    set additionalTransformNode(node: TransformNode | undefined);
+    private _setAdditionalTransformNode;
+    /**
      * Builds Gizmo Axis Cache to enable features such as hover state preservation and graying out other axis during manipulation
      * @param gizmoAxisCache Gizmo axis definition used for reactive gizmo UI
      */
     addToAxisCache(gizmoAxisCache: Map<Mesh, GizmoAxisCache>): void;
+    /**
+     * Force release the drag action by code
+     */
+    releaseDrag(): void;
     /**
      * Disposes of the gizmo manager
      */

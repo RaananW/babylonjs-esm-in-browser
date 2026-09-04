@@ -1,6 +1,6 @@
-import type { IMinimalMotionControllerObject, MotionControllerComponentType } from "./webXRAbstractMotionController";
-import { Observable } from "../../Misc/observable";
-import type { IDisposable } from "../../scene";
+import { type IMinimalMotionControllerObject, type MotionControllerComponentType } from "./webXRAbstractMotionController.js";
+import { Observable } from "../../Misc/observable.js";
+import { type IDisposable } from "../../scene.js";
 /**
  * X-Y values for axes in WebXR
  */

@@ -1,0 +1,373 @@
+import { Vector2 } from "../../../Maths/math.vector.pure.js";
+import { ThinSSRPostProcess } from "../../thinSSRPostProcess.js";
+import { ThinSSRBlurPostProcess } from "../../thinSSRBlurPostProcess.js";
+import { ThinSSRBlurCombinerPostProcess } from "../../thinSSRBlurCombinerPostProcess.js";
+/**
+ * The SSR rendering pipeline is used to generate a reflection based on a flat mirror model.
+ */
+export class ThinSSRRenderingPipeline {
+    /**
+     * Gets or sets a boolean indicating if the SSR rendering pipeline is supported
+     */
+    get isSSRSupported() {
+        return this._ssrPostProcess.isSSRSupported;
+    }
+    set isSSRSupported(supported) {
+        this._ssrPostProcess.isSSRSupported = supported;
+    }
+    /**
+     * Gets or sets the maxDistance used to define how far we look for reflection during the ray-marching on the reflected ray (default: 1000).
+     * Note that this value is a view (camera) space distance (not pixels!).
+     */
+    get maxDistance() {
+        return this._ssrPostProcess.maxDistance;
+    }
+    set maxDistance(distance) {
+        this._ssrPostProcess.maxDistance = distance;
+    }
+    /**
+     * Gets or sets the step size used to iterate until the effect finds the color of the reflection's pixel. Should be an integer \>= 1 as it is the number of pixels we advance at each step (default: 1).
+     * Use higher values to improve performances (but at the expense of quality).
+     */
+    get step() {
+        return this._ssrPostProcess.step;
+    }
+    set step(step) {
+        this._ssrPostProcess.step = step;
+    }
+    /**
+     * Gets or sets the thickness value used as tolerance when computing the intersection between the reflected ray and the scene (default: 0.5).
+     * If setting "enableAutomaticThicknessComputation" to true, you can use lower values for "thickness" (even 0), as the geometry thickness
+     * is automatically computed thank to the regular depth buffer + the backface depth buffer
+     */
+    get thickness() {
+        return this._ssrPostProcess.thickness;
+    }
+    set thickness(thickness) {
+        this._ssrPostProcess.thickness = thickness;
+    }
+    /**
+     * Gets or sets the current reflection strength. 1.0 is an ideal value but can be increased/decreased for particular results (default: 1).
+     */
+    get strength() {
+        return this._ssrPostProcess.strength;
+    }
+    set strength(strength) {
+        this._ssrPostProcess.strength = strength;
+        this._ssrBlurCombinerPostProcess.strength = strength;
+    }
+    /**
+     * Gets or sets the falloff exponent used to compute the reflection strength. Higher values lead to fainter reflections (default: 1).
+     */
+    get reflectionSpecularFalloffExponent() {
+        return this._ssrPostProcess.reflectionSpecularFalloffExponent;
+    }
+    set reflectionSpecularFalloffExponent(exponent) {
+        this._ssrPostProcess.reflectionSpecularFalloffExponent = exponent;
+        this._ssrBlurCombinerPostProcess.reflectionSpecularFalloffExponent = exponent;
+    }
+    /**
+     * Maximum number of steps during the ray marching process after which we consider an intersection could not be found (default: 1000).
+     * Should be an integer value.
+     */
+    get maxSteps() {
+        return this._ssrPostProcess.maxSteps;
+    }
+    set maxSteps(steps) {
+        this._ssrPostProcess.maxSteps = steps;
+    }
+    /**
+     * Gets or sets the factor applied when computing roughness. Default value is 0.2.
+     * When blurring based on roughness is enabled (meaning blurDispersionStrength \> 0), roughnessFactor is used as a global roughness factor applied on all objects.
+     * If you want to disable this global roughness set it to 0.
+     */
+    get roughnessFactor() {
+        return this._ssrPostProcess.roughnessFactor;
+    }
+    set roughnessFactor(factor) {
+        this._ssrPostProcess.roughnessFactor = factor;
+    }
+    /**
+     * Number of steps to skip at start when marching the ray to avoid self collisions (default: 1)
+     * 1 should normally be a good value, depending on the scene you may need to use a higher value (2 or 3)
+     */
+    get selfCollisionNumSkip() {
+        return this._ssrPostProcess.selfCollisionNumSkip;
+    }
+    set selfCollisionNumSkip(skip) {
+        this._ssrPostProcess.selfCollisionNumSkip = skip;
+    }
+    /**
+     * Gets or sets the minimum value for one of the reflectivity component of the material to consider it for SSR (default: 0.04).
+     * If all r/g/b components of the reflectivity is below or equal this value, the pixel will not be considered reflective and SSR won't be applied.
+     */
+    get reflectivityThreshold() {
+        return this._ssrPostProcess.reflectivityThreshold;
+    }
+    set reflectivityThreshold(threshold) {
+        const currentThreshold = this._ssrPostProcess.reflectivityThreshold;
+        if (threshold === currentThreshold) {
+            return;
+        }
+        this._ssrPostProcess.reflectivityThreshold = threshold;
+        this._ssrBlurCombinerPostProcess.reflectivityThreshold = threshold;
+    }
+    /**
+     * Gets or sets the blur dispersion strength. Set this value to 0 to disable blurring (default: 0.03)
+     * The reflections are blurred based on the roughness of the surface and the distance between the pixel shaded and the reflected pixel: the higher the distance the more blurry the reflection is.
+     * blurDispersionStrength allows to increase or decrease this effect.
+     */
+    get blurDispersionStrength() {
+        return this._ssrBlurXPostProcess.blurStrength;
+    }
+    set blurDispersionStrength(strength) {
+        if (strength === this._ssrBlurXPostProcess.blurStrength) {
+            return;
+        }
+        this._ssrPostProcess.useBlur = strength > 0;
+        this._ssrBlurXPostProcess.blurStrength = strength;
+        this._ssrBlurYPostProcess.blurStrength = strength;
+    }
+    /**
+     * Gets or sets whether or not smoothing reflections is enabled (default: false)
+     * Enabling smoothing will require more GPU power.
+     * Note that this setting has no effect if step = 1: it's only used if step \> 1.
+     */
+    get enableSmoothReflections() {
+        return this._ssrPostProcess.enableSmoothReflections;
+    }
+    set enableSmoothReflections(enabled) {
+        this._ssrPostProcess.enableSmoothReflections = enabled;
+    }
+    /**
+     * Gets or sets the environment cube texture used to define the reflection when the reflected rays of SSR leave the view space or when the maxDistance/maxSteps is reached.
+     */
+    get environmentTexture() {
+        return this._ssrPostProcess.environmentTexture;
+    }
+    set environmentTexture(texture) {
+        this._ssrPostProcess.environmentTexture = texture;
+    }
+    /**
+     * Gets or sets the boolean defining if the environment texture is a standard cubemap (false) or a probe (true). Default value is false.
+     * Note: a probe cube texture is treated differently than an ordinary cube texture because the Y axis is reversed.
+     */
+    get environmentTextureIsProbe() {
+        return this._ssrPostProcess.environmentTextureIsProbe;
+    }
+    set environmentTextureIsProbe(isProbe) {
+        this._ssrPostProcess.environmentTextureIsProbe = isProbe;
+    }
+    /**
+     * Gets or sets a boolean indicating if the reflections should be attenuated at the screen borders (default: true).
+     */
+    get attenuateScreenBorders() {
+        return this._ssrPostProcess.attenuateScreenBorders;
+    }
+    set attenuateScreenBorders(attenuate) {
+        this._ssrPostProcess.attenuateScreenBorders = attenuate;
+    }
+    /**
+     * Gets or sets a boolean indicating if the reflections should be attenuated according to the distance of the intersection (default: true).
+     */
+    get attenuateIntersectionDistance() {
+        return this._ssrPostProcess.attenuateIntersectionDistance;
+    }
+    set attenuateIntersectionDistance(attenuate) {
+        this._ssrPostProcess.attenuateIntersectionDistance = attenuate;
+    }
+    /**
+     * Gets or sets a boolean indicating if the reflections should be attenuated according to the number of iterations performed to find the intersection (default: true).
+     */
+    get attenuateIntersectionIterations() {
+        return this._ssrPostProcess.attenuateIntersectionIterations;
+    }
+    set attenuateIntersectionIterations(attenuate) {
+        this._ssrPostProcess.attenuateIntersectionIterations = attenuate;
+    }
+    /**
+     * Gets or sets a boolean indicating if the reflections should be attenuated when the reflection ray is facing the camera (the view direction) (default: false).
+     */
+    get attenuateFacingCamera() {
+        return this._ssrPostProcess.attenuateFacingCamera;
+    }
+    set attenuateFacingCamera(attenuate) {
+        this._ssrPostProcess.attenuateFacingCamera = attenuate;
+    }
+    /**
+     * Gets or sets a boolean indicating if the backface reflections should be attenuated (default: false).
+     */
+    get attenuateBackfaceReflection() {
+        return this._ssrPostProcess.attenuateBackfaceReflection;
+    }
+    set attenuateBackfaceReflection(attenuate) {
+        this._ssrPostProcess.attenuateBackfaceReflection = attenuate;
+    }
+    /**
+     * Gets or sets a boolean indicating if the ray should be clipped to the frustum (default: true).
+     * You can try to set this parameter to false to save some performances: it may produce some artefacts in some cases, but generally they won't really be visible
+     */
+    get clipToFrustum() {
+        return this._ssrPostProcess.clipToFrustum;
+    }
+    set clipToFrustum(clip) {
+        this._ssrPostProcess.clipToFrustum = clip;
+    }
+    /**
+     * Gets or sets a boolean indicating whether the blending between the current color pixel and the reflection color should be done with a Fresnel coefficient (default: false).
+     * It is more physically accurate to use the Fresnel coefficient (otherwise it uses the reflectivity of the material for blending), but it is also more expensive when you use blur (when blurDispersionStrength \> 0).
+     */
+    get useFresnel() {
+        return this._ssrPostProcess.useFresnel;
+    }
+    set useFresnel(fresnel) {
+        this._ssrPostProcess.useFresnel = fresnel;
+        this._ssrBlurCombinerPostProcess.useFresnel = fresnel;
+    }
+    /**
+     * Gets or sets a boolean defining if geometry thickness should be computed automatically (default: false).
+     * When enabled, a depth renderer is created which will render the back faces of the scene to a depth texture (meaning additional work for the GPU).
+     * In that mode, the "thickness" property is still used as an offset to compute the ray intersection, but you can typically use a much lower
+     * value than when enableAutomaticThicknessComputation is false (it's even possible to use a value of 0 when using low values for "step")
+     * Note that for performance reasons, this option will only apply to the first camera to which the rendering pipeline is attached!
+     */
+    get enableAutomaticThicknessComputation() {
+        return this._ssrPostProcess.enableAutomaticThicknessComputation;
+    }
+    set enableAutomaticThicknessComputation(automatic) {
+        if (this._ssrPostProcess.enableAutomaticThicknessComputation === automatic) {
+            return;
+        }
+        this._ssrPostProcess.enableAutomaticThicknessComputation = automatic;
+    }
+    /**
+     * Gets or sets a boolean defining if the input color texture is in gamma space (default: true)
+     * The SSR effect works in linear space, so if the input texture is in gamma space, we must convert the texture to linear space before applying the effect
+     */
+    get inputTextureColorIsInGammaSpace() {
+        return this._ssrPostProcess.inputTextureColorIsInGammaSpace;
+    }
+    set inputTextureColorIsInGammaSpace(gammaSpace) {
+        if (this._ssrPostProcess.inputTextureColorIsInGammaSpace === gammaSpace) {
+            return;
+        }
+        this._ssrPostProcess.inputTextureColorIsInGammaSpace = gammaSpace;
+        this._ssrBlurCombinerPostProcess.inputTextureColorIsInGammaSpace = gammaSpace;
+    }
+    /**
+     * Gets or sets a boolean defining if the output color texture generated by the SSR pipeline should be in gamma space (default: true)
+     * If you have a post-process that comes after the SSR and that post-process needs the input to be in a linear space, you must disable generateOutputInGammaSpace
+     */
+    get generateOutputInGammaSpace() {
+        return this._ssrPostProcess.generateOutputInGammaSpace;
+    }
+    set generateOutputInGammaSpace(gammaSpace) {
+        if (this._ssrPostProcess.generateOutputInGammaSpace === gammaSpace) {
+            return;
+        }
+        this._ssrPostProcess.generateOutputInGammaSpace = gammaSpace;
+        this._ssrBlurCombinerPostProcess.generateOutputInGammaSpace = gammaSpace;
+    }
+    /**
+     * Gets or sets a boolean indicating if the effect should be rendered in debug mode (default: false).
+     * In this mode, colors have this meaning:
+     *   - blue: the ray hit the max distance (we reached maxDistance)
+     *   - red: the ray ran out of steps (we reached maxSteps)
+     *   - yellow: the ray went off screen
+     *   - green: the ray hit a surface. The brightness of the green color is proportional to the distance between the ray origin and the intersection point: A brighter green means more computation than a darker green.
+     * In the first 3 cases, the final color is calculated by mixing the skybox color with the pixel color (if environmentTexture is defined), otherwise the pixel color is not modified
+     * You should try to get as few blue/red/yellow pixels as possible, as this means that the ray has gone further than if it had hit a surface.
+     */
+    get debug() {
+        return this._ssrPostProcess.debug;
+    }
+    set debug(value) {
+        if (this._ssrPostProcess.debug === value) {
+            return;
+        }
+        this._ssrPostProcess.debug = value;
+        this._ssrBlurCombinerPostProcess.debug = value;
+    }
+    /**
+     * Gets or sets the camera to use to render the reflection
+     */
+    get camera() {
+        return this._ssrPostProcess.camera;
+    }
+    set camera(camera) {
+        this._ssrPostProcess.camera = camera;
+        this._ssrBlurCombinerPostProcess.camera = camera;
+    }
+    /**
+     * Gets or sets a boolean indicating if the depth buffer stores screen space depth instead of camera view space depth.
+     */
+    get useScreenspaceDepth() {
+        return this._ssrPostProcess.useScreenspaceDepth;
+    }
+    set useScreenspaceDepth(use) {
+        this._ssrPostProcess.useScreenspaceDepth = use;
+        this._ssrBlurCombinerPostProcess.useScreenspaceDepth = use;
+    }
+    /**
+     * Gets or sets a boolean indicating if the normals are in world space (false by default, meaning normals are in camera view space).
+     */
+    get normalsAreInWorldSpace() {
+        return this._ssrPostProcess.normalsAreInWorldSpace;
+    }
+    set normalsAreInWorldSpace(normalsAreInWorldSpace) {
+        this._ssrPostProcess.normalsAreInWorldSpace = normalsAreInWorldSpace;
+        this._ssrBlurCombinerPostProcess.normalsAreInWorldSpace = normalsAreInWorldSpace;
+    }
+    /**
+     * Gets or sets a boolean indicating if the normals are encoded as unsigned, that is normalUnsigned = normal*0.5+0.5 (false by default).
+     */
+    get normalsAreUnsigned() {
+        return this._ssrPostProcess.normalsAreUnsigned;
+    }
+    set normalsAreUnsigned(normalsAreUnsigned) {
+        this._ssrPostProcess.normalsAreUnsigned = normalsAreUnsigned;
+        this._ssrBlurCombinerPostProcess.normalsAreUnsigned = normalsAreUnsigned;
+    }
+    /**
+     * Checks if all the post processes in the pipeline are ready.
+     * @returns true if all the post processes in the pipeline are ready
+     */
+    isReady() {
+        return this._ssrPostProcess.isReady() && this._ssrBlurXPostProcess.isReady() && this._ssrBlurYPostProcess.isReady() && this._ssrBlurCombinerPostProcess.isReady();
+    }
+    /**
+     * Constructor of the SSR rendering pipeline
+     * @param name The rendering pipeline name
+     * @param scene The scene linked to this pipeline
+     */
+    constructor(name, scene) {
+        /**
+         * Gets or sets the downsample factor used to reduce the size of the texture used to compute the SSR contribution (default: 0).
+         * Use 0 to render the SSR contribution at full resolution, 1 to render at half resolution, 2 to render at 1/3 resolution, etc.
+         * Note that it is used only when blurring is enabled (blurDispersionStrength \> 0), because in that mode the SSR contribution is generated in a separate texture.
+         */
+        this.ssrDownsample = 0;
+        /**
+         * Gets or sets the downsample factor used to reduce the size of the textures used to blur the reflection effect (default: 0).
+         * Use 0 to blur at full resolution, 1 to render at half resolution, 2 to render at 1/3 resolution, etc.
+         */
+        this.blurDownsample = 0;
+        this.name = name;
+        this._scene = scene;
+        this._ssrPostProcess = new ThinSSRPostProcess(this.name, this._scene);
+        this._ssrBlurXPostProcess = new ThinSSRBlurPostProcess(this.name + " BlurX", this._scene.getEngine(), new Vector2(1, 0));
+        this._ssrBlurYPostProcess = new ThinSSRBlurPostProcess(this.name + " BlurY", this._scene.getEngine(), new Vector2(0, 1));
+        this._ssrBlurCombinerPostProcess = new ThinSSRBlurCombinerPostProcess(this.name + " BlurCombiner", this._scene.getEngine());
+        this._ssrPostProcess.useBlur = this._ssrBlurXPostProcess.blurStrength > 0;
+    }
+    /**
+     * Disposes of the pipeline
+     */
+    dispose() {
+        this._ssrPostProcess?.dispose();
+        this._ssrBlurXPostProcess?.dispose();
+        this._ssrBlurYPostProcess?.dispose();
+        this._ssrBlurCombinerPostProcess?.dispose();
+    }
+}
+//# sourceMappingURL=thinSSRRenderingPipeline.js.map

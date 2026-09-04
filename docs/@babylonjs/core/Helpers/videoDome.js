@@ -1,5 +1,5 @@
-import { Texture } from "../Materials/Textures/texture.js";
-import { VideoTexture } from "../Materials/Textures/videoTexture.js";
+import { Texture } from "../Materials/Textures/texture.pure.js";
+import { VideoTexture } from "../Materials/Textures/videoTexture.pure.js";
 import { TextureDome } from "./textureDome.js";
 import { PointerEventTypes } from "../Events/pointerEvents.js";
 /**
@@ -34,8 +34,10 @@ export class VideoDome extends TextureDome {
         // optional configuration
         if (options.clickToPlay) {
             this._pointerObserver = scene.onPointerObservable.add((data) => {
-                var _a;
-                ((_a = data.pickInfo) === null || _a === void 0 ? void 0 : _a.pickedMesh) === this.mesh && this._texture.video.play();
+                if (data.pickInfo?.pickedMesh === this.mesh) {
+                    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+                    this._texture.video.play();
+                }
             }, PointerEventTypes.POINTERDOWN);
         }
         this._textureObserver = texture.onLoadObservable.add(() => {

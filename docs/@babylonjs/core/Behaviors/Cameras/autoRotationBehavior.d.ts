@@ -1,6 +1,6 @@
-import type { Behavior } from "../../Behaviors/behavior";
-import type { ArcRotateCamera } from "../../Cameras/arcRotateCamera";
-import type { Nullable } from "../../types";
+import { type Behavior } from "../../Behaviors/behavior.js";
+import { type ArcRotateCamera } from "../../Cameras/arcRotateCamera.js";
+import { type Nullable } from "../../types.js";
 /**
  * The autoRotation behavior (AutoRotationBehavior) is designed to create a smooth rotation of an ArcRotateCamera when there is no user interaction.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/behaviors/cameraBehaviors#autorotation-behavior
@@ -14,6 +14,9 @@ export declare class AutoRotationBehavior implements Behavior<ArcRotateCamera> {
     private _idleRotationSpeed;
     private _idleRotationWaitTime;
     private _idleRotationSpinupTime;
+    /**
+     * Target alpha
+     */
     targetAlpha: Nullable<number>;
     /**
      * Sets the flag that indicates if user zooming should stop animation.
@@ -51,6 +54,10 @@ export declare class AutoRotationBehavior implements Behavior<ArcRotateCamera> {
      * Gets a value indicating if the camera is currently rotating because of this behavior
      */
     get rotationInProgress(): boolean;
+    /**
+     * Attached node of this behavior
+     */
+    get attachedNode(): Nullable<ArcRotateCamera>;
     private _onPrePointerObservableObserver;
     private _onAfterCheckInputsObserver;
     private _attachedCamera;

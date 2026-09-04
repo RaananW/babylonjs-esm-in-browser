@@ -1,15 +1,6 @@
 import { Logger } from "../../Misc/logger.js";
-import { ComputeBindingType } from "../Extensions/engine.computeShader.js";
-import * as WebGPUConstants from "./webgpuConstants.js";
 /** @internal */
 export class WebGPUComputeContext {
-    constructor(device, cacheSampler) {
-        this._device = device;
-        this._cacheSampler = cacheSampler;
-        this.uniqueId = WebGPUComputeContext._Counter++;
-        this._bindGroupEntries = [];
-        this.clear();
-    }
     getBindGroups(bindings, computePipeline, bindingsMapping) {
         if (!bindingsMapping) {
             throw new Error("WebGPUComputeContext.getBindGroups: bindingsMapping is required until browsers support reflection for wgsl shaders!");
@@ -24,7 +15,7 @@ export class WebGPUComputeContext {
                     entries = this._bindGroupEntries[group] = [];
                 }
                 switch (type) {
-                    case ComputeBindingType.Sampler: {
+                    case 5 /* ComputeBindingType.Sampler */: {
                         const sampler = object;
                         if (indexInGroupEntries !== undefined && bindGroupEntriesExist) {
                             entries[indexInGroupEntries].resource = this._cacheSampler.getSampler(sampler);
@@ -38,19 +29,19 @@ export class WebGPUComputeContext {
                         }
                         break;
                     }
-                    case ComputeBindingType.Texture:
-                    case ComputeBindingType.TextureWithoutSampler: {
+                    case 0 /* ComputeBindingType.Texture */:
+                    case 4 /* ComputeBindingType.TextureWithoutSampler */: {
                         const texture = object;
                         const hardwareTexture = texture._texture._hardwareTexture;
                         if (indexInGroupEntries !== undefined && bindGroupEntriesExist) {
-                            if (type === ComputeBindingType.Texture) {
+                            if (type === 0 /* ComputeBindingType.Texture */) {
                                 entries[indexInGroupEntries++].resource = this._cacheSampler.getSampler(texture._texture);
                             }
                             entries[indexInGroupEntries].resource = hardwareTexture.view;
                         }
                         else {
                             binding.indexInGroupEntries = entries.length;
-                            if (type === ComputeBindingType.Texture) {
+                            if (type === 0 /* ComputeBindingType.Texture */) {
                                 entries.push({
                                     binding: index - 1,
                                     resource: this._cacheSampler.getSampler(texture._texture),
@@ -63,10 +54,25 @@ export class WebGPUComputeContext {
                         }
                         break;
                     }
-                    case ComputeBindingType.StorageTexture: {
+                    case 8 /* ComputeBindingType.InternalTexture */: {
+                        const texture = object;
+                        const hardwareTexture = texture._hardwareTexture;
+                        if (indexInGroupEntries !== undefined && bindGroupEntriesExist) {
+                            entries[indexInGroupEntries].resource = hardwareTexture.view;
+                        }
+                        else {
+                            binding.indexInGroupEntries = entries.length;
+                            entries.push({
+                                binding: index,
+                                resource: hardwareTexture.view,
+                            });
+                        }
+                        break;
+                    }
+                    case 1 /* ComputeBindingType.StorageTexture */: {
                         const texture = object;
                         const hardwareTexture = texture._texture._hardwareTexture;
-                        if ((hardwareTexture.textureAdditionalUsages & WebGPUConstants.TextureUsage.StorageBinding) === 0) {
+                        if ((hardwareTexture.textureAdditionalUsages & 8 /* WebGPUConstants.TextureUsage.StorageBinding */) === 0) {
                             Logger.Error(`computeDispatch: The texture (name=${texture.name}, uniqueId=${texture.uniqueId}) is not a storage texture!`, 50);
                         }
                         if (indexInGroupEntries !== undefined && bindGroupEntriesExist) {
@@ -81,10 +87,29 @@ export class WebGPUComputeContext {
                         }
                         break;
                     }
-                    case ComputeBindingType.UniformBuffer:
-                    case ComputeBindingType.StorageBuffer: {
-                        const buffer = type === ComputeBindingType.UniformBuffer ? object : object;
-                        const dataBuffer = buffer.getBuffer();
+                    case 6 /* ComputeBindingType.ExternalTexture */: {
+                        const texture = object;
+                        const externalTexture = texture.underlyingResource;
+                        if (indexInGroupEntries !== undefined && bindGroupEntriesExist) {
+                            entries[indexInGroupEntries].resource = this._device.importExternalTexture({ source: externalTexture });
+                        }
+                        else {
+                            binding.indexInGroupEntries = entries.length;
+                            entries.push({
+                                binding: index,
+                                resource: this._device.importExternalTexture({ source: externalTexture }),
+                            });
+                        }
+                        break;
+                    }
+                    case 2 /* ComputeBindingType.UniformBuffer */:
+                    case 3 /* ComputeBindingType.StorageBuffer */:
+                    case 7 /* ComputeBindingType.DataBuffer */: {
+                        const dataBuffer = type === 7 /* ComputeBindingType.DataBuffer */
+                            ? object
+                            : type === 2 /* ComputeBindingType.UniformBuffer */
+                                ? object.getBuffer()
+                                : object.getBuffer();
                         const webgpuBuffer = dataBuffer.underlyingResource;
                         if (indexInGroupEntries !== undefined && bindGroupEntriesExist) {
                             entries[indexInGroupEntries].resource.buffer = webgpuBuffer;
@@ -119,6 +144,13 @@ export class WebGPUComputeContext {
             this._bindGroups.length = this._bindGroupEntries.length;
         }
         return this._bindGroups;
+    }
+    constructor(device, cacheSampler) {
+        this._device = device;
+        this._cacheSampler = cacheSampler;
+        this.uniqueId = WebGPUComputeContext._Counter++;
+        this._bindGroupEntries = [];
+        this.clear();
     }
     clear() {
         this._bindGroups = [];

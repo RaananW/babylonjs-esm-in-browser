@@ -1,5 +1,5 @@
-export * from "./glTFFileLoader";
-export * from "./glTFValidation";
-import * as GLTF1 from "./1.0/index";
-import * as GLTF2 from "./2.0/index";
+export * from "./glTFFileLoader.js";
+export * from "./glTFValidation.js";
+import * as GLTF1 from "./1.0/index.js";
+import * as GLTF2 from "./2.0/index.js";
 export { GLTF1, GLTF2 };

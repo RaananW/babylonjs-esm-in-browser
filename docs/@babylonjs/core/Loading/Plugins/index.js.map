@@ -1,1 +1,1 @@
-{"version":3,"file":"index.js","sourceRoot":"","sources":["../../../../../lts/core/generated/Loading/Plugins/index.ts"],"names":[],"mappings":"AAAA,cAAc,qBAAqB,CAAC","sourcesContent":["export * from \"./babylonFileLoader\";\r\n"]}
+{"version":3,"file":"index.js","sourceRoot":"","sources":["../../../../../dev/core/src/Loading/Plugins/index.ts"],"names":[],"mappings":"AAAA,cAAc,qBAAqB,CAAC;AACpC,cAAc,8BAA8B,CAAC","sourcesContent":["export * from \"./babylonFileLoader\";\r\nexport * from \"./babylonFileParser.function\";\r\n"]}

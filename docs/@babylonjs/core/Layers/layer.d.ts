@@ -1,12 +1,11 @@
-import { Observable } from "../Misc/observable";
-import type { Nullable } from "../types";
-import type { Scene } from "../scene";
-import { Vector2 } from "../Maths/math.vector";
-import { Color4 } from "../Maths/math.color";
-import type { BaseTexture } from "../Materials/Textures/baseTexture";
-import type { RenderTargetTexture } from "../Materials/Textures/renderTargetTexture";
-import "../Shaders/layer.fragment";
-import "../Shaders/layer.vertex";
+import { Observable } from "../Misc/observable.js";
+import { type Nullable } from "../types.js";
+import { type Scene } from "../scene.js";
+import { Vector2 } from "../Maths/math.vector.pure.js";
+import { Color4 } from "../Maths/math.color.pure.js";
+import { type BaseTexture } from "../Materials/Textures/baseTexture.js";
+import { type RenderTargetTexture } from "../Materials/Textures/renderTargetTexture.js";
+import { ShaderLanguage } from "../Materials/shaderLanguage.js";
 /**
  * This represents a full screen 2d layer.
  * This can be useful to display a picture in the  background of your scene for instance.
@@ -17,6 +16,11 @@ export declare class Layer {
      * Define the name of the layer.
      */
     name: string;
+    /**
+     * Force all the layers to compile to glsl even on WebGPU engines.
+     * False by default. This is mostly meant for backward compatibility.
+     */
+    static ForceGLSL: boolean;
     /**
      * Define the texture the layer should display.
      */
@@ -68,6 +72,10 @@ export declare class Layer {
      */
     renderOnlyInRenderTargetTextures: boolean;
     /**
+     * Define if the colors of the layer should be generated in linear space (default: false)
+     */
+    convertToLinearSpace: boolean;
+    /**
      * Define if the layer is enabled (ie. should be displayed). Default: true
      */
     isEnabled: boolean;
@@ -106,6 +114,12 @@ export declare class Layer {
      * The set callback will be triggered just after rendering the layer.
      */
     set onAfterRender(callback: () => void);
+    /** Shader language used by the material */
+    private _shaderLanguage;
+    /**
+     * Gets the shader language used in this material.
+     */
+    get shaderLanguage(): ShaderLanguage;
     /**
      * Instantiates a new layer.
      * This represents a full screen 2d layer.
@@ -116,15 +130,22 @@ export declare class Layer {
      * @param scene Define the scene the layer belongs to
      * @param isBackground Defines whether the layer is displayed in front or behind the scene
      * @param color Defines a color for the layer
+     * @param forceGLSL Use the GLSL code generation for the shader (even on WebGPU). Default is false
      */
     constructor(
     /**
      * Define the name of the layer.
      */
-    name: string, imgUrl: Nullable<string>, scene: Nullable<Scene>, isBackground?: boolean, color?: Color4);
+    name: string, imgUrl: Nullable<string>, scene: Nullable<Scene>, isBackground?: boolean, color?: Color4, forceGLSL?: boolean);
+    private _shadersLoaded;
     private _createIndexBuffer;
     /** @internal */
     _rebuild(): void;
+    /**
+     * Checks if the layer is ready to be rendered
+     * @returns true if the layer is ready. False otherwise.
+     */
+    isReady(): boolean;
     /**
      * Renders the layer in the scene.
      */

@@ -1,4 +1,4 @@
-/* eslint-disable import/no-internal-modules */
+/* eslint-disable @typescript-eslint/no-restricted-imports */
 export * from "./iShaderProcessor.js";
 export * from "./Expressions/index.js";
 export * from "./shaderCodeConditionNode.js";

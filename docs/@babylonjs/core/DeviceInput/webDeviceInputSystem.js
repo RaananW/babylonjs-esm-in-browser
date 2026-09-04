@@ -1,5 +1,5 @@
-import { DomManagement } from "../Misc/domManagement.js";
-import { Tools } from "../Misc/tools.js";
+import { IsNavigatorAvailable } from "../Misc/domManagement.js";
+import { Tools } from "../Misc/tools.pure.js";
 import { DeviceEventFactory } from "./eventFactory.js";
 import { DeviceType, PointerInput } from "./InputDevices/deviceEnums.js";
 // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -8,6 +8,13 @@ const MAX_KEYCODES = 255;
 const MAX_POINTER_INPUTS = Object.keys(PointerInput).length / 2;
 /** @internal */
 export class WebDeviceInputSystem {
+    /**
+     * Constructor for the WebDeviceInputSystem
+     * @param engine Engine to reference
+     * @param onDeviceConnected Callback to execute when device is connected
+     * @param onDeviceDisconnected Callback to execute when device is disconnected
+     * @param onInputChanged Callback to execute when input changes on device
+     */
     constructor(engine, onDeviceConnected, onDeviceDisconnected, onInputChanged) {
         // Private Members
         this._inputs = [];
@@ -16,7 +23,7 @@ export class WebDeviceInputSystem {
         this._usingSafari = Tools.IsSafari();
         // Found solution for determining if MacOS is being used here:
         // https://stackoverflow.com/questions/10527983/best-way-to-detect-mac-os-x-or-windows-computers-with-javascript-or-jquery
-        this._usingMacOS = /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform);
+        this._usingMacOs = IsNavigatorAvailable() && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform);
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this._keyboardDownEvent = (evt) => { };
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -32,12 +39,19 @@ export class WebDeviceInputSystem {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this._pointerCancelEvent = (evt) => { };
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        this._pointerCancelTouch = (pointerId) => { };
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        this._pointerLeaveEvent = (evt) => { };
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this._pointerWheelEvent = (evt) => { };
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this._pointerBlurEvent = (evt) => { };
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        this._pointerMacOsChromeOutEvent = (evt) => { };
         this._eventsAttached = false;
         this._mouseId = -1;
-        this._isUsingFirefox = DomManagement.IsNavigatorAvailable() && navigator.userAgent && navigator.userAgent.indexOf("Firefox") !== -1;
+        this._isUsingFirefox = IsNavigatorAvailable() && navigator.userAgent && navigator.userAgent.indexOf("Firefox") !== -1;
+        this._isUsingChromium = IsNavigatorAvailable() && navigator.userAgent && navigator.userAgent.indexOf("Chrome") !== -1;
         this._maxTouchPoints = 0;
         this._pointerInputClearObserver = null;
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -49,8 +63,10 @@ export class WebDeviceInputSystem {
         this._onDeviceConnected = onDeviceConnected;
         this._onDeviceDisconnected = onDeviceDisconnected;
         this._onInputChanged = onInputChanged;
+        // If we need a pointerId, set one for future use
+        this._mouseId = this._isUsingFirefox ? 0 : 1;
         this._enableEvents();
-        if (this._usingMacOS) {
+        if (this._usingMacOs) {
             this._metaKeys = [];
         }
         // Set callback to enable event handler switching when inputElement changes
@@ -71,6 +87,7 @@ export class WebDeviceInputSystem {
     pollInput(deviceType, deviceSlot, inputIndex) {
         const device = this._inputs[deviceType][deviceSlot];
         if (!device) {
+            // eslint-disable-next-line no-throw-literal
             throw `Unable to find device ${DeviceType[deviceType]}`;
         }
         if (deviceType >= DeviceType.DualShock && deviceType <= DeviceType.DualSense) {
@@ -78,6 +95,7 @@ export class WebDeviceInputSystem {
         }
         const currentValue = device[inputIndex];
         if (currentValue === undefined) {
+            // eslint-disable-next-line no-throw-literal
             throw `Unable to find input ${inputIndex} for device ${DeviceType[deviceType]} in slot ${deviceSlot}`;
         }
         if (inputIndex === PointerInput.Move) {
@@ -110,7 +128,7 @@ export class WebDeviceInputSystem {
      * Enable listening for user input events
      */
     _enableEvents() {
-        const inputElement = this === null || this === void 0 ? void 0 : this._engine.getInputElement();
+        const inputElement = this?._engine.getInputElement();
         if (inputElement && (!this._eventsAttached || this._elementToAttachTo !== inputElement)) {
             // Remove events before adding to avoid double events or simultaneous events on multiple canvases
             this._disableEvents();
@@ -157,7 +175,11 @@ export class WebDeviceInputSystem {
             this._elementToAttachTo.removeEventListener(this._eventPrefix + "down", this._pointerDownEvent);
             this._elementToAttachTo.removeEventListener(this._eventPrefix + "up", this._pointerUpEvent);
             this._elementToAttachTo.removeEventListener(this._eventPrefix + "cancel", this._pointerCancelEvent);
+            this._elementToAttachTo.removeEventListener(this._eventPrefix + "leave", this._pointerLeaveEvent);
             this._elementToAttachTo.removeEventListener(this._wheelEventName, this._pointerWheelEvent);
+            if (this._usingMacOs && this._isUsingChromium) {
+                this._elementToAttachTo.removeEventListener("lostpointercapture", this._pointerMacOsChromeOutEvent);
+            }
             // Gamepad Events
             window.removeEventListener("gamepadconnected", this._gamepadConnectedEvent);
             window.removeEventListener("gamepaddisconnected", this._gamepadDisconnectedEvent);
@@ -223,6 +245,7 @@ export class WebDeviceInputSystem {
      */
     _registerDevice(deviceType, deviceSlot, numberOfInputs) {
         if (deviceSlot === undefined) {
+            // eslint-disable-next-line no-throw-literal
             throw `Unable to register device ${DeviceType[deviceType]} to undefined slot.`;
         }
         if (!this._inputs[deviceType]) {
@@ -260,7 +283,7 @@ export class WebDeviceInputSystem {
                 kbKey[evt.keyCode] = 1;
                 const deviceEvent = evt;
                 deviceEvent.inputIndex = evt.keyCode;
-                if (this._usingMacOS && evt.metaKey && evt.key !== "Meta") {
+                if (this._usingMacOs && evt.metaKey && evt.key !== "Meta") {
                     if (!this._metaKeys.includes(evt.keyCode)) {
                         this._metaKeys.push(evt.keyCode);
                     }
@@ -278,7 +301,7 @@ export class WebDeviceInputSystem {
                 kbKey[evt.keyCode] = 0;
                 const deviceEvent = evt;
                 deviceEvent.inputIndex = evt.keyCode;
-                if (this._usingMacOS && evt.key === "Meta" && this._metaKeys.length > 0) {
+                if (this._usingMacOs && evt.key === "Meta" && this._metaKeys.length > 0) {
                     for (const keyCode of this._metaKeys) {
                         const deviceEvent = DeviceEventFactory.CreateDeviceEvent(DeviceType.Keyboard, 0, keyCode, 0, this, this._elementToAttachTo);
                         kbKey[keyCode] = 0;
@@ -299,7 +322,7 @@ export class WebDeviceInputSystem {
                         this._onInputChanged(DeviceType.Keyboard, 0, deviceEvent);
                     }
                 }
-                if (this._usingMacOS) {
+                if (this._usingMacOs) {
                     this._metaKeys.splice(0, this._metaKeys.length);
                 }
             }
@@ -313,7 +336,7 @@ export class WebDeviceInputSystem {
      */
     _handlePointerActions() {
         // If maxTouchPoints is defined, use that value.  Otherwise, allow for a minimum for supported gestures like pinch
-        this._maxTouchPoints = (DomManagement.IsNavigatorAvailable() && navigator.maxTouchPoints) || 2;
+        this._maxTouchPoints = (IsNavigatorAvailable() && navigator.maxTouchPoints) || 2;
         if (!this._activeTouchIds) {
             this._activeTouchIds = new Array(this._maxTouchPoints);
         }
@@ -322,7 +345,27 @@ export class WebDeviceInputSystem {
         }
         this._pointerMoveEvent = (evt) => {
             const deviceType = this._getPointerType(evt);
-            const deviceSlot = deviceType === DeviceType.Mouse ? 0 : this._activeTouchIds.indexOf(evt.pointerId);
+            let deviceSlot = deviceType === DeviceType.Mouse ? 0 : this._activeTouchIds.indexOf(evt.pointerId);
+            // In the event that we're getting pointermove events from touch inputs that we aren't tracking,
+            // look for an available slot and retroactively connect it.
+            if (deviceType === DeviceType.Touch && deviceSlot === -1) {
+                // Ignore hover-only touch pointers, which may never receive a pointerup event.
+                if (evt.buttons === 0) {
+                    return;
+                }
+                const idx = this._activeTouchIds.indexOf(-1);
+                if (idx >= 0) {
+                    deviceSlot = idx;
+                    this._activeTouchIds[idx] = evt.pointerId;
+                    // Because this is a "new" input, inform the connected callback
+                    this._onDeviceConnected(deviceType, deviceSlot);
+                }
+                else {
+                    // We can't find an open slot to store new pointer so just return (can only support max number of touches)
+                    Tools.Warn(`Max number of touches exceeded.  Ignoring touches in excess of ${this._maxTouchPoints}`);
+                    return;
+                }
+            }
             if (!this._inputs[deviceType]) {
                 this._inputs[deviceType] = {};
             }
@@ -335,6 +378,13 @@ export class WebDeviceInputSystem {
                 deviceEvent.inputIndex = PointerInput.Move;
                 pointer[PointerInput.Horizontal] = evt.clientX;
                 pointer[PointerInput.Vertical] = evt.clientY;
+                // For touches that aren't started with a down, we need to set the button state to 1
+                if (deviceType === DeviceType.Touch && pointer[PointerInput.LeftClick] === 0) {
+                    pointer[PointerInput.LeftClick] = 1;
+                }
+                if (evt.pointerId === undefined) {
+                    evt.pointerId = this._mouseId;
+                }
                 this._onInputChanged(deviceType, deviceSlot, deviceEvent);
                 // Lets Propagate the event for move with same position.
                 if (!this._usingSafari && evt.button !== -1) {
@@ -348,7 +398,13 @@ export class WebDeviceInputSystem {
             const deviceType = this._getPointerType(evt);
             let deviceSlot = deviceType === DeviceType.Mouse ? 0 : evt.pointerId;
             if (deviceType === DeviceType.Touch) {
-                const idx = this._activeTouchIds.indexOf(-1);
+                // See if this pointerId is already using an existing slot
+                // (possible on some devices which raise the pointerMove event before the pointerDown event, e.g. when using a pen)
+                let idx = this._activeTouchIds.indexOf(evt.pointerId);
+                if (idx === -1) {
+                    // If the pointerId wasn't already using a slot, find an open one
+                    idx = this._activeTouchIds.indexOf(-1);
+                }
                 if (idx >= 0) {
                     deviceSlot = idx;
                     this._activeTouchIds[idx] = evt.pointerId;
@@ -373,15 +429,9 @@ export class WebDeviceInputSystem {
                 const previousHorizontal = pointer[PointerInput.Horizontal];
                 const previousVertical = pointer[PointerInput.Vertical];
                 if (deviceType === DeviceType.Mouse) {
-                    // Mouse; Among supported browsers, value is either 1 or 0 for mouse
-                    if (this._mouseId === -1) {
-                        if (evt.pointerId === undefined) {
-                            // If there is no pointerId (eg. manually dispatched MouseEvent)
-                            this._mouseId = this._isUsingFirefox ? 0 : 1;
-                        }
-                        else {
-                            this._mouseId = evt.pointerId;
-                        }
+                    // Mouse; Set pointerId if undefined
+                    if (evt.pointerId === undefined) {
+                        evt.pointerId = this._mouseId;
                     }
                     if (!document.pointerLockElement) {
                         try {
@@ -419,10 +469,10 @@ export class WebDeviceInputSystem {
             }
         };
         this._pointerUpEvent = (evt) => {
-            var _a, _b, _c, _d, _e;
             const deviceType = this._getPointerType(evt);
             const deviceSlot = deviceType === DeviceType.Mouse ? 0 : this._activeTouchIds.indexOf(evt.pointerId);
             if (deviceType === DeviceType.Touch) {
+                // If we're getting a pointerup event for a touch that isn't active, just return.
                 if (deviceSlot === -1) {
                     return;
                 }
@@ -430,14 +480,35 @@ export class WebDeviceInputSystem {
                     this._activeTouchIds[deviceSlot] = -1;
                 }
             }
-            const pointer = (_a = this._inputs[deviceType]) === null || _a === void 0 ? void 0 : _a[deviceSlot];
-            if (pointer && pointer[evt.button + 2] !== 0) {
+            const pointer = this._inputs[deviceType]?.[deviceSlot];
+            let button = evt.button;
+            let shouldProcessPointerUp = pointer && pointer[button + 2] !== 0;
+            // Workaround for an issue in Firefox on MacOS only where the browser allows the user to change left button
+            // actions into right button actions by holding down control. If the user starts a drag with the control button
+            // down, then lifts control, then releases the mouse, we'll get mismatched up and down events (the down will be
+            // the right button, and the up will be the left button). In that specific case, where we get an up from a button
+            // which didn't have a corresponding down, and we are in Firefox on MacOS, we should process the up event as if it
+            // was from the other button.
+            // Ideally this would be fixed in Firefox so that if you start a drag with the control button down, then the button
+            // passed along to both pointer down and up would be the right button regardless of the order in which control and the
+            // mouse button were released.
+            // If Firefox makes a fix to ensure this is the case, this workaround can be removed.
+            // Relevant forum thread: https://forum.babylonjs.com/t/camera-pan-getting-stuck-in-firefox/57158
+            if (!shouldProcessPointerUp && this._isUsingFirefox && this._usingMacOs && pointer) {
+                // Try the other button (left or right button)
+                button = button === 2 ? 0 : 2;
+                shouldProcessPointerUp = pointer[button + 2] !== 0;
+            }
+            if (shouldProcessPointerUp) {
                 const previousHorizontal = pointer[PointerInput.Horizontal];
                 const previousVertical = pointer[PointerInput.Vertical];
                 pointer[PointerInput.Horizontal] = evt.clientX;
                 pointer[PointerInput.Vertical] = evt.clientY;
-                pointer[evt.button + 2] = 0;
+                pointer[button + 2] = 0;
                 const deviceEvent = evt;
+                if (evt.pointerId === undefined) {
+                    evt.pointerId = this._mouseId;
+                }
                 if (previousHorizontal !== evt.clientX || previousVertical !== evt.clientY) {
                     deviceEvent.inputIndex = PointerInput.Move;
                     this._onInputChanged(deviceType, deviceSlot, deviceEvent);
@@ -445,11 +516,11 @@ export class WebDeviceInputSystem {
                 // NOTE: The +2 used here to is because PointerInput has the same value progression for its mouse buttons as PointerEvent.button
                 // However, we have our X and Y values front-loaded to group together the touch inputs but not break this progression
                 // EG. ([X, Y, Left-click], Middle-click, etc...)
-                deviceEvent.inputIndex = evt.button + 2;
-                if (deviceType === DeviceType.Mouse && this._mouseId >= 0 && ((_c = (_b = this._elementToAttachTo).hasPointerCapture) === null || _c === void 0 ? void 0 : _c.call(_b, this._mouseId))) {
+                deviceEvent.inputIndex = button + 2;
+                if (deviceType === DeviceType.Mouse && this._mouseId >= 0 && this._elementToAttachTo.hasPointerCapture?.(this._mouseId)) {
                     this._elementToAttachTo.releasePointerCapture(this._mouseId);
                 }
-                else if (evt.pointerId && ((_e = (_d = this._elementToAttachTo).hasPointerCapture) === null || _e === void 0 ? void 0 : _e.call(_d, evt.pointerId))) {
+                else if (evt.pointerId && this._elementToAttachTo.hasPointerCapture?.(evt.pointerId)) {
                     this._elementToAttachTo.releasePointerCapture(evt.pointerId);
                 }
                 this._onInputChanged(deviceType, deviceSlot, deviceEvent);
@@ -458,11 +529,25 @@ export class WebDeviceInputSystem {
                 }
             }
         };
+        this._pointerCancelTouch = (pointerId) => {
+            const deviceSlot = this._activeTouchIds.indexOf(pointerId);
+            // If we're getting a pointercancel event for a touch that isn't active, just return
+            if (deviceSlot === -1) {
+                return;
+            }
+            if (this._elementToAttachTo.hasPointerCapture?.(pointerId)) {
+                this._elementToAttachTo.releasePointerCapture(pointerId);
+            }
+            this._inputs[DeviceType.Touch][deviceSlot][PointerInput.LeftClick] = 0;
+            const deviceEvent = DeviceEventFactory.CreateDeviceEvent(DeviceType.Touch, deviceSlot, PointerInput.LeftClick, 0, this, this._elementToAttachTo, pointerId);
+            this._onInputChanged(DeviceType.Touch, deviceSlot, deviceEvent);
+            this._activeTouchIds[deviceSlot] = -1;
+            this._onDeviceDisconnected(DeviceType.Touch, deviceSlot);
+        };
         this._pointerCancelEvent = (evt) => {
-            var _a, _b, _c, _d;
             if (evt.pointerType === "mouse") {
                 const pointer = this._inputs[DeviceType.Mouse][0];
-                if (this._mouseId >= 0 && ((_b = (_a = this._elementToAttachTo).hasPointerCapture) === null || _b === void 0 ? void 0 : _b.call(_a, this._mouseId))) {
+                if (this._mouseId >= 0 && this._elementToAttachTo.hasPointerCapture?.(this._mouseId)) {
                     this._elementToAttachTo.releasePointerCapture(this._mouseId);
                 }
                 for (let inputIndex = PointerInput.LeftClick; inputIndex <= PointerInput.BrowserForward; inputIndex++) {
@@ -474,15 +559,14 @@ export class WebDeviceInputSystem {
                 }
             }
             else {
-                const deviceSlot = this._activeTouchIds.indexOf(evt.pointerId);
-                if ((_d = (_c = this._elementToAttachTo).hasPointerCapture) === null || _d === void 0 ? void 0 : _d.call(_c, evt.pointerId)) {
-                    this._elementToAttachTo.releasePointerCapture(evt.pointerId);
-                }
-                this._inputs[DeviceType.Touch][deviceSlot][PointerInput.LeftClick] = 0;
-                const deviceEvent = DeviceEventFactory.CreateDeviceEvent(DeviceType.Touch, deviceSlot, PointerInput.LeftClick, 0, this, this._elementToAttachTo);
-                this._onInputChanged(DeviceType.Touch, deviceSlot, deviceEvent);
-                this._activeTouchIds[deviceSlot] = -1;
-                this._onDeviceDisconnected(DeviceType.Touch, deviceSlot);
+                this._pointerCancelTouch(evt.pointerId);
+            }
+        };
+        this._pointerLeaveEvent = (evt) => {
+            if (evt.pointerType === "pen") {
+                // If a pen leaves the hover range detectible by the hardware this event is raised and we need to cancel the operation
+                // Note that pen operations are treated as touch operations
+                this._pointerCancelTouch(evt.pointerId);
             }
         };
         // Set Wheel Event Name, code originally from scene.inputManager
@@ -511,11 +595,10 @@ export class WebDeviceInputSystem {
             /* */
         }
         this._pointerBlurEvent = () => {
-            var _a, _b, _c, _d, _e;
             // Handle mouse buttons
             if (this.isDeviceAvailable(DeviceType.Mouse)) {
                 const pointer = this._inputs[DeviceType.Mouse][0];
-                if (this._mouseId >= 0 && ((_b = (_a = this._elementToAttachTo).hasPointerCapture) === null || _b === void 0 ? void 0 : _b.call(_a, this._mouseId))) {
+                if (this._mouseId >= 0 && this._elementToAttachTo.hasPointerCapture?.(this._mouseId)) {
                     this._elementToAttachTo.releasePointerCapture(this._mouseId);
                 }
                 for (let inputIndex = PointerInput.LeftClick; inputIndex <= PointerInput.BrowserForward; inputIndex++) {
@@ -531,12 +614,12 @@ export class WebDeviceInputSystem {
                 const pointer = this._inputs[DeviceType.Touch];
                 for (let deviceSlot = 0; deviceSlot < this._activeTouchIds.length; deviceSlot++) {
                     const pointerId = this._activeTouchIds[deviceSlot];
-                    if ((_d = (_c = this._elementToAttachTo).hasPointerCapture) === null || _d === void 0 ? void 0 : _d.call(_c, pointerId)) {
+                    if (this._elementToAttachTo.hasPointerCapture?.(pointerId)) {
                         this._elementToAttachTo.releasePointerCapture(pointerId);
                     }
-                    if (pointerId !== -1 && ((_e = pointer[deviceSlot]) === null || _e === void 0 ? void 0 : _e[PointerInput.LeftClick]) === 1) {
+                    if (pointerId !== -1 && pointer[deviceSlot]?.[PointerInput.LeftClick] === 1) {
                         pointer[deviceSlot][PointerInput.LeftClick] = 0;
-                        const deviceEvent = DeviceEventFactory.CreateDeviceEvent(DeviceType.Touch, deviceSlot, PointerInput.LeftClick, 0, this, this._elementToAttachTo);
+                        const deviceEvent = DeviceEventFactory.CreateDeviceEvent(DeviceType.Touch, deviceSlot, PointerInput.LeftClick, 0, this, this._elementToAttachTo, pointerId);
                         this._onInputChanged(DeviceType.Touch, deviceSlot, deviceEvent);
                         this._activeTouchIds[deviceSlot] = -1;
                         this._onDeviceDisconnected(DeviceType.Touch, deviceSlot);
@@ -560,6 +643,12 @@ export class WebDeviceInputSystem {
                 pointer[PointerInput.MouseWheelY] = evt.deltaY || evt.wheelDelta || 0;
                 pointer[PointerInput.MouseWheelZ] = evt.deltaZ || 0;
                 const deviceEvent = evt;
+                // By default, there is no pointerId for mouse wheel events so we'll add one here
+                // This logic was originally in the InputManager but was added here to make the
+                // InputManager more platform-agnostic
+                if (evt.pointerId === undefined) {
+                    evt.pointerId = this._mouseId;
+                }
                 if (pointer[PointerInput.MouseWheelX] !== 0) {
                     deviceEvent.inputIndex = PointerInput.MouseWheelX;
                     this._onInputChanged(deviceType, deviceSlot, deviceEvent);
@@ -574,10 +663,20 @@ export class WebDeviceInputSystem {
                 }
             }
         };
+        // Workaround for MacOS Chromium Browsers for lost pointer capture bug
+        if (this._usingMacOs && this._isUsingChromium) {
+            this._pointerMacOsChromeOutEvent = (evt) => {
+                if (evt.buttons > 1) {
+                    this._pointerCancelEvent(evt);
+                }
+            };
+            this._elementToAttachTo.addEventListener("lostpointercapture", this._pointerMacOsChromeOutEvent);
+        }
         this._elementToAttachTo.addEventListener(this._eventPrefix + "move", this._pointerMoveEvent);
         this._elementToAttachTo.addEventListener(this._eventPrefix + "down", this._pointerDownEvent);
         this._elementToAttachTo.addEventListener(this._eventPrefix + "up", this._pointerUpEvent);
         this._elementToAttachTo.addEventListener(this._eventPrefix + "cancel", this._pointerCancelEvent);
+        this._elementToAttachTo.addEventListener(this._eventPrefix + "leave", this._pointerLeaveEvent);
         this._elementToAttachTo.addEventListener("blur", this._pointerBlurEvent);
         this._elementToAttachTo.addEventListener(this._wheelEventName, this._pointerWheelEvent, passiveSupported ? { passive: false } : false);
         // Since there's no up or down event for mouse wheel or delta x/y, clear mouse values at end of frame
@@ -637,7 +736,13 @@ export class WebDeviceInputSystem {
             // DualShock 4 Gamepad
             return deviceName.indexOf("0ce6") !== -1 ? DeviceType.DualSense : DeviceType.DualShock;
         }
-        else if (deviceName.indexOf("Xbox One") !== -1 || deviceName.search("Xbox 360") !== -1 || deviceName.search("xinput") !== -1) {
+        else if (deviceName.indexOf("Xbox One") !== -1 ||
+            deviceName.search("Xbox 360") !== -1 ||
+            deviceName.search("xinput") !== -1 ||
+            // Microsoft vendor id covers Xbox Series/One/Elite controllers reported with various names
+            // (e.g. "Xbox Wireless Controller (... Vendor: 045e Product: 0b13)"). Excludes the
+            // Surface Dock Extender, which also reports vendor 045e. Mirrors GamepadManager.
+            (deviceName.indexOf("045e") !== -1 && deviceName.indexOf("Surface Dock") === -1)) {
             // Xbox Gamepad
             return DeviceType.Xbox;
         }

@@ -1,0 +1,8 @@
+/**
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import geometryElbowBlock.pure for tree-shakeable, side-effect-free usage.
+ */
+export * from "./geometryElbowBlock.pure.js";
+import { RegisterGeometryElbowBlock } from "./geometryElbowBlock.pure.js";
+RegisterGeometryElbowBlock();
+//# sourceMappingURL=geometryElbowBlock.js.map

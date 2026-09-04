@@ -1,6 +1,6 @@
-import type { ISize } from "../Maths/math.size";
-import type { Nullable } from "../types";
-declare type BaseTexture = import("../Materials/Textures/baseTexture").BaseTexture;
+import { type ISize } from "../Maths/math.size.js";
+import { type Nullable } from "../types.js";
+import { type BaseTexture } from "../Materials/Textures/baseTexture.js";
 /**
  * Transform some pixel data to a base64 string
  * @param pixels defines the pixel data to transform to base64
@@ -55,4 +55,3 @@ export declare const CopyTools: {
      */
     GenerateBase64StringFromTextureAsync: typeof GenerateBase64StringFromTextureAsync;
 };
-export {};

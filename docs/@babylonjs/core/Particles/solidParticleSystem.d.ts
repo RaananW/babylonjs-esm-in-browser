@@ -1,16 +1,18 @@
-import type { Nullable, IndicesArray } from "../types";
-import { Vector3 } from "../Maths/math.vector";
-import { Color4 } from "../Maths/math.color";
-import { Mesh } from "../Meshes/mesh";
-import type { Scene, IDisposable } from "../scene";
-import { DepthSortedParticle, SolidParticle, ModelShape, SolidParticleVertex } from "./solidParticle";
-import type { TargetCamera } from "../Cameras/targetCamera";
-import { BoundingInfo } from "../Culling/boundingInfo";
-import type { Material } from "../Materials/material";
-import { MultiMaterial } from "../Materials/multiMaterial";
-import type { PickingInfo } from "../Collisions/pickingInfo";
+import { type Nullable, type IndicesArray, type FloatArray } from "../types.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { Color4 } from "../Maths/math.color.pure.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
+import { type Scene, type IDisposable } from "../scene.js";
+import { type Observer } from "../Misc/observable.js";
+import { DepthSortedParticle, SolidParticle, ModelShape, SolidParticleVertex } from "./solidParticle.js";
+import { type TargetCamera } from "../Cameras/targetCamera.js";
+import { BoundingInfo } from "../Culling/boundingInfo.js";
+import { type Material } from "../Materials/material.js";
+import { MultiMaterial } from "../Materials/multiMaterial.pure.js";
+import { type PickingInfo } from "../Collisions/pickingInfo.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
 /**
- * The SPS is a single updatable mesh. The solid particles are simply separate parts or faces fo this big mesh.
+ * The SPS is a single updatable mesh. The solid particles are simply separate parts or faces of this big mesh.
  *As it is just a mesh, the SPS has all the same properties than any other BJS mesh : not more, not less. It can be scaled, rotated, translated, enlighted, textured, moved, etc.
 
  * The SPS is also a particle system. It provides some methods to manage the particles.
@@ -147,6 +149,15 @@ export declare class SolidParticleSystem implements IDisposable {
     protected _autoUpdateSubMeshes: boolean;
     protected _tmpVertex: SolidParticleVertex;
     protected _recomputeInvisibles: boolean;
+    protected _started: boolean;
+    protected _stopped: boolean;
+    protected _onBeforeRenderObserver: Nullable<Observer<Scene>>;
+    /**
+     * The overall motion speed (0.01 is default update speed, faster updates = faster animation)
+     */
+    updateSpeed: number;
+    /** @internal */
+    protected _scaledUpdateSpeed: number;
     /**
      * Creates a SPS (Solid Particle System) object.
      * @param name (String) is the SPS name, this will be the underlying mesh name.
@@ -163,6 +174,7 @@ export declare class SolidParticleSystem implements IDisposable {
      * * bSphereRadiusFactor (optional float, default 1.0) : a number to multiply the bounding sphere radius by in order to reduce it for instance.
      * * computeBoundingBox (optional boolean, default false): if the bounding box of the entire SPS will be computed (for occlusion detection, for example). If it is false, the bounding box will be the bounding box of the first particle.
      * * autoFixFaceOrientation (optional boolean, default false): if the particle face orientations will be flipped for transformations that change orientation (scale (-1, 1, 1), for example)
+     * * camera (optional Camera) : the camera to use with the particule system. If not provided, use the scene active camera.
      * @param options.updatable
      * @param options.isPickable
      * @param options.enableDepthSort
@@ -174,6 +186,7 @@ export declare class SolidParticleSystem implements IDisposable {
      * @param options.enableMultiMaterial
      * @param options.computeBoundingBox
      * @param options.autoFixFaceOrientation
+     * @param options.camera
      * @example bSphereRadiusFactor = 1.0 / Math.sqrt(3.0) => the bounding sphere exactly matches a spherical mesh.
      */
     constructor(name: string, scene: Scene, options?: {
@@ -188,6 +201,7 @@ export declare class SolidParticleSystem implements IDisposable {
         enableMultiMaterial?: boolean;
         computeBoundingBox?: boolean;
         autoFixFaceOrientation?: boolean;
+        camera?: TargetCamera;
     });
     /**
      * Builds the SPS underlying mesh. Returns a standard Mesh.
@@ -195,6 +209,7 @@ export declare class SolidParticleSystem implements IDisposable {
      * @returns the created mesh
      */
     buildMesh(): Mesh;
+    private _getUVKind;
     /**
      * Digests the mesh and generates as many solid particles in the system as wanted. Returns the SPS.
      * These particles will have the same geometry than the mesh parts and will be positioned at the same localisation than the mesh original places.
@@ -204,10 +219,12 @@ export declare class SolidParticleSystem implements IDisposable {
      * {delta} (optional integer, default 0) is the random extra number of facets per particle , each particle will have between `facetNb` and `facetNb + delta` facets
      * {number} (optional positive integer) is the wanted number of particles : each particle is built with `mesh_total_facets / number` facets
      * {storage} (optional existing array) is an array where the particles will be stored for a further use instead of being inserted in the SPS.
+     * {uvKind} (optional positive integer, default 0) is the kind of UV to read from. Use -1 to deduce it from the diffuse/albedo texture (if any) of the mesh material
      * @param options.facetNb
      * @param options.number
      * @param options.delta
      * @param options.storage
+     * @param options.uvKind
      * @returns the current SPS
      */
     digest(mesh: Mesh, options?: {
@@ -215,6 +232,7 @@ export declare class SolidParticleSystem implements IDisposable {
         number?: number;
         delta?: number;
         storage?: [];
+        uvKind?: number;
     }): SolidParticleSystem;
     /**
      * Unrotate the fixed normals in case the mesh was built with pre-rotated particles, ex : use of positionFunction in addShape()
@@ -247,21 +265,21 @@ export declare class SolidParticleSystem implements IDisposable {
      * @model the particle model
      * @internal
      */
-    protected _meshBuilder(p: number, ind: number, shape: Vector3[], positions: number[], meshInd: IndicesArray, indices: number[], meshUV: number[] | Float32Array, uvs: number[], meshCol: number[] | Float32Array, colors: number[], meshNor: number[] | Float32Array, normals: number[], idx: number, idxInShape: number, options: any, model: ModelShape): SolidParticle;
+    protected _meshBuilder(p: number, ind: number, shape: Vector3[], positions: number[], meshInd: IndicesArray, indices: number[], meshUV: FloatArray, uvs: number[], meshCol: FloatArray, colors: number[], meshNor: FloatArray, normals: number[], idx: number, idxInShape: number, options: any, model: ModelShape): SolidParticle;
     /**
      * Returns a shape Vector3 array from positions float array
      * @param positions float array
      * @returns a vector3 array
      * @internal
      */
-    protected _posToShape(positions: number[] | Float32Array): Vector3[];
+    protected _posToShape(positions: FloatArray): Vector3[];
     /**
      * Returns a shapeUV array from a float uvs (array deep copy)
      * @param uvs as a float array
      * @returns a shapeUV array
      * @internal
      */
-    protected _uvsToShapeUV(uvs: number[] | Float32Array): number[];
+    protected _uvsToShapeUV(uvs: FloatArray): number[];
     /**
      * Adds a new particle object in the particles array
      * @param idx particle index in particles array
@@ -276,10 +294,11 @@ export declare class SolidParticleSystem implements IDisposable {
      * @internal
      */
     protected _addParticle(idx: number, id: number, idxpos: number, idxind: number, model: ModelShape, shapeId: number, idxInShape: number, bInfo?: Nullable<BoundingInfo>, storage?: Nullable<[]>): SolidParticle;
+    private _normalizeMeshVertexColors;
     /**
      * Adds some particles to the SPS from the model shape. Returns the shape id.
      * Please read the doc : https://doc.babylonjs.com/features/featuresDeepDive/particles/solid_particle_system/immutable_sps
-     * @param mesh is any Mesh object that will be used as a model for the solid particles.
+     * @param mesh is any Mesh object that will be used as a model for the solid particles. If the mesh does not have vertex normals, it will turn on the recomputeNormals attribute.
      * @param nb (positive integer) the number of particles to be created from this model
      * @param options {positionFunction} is an optional javascript function to called for each particle on SPS creation.
      * {vertexFunction} is an optional javascript function to called for each vertex of each particle on SPS creation
@@ -289,7 +308,7 @@ export declare class SolidParticleSystem implements IDisposable {
      * @param options.storage
      * @returns the number of shapes in the system
      */
-    addShape(mesh: Mesh, nb: number, options?: {
+    addShape(mesh: AbstractMesh, nb: number, options?: {
         positionFunction?: any;
         vertexFunction?: any;
         storage?: [];
@@ -340,7 +359,7 @@ export declare class SolidParticleSystem implements IDisposable {
      * @options addShape() passed options
      * @internal
      */
-    protected _insertNewParticle(idx: number, i: number, modelShape: ModelShape, shape: Vector3[], meshInd: IndicesArray, meshUV: number[] | Float32Array, meshCol: number[] | Float32Array, meshNor: number[] | Float32Array, bbInfo: Nullable<BoundingInfo>, storage: Nullable<[]>, options: any): Nullable<SolidParticle>;
+    protected _insertNewParticle(idx: number, i: number, modelShape: ModelShape, shape: Vector3[], meshInd: IndicesArray, meshUV: FloatArray, meshCol: FloatArray, meshNor: FloatArray, bbInfo: Nullable<BoundingInfo>, storage: Nullable<[]>, options: any): Nullable<SolidParticle>;
     /**
      *  Sets all the particles : this method actually really updates the mesh according to the particle positions, rotations, colors, textures, etc.
      *  This method calls `updateParticle()` for each particle of the SPS.
@@ -382,8 +401,8 @@ export declare class SolidParticleSystem implements IDisposable {
     /**
      * Populates the passed array "ref" with the particles having the passed shapeId.
      * @param shapeId the shape identifier
+     * @param ref array to populate
      * @returns the SPS
-     * @param ref
      */
     getParticlesByShapeIdToRef(shapeId: number, ref: SolidParticle[]): SolidParticleSystem;
     /**
@@ -597,4 +616,22 @@ export declare class SolidParticleSystem implements IDisposable {
      * @param update the boolean update value actually passed to setParticles()
      */
     afterUpdateParticles(start?: number, stop?: number, update?: boolean): void;
+    /**
+     * Starts the particle system and begins to emit.
+     * This will call buildMesh(), initParticles(), setParticles() and register the update loop.
+     * @param delay defines the delay in milliseconds before starting the system (0 by default)
+     */
+    start(delay?: number): void;
+    /**
+     * Stops the particle system.
+     */
+    stop(): void;
+    /**
+     * Gets if the particle system is started
+     */
+    get started(): boolean;
+    /**
+     * Gets if the particle system is stopped
+     */
+    get stopped(): boolean;
 }

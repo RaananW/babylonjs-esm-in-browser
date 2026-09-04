@@ -1,9 +1,9 @@
-import type { Nullable } from "../types";
-import type { Scene } from "../scene";
-import type { Vector3 } from "../Maths/math.vector";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import type { IParticleSystem } from "./IParticleSystem";
-import { ParticleSystemSet } from "./particleSystemSet";
+import { type Nullable } from "../types.js";
+import { type Scene } from "../scene.js";
+import { type Vector3 } from "../Maths/math.vector.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { type IParticleSystem } from "./IParticleSystem.js";
+import { ParticleSystemSet } from "./particleSystemSet.js";
 /**
  * This class is made for on one-liner static method to help creating particle system set.
  */

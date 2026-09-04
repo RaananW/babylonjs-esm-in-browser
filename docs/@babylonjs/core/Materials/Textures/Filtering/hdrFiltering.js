@@ -1,10 +1,7 @@
 import { Vector3 } from "../../../Maths/math.js";
-import { Scalar } from "../../../Maths/math.scalar.js";
+import { ILog2 } from "../../../Maths/math.scalar.functions.js";
 
-import { EffectWrapper, EffectRenderer } from "../../../Materials/effectRenderer.js";
-import "../../../Shaders/hdrFiltering.vertex.js";
-import "../../../Shaders/hdrFiltering.fragment.js";
-import { Logger } from "../../../Misc/logger.js";
+import { EffectWrapper, EffectRenderer } from "../../../Materials/effectRenderer.pure.js";
 /**
  * Filters HDR maps to get correct renderings of PBR reflections
  */
@@ -48,6 +45,7 @@ export class HDRFiltering {
             generateDepthBuffer: false,
             generateStencilBuffer: false,
             samplingMode: 1,
+            label: "HDR_Radiance_Filtering_Target",
         });
         this._engine.updateTextureWrappingMode(rtWrapper.texture, 0, 0, 0);
         this._engine.updateTextureSamplingMode(3, rtWrapper.texture, true);
@@ -55,9 +53,10 @@ export class HDRFiltering {
     }
     _prefilterInternal(texture) {
         const width = texture.getSize().width;
-        const mipmapsCount = Scalar.ILog2(width) + 1;
+        const mipmapsCount = ILog2(width) + 1;
         const effect = this._effectWrapper.effect;
         const outputTexture = this._createRenderTarget(width);
+        this._effectRenderer.saveStates();
         this._effectRenderer.setViewport();
         const intTexture = texture.getInternalTexture();
         if (intTexture) {
@@ -66,11 +65,11 @@ export class HDRFiltering {
         }
         this._effectRenderer.applyEffectWrapper(this._effectWrapper);
         const directions = [
-            [new Vector3(0, 0, -1), new Vector3(0, -1, 0), new Vector3(1, 0, 0)],
-            [new Vector3(0, 0, 1), new Vector3(0, -1, 0), new Vector3(-1, 0, 0)],
-            [new Vector3(1, 0, 0), new Vector3(0, 0, 1), new Vector3(0, 1, 0)],
-            [new Vector3(1, 0, 0), new Vector3(0, 0, -1), new Vector3(0, -1, 0)],
-            [new Vector3(1, 0, 0), new Vector3(0, -1, 0), new Vector3(0, 0, 1)],
+            [new Vector3(0, 0, -1), new Vector3(0, -1, 0), new Vector3(1, 0, 0)], // PositiveX
+            [new Vector3(0, 0, 1), new Vector3(0, -1, 0), new Vector3(-1, 0, 0)], // NegativeX
+            [new Vector3(1, 0, 0), new Vector3(0, 0, 1), new Vector3(0, 1, 0)], // PositiveY
+            [new Vector3(1, 0, 0), new Vector3(0, 0, -1), new Vector3(0, -1, 0)], // NegativeY
+            [new Vector3(1, 0, 0), new Vector3(0, -1, 0), new Vector3(0, 0, 1)], // PositiveZ
             [new Vector3(-1, 0, 0), new Vector3(0, -1, 0), new Vector3(0, 0, -1)], // NegativeZ
         ];
         effect.setFloat("hdrScale", this.hdrScale);
@@ -94,9 +93,23 @@ export class HDRFiltering {
         // Cleanup
         this._effectRenderer.restoreStates();
         this._engine.restoreDefaultFramebuffer();
+        // Preserve irradiance texture while swapping the main reflection texture.
+        // The release path disposes integrated irradiance by default, but radiance prefiltering
+        // should not invalidate an already generated irradiance texture.
+        const irradianceTexture = texture._texture._irradianceTexture;
+        texture._texture._irradianceTexture = null;
         this._engine._releaseTexture(texture._texture);
         // Internal Swap
+        const type = outputTexture.texture.type;
+        const format = outputTexture.texture.format;
         outputTexture._swapAndDie(texture._texture);
+        texture._texture._irradianceTexture = irradianceTexture;
+        texture._texture.type = type;
+        texture._texture.format = format;
+        // New settings
+        texture.gammaSpace = false;
+        texture.lodGenerationOffset = this._lodGenerationOffset;
+        texture.lodGenerationScale = this._lodGenerationScale;
         texture._prefiltered = true;
         return texture;
     }
@@ -106,6 +119,7 @@ export class HDRFiltering {
             defines.push("#define GAMMA_INPUT");
         }
         defines.push("#define NUM_SAMPLES " + this.quality + "u"); // unsigned int
+        const isWebGPU = this._engine.isWebGPU;
         const effectWrapper = new EffectWrapper({
             engine: this._engine,
             name: "hdrFiltering",
@@ -116,6 +130,15 @@ export class HDRFiltering {
             useShaderStore: true,
             defines,
             onCompiled: onCompiled,
+            shaderLanguage: isWebGPU ? 1 /* ShaderLanguage.WGSL */ : 0 /* ShaderLanguage.GLSL */,
+            extraInitializationsAsync: async () => {
+                if (isWebGPU) {
+                    await Promise.all([import("../../../ShadersWGSL/hdrFiltering.vertex.js"), import("../../../ShadersWGSL/hdrFiltering.fragment.js")]);
+                }
+                else {
+                    await Promise.all([import("../../../Shaders/hdrFiltering.vertex.js"), import("../../../Shaders/hdrFiltering.fragment.js")]);
+                }
+            },
         });
         return effectWrapper;
     }
@@ -133,27 +156,19 @@ export class HDRFiltering {
      * This has to be done once the map is loaded, and has not been prefiltered by a third party software.
      * See http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf for more information
      * @param texture Texture to filter
-     * @param onFinished Callback when filtering is done
      * @returns Promise called when prefiltering is done
      */
-    prefilter(texture, onFinished = null) {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    async prefilter(texture) {
         if (!this._engine._features.allowTexturePrefiltering) {
-            Logger.Warn("HDR prefiltering is not available in WebGL 1., you can use real time filtering instead.");
-            return Promise.reject("HDR prefiltering is not available in WebGL 1., you can use real time filtering instead.");
+            throw new Error("HDR prefiltering is not available in WebGL 1., you can use real time filtering instead.");
         }
-        return new Promise((resolve) => {
-            this._effectRenderer = new EffectRenderer(this._engine);
-            this._effectWrapper = this._createEffect(texture);
-            this._effectWrapper.effect.executeWhenCompiled(() => {
-                this._prefilterInternal(texture);
-                this._effectRenderer.dispose();
-                this._effectWrapper.dispose();
-                resolve();
-                if (onFinished) {
-                    onFinished();
-                }
-            });
-        });
+        this._effectRenderer = new EffectRenderer(this._engine);
+        this._effectWrapper = this._createEffect(texture);
+        await this._effectWrapper.effect.whenCompiledAsync();
+        this._prefilterInternal(texture);
+        this._effectRenderer.dispose();
+        this._effectWrapper.dispose();
     }
 }
 //# sourceMappingURL=hdrFiltering.js.map

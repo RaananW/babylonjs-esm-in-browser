@@ -1,15 +1,17 @@
-import { PostProcess } from "./postProcess.js";
+import { PostProcess } from "./postProcess.pure.js";
 
-import "../Shaders/depthOfFieldMerge.fragment.js";
-/**
- * Options to be set when merging outputs from the default pipeline.
- */
-export class DepthOfFieldMergePostProcessOptions {
-}
+import { ThinDepthOfFieldMergePostProcess } from "./thinDepthOfFieldMergePostProcess.js";
 /**
  * The DepthOfFieldMergePostProcess merges blurred images with the original based on the values of the circle of confusion.
  */
 export class DepthOfFieldMergePostProcess extends PostProcess {
+    /**
+     * Gets a string identifying the name of the class
+     * @returns "DepthOfFieldMergePostProcess" string
+     */
+    getClassName() {
+        return "DepthOfFieldMergePostProcess";
+    }
     /**
      * Creates a new instance of DepthOfFieldMergePostProcess
      * @param name The name of the effect.
@@ -25,26 +27,35 @@ export class DepthOfFieldMergePostProcess extends PostProcess {
      * @param blockCompilation If compilation of the shader should not be done in the constructor. The updateEffect method can be used to compile the shader at a later time. (default: false)
      */
     constructor(name, originalFromInput, circleOfConfusion, _blurSteps, options, camera, samplingMode, engine, reusable, textureType = 0, blockCompilation = false) {
-        super(name, "depthOfFieldMerge", [], ["circleOfConfusionSampler", "blurStep0", "blurStep1", "blurStep2"], options, camera, samplingMode, engine, reusable, null, textureType, undefined, null, true);
+        const blockCompilationFinal = typeof options === "number" ? blockCompilation : !!options.blockCompilation;
+        const localOptions = {
+            samplers: ThinDepthOfFieldMergePostProcess.Samplers,
+            size: typeof options === "number" ? options : undefined,
+            camera,
+            samplingMode,
+            engine,
+            reusable,
+            textureType,
+            ...options,
+            blockCompilation: true,
+        };
+        super(name, ThinDepthOfFieldMergePostProcess.FragmentUrl, {
+            effectWrapper: typeof options === "number" || !options.effectWrapper ? new ThinDepthOfFieldMergePostProcess(name, engine, localOptions) : undefined,
+            ...localOptions,
+        });
         this._blurSteps = _blurSteps;
         this.externalTextureSamplerBinding = true;
         this.onApplyObservable.add((effect) => {
             effect.setTextureFromPostProcess("textureSampler", originalFromInput);
             effect.setTextureFromPostProcessOutput("circleOfConfusionSampler", circleOfConfusion);
-            _blurSteps.forEach((step, index) => {
-                effect.setTextureFromPostProcessOutput("blurStep" + (_blurSteps.length - index - 1), step);
-            });
+            for (let i = 0; i < _blurSteps.length; i++) {
+                const step = _blurSteps[i];
+                effect.setTextureFromPostProcessOutput("blurStep" + (_blurSteps.length - i - 1), step);
+            }
         });
-        if (!blockCompilation) {
+        if (!blockCompilationFinal) {
             this.updateEffect();
         }
-    }
-    /**
-     * Gets a string identifying the name of the class
-     * @returns "DepthOfFieldMergePostProcess" string
-     */
-    getClassName() {
-        return "DepthOfFieldMergePostProcess";
     }
     /**
      * Updates the effect with the current post process compile time values and recompiles the shader.

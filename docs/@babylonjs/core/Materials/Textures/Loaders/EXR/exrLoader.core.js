@@ -1,0 +1,348 @@
+import { Clamp } from "../../../../Maths/math.scalar.functions.js";
+import { FromHalfFloat, MaxHalfFloat, ToHalfFloat } from "../../../../Misc/halfFloat.js";
+import { FLOAT32_SIZE, INT16_SIZE, INT32_SIZE, INT8_SIZE, ULONG_SIZE } from "./exrLoader.interfaces.js";
+/**
+ * Inspired by https://github.com/sciecode/three.js/blob/dev/examples/jsm/loaders/EXRLoader.js
+ * Referred to the original Industrial Light & Magic OpenEXR implementation and the TinyEXR / Syoyo Fujita
+ * implementation.
+ */
+// /*
+// Copyright (c) 2014 - 2017, Syoyo Fujita
+// All rights reserved.
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above copyright
+//       notice, this list of conditions and the following disclaimer in the
+//       documentation and/or other materials provided with the distribution.
+//     * Neither the name of the Syoyo Fujita nor the
+//       names of its contributors may be used to endorse or promote products
+//       derived from this software without specific prior written permission.
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// */
+// // TinyEXR contains some OpenEXR code, which is licensed under ------------
+// ///////////////////////////////////////////////////////////////////////////
+// //
+// // Copyright (c) 2002, Industrial Light & Magic, a division of Lucas
+// // Digital Ltd. LLC
+// //
+// // All rights reserved.
+// //
+// // Redistribution and use in source and binary forms, with or without
+// // modification, are permitted provided that the following conditions are
+// // met:
+// // *       Redistributions of source code must retain the above copyright
+// // notice, this list of conditions and the following disclaimer.
+// // *       Redistributions in binary form must reproduce the above
+// // copyright notice, this list of conditions and the following disclaimer
+// // in the documentation and/or other materials provided with the
+// // distribution.
+// // *       Neither the name of Industrial Light & Magic nor the names of
+// // its contributors may be used to endorse or promote products derived
+// // from this software without specific prior written permission.
+// //
+// // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// // "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// // LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// // A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// // OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// // SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// // LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// // DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// //
+// ///////////////////////////////////////////////////////////////////////////
+// // End of OpenEXR license -------------------------------------------------
+export var CompressionCodes;
+(function (CompressionCodes) {
+    CompressionCodes[CompressionCodes["NO_COMPRESSION"] = 0] = "NO_COMPRESSION";
+    CompressionCodes[CompressionCodes["RLE_COMPRESSION"] = 1] = "RLE_COMPRESSION";
+    CompressionCodes[CompressionCodes["ZIPS_COMPRESSION"] = 2] = "ZIPS_COMPRESSION";
+    CompressionCodes[CompressionCodes["ZIP_COMPRESSION"] = 3] = "ZIP_COMPRESSION";
+    CompressionCodes[CompressionCodes["PIZ_COMPRESSION"] = 4] = "PIZ_COMPRESSION";
+    CompressionCodes[CompressionCodes["PXR24_COMPRESSION"] = 5] = "PXR24_COMPRESSION";
+})(CompressionCodes || (CompressionCodes = {}));
+var LineOrders;
+(function (LineOrders) {
+    LineOrders[LineOrders["INCREASING_Y"] = 0] = "INCREASING_Y";
+    LineOrders[LineOrders["DECREASING_Y"] = 1] = "DECREASING_Y";
+})(LineOrders || (LineOrders = {}));
+/**
+ * Parse a null terminated string from the buffer
+ * @param buffer buffer to read from
+ * @param offset current offset in the buffer
+ * @returns a string
+ */
+export function ParseNullTerminatedString(buffer, offset) {
+    const uintBuffer = new Uint8Array(buffer);
+    let endOffset = 0;
+    while (uintBuffer[offset.value + endOffset] != 0) {
+        endOffset += 1;
+    }
+    const stringValue = new TextDecoder().decode(uintBuffer.slice(offset.value, offset.value + endOffset));
+    offset.value = offset.value + endOffset + 1;
+    return stringValue;
+}
+/**
+ * Parse an int32 from the buffer
+ * @param dataView dataview on the data
+ * @param offset current offset in the data view
+ * @returns an int32
+ */
+export function ParseInt32(dataView, offset) {
+    const value = dataView.getInt32(offset.value, true);
+    offset.value += INT32_SIZE;
+    return value;
+}
+/**
+ * Parse an uint32 from the buffer
+ * @param dataView data view to read from
+ * @param offset offset in the data view
+ * @returns an uint32
+ */
+export function ParseUint32(dataView, offset) {
+    const value = dataView.getUint32(offset.value, true);
+    offset.value += INT32_SIZE;
+    return value;
+}
+/**
+ * Parse an uint8 from the buffer
+ * @param dataView dataview on the data
+ * @param offset current offset in the data view
+ * @returns an uint8
+ */
+export function ParseUint8(dataView, offset) {
+    const value = dataView.getUint8(offset.value);
+    offset.value += INT8_SIZE;
+    return value;
+}
+/**
+ * Parse an uint16 from the buffer
+ * @param dataView dataview on the data
+ * @param offset current offset in the data view
+ * @returns an uint16
+ */
+export function ParseUint16(dataView, offset) {
+    const value = dataView.getUint16(offset.value, true);
+    offset.value += INT16_SIZE;
+    return value;
+}
+/**
+ * Parse an uint8 from an array buffer
+ * @param array array buffer
+ * @param offset current offset in the data view
+ * @returns an uint16
+ */
+export function ParseUint8Array(array, offset) {
+    const value = array[offset.value];
+    offset.value += INT8_SIZE;
+    return value;
+}
+/**
+ * Parse an int64 from the buffer
+ * @param dataView dataview on the data
+ * @param offset current offset in the data view
+ * @returns an int64
+ */
+export function ParseInt64(dataView, offset) {
+    let int;
+    if ("getBigInt64" in DataView.prototype) {
+        int = Number(dataView.getBigInt64(offset.value, true));
+    }
+    else {
+        int = dataView.getUint32(offset.value + 4, true) + Number(dataView.getUint32(offset.value, true) << 32);
+    }
+    offset.value += ULONG_SIZE;
+    return int;
+}
+/**
+ * Parse a float32 from the buffer
+ * @param dataView dataview on the data
+ * @param offset current offset in the data view
+ * @returns a float32
+ */
+export function ParseFloat32(dataView, offset) {
+    const value = dataView.getFloat32(offset.value, true);
+    offset.value += FLOAT32_SIZE;
+    return value;
+}
+/**
+ * Parse a float16 from the buffer
+ * @param dataView dataview on the data
+ * @param offset current offset in the data view
+ * @returns a float16
+ */
+export function ParseFloat16(dataView, offset) {
+    return FromHalfFloat(ParseUint16(dataView, offset));
+}
+/**
+ * Decode a float32 from the buffer
+ * @param dataView dataview on the data
+ * @param offset current offset in the data view
+ * @returns a float16
+ */
+export function DecodeFloat32(dataView, offset) {
+    // EXR FLOAT channels are HDR and can exceed the half-float range. Clamp to the largest finite half
+    return ToHalfFloat(Clamp(ParseFloat32(dataView, offset), -MaxHalfFloat, MaxHalfFloat));
+}
+function ParseFixedLengthString(buffer, offset, size) {
+    const stringValue = new TextDecoder().decode(new Uint8Array(buffer).slice(offset.value, offset.value + size));
+    offset.value = offset.value + size;
+    return stringValue;
+}
+function ParseRational(dataView, offset) {
+    const x = ParseInt32(dataView, offset);
+    const y = ParseUint32(dataView, offset);
+    return [x, y];
+}
+function ParseTimecode(dataView, offset) {
+    const x = ParseUint32(dataView, offset);
+    const y = ParseUint32(dataView, offset);
+    return [x, y];
+}
+function ParseV2f(dataView, offset) {
+    const x = ParseFloat32(dataView, offset);
+    const y = ParseFloat32(dataView, offset);
+    return [x, y];
+}
+function ParseV3f(dataView, offset) {
+    const x = ParseFloat32(dataView, offset);
+    const y = ParseFloat32(dataView, offset);
+    const z = ParseFloat32(dataView, offset);
+    return [x, y, z];
+}
+function ParseChlist(dataView, offset, size) {
+    const startOffset = offset.value;
+    const channels = [];
+    while (offset.value < startOffset + size - 1) {
+        const name = ParseNullTerminatedString(dataView.buffer, offset);
+        const pixelType = ParseInt32(dataView, offset);
+        const pLinear = ParseUint8(dataView, offset);
+        offset.value += 3; // reserved, three chars
+        const xSampling = ParseInt32(dataView, offset);
+        const ySampling = ParseInt32(dataView, offset);
+        channels.push({
+            name: name,
+            pixelType: pixelType,
+            pLinear: pLinear,
+            xSampling: xSampling,
+            ySampling: ySampling,
+        });
+    }
+    offset.value += 1;
+    return channels;
+}
+function ParseChromaticities(dataView, offset) {
+    const redX = ParseFloat32(dataView, offset);
+    const redY = ParseFloat32(dataView, offset);
+    const greenX = ParseFloat32(dataView, offset);
+    const greenY = ParseFloat32(dataView, offset);
+    const blueX = ParseFloat32(dataView, offset);
+    const blueY = ParseFloat32(dataView, offset);
+    const whiteX = ParseFloat32(dataView, offset);
+    const whiteY = ParseFloat32(dataView, offset);
+    return { redX: redX, redY: redY, greenX: greenX, greenY: greenY, blueX: blueX, blueY: blueY, whiteX: whiteX, whiteY: whiteY };
+}
+function ParseCompression(dataView, offset) {
+    return ParseUint8(dataView, offset);
+}
+function ParseBox2i(dataView, offset) {
+    const xMin = ParseInt32(dataView, offset);
+    const yMin = ParseInt32(dataView, offset);
+    const xMax = ParseInt32(dataView, offset);
+    const yMax = ParseInt32(dataView, offset);
+    return { xMin: xMin, yMin: yMin, xMax: xMax, yMax: yMax };
+}
+function ParseLineOrder(dataView, offset) {
+    const lineOrder = ParseUint8(dataView, offset);
+    return LineOrders[lineOrder];
+}
+/**
+ * Parse a value from the data view
+ * @param dataView defines the data view to read from
+ * @param offset defines the current offset in the data view
+ * @param type defines the type of the value to read
+ * @param size defines the size of the value to read
+ * @returns the parsed value
+ */
+export function ParseValue(dataView, offset, type, size) {
+    switch (type) {
+        case "string":
+        case "stringvector":
+        case "iccProfile":
+            return ParseFixedLengthString(dataView.buffer, offset, size);
+        case "chlist":
+            return ParseChlist(dataView, offset, size);
+        case "chromaticities":
+            return ParseChromaticities(dataView, offset);
+        case "compression":
+            return ParseCompression(dataView, offset);
+        case "box2i":
+            return ParseBox2i(dataView, offset);
+        case "lineOrder":
+            return ParseLineOrder(dataView, offset);
+        case "float":
+            return ParseFloat32(dataView, offset);
+        case "v2f":
+            return ParseV2f(dataView, offset);
+        case "v3f":
+            return ParseV3f(dataView, offset);
+        case "int":
+            return ParseInt32(dataView, offset);
+        case "rational":
+            return ParseRational(dataView, offset);
+        case "timecode":
+            return ParseTimecode(dataView, offset);
+        case "preview":
+            offset.value += size;
+            return "skipped";
+        default:
+            offset.value += size;
+            return undefined;
+    }
+}
+/**
+ * Revert the endianness of the data
+ * @param source defines the source
+ */
+export function Predictor(source) {
+    for (let t = 1; t < source.length; t++) {
+        const d = source[t - 1] + source[t] - 128;
+        source[t] = d;
+    }
+}
+/**
+ * Interleave pixels
+ * @param source defines the data source
+ * @param out defines the output
+ */
+export function InterleaveScalar(source, out) {
+    let t1 = 0;
+    let t2 = Math.floor((source.length + 1) / 2);
+    let s = 0;
+    const stop = source.length - 1;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        if (s > stop) {
+            break;
+        }
+        out[s++] = source[t1++];
+        if (s > stop) {
+            break;
+        }
+        out[s++] = source[t2++];
+    }
+}
+//# sourceMappingURL=exrLoader.core.js.map

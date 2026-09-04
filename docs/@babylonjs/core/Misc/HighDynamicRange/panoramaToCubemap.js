@@ -1,4 +1,4 @@
-import { Vector3 } from "../../Maths/math.vector.js";
+import { Vector3 } from "../../Maths/math.vector.pure.js";
 
 /**
  * Helper class useful to convert panorama picture to their cubemap representation in 6 faces.
@@ -11,21 +11,34 @@ export class PanoramaToCubeMapTools {
      * @param inputWidth The width of the input panorama.
      * @param inputHeight The height of the input panorama.
      * @param size The willing size of the generated cubemap (each faces will be size * size pixels)
+     * @param supersample enable supersampling the cubemap
+     * @param invertY defines if the Y axis must be inverted
      * @returns The cubemap data
      */
-    static ConvertPanoramaToCubemap(float32Array, inputWidth, inputHeight, size) {
+    static ConvertPanoramaToCubemap(float32Array, inputWidth, inputHeight, size, supersample = false, invertY = true) {
         if (!float32Array) {
+            // eslint-disable-next-line no-throw-literal
             throw "ConvertPanoramaToCubemap: input cannot be null";
         }
+        let stride;
         if (float32Array.length != inputWidth * inputHeight * 3) {
-            throw "ConvertPanoramaToCubemap: input size is wrong";
+            if (float32Array.length != inputWidth * inputHeight * 4) {
+                // eslint-disable-next-line no-throw-literal
+                throw "ConvertPanoramaToCubemap: input size is wrong";
+            }
+            else {
+                stride = 4;
+            }
         }
-        const textureFront = this.CreateCubemapTexture(size, this.FACE_FRONT, float32Array, inputWidth, inputHeight);
-        const textureBack = this.CreateCubemapTexture(size, this.FACE_BACK, float32Array, inputWidth, inputHeight);
-        const textureLeft = this.CreateCubemapTexture(size, this.FACE_LEFT, float32Array, inputWidth, inputHeight);
-        const textureRight = this.CreateCubemapTexture(size, this.FACE_RIGHT, float32Array, inputWidth, inputHeight);
-        const textureUp = this.CreateCubemapTexture(size, this.FACE_UP, float32Array, inputWidth, inputHeight);
-        const textureDown = this.CreateCubemapTexture(size, this.FACE_DOWN, float32Array, inputWidth, inputHeight);
+        else {
+            stride = 3;
+        }
+        const textureFront = this.CreateCubemapTexture(size, this.FACE_FRONT, float32Array, inputWidth, inputHeight, supersample, invertY, stride);
+        const textureBack = this.CreateCubemapTexture(size, this.FACE_BACK, float32Array, inputWidth, inputHeight, supersample, invertY, stride);
+        const textureLeft = this.CreateCubemapTexture(size, this.FACE_LEFT, float32Array, inputWidth, inputHeight, supersample, invertY, stride);
+        const textureRight = this.CreateCubemapTexture(size, this.FACE_RIGHT, float32Array, inputWidth, inputHeight, supersample, invertY, stride);
+        const textureUp = this.CreateCubemapTexture(size, this.FACE_UP, float32Array, inputWidth, inputHeight, supersample, invertY, stride);
+        const textureDown = this.CreateCubemapTexture(size, this.FACE_DOWN, float32Array, inputWidth, inputHeight, supersample, invertY, stride);
         return {
             front: textureFront,
             back: textureBack,
@@ -39,32 +52,40 @@ export class PanoramaToCubeMapTools {
             gammaSpace: false,
         };
     }
-    static CreateCubemapTexture(texSize, faceData, float32Array, inputWidth, inputHeight) {
+    static CreateCubemapTexture(texSize, faceData, float32Array, inputWidth, inputHeight, supersample, invertY, stride) {
         const buffer = new ArrayBuffer(texSize * texSize * 4 * 3);
         const textureArray = new Float32Array(buffer);
-        const rotDX1 = faceData[1].subtract(faceData[0]).scale(1 / texSize);
-        const rotDX2 = faceData[3].subtract(faceData[2]).scale(1 / texSize);
+        // If supersampling, determine number of samples needed when source texture width is divided for 4 cube faces
+        const samples = supersample ? Math.max(1, Math.round(inputWidth / 4 / texSize)) : 1;
+        const sampleFactor = 1 / samples;
+        const sampleFactorSqr = sampleFactor * sampleFactor;
+        const rotDX1 = faceData[1].subtract(faceData[0]).scale(sampleFactor / texSize);
+        const rotDX2 = faceData[3].subtract(faceData[2]).scale(sampleFactor / texSize);
         const dy = 1 / texSize;
         let fy = 0;
         for (let y = 0; y < texSize; y++) {
-            let xv1 = faceData[0];
-            let xv2 = faceData[2];
-            for (let x = 0; x < texSize; x++) {
-                const v = xv2.subtract(xv1).scale(fy).add(xv1);
-                v.normalize();
-                const color = this.CalcProjectionSpherical(v, float32Array, inputWidth, inputHeight);
-                // 3 channels per pixels
-                textureArray[y * texSize * 3 + x * 3 + 0] = color.r;
-                textureArray[y * texSize * 3 + x * 3 + 1] = color.g;
-                textureArray[y * texSize * 3 + x * 3 + 2] = color.b;
-                xv1 = xv1.add(rotDX1);
-                xv2 = xv2.add(rotDX2);
+            for (let sy = 0; sy < samples; sy++) {
+                let xv1 = faceData[0];
+                let xv2 = faceData[2];
+                for (let x = 0; x < texSize; x++) {
+                    for (let sx = 0; sx < samples; sx++) {
+                        const v = xv2.subtract(xv1).scale(fy).add(xv1);
+                        v.normalize();
+                        const color = this.CalcProjectionSpherical(v, float32Array, inputWidth, inputHeight, stride, invertY);
+                        // 3 channels per pixels
+                        textureArray[y * texSize * 3 + x * 3 + 0] += color.r * sampleFactorSqr;
+                        textureArray[y * texSize * 3 + x * 3 + 1] += color.g * sampleFactorSqr;
+                        textureArray[y * texSize * 3 + x * 3 + 2] += color.b * sampleFactorSqr;
+                        xv1 = xv1.add(rotDX1);
+                        xv2 = xv2.add(rotDX2);
+                    }
+                }
+                fy += dy * sampleFactor;
             }
-            fy += dy;
         }
         return textureArray;
     }
-    static CalcProjectionSpherical(vDir, float32Array, inputWidth, inputHeight) {
+    static CalcProjectionSpherical(vDir, float32Array, inputWidth, inputHeight, stride, invertY) {
         let theta = Math.atan2(vDir.z, vDir.x);
         const phi = Math.acos(vDir.y);
         while (theta < -Math.PI) {
@@ -91,10 +112,10 @@ export class PanoramaToCubeMapTools {
         else if (py >= inputHeight) {
             py = inputHeight - 1;
         }
-        const inputY = inputHeight - py - 1;
-        const r = float32Array[inputY * inputWidth * 3 + px * 3 + 0];
-        const g = float32Array[inputY * inputWidth * 3 + px * 3 + 1];
-        const b = float32Array[inputY * inputWidth * 3 + px * 3 + 2];
+        const inputY = invertY ? inputHeight - py - 1 : py;
+        const r = float32Array[inputY * inputWidth * stride + px * stride + 0];
+        const g = float32Array[inputY * inputWidth * stride + px * stride + 1];
+        const b = float32Array[inputY * inputWidth * stride + px * stride + 2];
         return {
             r: r,
             g: g,

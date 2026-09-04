@@ -1,9 +1,9 @@
-import type { Nullable } from "../types";
-import type { Scene } from "../scene";
-import type { SubMesh } from "../Meshes/subMesh";
-import type { Material } from "./material";
-import type { ShadowGenerator } from "../Lights/Shadows/shadowGenerator";
-import { DrawWrapper } from "./drawWrapper";
+import { type Nullable } from "../types.js";
+import { type Scene } from "../scene.js";
+import { type SubMesh } from "../Meshes/subMesh.js";
+import { type Material } from "./material.js";
+import { type ShadowGenerator } from "../Lights/Shadows/shadowGenerator.js";
+import { DrawWrapper } from "./drawWrapper.js";
 /**
  * Options to be used when creating a shadow depth material
  */
@@ -48,6 +48,7 @@ export declare class ShadowDepthWrapper {
      * @param options Options used to create the wrapper
      */
     constructor(baseMaterial: Material, scene?: Scene, options?: IIOptionShadowDepthMaterial);
+    private _deleteDepthWrapperEffect;
     /**
      * Gets the effect to use to generate the depth map
      * @param subMesh subMesh to get the effect for

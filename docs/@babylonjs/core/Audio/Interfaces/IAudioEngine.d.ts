@@ -1,7 +1,7 @@
-import type { Observable } from "../../Misc/observable";
-import type { IDisposable } from "../../scene";
-import type { Nullable } from "../../types";
-import type { Analyser } from "../analyser";
+import { type Observable } from "../../Misc/observable.js";
+import { type IDisposable } from "../../scene.js";
+import { type Nullable } from "../../types.js";
+import { type Analyser } from "../analyser.js";
 /**
  * This represents an audio engine and it is responsible
  * to play, synchronize and analyse sounds throughout the application.
@@ -77,4 +77,6 @@ export interface IAudioEngine extends IDisposable {
      * @param analyser The analyser to connect to the engine
      */
     connectToAnalyser(analyser: Analyser): void;
+    /** @internal */
+    _resumeAudioContextOnStateChange(): void;
 }

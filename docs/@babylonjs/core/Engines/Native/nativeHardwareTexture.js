@@ -1,11 +1,11 @@
 /** @internal */
 export class NativeHardwareTexture {
+    get underlyingResource() {
+        return this._nativeTexture;
+    }
     constructor(existingTexture, engine) {
         this._engine = engine;
         this.set(existingTexture);
-    }
-    get underlyingResource() {
-        return this._nativeTexture;
     }
     setUsage() { }
     set(hardwareTexture) {

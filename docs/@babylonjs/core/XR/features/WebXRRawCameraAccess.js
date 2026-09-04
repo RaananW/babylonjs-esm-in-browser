@@ -1,0 +1,8 @@
+/**
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import WebXRRawCameraAccess.pure for tree-shakeable, side-effect-free usage.
+ */
+export * from "./WebXRRawCameraAccess.pure.js";
+import { RegisterWebXRRawCameraAccess } from "./WebXRRawCameraAccess.pure.js";
+RegisterWebXRRawCameraAccess();
+//# sourceMappingURL=WebXRRawCameraAccess.js.map

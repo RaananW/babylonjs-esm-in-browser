@@ -15,11 +15,15 @@ const shader = `#ifdef _DEFINENAME_
 #elif _DEFINENAME_DIRECTUV==6
 #define v_VARYINGNAME_UV vMainUV6
 #else
-varying vec2 v_VARYINGNAME_UV;#endif
-uniform sampler2D _SAMPLERNAME_Sampler;#endif
+varying vec2 v_VARYINGNAME_UV;
+#endif
+uniform sampler2D _SAMPLERNAME_Sampler;
+#endif
 `;
 // Sideeffect
-ShaderStore.IncludesShadersStore[name] = shader;
+if (!ShaderStore.IncludesShadersStore[name]) {
+    ShaderStore.IncludesShadersStore[name] = shader;
+}
 /** @internal */
 export const samplerFragmentDeclaration = { name, shader };
 //# sourceMappingURL=samplerFragmentDeclaration.js.map

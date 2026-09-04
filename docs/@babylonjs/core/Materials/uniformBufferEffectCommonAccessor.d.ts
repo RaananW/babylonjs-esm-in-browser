@@ -1,6 +1,6 @@
-import type { IColor3Like, IColor4Like, IMatrixLike, IVector3Like, IVector4Like } from "../Maths/math.like";
-import type { Effect } from "./effect";
-import type { UniformBuffer } from "./uniformBuffer";
+import { type IColor3Like, type IColor4Like, type IMatrixLike, type IVector3Like, type IVector4Like } from "../Maths/math.like.js";
+import { type Effect } from "./effect.js";
+import { type UniformBuffer } from "./uniformBuffer.js";
 /** @internal */
 export declare class UniformBufferEffectCommonAccessor {
     setMatrix3x3: (name: string, matrix: Float32Array) => void;

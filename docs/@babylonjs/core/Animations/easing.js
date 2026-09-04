@@ -86,7 +86,7 @@ export class BackEase extends EasingFunction {
      * @param amplitude Defines the amplitude of the function
      */
     constructor(
-    /** Defines the amplitude of the function */
+    /** [1] Defines the amplitude of the function */
     amplitude = 1) {
         super();
         this.amplitude = amplitude;
@@ -112,9 +112,9 @@ export class BounceEase extends EasingFunction {
      * @param bounciness Defines the amplitude of the bounce
      */
     constructor(
-    /** Defines the number of bounces */
+    /** [3] Defines the number of bounces */
     bounces = 3, 
-    /** Defines the amplitude of the bounce */
+    /** [2] Defines the amplitude of the bounce */
     bounciness = 2) {
         super();
         this.bounces = bounces;
@@ -170,9 +170,9 @@ export class ElasticEase extends EasingFunction {
      * @param springiness Defines the amplitude of the oscillations
      */
     constructor(
-    /** Defines the number of oscillations*/
+    /** [3] Defines the number of oscillations*/
     oscillations = 3, 
-    /** Defines the amplitude of the oscillations*/
+    /** [3] Defines the amplitude of the oscillations*/
     springiness = 3) {
         super();
         this.oscillations = oscillations;
@@ -185,7 +185,7 @@ export class ElasticEase extends EasingFunction {
         let num2;
         const num3 = Math.max(0.0, this.oscillations);
         const num = Math.max(0.0, this.springiness);
-        if (num == 0) {
+        if (num === 0) {
             num2 = gradient;
         }
         else {
@@ -206,7 +206,7 @@ export class ExponentialEase extends EasingFunction {
      * @param exponent Defines the exponent of the function
      */
     constructor(
-    /** Defines the exponent of the function */
+    /** [3] Defines the exponent of the function */
     exponent = 2) {
         super();
         this.exponent = exponent;
@@ -233,7 +233,7 @@ export class PowerEase extends EasingFunction {
      * @param power Defines the power of the function
      */
     constructor(
-    /** Defines the power of the function */
+    /** [2] Defines the power of the function */
     power = 2) {
         super();
         this.power = power;
@@ -313,13 +313,13 @@ export class BezierCurveEase extends EasingFunction {
      * @param y2 Defines the y component of the end tangent in the bezier curve
      */
     constructor(
-    /** Defines the x component of the start tangent in the bezier curve */
+    /** [0] Defines the x component of the start tangent in the bezier curve */
     x1 = 0, 
-    /** Defines the y component of the start tangent in the bezier curve */
+    /** [0] Defines the y component of the start tangent in the bezier curve */
     y1 = 0, 
-    /** Defines the x component of the end tangent in the bezier curve */
+    /** [1] Defines the x component of the end tangent in the bezier curve */
     x2 = 1, 
-    /** Defines the y component of the end tangent in the bezier curve */
+    /** [1] Defines the y component of the end tangent in the bezier curve */
     y2 = 1) {
         super();
         this.x1 = x1;

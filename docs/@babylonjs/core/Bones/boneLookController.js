@@ -1,11 +1,61 @@
-import { ArrayTools } from "../Misc/arrayTools.js";
-import { Vector3, Quaternion, Matrix } from "../Maths/math.vector.js";
-import { Space, Axis } from "../Maths/math.axis.js";
+import { BuildArray } from "../Misc/arrayTools.js";
+import { Vector3, Quaternion, Matrix } from "../Maths/math.vector.pure.js";
+import { Axis } from "../Maths/math.axis.js";
 /**
  * Class used to make a bone look toward a point in space
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/bonesSkeletons#bonelookcontroller
  */
 export class BoneLookController {
+    /**
+     * Gets or sets the minimum yaw angle that the bone can look to
+     */
+    get minYaw() {
+        return this._minYaw;
+    }
+    set minYaw(value) {
+        this._minYaw = value;
+        this._minYawSin = Math.sin(value);
+        this._minYawCos = Math.cos(value);
+        if (this._maxYaw != null) {
+            this._midYawConstraint = this._getAngleDiff(this._minYaw, this._maxYaw) * 0.5 + this._minYaw;
+            this._yawRange = this._maxYaw - this._minYaw;
+        }
+    }
+    /**
+     * Gets or sets the maximum yaw angle that the bone can look to
+     */
+    get maxYaw() {
+        return this._maxYaw;
+    }
+    set maxYaw(value) {
+        this._maxYaw = value;
+        this._maxYawSin = Math.sin(value);
+        this._maxYawCos = Math.cos(value);
+        if (this._minYaw != null) {
+            this._midYawConstraint = this._getAngleDiff(this._minYaw, this._maxYaw) * 0.5 + this._minYaw;
+            this._yawRange = this._maxYaw - this._minYaw;
+        }
+    }
+    /**
+     * Gets or sets the minimum pitch angle that the bone can look to
+     */
+    get minPitch() {
+        return this._minPitch;
+    }
+    set minPitch(value) {
+        this._minPitch = value;
+        this._minPitchTan = Math.tan(value);
+    }
+    /**
+     * Gets or sets the maximum pitch angle that the bone can look to
+     */
+    get maxPitch() {
+        return this._maxPitch;
+    }
+    set maxPitch(value) {
+        this._maxPitch = value;
+        this._maxPitchTan = Math.tan(value);
+    }
     /**
      * Create a BoneLookController
      * @param mesh the TransformNode that the bone belongs to
@@ -45,7 +95,7 @@ export class BoneLookController {
         /**
          * The space that the up axis is in - Space.BONE, Space.LOCAL (default), or Space.WORLD
          */
-        this.upAxisSpace = Space.LOCAL;
+        this.upAxisSpace = 0 /* Space.LOCAL */;
         /**
          * Used to make an adjustment to the yaw of the bone
          */
@@ -66,6 +116,10 @@ export class BoneLookController {
         this._slerping = false;
         this._firstFrameSkipped = false;
         this._fowardAxis = Vector3.Forward();
+        /**
+         * Use the absolute value for yaw when checking the min/max constraints
+         */
+        this.useAbsoluteValueForYaw = false;
         this.mesh = mesh;
         this.bone = bone;
         this.target = target;
@@ -129,60 +183,13 @@ export class BoneLookController {
                 this._transformYawPitchInv = this._transformYawPitch.clone();
                 this._transformYawPitch.invert();
             }
+            if (options.useAbsoluteValueForYaw !== undefined) {
+                this.useAbsoluteValueForYaw = options.useAbsoluteValueForYaw;
+            }
         }
-        if (!bone.getParent() && this.upAxisSpace == Space.BONE) {
-            this.upAxisSpace = Space.LOCAL;
+        if (!bone.getParent() && this.upAxisSpace == 2 /* Space.BONE */) {
+            this.upAxisSpace = 0 /* Space.LOCAL */;
         }
-    }
-    /**
-     * Gets or sets the minimum yaw angle that the bone can look to
-     */
-    get minYaw() {
-        return this._minYaw;
-    }
-    set minYaw(value) {
-        this._minYaw = value;
-        this._minYawSin = Math.sin(value);
-        this._minYawCos = Math.cos(value);
-        if (this._maxYaw != null) {
-            this._midYawConstraint = this._getAngleDiff(this._minYaw, this._maxYaw) * 0.5 + this._minYaw;
-            this._yawRange = this._maxYaw - this._minYaw;
-        }
-    }
-    /**
-     * Gets or sets the maximum yaw angle that the bone can look to
-     */
-    get maxYaw() {
-        return this._maxYaw;
-    }
-    set maxYaw(value) {
-        this._maxYaw = value;
-        this._maxYawSin = Math.sin(value);
-        this._maxYawCos = Math.cos(value);
-        if (this._minYaw != null) {
-            this._midYawConstraint = this._getAngleDiff(this._minYaw, this._maxYaw) * 0.5 + this._minYaw;
-            this._yawRange = this._maxYaw - this._minYaw;
-        }
-    }
-    /**
-     * Gets or sets the minimum pitch angle that the bone can look to
-     */
-    get minPitch() {
-        return this._minPitch;
-    }
-    set minPitch(value) {
-        this._minPitch = value;
-        this._minPitchTan = Math.tan(value);
-    }
-    /**
-     * Gets or sets the maximum pitch angle that the bone can look to
-     */
-    get maxPitch() {
-        return this._maxPitch;
-    }
-    set maxPitch(value) {
-        this._maxPitch = value;
-        this._maxPitchTan = Math.tan(value);
     }
     /**
      * Update the bone to look at the target.  This should be called before the scene is rendered (use scene.registerBeforeRender())
@@ -203,13 +210,13 @@ export class BoneLookController {
         const parentBone = bone.getParent();
         const upAxis = BoneLookController._TmpVecs[1];
         upAxis.copyFrom(this.upAxis);
-        if (this.upAxisSpace == Space.BONE && parentBone) {
+        if (this.upAxisSpace == 2 /* Space.BONE */ && parentBone) {
             if (this._transformYawPitch) {
                 Vector3.TransformCoordinatesToRef(upAxis, this._transformYawPitchInv, upAxis);
             }
             parentBone.getDirectionToRef(upAxis, this.mesh, upAxis);
         }
-        else if (this.upAxisSpace == Space.LOCAL) {
+        else if (this.upAxisSpace == 0 /* Space.LOCAL */) {
             mesh.getDirectionToRef(upAxis, upAxis);
             if (mesh.scaling.x != 1 || mesh.scaling.y != 1 || mesh.scaling.z != 1) {
                 upAxis.normalize();
@@ -226,10 +233,10 @@ export class BoneLookController {
         if (checkYaw || checkPitch) {
             const spaceMat = BoneLookController._TmpMats[2];
             const spaceMatInv = BoneLookController._TmpMats[3];
-            if (this.upAxisSpace == Space.BONE && upAxis.y == 1 && parentBone) {
-                parentBone.getRotationMatrixToRef(Space.WORLD, this.mesh, spaceMat);
+            if (this.upAxisSpace == 2 /* Space.BONE */ && upAxis.y == 1 && parentBone) {
+                parentBone.getRotationMatrixToRef(1 /* Space.WORLD */, this.mesh, spaceMat);
             }
-            else if (this.upAxisSpace == Space.LOCAL && upAxis.y == 1 && !parentBone) {
+            else if (this.upAxisSpace == 0 /* Space.LOCAL */ && upAxis.y == 1 && !parentBone) {
                 spaceMat.copyFrom(mesh.getWorldMatrix());
             }
             else {
@@ -277,8 +284,9 @@ export class BoneLookController {
                 target.subtractToRef(bonePos, localTarget);
                 Vector3.TransformCoordinatesToRef(localTarget, spaceMatInv, localTarget);
                 const yaw = Math.atan2(localTarget.x, localTarget.z);
+                const yawCheck = this.useAbsoluteValueForYaw ? Math.abs(yaw) : yaw;
                 let newYaw = yaw;
-                if (yaw > this._maxYaw || yaw < this._minYaw) {
+                if (yawCheck > this._maxYaw || yawCheck < this._minYaw) {
                     if (xzlen == null) {
                         xzlen = Math.sqrt(localTarget.x * localTarget.x + localTarget.z * localTarget.z);
                     }
@@ -295,14 +303,20 @@ export class BoneLookController {
                         }
                     }
                     else {
-                        if (yaw > this._maxYaw) {
+                        if (yawCheck > this._maxYaw) {
                             localTarget.z = this._maxYawCos * xzlen;
                             localTarget.x = this._maxYawSin * xzlen;
+                            if (yaw < 0 && this.useAbsoluteValueForYaw) {
+                                localTarget.x *= -1;
+                            }
                             newYaw = this._maxYaw;
                         }
-                        else if (yaw < this._minYaw) {
+                        else if (yawCheck < this._minYaw) {
                             localTarget.z = this._minYawCos * xzlen;
                             localTarget.x = this._minYawSin * xzlen;
+                            if (yaw < 0 && this.useAbsoluteValueForYaw) {
+                                localTarget.x *= -1;
+                            }
                             newYaw = this._minYaw;
                         }
                     }
@@ -351,6 +365,7 @@ export class BoneLookController {
         const xaxis = BoneLookController._TmpVecs[6];
         const yaxis = BoneLookController._TmpVecs[7];
         const tmpQuat = BoneLookController._TmpQuat;
+        const boneScaling = BoneLookController._TmpVecs[9];
         target.subtractToRef(bonePos, zaxis);
         zaxis.normalize();
         Vector3.CrossToRef(upAxis, zaxis, xaxis);
@@ -371,25 +386,27 @@ export class BoneLookController {
             Matrix.RotationYawPitchRollToRef(this.adjustYaw, this.adjustPitch, this.adjustRoll, _tmpMat2);
             _tmpMat2.multiplyToRef(_tmpMat1, _tmpMat1);
         }
+        boneScaling.copyFrom(this.bone.getScale());
         if (this.slerpAmount < 1) {
             if (!this._slerping) {
-                this.bone.getRotationQuaternionToRef(Space.WORLD, this.mesh, this._boneQuat);
+                this.bone.getRotationQuaternionToRef(1 /* Space.WORLD */, this.mesh, this._boneQuat);
             }
             if (this._transformYawPitch) {
                 this._transformYawPitch.multiplyToRef(_tmpMat1, _tmpMat1);
             }
             Quaternion.FromRotationMatrixToRef(_tmpMat1, tmpQuat);
             Quaternion.SlerpToRef(this._boneQuat, tmpQuat, this.slerpAmount, this._boneQuat);
-            this.bone.setRotationQuaternion(this._boneQuat, Space.WORLD, this.mesh);
+            this.bone.setRotationQuaternion(this._boneQuat, 1 /* Space.WORLD */, this.mesh);
             this._slerping = true;
         }
         else {
             if (this._transformYawPitch) {
                 this._transformYawPitch.multiplyToRef(_tmpMat1, _tmpMat1);
             }
-            this.bone.setRotationMatrix(_tmpMat1, Space.WORLD, this.mesh);
+            this.bone.setRotationMatrix(_tmpMat1, 1 /* Space.WORLD */, this.mesh);
             this._slerping = false;
         }
+        this.bone.setScale(boneScaling);
         this._updateLinkedTransformRotation();
     }
     _getAngleDiff(ang1, ang2) {
@@ -408,7 +425,7 @@ export class BoneLookController {
         ang1 = ang1 < 0 ? ang1 + 2 * Math.PI : ang1;
         ang2 %= 2 * Math.PI;
         ang2 = ang2 < 0 ? ang2 + 2 * Math.PI : ang2;
-        let ab = 0;
+        let ab;
         if (ang1 < ang2) {
             ab = ang2 - ang1;
         }
@@ -445,11 +462,11 @@ export class BoneLookController {
             if (!bone._linkedTransformNode.rotationQuaternion) {
                 bone._linkedTransformNode.rotationQuaternion = new Quaternion();
             }
-            bone.getRotationQuaternionToRef(Space.LOCAL, null, bone._linkedTransformNode.rotationQuaternion);
+            bone.getRotationQuaternionToRef(0 /* Space.LOCAL */, null, bone._linkedTransformNode.rotationQuaternion);
         }
     }
 }
-BoneLookController._TmpVecs = ArrayTools.BuildArray(10, Vector3.Zero);
+BoneLookController._TmpVecs = BuildArray(10, Vector3.Zero);
 BoneLookController._TmpQuat = Quaternion.Identity();
-BoneLookController._TmpMats = ArrayTools.BuildArray(5, Matrix.Identity);
+BoneLookController._TmpMats = BuildArray(5, Matrix.Identity);
 //# sourceMappingURL=boneLookController.js.map

@@ -1,12 +1,12 @@
-import { Engine } from "../../../Engines/engine.js";
-import { VertexBuffer } from "../../../Buffers/buffer.js";
-import { Texture } from "../texture.js";
-import { DynamicTexture } from "../dynamicTexture.js";
-import { Vector2 } from "../../../Maths/math.vector.js";
-import { Color3, Color4 } from "../../../Maths/math.color.js";
+import { VertexBuffer } from "../../../Buffers/buffer.pure.js";
+import { Texture } from "../texture.pure.js";
+import { DynamicTexture } from "../dynamicTexture.pure.js";
+import { Vector2 } from "../../../Maths/math.vector.pure.js";
+import { Color3, Color4 } from "../../../Maths/math.color.pure.js";
 import { TexturePackerFrame } from "./frame.js";
 import { Logger } from "../../../Misc/logger.js";
-import { Tools } from "../../../Misc/tools.js";
+import { Tools } from "../../../Misc/tools.pure.js";
+
 /**
  * This is a support class that generates a series of packed texture sets.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/materials/using/materials_introduction
@@ -21,7 +21,6 @@ export class TexturePacker {
      * @returns TexturePacker
      */
     constructor(name, meshes, options, scene) {
-        var _b, _c, _d, _e, _g, _h, _j, _k, _l, _m, _o, _p, _q;
         this.name = name;
         this.meshes = meshes;
         this.scene = scene;
@@ -29,7 +28,7 @@ export class TexturePacker {
          * Run through the options and set what ever defaults are needed that where not declared.
          */
         this.options = options;
-        this.options.map = (_b = this.options.map) !== null && _b !== void 0 ? _b : [
+        this.options.map = this.options.map ?? [
             "ambientTexture",
             "bumpTexture",
             "diffuseTexture",
@@ -40,29 +39,29 @@ export class TexturePacker {
             "refractionTexture",
             "specularTexture",
         ];
-        this.options.uvsIn = (_c = this.options.uvsIn) !== null && _c !== void 0 ? _c : VertexBuffer.UVKind;
-        this.options.uvsOut = (_d = this.options.uvsOut) !== null && _d !== void 0 ? _d : VertexBuffer.UVKind;
-        this.options.layout = (_e = this.options.layout) !== null && _e !== void 0 ? _e : TexturePacker.LAYOUT_STRIP;
+        this.options.uvsIn = this.options.uvsIn ?? VertexBuffer.UVKind;
+        this.options.uvsOut = this.options.uvsOut ?? VertexBuffer.UVKind;
+        this.options.layout = this.options.layout ?? TexturePacker.LAYOUT_STRIP;
         if (this.options.layout === TexturePacker.LAYOUT_COLNUM) {
-            this.options.colnum = (_g = this.options.colnum) !== null && _g !== void 0 ? _g : 8;
+            this.options.colnum = this.options.colnum ?? 8;
         }
-        this.options.updateInputMeshes = (_h = this.options.updateInputMeshes) !== null && _h !== void 0 ? _h : true;
-        this.options.disposeSources = (_j = this.options.disposeSources) !== null && _j !== void 0 ? _j : true;
+        this.options.updateInputMeshes = this.options.updateInputMeshes ?? true;
+        this.options.disposeSources = this.options.disposeSources ?? true;
         this._expecting = 0;
-        this.options.fillBlanks = (_k = this.options.fillBlanks) !== null && _k !== void 0 ? _k : true;
+        this.options.fillBlanks = this.options.fillBlanks ?? true;
         if (this.options.fillBlanks === true) {
-            this.options.customFillColor = (_l = this.options.customFillColor) !== null && _l !== void 0 ? _l : "black";
+            this.options.customFillColor = this.options.customFillColor ?? "black";
         }
-        this.options.frameSize = (_m = this.options.frameSize) !== null && _m !== void 0 ? _m : 256;
-        this.options.paddingRatio = (_o = this.options.paddingRatio) !== null && _o !== void 0 ? _o : 0.0115;
+        this.options.frameSize = this.options.frameSize ?? 256;
+        this.options.paddingRatio = this.options.paddingRatio ?? 0.0115;
         this._paddingValue = Math.ceil(this.options.frameSize * this.options.paddingRatio);
         //Make it an even padding Number.
         if (this._paddingValue % 2 !== 0) {
             this._paddingValue++;
         }
-        this.options.paddingMode = (_p = this.options.paddingMode) !== null && _p !== void 0 ? _p : TexturePacker.SUBUV_WRAP;
+        this.options.paddingMode = this.options.paddingMode ?? TexturePacker.SUBUV_WRAP;
         if (this.options.paddingMode === TexturePacker.SUBUV_COLOR) {
-            this.options.paddingColor = (_q = this.options.paddingColor) !== null && _q !== void 0 ? _q : new Color4(0, 0, 0, 1.0);
+            this.options.paddingColor = this.options.paddingColor ?? new Color4(0, 0, 0, 1.0);
         }
         this.sets = {};
         this.frames = [];
@@ -71,7 +70,6 @@ export class TexturePacker {
     /**
      * Starts the package process
      * @param resolve The promises resolution function
-     * @returns TexturePacker
      */
     _createFrames(resolve) {
         const dtSize = this._calculateSize();
@@ -83,7 +81,7 @@ export class TexturePacker {
         for (let i = 0; i < sKeys.length; i++) {
             const setName = sKeys[i];
             const dt = new DynamicTexture(this.name + ".TexturePack." + setName + "Set", { width: dtSize.x, height: dtSize.y }, this.scene, true, //Generate Mips
-            Texture.TRILINEAR_SAMPLINGMODE, Engine.TEXTUREFORMAT_RGBA);
+            Texture.TRILINEAR_SAMPLINGMODE, 5);
             const dtx = dt.getContext();
             dtx.fillStyle = "rgba(0,0,0,0)";
             dtx.fillRect(0, 0, dtSize.x, dtSize.y);
@@ -334,8 +332,8 @@ export class TexturePacker {
      * Starts the async promise to compile the texture packer.
      * @returns Promise<void>
      */
-    processAsync() {
-        return new Promise((resolve, reject) => {
+    async processAsync() {
+        return await new Promise((resolve, reject) => {
             try {
                 if (this.meshes.length === 0) {
                     //Must be a JSON load!
@@ -372,12 +370,14 @@ export class TexturePacker {
                         }
                         continue;
                     }
+                    // eslint-disable-next-line @typescript-eslint/no-floating-promises, github/no-then
                     material.forceCompilationAsync(mesh).then(() => {
                         doneCheck(material);
                     });
                 }
             }
             catch (e) {
+                // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
                 return reject(e);
             }
         });

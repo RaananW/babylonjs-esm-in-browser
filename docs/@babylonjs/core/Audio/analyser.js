@@ -1,6 +1,6 @@
-import { Engine } from "../Engines/engine.js";
-import { Tools } from "../Misc/tools.js";
+import { Tools } from "../Misc/tools.pure.js";
 import { EngineStore } from "../Engines/engineStore.js";
+import { AbstractEngine } from "../Engines/abstractEngine.js";
 /**
  * Class used to work with sound analyzer using fast fourier transform (FFT)
  * @see https://doc.babylonjs.com/features/featuresDeepDive/audio/playingSoundsMusic
@@ -13,27 +13,22 @@ export class Analyser {
     constructor(scene) {
         /**
          * Gets or sets the smoothing
-         * @ignorenaming
          */
         this.SMOOTHING = 0.75;
         /**
          * Gets or sets the FFT table size
-         * @ignorenaming
          */
         this.FFT_SIZE = 512;
         /**
          * Gets or sets the bar graph amplitude
-         * @ignorenaming
          */
         this.BARGRAPHAMPLITUDE = 256;
         /**
          * Gets or sets the position of the debug canvas
-         * @ignorenaming
          */
         this.DEBUGCANVASPOS = { x: 20, y: 20 };
         /**
          * Gets or sets the debug canvas size
-         * @ignorenaming
          */
         this.DEBUGCANVASSIZE = { width: 320, height: 200 };
         scene = scene || EngineStore.LastCreatedScene;
@@ -41,11 +36,11 @@ export class Analyser {
             return;
         }
         this._scene = scene;
-        if (!Engine.audioEngine) {
+        if (!AbstractEngine.audioEngine) {
             Tools.Warn("No audio engine initialized, failed to create an audio analyser");
             return;
         }
-        this._audioEngine = Engine.audioEngine;
+        this._audioEngine = AbstractEngine.audioEngine;
         if (this._audioEngine.canUseWebAudio && this._audioEngine.audioContext) {
             this._webAudioAnalyser = this._audioEngine.audioContext.createAnalyser();
             this._webAudioAnalyser.minDecibels = -140;

@@ -1,8 +1,9 @@
-import type { Nullable } from "../types";
-import type { InternalTexture } from "../Materials/Textures/internalTexture";
-import type { PostProcess } from "./postProcess";
-import type { RenderTargetWrapper } from "../Engines/renderTargetWrapper";
-declare type Scene = import("../scene").Scene;
+import { type Nullable } from "../types.js";
+import { type InternalTexture } from "../Materials/Textures/internalTexture.js";
+import { type PostProcess } from "./postProcess.js";
+import { type RenderTargetWrapper } from "../Engines/renderTargetWrapper.js";
+import { Observable } from "../Misc/observable.js";
+import { type Scene } from "../scene.js";
 /**
  * PostProcessManager is used to manage one or more post processes or post process pipelines
  * See https://doc.babylonjs.com/features/featuresDeepDive/postProcesses/usePostProcesses
@@ -11,6 +12,7 @@ export declare class PostProcessManager {
     private _scene;
     private _indexBuffer;
     private _vertexBuffers;
+    private readonly _activePostProcesses;
     /**
      * Creates a new instance PostProcess
      * @param scene The scene that the post process is associated with.
@@ -18,6 +20,11 @@ export declare class PostProcessManager {
     constructor(scene: Scene);
     private _prepareBuffers;
     private _buildIndexBuffer;
+    private _getActivePostProcesses;
+    /**
+     * Observable raised before post processes are rendered.
+     */
+    onBeforeRenderObservable: Observable<PostProcessManager>;
     /**
      * Rebuilds the vertex buffers of the manager.
      * @internal
@@ -40,8 +47,9 @@ export declare class PostProcessManager {
      * @param faceIndex defines the face to render to if a cubemap is defined as the target
      * @param lodLevel defines which lod of the texture to render to
      * @param doNotBindFrambuffer If set to true, assumes that the framebuffer has been bound previously
+     * @param numPostsProcesses The number of post processes to render. Defaults to the length of the postProcesses array.
      */
-    directRender(postProcesses: PostProcess[], targetTexture?: Nullable<RenderTargetWrapper>, forceFullscreenViewport?: boolean, faceIndex?: number, lodLevel?: number, doNotBindFrambuffer?: boolean): void;
+    directRender(postProcesses: PostProcess[], targetTexture?: Nullable<RenderTargetWrapper>, forceFullscreenViewport?: boolean, faceIndex?: number, lodLevel?: number, doNotBindFrambuffer?: boolean, numPostsProcesses?: number): void;
     /**
      * Finalize the result of the output of the postprocesses.
      * @param doNotPresent If true the result will not be displayed to the screen.
@@ -57,4 +65,3 @@ export declare class PostProcessManager {
      */
     dispose(): void;
 }
-export {};

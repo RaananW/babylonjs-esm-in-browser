@@ -1,5 +1,5 @@
-import { ArrayTools } from "../Misc/arrayTools.js";
-import { Matrix, Vector3 } from "../Maths/math.vector.js";
+import { BuildArray } from "../Misc/arrayTools.js";
+import { Matrix, Vector3 } from "../Maths/math.vector.pure.js";
 /**
  * Class used to store bounding sphere information
  */
@@ -49,11 +49,14 @@ export class BoundingSphere {
      * @returns the current bounding box
      */
     scale(factor) {
-        const newRadius = this.radius * factor;
         const tmpVectors = BoundingSphere._TmpVector3;
-        const tempRadiusVector = tmpVectors[0].setAll(newRadius);
-        const min = this.center.subtractToRef(tempRadiusVector, tmpVectors[1]);
-        const max = this.center.addToRef(tempRadiusVector, tmpVectors[2]);
+        const diff = this.maximum.subtractToRef(this.minimum, tmpVectors[0]);
+        const len = diff.length();
+        diff.normalizeFromLength(len);
+        const distance = len * factor;
+        const newRadius = diff.scaleInPlace(distance * 0.5);
+        const min = this.center.subtractToRef(newRadius, tmpVectors[1]);
+        const max = this.center.addToRef(newRadius, tmpVectors[2]);
         this.reConstruct(min, max, this._worldMatrix);
         return this;
     }
@@ -160,5 +163,5 @@ export class BoundingSphere {
         return sphere;
     }
 }
-BoundingSphere._TmpVector3 = ArrayTools.BuildArray(3, Vector3.Zero);
+BoundingSphere._TmpVector3 = BuildArray(3, Vector3.Zero);
 //# sourceMappingURL=boundingSphere.js.map

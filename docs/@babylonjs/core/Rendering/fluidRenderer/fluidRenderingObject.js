@@ -1,30 +1,11 @@
 
-import { EffectWrapper } from "../../Materials/effectRenderer.js";
+import { EffectWrapper } from "../../Materials/effectRenderer.pure.js";
 import { Observable } from "../../Misc/observable.js";
 /**
  * Defines the base object used for fluid rendering.
  * It is based on a list of vertices (particles)
  */
 export class FluidRenderingObject {
-    /**
-     * Instantiates a fluid rendering object
-     * @param scene The scene the object is part of
-     */
-    constructor(scene) {
-        /** Defines the priority of the object. Objects will be rendered in ascending order of priority */
-        this.priority = 0;
-        this._particleSize = 0.1;
-        /** Observable triggered when the size of the particle is changed */
-        this.onParticleSizeChanged = new Observable();
-        /** Defines the alpha value of a particle */
-        this.particleThicknessAlpha = 0.05;
-        this._useVelocity = false;
-        this._scene = scene;
-        this._engine = scene.getEngine();
-        this._effectsAreDirty = true;
-        this._depthEffectWrapper = null;
-        this._thicknessEffectWrapper = null;
-    }
     /** Gets or sets the size of the particle */
     get particleSize() {
         return this._particleSize;
@@ -52,8 +33,7 @@ export class FluidRenderingObject {
         this._effectsAreDirty = true;
     }
     _hasVelocity() {
-        var _a;
-        return !!((_a = this.vertexBuffers) === null || _a === void 0 ? void 0 : _a.velocity);
+        return !!this.vertexBuffers?.velocity;
     }
     /**
      * Gets the index buffer (or null if the object is using instancing)
@@ -62,39 +42,102 @@ export class FluidRenderingObject {
         return null;
     }
     /**
-     * Gets the name of the class
+     * @returns the name of the class
      */
     getClassName() {
         return "FluidRenderingObject";
     }
+    /**
+     * Gets the shader language used in this object
+     */
+    get shaderLanguage() {
+        return this._shaderLanguage;
+    }
+    /**
+     * Instantiates a fluid rendering object
+     * @param scene The scene the object is part of
+     * @param shaderLanguage The shader language to use
+     */
+    constructor(scene, shaderLanguage) {
+        this._usesPerParticleSizeAttribute = false;
+        /** Defines the priority of the object. Objects will be rendered in ascending order of priority */
+        this.priority = 0;
+        this._particleSize = 0.1;
+        /** Observable triggered when the size of the particle is changed */
+        this.onParticleSizeChanged = new Observable();
+        /** Defines the alpha value of a particle */
+        this.particleThicknessAlpha = 0.05;
+        this._useVelocity = false;
+        /** Shader language used by the object */
+        this._shaderLanguage = 0 /* ShaderLanguage.GLSL */;
+        this._scene = scene;
+        this._engine = scene.getEngine();
+        this._effectsAreDirty = true;
+        this._depthEffectWrapper = null;
+        this._thicknessEffectWrapper = null;
+        this._shaderLanguage = shaderLanguage ?? (this._engine.isWebGPU ? 1 /* ShaderLanguage.WGSL */ : 0 /* ShaderLanguage.GLSL */);
+    }
+    /**
+     * Override to return false if this object's buffers have an incompatible "size" layout.
+     * @returns true if the per-particle size attribute is supported
+     */
+    _supportsPerParticleSizeAttribute() {
+        return true;
+    }
     _createEffects() {
-        const uniformNames = ["view", "projection", "particleRadius", "size"];
-        const attributeNames = ["position", "offset"];
-        const defines = [];
+        // "size" is a uniform, or a per-particle attribute when UsePerParticleSizeAttribute is set (and supported).
+        const perParticleSize = FluidRenderingObject.UsePerParticleSizeAttribute && this._supportsPerParticleSizeAttribute();
+        this._usesPerParticleSizeAttribute = perParticleSize;
+        const baseAttributeNames = perParticleSize ? ["position", "offset", "size"] : ["position", "offset"];
+        const baseUniformNames = perParticleSize ? ["view", "projection", "particleRadius"] : ["view", "projection", "particleRadius", "size"];
+        const defines = perParticleSize ? ["#define FLUIDRENDERING_PER_PARTICLE_SIZE"] : [];
         this._effectsAreDirty = false;
+        const depthAttributeNames = baseAttributeNames.slice();
+        const depthDefines = defines.slice();
         if (this.useVelocity) {
-            attributeNames.push("velocity");
-            defines.push("#define FLUIDRENDERING_VELOCITY");
+            depthAttributeNames.push("velocity");
+            depthDefines.push("#define FLUIDRENDERING_VELOCITY");
+        }
+        if (this._scene.useRightHandedSystem) {
+            depthDefines.push("#define FLUIDRENDERING_RHS");
         }
         this._depthEffectWrapper = new EffectWrapper({
             engine: this._engine,
             useShaderStore: true,
             vertexShader: "fluidRenderingParticleDepth",
             fragmentShader: "fluidRenderingParticleDepth",
-            attributeNames,
-            uniformNames,
+            attributeNames: depthAttributeNames,
+            uniformNames: baseUniformNames.slice(),
             samplerNames: [],
-            defines,
+            defines: depthDefines,
+            shaderLanguage: this._shaderLanguage,
+            extraInitializationsAsync: async () => {
+                if (this._shaderLanguage === 1 /* ShaderLanguage.WGSL */) {
+                    await Promise.all([import("../../ShadersWGSL/fluidRenderingParticleDepth.vertex.js"), import("../../ShadersWGSL/fluidRenderingParticleDepth.fragment.js")]);
+                }
+                else {
+                    await Promise.all([import("../../Shaders/fluidRenderingParticleDepth.vertex.js"), import("../../Shaders/fluidRenderingParticleDepth.fragment.js")]);
+                }
+            },
         });
-        uniformNames.push("particleAlpha");
         this._thicknessEffectWrapper = new EffectWrapper({
             engine: this._engine,
             useShaderStore: true,
             vertexShader: "fluidRenderingParticleThickness",
             fragmentShader: "fluidRenderingParticleThickness",
-            attributeNames: ["position", "offset"],
-            uniformNames,
+            attributeNames: baseAttributeNames.slice(),
+            uniformNames: [...baseUniformNames, "particleAlpha"],
             samplerNames: [],
+            defines: defines.slice(),
+            shaderLanguage: this._shaderLanguage,
+            extraInitializationsAsync: async () => {
+                if (this._shaderLanguage === 1 /* ShaderLanguage.WGSL */) {
+                    await Promise.all([import("../../ShadersWGSL/fluidRenderingParticleThickness.vertex.js"), import("../../ShadersWGSL/fluidRenderingParticleThickness.fragment.js")]);
+                }
+                else {
+                    await Promise.all([import("../../Shaders/fluidRenderingParticleThickness.vertex.js"), import("../../Shaders/fluidRenderingParticleThickness.fragment.js")]);
+                }
+            },
         });
     }
     /**
@@ -108,8 +151,8 @@ export class FluidRenderingObject {
         if (!this._depthEffectWrapper || !this._thicknessEffectWrapper) {
             return false;
         }
-        const depthEffect = this._depthEffectWrapper._drawWrapper.effect;
-        const thicknessEffect = this._thicknessEffectWrapper._drawWrapper.effect;
+        const depthEffect = this._depthEffectWrapper.drawWrapper.effect;
+        const thicknessEffect = this._thicknessEffectWrapper.drawWrapper.effect;
         return depthEffect.isReady() && thicknessEffect.isReady();
     }
     /**
@@ -120,13 +163,15 @@ export class FluidRenderingObject {
         if (!this._depthEffectWrapper || numParticles === 0) {
             return;
         }
-        const depthDrawWrapper = this._depthEffectWrapper._drawWrapper;
+        const depthDrawWrapper = this._depthEffectWrapper.drawWrapper;
         const depthEffect = depthDrawWrapper.effect;
         this._engine.enableEffect(depthDrawWrapper);
         this._engine.bindBuffers(this.vertexBuffers, this.indexBuffer, depthEffect);
         depthEffect.setMatrix("view", this._scene.getViewMatrix());
         depthEffect.setMatrix("projection", this._scene.getProjectionMatrix());
-        depthEffect.setFloat2("size", this._particleSize, this._particleSize);
+        if (!this._usesPerParticleSizeAttribute) {
+            depthEffect.setFloat2("size", this._particleSize, this._particleSize);
+        }
         depthEffect.setFloat("particleRadius", this._particleSize / 2);
         if (this.useInstancing) {
             this._engine.drawArraysType(7, 0, 4, numParticles);
@@ -143,7 +188,7 @@ export class FluidRenderingObject {
         if (!this._thicknessEffectWrapper || numParticles === 0) {
             return;
         }
-        const thicknessDrawWrapper = this._thicknessEffectWrapper._drawWrapper;
+        const thicknessDrawWrapper = this._thicknessEffectWrapper.drawWrapper;
         const thicknessEffect = thicknessDrawWrapper.effect;
         this._engine.setAlphaMode(6);
         this._engine.setDepthWrite(false);
@@ -152,7 +197,9 @@ export class FluidRenderingObject {
         thicknessEffect.setMatrix("view", this._scene.getViewMatrix());
         thicknessEffect.setMatrix("projection", this._scene.getProjectionMatrix());
         thicknessEffect.setFloat("particleAlpha", this.particleThicknessAlpha);
-        thicknessEffect.setFloat2("size", this._particleSize, this._particleSize);
+        if (!this._usesPerParticleSizeAttribute) {
+            thicknessEffect.setFloat2("size", this._particleSize, this._particleSize);
+        }
         if (this.useInstancing) {
             this._engine.drawArraysType(7, 0, 4, numParticles);
         }
@@ -169,12 +216,17 @@ export class FluidRenderingObject {
         // do nothing by default
     }
     /**
-     * Releases the ressources used by the class
+     * Releases the resources used by the class
      */
     dispose() {
-        var _a, _b;
-        (_a = this._depthEffectWrapper) === null || _a === void 0 ? void 0 : _a.dispose();
-        (_b = this._thicknessEffectWrapper) === null || _b === void 0 ? void 0 : _b.dispose();
+        this._depthEffectWrapper?.dispose(false);
+        this._thicknessEffectWrapper?.dispose(false);
+        this.onParticleSizeChanged.clear();
     }
 }
+/**
+ * Uses each particle's own "size" vertex attribute instead
+ * of a single uniform size for all particles (default: false, opt-in).
+ */
+FluidRenderingObject.UsePerParticleSizeAttribute = false;
 //# sourceMappingURL=fluidRenderingObject.js.map

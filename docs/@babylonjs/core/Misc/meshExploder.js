@@ -1,4 +1,4 @@
-import { Vector3 } from "../Maths/math.vector.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
 /**
  * Class used to explode meshes (ie. to have a center and move them away from that center to better see the overall organization)
  */
@@ -40,7 +40,6 @@ export class MeshExploder {
         }
     }
     _setCenterMesh() {
-        let averageCenter = Vector3.Zero();
         const totalCenters = Vector3.Zero();
         let shortestToCenter = Number.MAX_VALUE;
         for (let index = 0; index < this._meshes.length; index++) {
@@ -52,7 +51,7 @@ export class MeshExploder {
                 }
             }
         }
-        averageCenter = totalCenters.scale(1 / this._meshes.length);
+        const averageCenter = totalCenters.scale(1 / this._meshes.length);
         for (let index = 0; index < this._meshes.length; index++) {
             if (this._meshes[index]) {
                 const mesh = this._meshes[index];

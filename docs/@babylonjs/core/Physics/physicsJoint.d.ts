@@ -1,1 +1,1 @@
-export * from "./v1/physicsJoint";
+export * from "./v1/physicsJoint.js";

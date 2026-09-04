@@ -1,2 +1,2 @@
-export * from "./morphTarget";
-export * from "./morphTargetManager";
+export * from "./morphTarget.js";
+export * from "./morphTargetManager.js";

@@ -1,7 +1,7 @@
-import type { Nullable } from "../../types";
-import type { ICameraInput } from "../../Cameras/cameraInputsManager";
-import type { FreeCamera } from "../../Cameras/freeCamera";
-import { Gamepad } from "../../Gamepads/gamepad";
+import { type Nullable } from "../../types.js";
+import { type ICameraInput } from "../../Cameras/cameraInputsManager.js";
+import { type FreeCamera } from "../../Cameras/freeCamera.js";
+import { Gamepad } from "../../Gamepads/gamepad.js";
 /**
  * Manage the gamepad inputs to control a free camera.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs

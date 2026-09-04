@@ -1,52 +1,33 @@
 import { NodeMaterialBlockConnectionPointTypes } from "./Enums/nodeMaterialBlockConnectionPointTypes.js";
-import { NodeMaterialConnectionPoint, NodeMaterialConnectionPointDirection } from "./nodeMaterialBlockConnectionPoint.js";
+import { NodeMaterialConnectionPoint } from "./nodeMaterialBlockConnectionPoint.js";
 import { NodeMaterialBlockTargets } from "./Enums/nodeMaterialBlockTargets.js";
 import { UniqueIdGenerator } from "../../Misc/uniqueIdGenerator.js";
 import { GetClass } from "../../Misc/typeStore.js";
+import { Logger } from "../../Misc/logger.js";
+import { Observable } from "../../Misc/observable.js";
 /**
  * Defines a block that can be used inside a node based material
  */
 export class NodeMaterialBlock {
-    /**
-     * Creates a new NodeMaterialBlock
-     * @param name defines the block name
-     * @param target defines the target of that block (Vertex by default)
-     * @param isFinalMerger defines a boolean indicating that this block is an end block (e.g. it is generating a system value). Default is false
-     * @param isInput defines a boolean indicating that this block is an input (e.g. it sends data to the shader). Default is false
-     */
-    constructor(name, target = NodeMaterialBlockTargets.Vertex, isFinalMerger = false, isInput = false) {
-        this._isFinalMerger = false;
-        this._isInput = false;
-        this._name = "";
-        this._isUnique = false;
-        /** Gets or sets a boolean indicating that only one input can be connected at a time */
-        this.inputsAreExclusive = false;
-        /** @internal */
-        this._codeVariableName = "";
-        /** @internal */
-        this._inputs = new Array();
-        /** @internal */
-        this._outputs = new Array();
-        /**
-         * Gets or sets the comments associated with this block
-         */
-        this.comments = "";
-        /** Gets or sets a boolean indicating that this input can be edited in the Inspector (false by default) */
-        this.visibleInInspector = false;
-        /** Gets or sets a boolean indicating that this input can be edited from a collapsed frame */
-        this.visibleOnFrame = false;
-        this._target = target;
-        this._originalTargetIsNeutral = target === NodeMaterialBlockTargets.Neutral;
-        this._isFinalMerger = isFinalMerger;
-        this._isInput = isInput;
-        this._name = name;
-        this.uniqueId = UniqueIdGenerator.UniqueId;
+    /** @internal */
+    get _isFinalOutputAndActive() {
+        return this._isFinalOutput;
+    }
+    /** @internal */
+    get _hasPrecedence() {
+        return false;
     }
     /**
      * Gets the name of the block
      */
     get name() {
         return this._name;
+    }
+    /**
+     * Gets a boolean indicating that this block has is code ready to be used
+     */
+    get codeIsReady() {
+        return this._codeIsReady;
     }
     /**
      * Sets the name of the block. Will check if the name is valid.
@@ -74,6 +55,24 @@ export class NodeMaterialBlock {
      */
     get isInput() {
         return this._isInput;
+    }
+    /**
+     * Gets a boolean indicating if this block is a teleport out
+     */
+    get isTeleportOut() {
+        return this._isTeleportOut;
+    }
+    /**
+     * Gets a boolean indicating if this block is a teleport in
+     */
+    get isTeleportIn() {
+        return this._isTeleportIn;
+    }
+    /**
+     * Gets a boolean indicating if this block is a loop
+     */
+    get isLoop() {
+        return this._isLoop;
     }
     /**
      * Gets or sets the build Id
@@ -130,9 +129,69 @@ export class NodeMaterialBlock {
         }
         return null;
     }
+    /**
+     * Creates a new NodeMaterialBlock
+     * @param name defines the block name
+     * @param target defines the target of that block (Vertex by default)
+     * @param isFinalMerger defines a boolean indicating that this block is an end block (e.g. it is generating a system value). Default is false
+     * @param isFinalOutput defines a boolean indicating that this block is generating a final output and no other block should be generated after
+     */
+    constructor(name, target = NodeMaterialBlockTargets.Vertex, isFinalMerger = false, isFinalOutput = false) {
+        this._isFinalMerger = false;
+        this._isInput = false;
+        this._isLoop = false;
+        this._isTeleportOut = false;
+        this._isTeleportIn = false;
+        this._name = "";
+        this._isUnique = false;
+        this._codeIsReady = true;
+        /** @internal */
+        this._isFinalOutput = false;
+        /**
+         * Observable raised when the block code is ready (if the code loading is async)
+         */
+        this.onCodeIsReadyObservable = new Observable();
+        /** Gets or sets a boolean indicating that only one input can be connected at a time */
+        this.inputsAreExclusive = false;
+        /** @internal */
+        this._codeVariableName = "";
+        /** @internal */
+        this._inputs = new Array();
+        /** @internal */
+        this._outputs = new Array();
+        /**
+         * Gets or sets the comments associated with this block
+         */
+        this.comments = "";
+        /** Gets or sets a boolean indicating that this input can be edited in the Inspector (false by default) */
+        this.visibleInInspector = false;
+        /** Gets or sets a boolean indicating that this input can be edited from a collapsed frame */
+        this.visibleOnFrame = false;
+        this._target = target;
+        this._originalTargetIsNeutral = target === NodeMaterialBlockTargets.Neutral;
+        this._isFinalMerger = isFinalMerger;
+        this._isFinalOutput = isFinalOutput;
+        switch (this.getClassName()) {
+            case "InputBlock":
+                this._isInput = true;
+                break;
+            case "NodeMaterialTeleportOutBlock":
+                this._isTeleportOut = true;
+                break;
+            case "NodeMaterialTeleportInBlock":
+                this._isTeleportIn = true;
+                break;
+            case "LoopBlock":
+                this._isLoop = true;
+                break;
+        }
+        this._name = name;
+        this.uniqueId = UniqueIdGenerator.UniqueId;
+    }
     /** @internal */
     _setInitialTarget(target) {
         this._target = target;
+        // marked as read only
         this._originalTargetIsNeutral = target === NodeMaterialBlockTargets.Neutral;
     }
     /**
@@ -153,9 +212,6 @@ export class NodeMaterialBlock {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     bind(effect, nodeMaterial, mesh, subMesh) {
         // Do nothing
-    }
-    _declareOutput(output, state) {
-        return `${state._getGLType(output.type)} ${output.associatedVariableName}`;
     }
     _writeVariable(currentPoint) {
         const connectionPoint = currentPoint.connectedPoint;
@@ -178,6 +234,12 @@ export class NodeMaterialBlock {
     getClassName() {
         return "NodeMaterialBlock";
     }
+    /** Gets a boolean indicating that this connection will be used in the fragment shader
+     * @returns true if connected in fragment shader
+     */
+    isConnectedInFragmentShader() {
+        return this.outputs.some((o) => o.isConnectedInFragmentShader);
+    }
     /**
      * Register a new input. Must be called inside a block constructor
      * @param name defines the connection point name
@@ -188,7 +250,7 @@ export class NodeMaterialBlock {
      * @returns the current block
      */
     registerInput(name, type, isOptional = false, target, point) {
-        point = point !== null && point !== void 0 ? point : new NodeMaterialConnectionPoint(name, this, NodeMaterialConnectionPointDirection.Input);
+        point = point ?? new NodeMaterialConnectionPoint(name, this, 0 /* NodeMaterialConnectionPointDirection.Input */);
         point.type = type;
         point.isOptional = isOptional;
         if (target) {
@@ -206,7 +268,7 @@ export class NodeMaterialBlock {
      * @returns the current block
      */
     registerOutput(name, type, target, point) {
-        point = point !== null && point !== void 0 ? point : new NodeMaterialConnectionPoint(name, this, NodeMaterialConnectionPointDirection.Output);
+        point = point ?? new NodeMaterialConnectionPoint(name, this, 1 /* NodeMaterialConnectionPointDirection.Output */);
         point.type = type;
         if (target) {
             point.target = target;
@@ -222,7 +284,10 @@ export class NodeMaterialBlock {
     getFirstAvailableInput(forOutput = null) {
         for (const input of this._inputs) {
             if (!input.connectedPoint) {
-                if (!forOutput || forOutput.type === input.type || input.type === NodeMaterialBlockConnectionPointTypes.AutoDetect) {
+                if (!forOutput ||
+                    forOutput.type === input.type ||
+                    input.type === NodeMaterialBlockConnectionPointTypes.AutoDetect ||
+                    input.acceptedConnectionPointTypes.indexOf(forOutput.type) !== -1) {
                     return input;
                 }
             }
@@ -279,9 +344,6 @@ export class NodeMaterialBlock {
      * Connect current block with another block
      * @param other defines the block to connect with
      * @param options define the various options to help pick the right connections
-     * @param options.input
-     * @param options.output
-     * @param options.outputSwizzle
      * @returns the current block
      */
     connectTo(other, options) {
@@ -297,7 +359,7 @@ export class NodeMaterialBlock {
                 notFound = false;
             }
             else if (!output) {
-                throw "Unable to find a compatible match";
+                throw new Error("Unable to find a compatible match");
             }
             else {
                 output = this.getSiblingOutput(output);
@@ -307,6 +369,10 @@ export class NodeMaterialBlock {
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _buildBlock(state) {
+        // Empty. Must be defined by child nodes
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _postBuildBlock(state) {
         // Empty. Must be defined by child nodes
     }
     /**
@@ -322,51 +388,50 @@ export class NodeMaterialBlock {
     }
     /**
      * Add potential fallbacks if shader compilation fails
-     * @param mesh defines the mesh to be rendered
      * @param fallbacks defines the current prioritized list of fallbacks
+     * @param mesh defines the mesh to be rendered
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    provideFallbacks(mesh, fallbacks) {
+    provideFallbacks(fallbacks, mesh) {
         // Do nothing
     }
     /**
      * Initialize defines for shader compilation
-     * @param mesh defines the mesh to be rendered
-     * @param nodeMaterial defines the node material requesting the update
      * @param defines defines the material defines to update
-     * @param useInstances specifies that instances should be used
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    initializeDefines(mesh, nodeMaterial, defines, useInstances = false) { }
+    initializeDefines(defines) {
+        // Do nothing
+    }
     /**
      * Update defines for shader compilation
-     * @param mesh defines the mesh to be rendered
-     * @param nodeMaterial defines the node material requesting the update
      * @param defines defines the material defines to update
+     * @param nodeMaterial defines the node material requesting the update
+     * @param mesh defines the mesh to be rendered
      * @param useInstances specifies that instances should be used
      * @param subMesh defines which submesh to render
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    prepareDefines(mesh, nodeMaterial, defines, useInstances = false, subMesh) {
+    prepareDefines(defines, nodeMaterial, mesh, useInstances = false, subMesh) {
         // Do nothing
     }
     /**
      * Lets the block try to connect some inputs automatically
      * @param material defines the hosting NodeMaterial
+     * @param additionalFilteringInfo optional additional filtering condition when looking for compatible blocks
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    autoConfigure(material) {
+    autoConfigure(material, additionalFilteringInfo = () => true) {
         // Do nothing
     }
     /**
      * Function called when a block is declared as repeatable content generator
      * @param vertexShaderState defines the current compilation state for the vertex shader
-     * @param fragmentShaderState defines the current compilation state for the fragment shader
-     * @param mesh defines the mesh to be rendered
      * @param defines defines the material defines to update
+     * @param mesh defines the mesh to be rendered
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    replaceRepeatableContent(vertexShaderState, fragmentShaderState, mesh, defines) {
+    replaceRepeatableContent(vertexShaderState, defines, mesh) {
         // Do nothing
     }
     /** Gets a boolean indicating that the code of this block will be promoted to vertex shader even if connected to fragment output */
@@ -405,6 +470,7 @@ export class NodeMaterialBlock {
         }
         else {
             this._inputs[inputIndex0]._linkedConnectionSource = this._inputs[inputIndex1];
+            this._inputs[inputIndex0]._isMainLinkSource = true;
         }
         this._inputs[inputIndex1]._linkedConnectionSource = this._inputs[inputIndex0];
     }
@@ -412,6 +478,10 @@ export class NodeMaterialBlock {
         block.build(state, activeBlocks);
         const localBlockIsFragment = state._vertexState != null;
         const otherBlockWasGeneratedInVertexShader = block._buildTarget === NodeMaterialBlockTargets.Vertex && block.target !== NodeMaterialBlockTargets.VertexAndFragment;
+        if (block.isTeleportOut && block.entryPoint?.isConnectedToUniform) {
+            // In that case, we skip the context switch as the teleport out block is connected to a uniform
+            return;
+        }
         if (localBlockIsFragment &&
             ((block.target & block._buildTarget) === 0 ||
                 (block.target & input.target) === 0 ||
@@ -421,10 +491,21 @@ export class NodeMaterialBlock {
                 (block.isInput && block.isAttribute && !block._noContextSwitch) // block is an attribute
             ) {
                 const connectedPoint = input.connectedPoint;
-                if (state._vertexState._emitVaryingFromString("v_" + connectedPoint.associatedVariableName, state._getGLType(connectedPoint.type))) {
-                    state._vertexState.compilationString += `${"v_" + connectedPoint.associatedVariableName} = ${connectedPoint.associatedVariableName};\r\n`;
+                if (state._vertexState._emitVaryingFromString("v_" + connectedPoint.declarationVariableName, connectedPoint.type)) {
+                    const prefix = state.shaderLanguage === 1 /* ShaderLanguage.WGSL */ ? "vertexOutputs." : "";
+                    if (state.shaderLanguage === 1 /* ShaderLanguage.WGSL */ && connectedPoint.type === NodeMaterialBlockConnectionPointTypes.Matrix) {
+                        // We can't pass a matrix as a varying in WGSL, so we need to split it into 4 vectors
+                        state._vertexState.compilationString += `${prefix}${"v_" + connectedPoint.declarationVariableName}_r0 = ${connectedPoint.associatedVariableName}[0];\n`;
+                        state._vertexState.compilationString += `${prefix}${"v_" + connectedPoint.declarationVariableName}_r1 = ${connectedPoint.associatedVariableName}[1];\n`;
+                        state._vertexState.compilationString += `${prefix}${"v_" + connectedPoint.declarationVariableName}_r2 = ${connectedPoint.associatedVariableName}[2];\n`;
+                        state._vertexState.compilationString += `${prefix}${"v_" + connectedPoint.declarationVariableName}_r3 = ${connectedPoint.associatedVariableName}[3];\n`;
+                    }
+                    else {
+                        state._vertexState.compilationString += `${prefix}${"v_" + connectedPoint.declarationVariableName} = ${connectedPoint.associatedVariableName};\n`;
+                    }
                 }
-                input.associatedVariableName = "v_" + connectedPoint.associatedVariableName;
+                const prefix = state.shaderLanguage === 1 /* ShaderLanguage.WGSL */ && connectedPoint.type !== NodeMaterialBlockConnectionPointTypes.Matrix ? "fragmentInputs." : "";
+                input.associatedVariableName = prefix + "v_" + connectedPoint.declarationVariableName;
                 input._enforceAssociatedVariableName = true;
             }
         }
@@ -448,6 +529,7 @@ export class NodeMaterialBlock {
             "uv6",
             "position2d",
             "particle_uv",
+            "postprocess_uv",
             "matricesIndices",
             "matricesWeights",
             "world0",
@@ -463,6 +545,10 @@ export class NodeMaterialBlock {
             }
         }
         return true;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _customBuildStep(state, activeBlocks) {
+        // Must be implemented by children
     }
     /**
      * Compile the current node and generate the shader code
@@ -504,12 +590,13 @@ export class NodeMaterialBlock {
                 this._processBuild(block, state, input, activeBlocks);
             }
         }
+        this._customBuildStep(state, activeBlocks);
         if (this._buildId === state.sharedData.buildId) {
             return true; // Need to check again as inputs can be connected multiple time to this endpoint
         }
         // Logs
         if (state.sharedData.verbose) {
-            console.log(`${state.target === NodeMaterialBlockTargets.Vertex ? "Vertex shader" : "Fragment shader"}: Building ${this.name} [${this.getClassName()}]`);
+            Logger.Log(`${state.target === NodeMaterialBlockTargets.Vertex ? "Vertex shader" : "Fragment shader"}: Building ${this.name} [${this.getClassName()}]`);
         }
         // Checks final outputs
         if (this.isFinalMerger) {
@@ -523,13 +610,34 @@ export class NodeMaterialBlock {
             }
         }
         if (!this.isInput && state.sharedData.emitComments) {
-            state.compilationString += `\r\n//${this.name}\r\n`;
+            state.compilationString += `\n//${this.name}\n`;
         }
         this._buildBlock(state);
         this._buildId = state.sharedData.buildId;
         this._buildTarget = state.target;
         // Compile connected blocks
         for (const output of this._outputs) {
+            if (output._forPostBuild) {
+                continue;
+            }
+            if ((output.target & state.target) === 0) {
+                continue;
+            }
+            for (const endpoint of output.endpoints) {
+                const block = endpoint.ownerBlock;
+                if (block) {
+                    if (((block.target & state.target) !== 0 && activeBlocks.indexOf(block) !== -1) || state._terminalBlocks.has(block)) {
+                        this._processBuild(block, state, endpoint, activeBlocks);
+                    }
+                }
+            }
+        }
+        this._postBuildBlock(state);
+        // Compile post build connected blocks
+        for (const output of this._outputs) {
+            if (!output._forPostBuild) {
+                continue;
+            }
             if ((output.target & state.target) === 0) {
                 continue;
             }
@@ -550,14 +658,13 @@ export class NodeMaterialBlock {
     }
     _dumpPropertiesCode() {
         const variableName = this._codeVariableName;
-        return `${variableName}.visibleInInspector = ${this.visibleInInspector};\r\n${variableName}.visibleOnFrame = ${this.visibleOnFrame};\r\n${variableName}.target = ${this.target};\r\n`;
+        return `${variableName}.visibleInInspector = ${this.visibleInInspector};\n${variableName}.visibleOnFrame = ${this.visibleOnFrame};\n${variableName}.target = ${this.target};\n`;
     }
     /**
      * @internal
      */
     _dumpCode(uniqueNames, alreadyDumped) {
         alreadyDumped.push(this);
-        let codeString;
         // Get unique name
         const nameAsVariableName = this.name.replace(/[^A-Za-z_]+/g, "");
         this._codeVariableName = nameAsVariableName || `${this.getClassName()}_${this.uniqueId}`;
@@ -570,11 +677,11 @@ export class NodeMaterialBlock {
         }
         uniqueNames.push(this._codeVariableName);
         // Declaration
-        codeString = `\r\n// ${this.getClassName()}\r\n`;
+        let codeString = `\n// ${this.getClassName()}\n`;
         if (this.comments) {
-            codeString += `// ${this.comments}\r\n`;
+            codeString += `// ${this.comments}\n`;
         }
-        codeString += `var ${this._codeVariableName} = new BABYLON.${this.getClassName()}("${this.name}");\r\n`;
+        codeString += `var ${this._codeVariableName} = new BABYLON.${this.getClassName()}("${this.name}");\n`;
         // Properties
         codeString += this._dumpPropertiesCode();
         // Inputs
@@ -618,7 +725,7 @@ export class NodeMaterialBlock {
             const connectedOutput = input.connectedPoint;
             const connectedBlock = connectedOutput.ownerBlock;
             codeString += connectedBlock._dumpCodeForOutputConnections(alreadyDumped);
-            codeString += `${connectedBlock._codeVariableName}.${connectedBlock._outputRename(connectedOutput.name)}.connectTo(${this._codeVariableName}.${this._inputRename(input.name)});\r\n`;
+            codeString += `${connectedBlock._codeVariableName}.${connectedBlock._outputRename(connectedOutput.name)}.connectTo(${this._codeVariableName}.${this._inputRename(input.name)});\n`;
         }
         return codeString;
     }
@@ -665,20 +772,20 @@ export class NodeMaterialBlock {
      * @internal
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _deserialize(serializationObject, scene, rootUrl) {
-        var _a;
+    _deserialize(serializationObject, scene, rootUrl, urlRewriter) {
         this.name = serializationObject.name;
         this.comments = serializationObject.comments;
         this.visibleInInspector = !!serializationObject.visibleInInspector;
         this.visibleOnFrame = !!serializationObject.visibleOnFrame;
-        this._target = (_a = serializationObject.target) !== null && _a !== void 0 ? _a : this.target;
+        this._target = serializationObject.target ?? this.target;
         this._deserializePortDisplayNamesAndExposedOnFrame(serializationObject);
     }
     _deserializePortDisplayNamesAndExposedOnFrame(serializationObject) {
         const serializedInputs = serializationObject.inputs;
         const serializedOutputs = serializationObject.outputs;
         if (serializedInputs) {
-            serializedInputs.forEach((port, i) => {
+            for (let i = 0; i < Math.min(serializedInputs.length, this.inputs.length); i++) {
+                const port = serializedInputs[i];
                 if (port.displayName) {
                     this.inputs[i].displayName = port.displayName;
                 }
@@ -686,10 +793,11 @@ export class NodeMaterialBlock {
                     this.inputs[i].isExposedOnFrame = port.isExposedOnFrame;
                     this.inputs[i].exposedPortPosition = port.exposedPortPosition;
                 }
-            });
+            }
         }
         if (serializedOutputs) {
-            serializedOutputs.forEach((port, i) => {
+            for (let i = 0; i < Math.min(serializedOutputs.length, this.outputs.length); i++) {
+                const port = serializedOutputs[i];
                 if (port.displayName) {
                     this.outputs[i].displayName = port.displayName;
                 }
@@ -697,13 +805,14 @@ export class NodeMaterialBlock {
                     this.outputs[i].isExposedOnFrame = port.isExposedOnFrame;
                     this.outputs[i].exposedPortPosition = port.exposedPortPosition;
                 }
-            });
+            }
         }
     }
     /**
      * Release resources
      */
     dispose() {
+        this.onCodeIsReadyObservable.clear();
         for (const input of this.inputs) {
             input.dispose();
         }

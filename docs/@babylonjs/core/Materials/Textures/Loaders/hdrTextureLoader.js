@@ -1,5 +1,4 @@
-import { HDRTools } from "../../../Misc/HighDynamicRange/hdr.js";
-import { Engine } from "../../../Engines/engine.js";
+import { RGBE_ReadHeader, RGBE_ReadPixels } from "../../../Misc/HighDynamicRange/hdr.js";
 
 /**
  * Implementation of the HDR Texture Loader.
@@ -14,18 +13,12 @@ export class _HDRTextureLoader {
         this.supportCascades = false;
     }
     /**
-     * This returns if the loader support the current file information.
-     * @param extension defines the file extension of the file being loaded
-     * @returns true if the loader can load the specified file
-     */
-    canLoad(extension) {
-        return extension.endsWith(".hdr");
-    }
-    /**
      * Uploads the cube texture data to the WebGL texture. It has already been bound.
+     * Cube texture are not supported by .hdr files
      */
     loadCubeData() {
-        throw ".env not supported in Cube.";
+        // eslint-disable-next-line no-throw-literal
+        throw ".hdr not supported in Cube.";
     }
     /**
      * Uploads the 2D texture data to the WebGL texture. It has already been bound once in the callback.
@@ -35,8 +28,8 @@ export class _HDRTextureLoader {
      */
     loadData(data, texture, callback) {
         const uint8array = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-        const hdrInfo = HDRTools.RGBE_ReadHeader(uint8array);
-        const pixelsDataRGB32 = HDRTools.RGBE_ReadPixels(uint8array, hdrInfo);
+        const hdrInfo = RGBE_ReadHeader(uint8array);
+        const pixelsDataRGB32 = RGBE_ReadPixels(uint8array, hdrInfo);
         const pixels = hdrInfo.width * hdrInfo.height;
         const pixelsDataRGBA32 = new Float32Array(pixels * 4);
         for (let i = 0; i < pixels; i += 1) {
@@ -54,6 +47,4 @@ export class _HDRTextureLoader {
         });
     }
 }
-// Register the loader.
-Engine._TextureLoaders.push(new _HDRTextureLoader());
 //# sourceMappingURL=hdrTextureLoader.js.map

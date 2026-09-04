@@ -1,2 +1,2 @@
-export * from "./nativeXRRenderTarget";
-export * from "./nativeXRFrame";
+export * from "./nativeXRRenderTarget.js";
+export * from "./nativeXRFrame.js";

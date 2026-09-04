@@ -1,6 +1,6 @@
-import { WebXRAbstractMotionController } from "./webXRAbstractMotionController.js";
-import { Mesh } from "../../Meshes/mesh.js";
-import { Quaternion } from "../../Maths/math.vector.js";
+import { WebXRAbstractMotionController, } from "./webXRAbstractMotionController.js";
+import { Mesh } from "../../Meshes/mesh.pure.js";
+import { Quaternion } from "../../Maths/math.vector.pure.js";
 /**
  * A generic trigger-only motion controller for WebXR
  */
@@ -24,12 +24,12 @@ export class WebXRGenericTriggerMotionController extends WebXRAbstractMotionCont
     }
     _setRootMesh(meshes) {
         this.rootMesh = new Mesh(this.profileId + " " + this.handedness, this.scene);
-        meshes.forEach((mesh) => {
+        for (const mesh of meshes) {
             mesh.isPickable = false;
             if (!mesh.parent) {
                 mesh.setParent(this.rootMesh);
             }
-        });
+        }
         this.rootMesh.rotationQuaternion = Quaternion.FromEulerAngles(0, Math.PI, 0);
     }
     _updateModel() {

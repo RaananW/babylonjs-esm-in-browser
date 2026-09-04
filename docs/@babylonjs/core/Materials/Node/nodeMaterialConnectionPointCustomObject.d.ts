@@ -1,12 +1,11 @@
-import type { NodeMaterialBlock } from "./nodeMaterialBlock";
-import type { NodeMaterialConnectionPointDirection } from "./nodeMaterialBlockConnectionPoint";
-import { NodeMaterialConnectionPoint, NodeMaterialConnectionPointCompatibilityStates } from "./nodeMaterialBlockConnectionPoint";
-import type { Nullable } from "../../types";
+import { type NodeMaterialBlock } from "./nodeMaterialBlock.js";
+import { type NodeMaterialConnectionPointDirection, NodeMaterialConnectionPoint, NodeMaterialConnectionPointCompatibilityStates } from "./nodeMaterialBlockConnectionPoint.js";
+import { type Nullable } from "../../types.js";
 /**
  * Defines a connection point to be used for points with a custom object type
  */
 export declare class NodeMaterialConnectionPointCustomObject<T extends NodeMaterialBlock> extends NodeMaterialConnectionPoint {
-    private _blockType;
+    _blockType: new (...args: any[]) => T;
     private _blockName;
     /**
      * Creates a new connection point

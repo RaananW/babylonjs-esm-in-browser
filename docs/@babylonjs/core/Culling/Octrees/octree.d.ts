@@ -1,16 +1,16 @@
-import type { SmartArray } from "../../Misc/smartArray";
-import type { Vector3 } from "../../Maths/math.vector";
-import type { SubMesh } from "../../Meshes/subMesh";
-import type { AbstractMesh } from "../../Meshes/abstractMesh";
-import type { Ray } from "../../Culling/ray";
-import { OctreeBlock } from "./octreeBlock";
-import type { Plane } from "../../Maths/math.plane";
+import { type SmartArray } from "../../Misc/smartArray.js";
+import { type Vector3 } from "../../Maths/math.vector.js";
+import { type SubMesh } from "../../Meshes/subMesh.js";
+import { type AbstractMesh } from "../../Meshes/abstractMesh.js";
+import { type Ray } from "../../Culling/ray.js";
+import { OctreeBlock } from "./octreeBlock.js";
+import { type Plane } from "../../Maths/math.plane.js";
 /**
  * Octrees are a really powerful data structure that can quickly select entities based on space coordinates.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/optimizeOctrees
  */
 export declare class Octree<T> {
-    /** Defines the maximum depth (sub-levels) for your octree. Default value is 2, which means 8 8 8 = 512 blocks :) (This parameter takes precedence over capacity.) */
+    /** [2] Defines the maximum depth (sub-levels) for your octree. Default value is 2, which means 8 8 8 = 512 blocks :) (This parameter takes precedence over capacity.) */
     maxDepth: number;
     /**
      * Blocks within the octree containing objects
@@ -31,7 +31,7 @@ export declare class Octree<T> {
      * @param maxDepth defines the maximum depth (sub-levels) for your octree. Default value is 2, which means 8 8 8 = 512 blocks :) (This parameter takes precedence over capacity.)
      */
     constructor(creationFunc: (entry: T, block: OctreeBlock<T>) => void, maxBlockCapacity?: number, 
-    /** Defines the maximum depth (sub-levels) for your octree. Default value is 2, which means 8 8 8 = 512 blocks :) (This parameter takes precedence over capacity.) */
+    /** [2] Defines the maximum depth (sub-levels) for your octree. Default value is 2, which means 8 8 8 = 512 blocks :) (This parameter takes precedence over capacity.) */
     maxDepth?: number);
     /**
      * Updates the octree by adding blocks for the passed in meshes within the min and max world parameters
@@ -73,14 +73,14 @@ export declare class Octree<T> {
     intersectsRay(ray: Ray): SmartArray<T>;
     /**
      * Adds a mesh into the octree block if it intersects the block
-     * @param entry
-     * @param block
+     * @param entry defines the mesh to try to add to the block
+     * @param block defines the block where the mesh should be added
      */
     static CreationFuncForMeshes: (entry: AbstractMesh, block: OctreeBlock<AbstractMesh>) => void;
     /**
      * Adds a submesh into the octree block if it intersects the block
-     * @param entry
-     * @param block
+     * @param entry defines the submesh to try to add to the block
+     * @param block defines the block where the submesh should be added
      */
     static CreationFuncForSubMeshes: (entry: SubMesh, block: OctreeBlock<SubMesh>) => void;
 }

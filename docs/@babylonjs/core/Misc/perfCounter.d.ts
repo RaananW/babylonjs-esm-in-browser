@@ -63,10 +63,18 @@ export declare class PerfCounter {
      * @param newFrame true by default to fetch the result and monitor a new frame, if false the time monitored will be added to the current frame counter
      */
     endMonitoring(newFrame?: boolean): void;
-    private _fetchResult;
+    /**
+     * Call this method to end the monitoring of a frame.
+     * This scenario is typically used when you accumulate monitoring time many times for a single frame, you call this method at the end of the frame, after beginMonitoring to start recording and endMonitoring(false) to accumulated the recorded time to the PerfCounter or addCount() to accumulate a monitored count.
+     */
+    endFrame(): void;
+    /** @internal */
+    _fetchResult(): void;
     private _startMonitoringTime;
     private _min;
     private _max;
+    private _hasResult;
+    private _hasCurrentValue;
     private _average;
     private _current;
     private _totalValueCount;

@@ -2,6 +2,7 @@
  * Manages the defines for the Material
  */
 export declare class MaterialDefines {
+    VERTEXOUTPUT_INVARIANT: boolean;
     /** @internal */
     protected _keys: string[];
     private _isDirty;

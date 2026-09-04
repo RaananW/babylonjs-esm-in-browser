@@ -1,5 +1,5 @@
 import { Observable } from "../Misc/observable.js";
-import { Tools } from "../Misc/tools.js";
+import { Tools } from "../Misc/tools.pure.js";
 import { WebXRWebGLLayerWrapper } from "./webXRWebGLLayer.js";
 /**
  * Configuration object for WebXR output canvas
@@ -63,6 +63,7 @@ export class WebXRManagedOutputCanvas {
         _xrSessionManager.onXRSessionEnded.add(() => {
             this._removeCanvas();
         });
+        this._makeCanvasCompatible();
     }
     /**
      * Disposes of the object
@@ -70,6 +71,32 @@ export class WebXRManagedOutputCanvas {
     dispose() {
         this._removeCanvas();
         this._setManagedOutputCanvas(null);
+        this.onXRLayerInitObservable.clear();
+    }
+    _makeCanvasCompatible() {
+        this._canvasCompatiblePromise = new Promise((resolve, reject) => {
+            // stay safe - make sure the context has the function
+            try {
+                if (this.canvasContext && this.canvasContext.makeXRCompatible) {
+                    // eslint-disable-next-line github/no-then
+                    this.canvasContext.makeXRCompatible().then(() => {
+                        resolve();
+                    }, () => {
+                        // fail silently
+                        Tools.Warn("Error executing makeXRCompatible. This does not mean that the session will work incorrectly.");
+                        resolve();
+                    });
+                }
+                else {
+                    resolve();
+                }
+            }
+            catch (e) {
+                // if this fails - the exception will be caught and the promise will be rejected
+                // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+                reject(e);
+            }
+        });
     }
     /**
      * Initializes a XRWebGLLayer to be used as the session's baseLayer.
@@ -78,26 +105,29 @@ export class WebXRManagedOutputCanvas {
      */
     async initializeXRLayerAsync(xrSession) {
         const createLayer = () => {
-            this.xrLayer = new XRWebGLLayer(xrSession, this.canvasContext, this._options.canvasOptions);
+            this.xrLayer = this._createXRLayer(xrSession);
             this._xrLayerWrapper = new WebXRWebGLLayerWrapper(this.xrLayer);
             this.onXRLayerInitObservable.notifyObservers(this.xrLayer);
             return this.xrLayer;
         };
-        // support canvases without makeXRCompatible
-        if (!this.canvasContext.makeXRCompatible) {
-            return Promise.resolve(createLayer());
-        }
-        return this.canvasContext
-            .makeXRCompatible()
+        return await this._canvasCompatiblePromise
+            // eslint-disable-next-line github/no-then
             .then(
         // catch any error and continue. When using the emulator is throws this error for no apparent reason.
-        () => { }, () => {
-            // log the error, continue nonetheless!
-            Tools.Warn("Error executing makeXRCompatible. This does not mean that the session will work incorrectly.");
-        })
+        () => { }, () => { })
+            // eslint-disable-next-line github/no-then
             .then(() => {
             return createLayer();
         });
+    }
+    /**
+     * Creates the XR layer that will be used as the session's baseLayer.
+     * This is the WebGL-specific seam: a non-WebGL backend can override it to build a different layer type.
+     * @param xrSession the xr session the layer is created for
+     * @returns the created XR layer
+     */
+    _createXRLayer(xrSession) {
+        return new XRWebGLLayer(xrSession, this.canvasContext, this._options.canvasOptions);
     }
     _addCanvas() {
         if (this._canvas && this._engine && this._canvas !== this._engine.getRenderingCanvas()) {
@@ -157,11 +187,21 @@ export class WebXRManagedOutputCanvas {
                 height: canvas.offsetHeight,
             };
             this._canvas = canvas;
-            this.canvasContext = this._canvas.getContext("webgl2");
-            if (!this.canvasContext) {
-                this.canvasContext = this._canvas.getContext("webgl");
-            }
+            this.canvasContext = this._createXRCompatibleRenderingContext(canvas);
         }
+    }
+    /**
+     * Creates the rendering context used for the XR layer.
+     * This is the WebGL-specific seam: a non-WebGL backend can override it to obtain a different context.
+     * @param canvas the canvas to obtain the context from
+     * @returns the rendering context to use for the XR layer
+     */
+    _createXRCompatibleRenderingContext(canvas) {
+        let context = canvas.getContext("webgl2");
+        if (!context) {
+            context = canvas.getContext("webgl");
+        }
+        return context;
     }
 }
 //# sourceMappingURL=webXRManagedOutputCanvas.js.map

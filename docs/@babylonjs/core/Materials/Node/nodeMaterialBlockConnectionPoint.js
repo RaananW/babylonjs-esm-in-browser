@@ -30,56 +30,6 @@ export var NodeMaterialConnectionPointDirection;
  */
 export class NodeMaterialConnectionPoint {
     /**
-     * Creates a new connection point
-     * @param name defines the connection point name
-     * @param ownerBlock defines the block hosting this connection point
-     * @param direction defines the direction of the connection point
-     */
-    constructor(name, ownerBlock, direction) {
-        /** @internal */
-        this._connectedPoint = null;
-        this._endpoints = new Array();
-        /** @internal */
-        this._typeConnectionSource = null;
-        /** @internal */
-        this._defaultConnectionPointType = null;
-        /** @internal */
-        this._linkedConnectionSource = null;
-        /** @internal */
-        this._acceptedConnectionPointType = null;
-        this._type = NodeMaterialBlockConnectionPointTypes.Float;
-        /** @internal */
-        this._enforceAssociatedVariableName = false;
-        /** Indicates that this connection point needs dual validation before being connected to another point */
-        this.needDualDirectionValidation = false;
-        /**
-         * Gets or sets the additional types supported by this connection point
-         */
-        this.acceptedConnectionPointTypes = new Array();
-        /**
-         * Gets or sets the additional types excluded by this connection point
-         */
-        this.excludedConnectionPointTypes = new Array();
-        /**
-         * Observable triggered when this point is connected
-         */
-        this.onConnectionObservable = new Observable();
-        /**
-         * Gets or sets a boolean indicating that this connection point is exposed on a frame
-         */
-        this.isExposedOnFrame = false;
-        /**
-         * Gets or sets number indicating the position that the port is exposed to on a frame
-         */
-        this.exposedPortPosition = -1;
-        /** @internal */
-        this._prioritizeVertex = false;
-        this._target = NodeMaterialBlockTargets.VertexAndFragment;
-        this._ownerBlock = ownerBlock;
-        this.name = name;
-        this._direction = direction;
-    }
-    /**
      * Checks if two types are equivalent
      * @param type1 type 1 to check
      * @param type2 type 2 to check
@@ -114,9 +64,85 @@ export class NodeMaterialConnectionPoint {
         }
         return false;
     }
+    /**
+     * Boolean used to provide visual clue to users when some ports are not active in the current block configuration
+     */
+    get isInactive() {
+        return this._isInactive;
+    }
+    get _connectedPoint() {
+        return this._connectedPointBackingField;
+    }
+    set _connectedPoint(value) {
+        if (this._connectedPointBackingField === value) {
+            return;
+        }
+        this._connectedPointTypeChangedObserver?.remove();
+        this._updateTypeDependentState(() => (this._connectedPointBackingField = value));
+        if (this._connectedPointBackingField) {
+            this._connectedPointTypeChangedObserver = this._connectedPointBackingField.onTypeChangedObservable.add(() => {
+                this._notifyTypeChanged();
+            });
+        }
+    }
+    /** @internal */
+    get _typeConnectionSource() {
+        return this._typeConnectionSourceBackingField;
+    }
+    /** @internal */
+    set _typeConnectionSource(value) {
+        if (this._typeConnectionSourceBackingField === value) {
+            return;
+        }
+        this._typeConnectionSourceTypeChangedObserver?.remove();
+        this._updateTypeDependentState(() => (this._typeConnectionSourceBackingField = value));
+        if (this._typeConnectionSourceBackingField) {
+            this._typeConnectionSourceTypeChangedObserver = this._typeConnectionSourceBackingField.onTypeChangedObservable.add(() => {
+                this._notifyTypeChanged();
+            });
+        }
+    }
+    /** @internal */
+    get _defaultConnectionPointType() {
+        return this._defaultConnectionPointTypeBackingField;
+    }
+    /** @internal */
+    set _defaultConnectionPointType(value) {
+        this._updateTypeDependentState(() => (this._defaultConnectionPointTypeBackingField = value));
+    }
+    /** @internal */
+    get _linkedConnectionSource() {
+        return this._linkedConnectionSourceBackingField;
+    }
+    /** @internal */
+    set _linkedConnectionSource(value) {
+        if (this._linkedConnectionSourceBackingField === value) {
+            return;
+        }
+        this._linkedConnectionSourceTypeChangedObserver?.remove();
+        this._updateTypeDependentState(() => (this._linkedConnectionSourceBackingField = value));
+        this._isMainLinkSource = false;
+        if (this._linkedConnectionSourceBackingField) {
+            this._linkedConnectionSourceTypeChangedObserver = this._linkedConnectionSourceBackingField.onTypeChangedObservable.add(() => {
+                this._notifyTypeChanged();
+            });
+        }
+    }
     /** Gets the direction of the point */
     get direction() {
         return this._direction;
+    }
+    /**
+     * Gets the declaration variable name in the shader
+     */
+    get declarationVariableName() {
+        if (this._ownerBlock.isInput) {
+            return this._ownerBlock.declarationVariableName;
+        }
+        if ((!this._enforceAssociatedVariableName || !this._associatedVariableName) && this._connectedPoint) {
+            return this._connectedPoint.declarationVariableName;
+        }
+        return this._associatedVariableName;
     }
     /**
      * Gets or sets the associated variable name in the shader
@@ -135,7 +161,7 @@ export class NodeMaterialConnectionPoint {
     }
     /** Get the inner type (ie AutoDetect for instance instead of the inferred one) */
     get innerType() {
-        if (this._linkedConnectionSource && this._linkedConnectionSource.isConnected) {
+        if (this._linkedConnectionSource && !this._isMainLinkSource && this._linkedConnectionSource.isConnected) {
             return this.type;
         }
         return this._type;
@@ -151,8 +177,19 @@ export class NodeMaterialConnectionPoint {
             if (this._connectedPoint) {
                 return this._connectedPoint.type;
             }
-            if (this._linkedConnectionSource && this._linkedConnectionSource.isConnected) {
-                return this._linkedConnectionSource.type;
+            if (this._linkedConnectionSource) {
+                if (this._linkedConnectionSource.isConnected) {
+                    if (this._linkedConnectionSource.connectedPoint._redirectedSource && this._linkedConnectionSource.connectedPoint._redirectedSource.isConnected) {
+                        return this._linkedConnectionSource.connectedPoint._redirectedSource.type;
+                    }
+                    return this._linkedConnectionSource.type;
+                }
+                if (this._linkedConnectionSource._defaultConnectionPointType) {
+                    return this._linkedConnectionSource._defaultConnectionPointType;
+                }
+            }
+            if (this._defaultConnectionPointType) {
+                return this._defaultConnectionPointType;
             }
         }
         if (this._type === NodeMaterialBlockConnectionPointTypes.BasedOnInput) {
@@ -169,7 +206,7 @@ export class NodeMaterialConnectionPoint {
         return this._type;
     }
     set type(value) {
-        this._type = value;
+        this._updateTypeDependentState(() => (this._type = value));
     }
     /** Gets or sets the target of that connection point */
     get target() {
@@ -291,7 +328,7 @@ export class NodeMaterialConnectionPoint {
                 return true;
             }
             if (endpoint.ownerBlock.target === NodeMaterialBlockTargets.Neutral || endpoint.ownerBlock.target === NodeMaterialBlockTargets.VertexAndFragment) {
-                if (endpoint.ownerBlock.outputs.some((o) => o.isConnectedInFragmentShader)) {
+                if (endpoint.ownerBlock.isConnectedInFragmentShader()) {
                     return true;
                 }
             }
@@ -307,6 +344,71 @@ export class NodeMaterialConnectionPoint {
         return null;
     }
     /**
+     * Creates a new connection point
+     * @param name defines the connection point name
+     * @param ownerBlock defines the block hosting this connection point
+     * @param direction defines the direction of the connection point
+     */
+    constructor(name, ownerBlock, direction) {
+        /** @internal */
+        this._isInactive = false;
+        /** @internal */
+        this._preventBubbleUp = false;
+        this._connectedPointBackingField = null;
+        this._endpoints = new Array();
+        /** @internal */
+        this._redirectedSource = null;
+        this._typeConnectionSourceBackingField = null;
+        this._defaultConnectionPointTypeBackingField = null;
+        /** @internal */
+        this._isMainLinkSource = false;
+        this._linkedConnectionSourceBackingField = null;
+        /** @internal */
+        this._acceptedConnectionPointType = null;
+        this._type = NodeMaterialBlockConnectionPointTypes.Float;
+        /** @internal */
+        this._enforceAssociatedVariableName = false;
+        /** @internal */
+        this._forPostBuild = false;
+        /** Indicates that this connection point needs dual validation before being connected to another point */
+        this.needDualDirectionValidation = false;
+        /**
+         * Gets or sets the additional types supported by this connection point
+         */
+        this.acceptedConnectionPointTypes = [];
+        /**
+         * Gets or sets the additional types excluded by this connection point
+         */
+        this.excludedConnectionPointTypes = [];
+        /**
+         * Observable triggered when this point is connected
+         */
+        this.onConnectionObservable = new Observable();
+        /**
+         * Observable triggered when this point is disconnected
+         */
+        this.onDisconnectionObservable = new Observable();
+        /**
+         * Observable triggered when the type of the connection point is changed
+         */
+        this.onTypeChangedObservable = new Observable();
+        this._isTypeChangeObservableNotifying = false;
+        /**
+         * Gets or sets a boolean indicating that this connection point is exposed on a frame
+         */
+        this.isExposedOnFrame = false;
+        /**
+         * Gets or sets number indicating the position that the port is exposed to on a frame
+         */
+        this.exposedPortPosition = -1;
+        /** @internal */
+        this._prioritizeVertex = false;
+        this._target = NodeMaterialBlockTargets.VertexAndFragment;
+        this._ownerBlock = ownerBlock;
+        this.name = name;
+        this._direction = direction;
+    }
+    /**
      * Gets the current class name e.g. "NodeMaterialConnectionPoint"
      * @returns the class name
      */
@@ -319,7 +421,7 @@ export class NodeMaterialConnectionPoint {
      * @returns a boolean
      */
     canConnectTo(connectionPoint) {
-        return this.checkCompatibilityState(connectionPoint) === NodeMaterialConnectionPointCompatibilityStates.Compatible;
+        return this.checkCompatibilityState(connectionPoint) === 0 /* NodeMaterialConnectionPointCompatibilityStates.Compatible */;
     }
     /**
      * Gets a number indicating if the current point can be connected to another point
@@ -332,43 +434,43 @@ export class NodeMaterialConnectionPoint {
         if (ownerBlock.target === NodeMaterialBlockTargets.Fragment) {
             // Let's check we are not going reverse
             if (otherBlock.target === NodeMaterialBlockTargets.Vertex) {
-                return NodeMaterialConnectionPointCompatibilityStates.TargetIncompatible;
+                return 2 /* NodeMaterialConnectionPointCompatibilityStates.TargetIncompatible */;
             }
             for (const output of otherBlock.outputs) {
                 if (output.ownerBlock.target != NodeMaterialBlockTargets.Neutral && output.isConnectedInVertexShader) {
-                    return NodeMaterialConnectionPointCompatibilityStates.TargetIncompatible;
+                    return 2 /* NodeMaterialConnectionPointCompatibilityStates.TargetIncompatible */;
                 }
             }
         }
         if (this.type !== connectionPoint.type && connectionPoint.innerType !== NodeMaterialBlockConnectionPointTypes.AutoDetect) {
             // Equivalents
             if (NodeMaterialConnectionPoint.AreEquivalentTypes(this.type, connectionPoint.type)) {
-                return NodeMaterialConnectionPointCompatibilityStates.Compatible;
+                return 0 /* NodeMaterialConnectionPointCompatibilityStates.Compatible */;
             }
             // Accepted types
             if ((connectionPoint.acceptedConnectionPointTypes && connectionPoint.acceptedConnectionPointTypes.indexOf(this.type) !== -1) ||
                 (connectionPoint._acceptedConnectionPointType && NodeMaterialConnectionPoint.AreEquivalentTypes(connectionPoint._acceptedConnectionPointType.type, this.type))) {
-                return NodeMaterialConnectionPointCompatibilityStates.Compatible;
+                return 0 /* NodeMaterialConnectionPointCompatibilityStates.Compatible */;
             }
             else {
-                return NodeMaterialConnectionPointCompatibilityStates.TypeIncompatible;
+                return 1 /* NodeMaterialConnectionPointCompatibilityStates.TypeIncompatible */;
             }
         }
         // Excluded
         if (connectionPoint.excludedConnectionPointTypes && connectionPoint.excludedConnectionPointTypes.indexOf(this.type) !== -1) {
-            return NodeMaterialConnectionPointCompatibilityStates.TypeIncompatible;
+            return 1 /* NodeMaterialConnectionPointCompatibilityStates.TypeIncompatible */;
         }
         // Check hierarchy
         let targetBlock = otherBlock;
         let sourceBlock = ownerBlock;
-        if (this.direction === NodeMaterialConnectionPointDirection.Input) {
+        if (this.direction === 0 /* NodeMaterialConnectionPointDirection.Input */) {
             targetBlock = ownerBlock;
             sourceBlock = otherBlock;
         }
         if (targetBlock.isAnAncestorOf(sourceBlock)) {
-            return NodeMaterialConnectionPointCompatibilityStates.HierarchyIssue;
+            return 3 /* NodeMaterialConnectionPointCompatibilityStates.HierarchyIssue */;
         }
-        return NodeMaterialConnectionPointCompatibilityStates.Compatible;
+        return 0 /* NodeMaterialConnectionPointCompatibilityStates.Compatible */;
     }
     /**
      * Connect this point to another connection point
@@ -378,7 +480,7 @@ export class NodeMaterialConnectionPoint {
      */
     connectTo(connectionPoint, ignoreConstraints = false) {
         if (!ignoreConstraints && !this.canConnectTo(connectionPoint)) {
-            throw "Cannot connect these two connectors.";
+            throw new Error(`Cannot connect these two connectors. source: "${this.ownerBlock.name}".${this.name}, target: "${connectionPoint.ownerBlock.name}".${connectionPoint.name}`);
         }
         this._endpoints.push(connectionPoint);
         connectionPoint._connectedPoint = this;
@@ -401,6 +503,8 @@ export class NodeMaterialConnectionPoint {
         endpoint._connectedPoint = null;
         this._enforceAssociatedVariableName = false;
         endpoint._enforceAssociatedVariableName = false;
+        this.onDisconnectionObservable.notifyObservers(endpoint);
+        endpoint.onDisconnectionObservable.notifyObservers(this);
         return this;
     }
     /**
@@ -424,7 +528,9 @@ export class NodeMaterialConnectionPoint {
     serialize(isInput = true) {
         const serializationObject = {};
         serializationObject.name = this.name;
-        serializationObject.displayName = this.displayName;
+        if (this.displayName) {
+            serializationObject.displayName = this.displayName;
+        }
         if (isInput && this.connectedPoint) {
             serializationObject.inputName = this.name;
             serializationObject.targetBlockId = this.connectedPoint.ownerBlock.uniqueId;
@@ -443,6 +549,27 @@ export class NodeMaterialConnectionPoint {
      */
     dispose() {
         this.onConnectionObservable.clear();
+        this.onDisconnectionObservable.clear();
+        this.onTypeChangedObservable.clear();
+        this._connectedPoint = null;
+        this._typeConnectionSource = null;
+        this._linkedConnectionSource = null;
+    }
+    _updateTypeDependentState(update) {
+        const previousType = this.type;
+        update();
+        if (this.type !== previousType) {
+            this._notifyTypeChanged();
+        }
+    }
+    _notifyTypeChanged() {
+        // Disallow re-entrancy
+        if (this._isTypeChangeObservableNotifying) {
+            return;
+        }
+        this._isTypeChangeObservableNotifying = true;
+        this.onTypeChangedObservable.notifyObservers(this.type);
+        this._isTypeChangeObservableNotifying = false;
     }
 }
 //# sourceMappingURL=nodeMaterialBlockConnectionPoint.js.map

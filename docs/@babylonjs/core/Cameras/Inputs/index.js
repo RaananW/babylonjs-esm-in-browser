@@ -17,4 +17,7 @@ export * from "./freeCameraMouseInput.js";
 export * from "./freeCameraMouseWheelInput.js";
 export * from "./freeCameraTouchInput.js";
 export * from "./freeCameraVirtualJoystickInput.js";
+export * from "./geospatialCameraPointersInput.js";
+export * from "./geospatialCameraMouseWheelInput.js";
+export * from "./geospatialCameraKeyboardInput.js";
 //# sourceMappingURL=index.js.map

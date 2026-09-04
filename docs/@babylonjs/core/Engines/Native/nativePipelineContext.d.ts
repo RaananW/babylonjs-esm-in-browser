@@ -1,19 +1,28 @@
-import type { Nullable } from "../../types";
-import type { Effect } from "../../Materials/effect";
-import type { IMatrixLike, IVector2Like, IVector3Like, IVector4Like, IColor3Like, IColor4Like, IQuaternionLike } from "../../Maths/math.like";
-import type { IPipelineContext } from "../IPipelineContext";
-import type { NativeEngine } from "../nativeEngine";
+import { type Nullable } from "../../types.js";
+import { type Effect } from "../../Materials/effect.js";
+import { type IMatrixLike, type IVector2Like, type IVector3Like, type IVector4Like, type IColor3Like, type IColor4Like, type IQuaternionLike } from "../../Maths/math.like.js";
+import { type IPipelineContext } from "../IPipelineContext.js";
+import { type NativeProgram } from "./nativeInterfaces.js";
+import { type AbstractEngine } from "../abstractEngine.js";
+import { type NativeShaderProcessingContext } from "./nativeShaderProcessingContext.js";
+import { type ThinNativeEngine } from "../thinNativeEngine.js";
 export declare class NativePipelineContext implements IPipelineContext {
-    isAsync: boolean;
-    isReady: boolean;
+    isCompiled: boolean;
+    compilationError?: Error;
+    readonly isAsync: boolean;
+    program: NativeProgram;
+    vertexBufferKindToType: {
+        [kind: string]: number;
+    };
+    shaderProcessingContext: Nullable<NativeShaderProcessingContext>;
+    get isReady(): boolean;
+    onCompiled?: () => void;
     _getVertexShaderCode(): string | null;
     _getFragmentShaderCode(): string | null;
-    _handlesSpectorRebuildCallback(onCompiled: (compiledObject: any) => void): void;
-    nativeProgram: any;
     private _engine;
     private _valueCache;
     private _uniforms;
-    constructor(engine: NativeEngine);
+    constructor(engine: ThinNativeEngine, isAsync: boolean, shaderProcessingContext: Nullable<NativeShaderProcessingContext>);
     _fillEffectInformation(effect: Effect, uniformBuffersNames: {
         [key: string]: number;
     }, uniformsNames: string[], uniforms: {
@@ -21,6 +30,7 @@ export declare class NativePipelineContext implements IPipelineContext {
     }, samplerList: string[], samplers: {
         [key: string]: number;
     }, attributesNames: string[], attributes: number[]): void;
+    setEngine(engine: AbstractEngine): void;
     /**
      * Release all associated resources.
      **/
@@ -96,6 +106,60 @@ export declare class NativePipelineContext implements IPipelineContext {
      */
     setIntArray4(uniformName: string, array: Int32Array): void;
     /**
+     * Sets an unsigned integer value on a uniform variable.
+     * @param uniformName Name of the variable.
+     * @param value Value to be set.
+     */
+    setUInt(uniformName: string, value: number): void;
+    /**
+     * Sets a unsigned int2 on a uniform variable.
+     * @param uniformName Name of the variable.
+     * @param x First unsigned int in uint2.
+     * @param y Second unsigned int in uint2.
+     */
+    setUInt2(uniformName: string, x: number, y: number): void;
+    /**
+     * Sets a unsigned int3 on a uniform variable.
+     * @param uniformName Name of the variable.
+     * @param x First unsigned int in uint3.
+     * @param y Second unsigned int in uint3.
+     * @param z Third unsigned int in uint3.
+     */
+    setUInt3(uniformName: string, x: number, y: number, z: number): void;
+    /**
+     * Sets a unsigned int4 on a uniform variable.
+     * @param uniformName Name of the variable.
+     * @param x First unsigned int in uint4.
+     * @param y Second unsigned int in uint4.
+     * @param z Third unsigned int in uint4.
+     * @param w Fourth unsigned int in uint4.
+     */
+    setUInt4(uniformName: string, x: number, y: number, z: number, w: number): void;
+    /**
+     * Sets an unsigned int array on a uniform variable.
+     * @param uniformName Name of the variable.
+     * @param array array to be set.
+     */
+    setUIntArray(uniformName: string, array: Uint32Array): void;
+    /**
+     * Sets an unsigned int array 2 on a uniform variable. (Array is specified as single array eg. [1,2,3,4] will result in [[1,2],[3,4]] in the shader)
+     * @param uniformName Name of the variable.
+     * @param array array to be set.
+     */
+    setUIntArray2(uniformName: string, array: Uint32Array): void;
+    /**
+     * Sets an unsigned int array 3 on a uniform variable. (Array is specified as single array eg. [1,2,3,4,5,6] will result in [[1,2,3],[4,5,6]] in the shader)
+     * @param uniformName Name of the variable.
+     * @param array array to be set.
+     */
+    setUIntArray3(uniformName: string, array: Uint32Array): void;
+    /**
+     * Sets an unsigned int array 4 on a uniform variable. (Array is specified as single array eg. [1,2,3,4,5,6,7,8] will result in [[1,2,3,4],[5,6,7,8]] in the shader)
+     * @param uniformName Name of the variable.
+     * @param array array to be set.
+     */
+    setUIntArray4(uniformName: string, array: Uint32Array): void;
+    /**
      * Sets an float array on a uniform variable.
      * @param uniformName Name of the variable.
      * @param array array to be set.
@@ -135,7 +199,6 @@ export declare class NativePipelineContext implements IPipelineContext {
      * Sets an array 3 on a uniform variable. (Array is specified as single array eg. [1,2,3,4,5,6] will result in [[1,2,3],[4,5,6]] in the shader)
      * @param uniformName Name of the variable.
      * @param array array to be set.
-     * @returns this effect.
      */
     setArray3(uniformName: string, array: number[]): void;
     /**
@@ -172,7 +235,6 @@ export declare class NativePipelineContext implements IPipelineContext {
      * Sets a float on a uniform variable.
      * @param uniformName Name of the variable.
      * @param value value to be set.
-     * @returns this effect.
      */
     setFloat(uniformName: string, value: number): void;
     /**
@@ -227,7 +289,6 @@ export declare class NativePipelineContext implements IPipelineContext {
      * @param y Second float in float4.
      * @param z Third float in float4.
      * @param w Fourth float in float4.
-     * @returns this effect.
      */
     setFloat4(uniformName: string, x: number, y: number, z: number, w: number): void;
     /**

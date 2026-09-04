@@ -1,5 +1,5 @@
-import type { Nullable } from "../types";
-import type { Scene } from "../scene";
+import { type Nullable } from "../types.js";
+import { type Scene } from "../scene.js";
 /**
  * Class used to work with sound analyzer using fast fourier transform (FFT)
  * @see https://doc.babylonjs.com/features/featuresDeepDive/audio/playingSoundsMusic
@@ -7,22 +7,18 @@ import type { Scene } from "../scene";
 export declare class Analyser {
     /**
      * Gets or sets the smoothing
-     * @ignorenaming
      */
     SMOOTHING: number;
     /**
      * Gets or sets the FFT table size
-     * @ignorenaming
      */
     FFT_SIZE: number;
     /**
      * Gets or sets the bar graph amplitude
-     * @ignorenaming
      */
     BARGRAPHAMPLITUDE: number;
     /**
      * Gets or sets the position of the debug canvas
-     * @ignorenaming
      */
     DEBUGCANVASPOS: {
         x: number;
@@ -30,7 +26,6 @@ export declare class Analyser {
     };
     /**
      * Gets or sets the debug canvas size
-     * @ignorenaming
      */
     DEBUGCANVASSIZE: {
         width: number;

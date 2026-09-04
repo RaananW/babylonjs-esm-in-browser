@@ -43,7 +43,7 @@ export class WebGPUDepthCullingState extends DepthCullingState {
         }
         this._cullFace = value;
         this._isCullFaceDirty = true;
-        this._cache.setCullFace(value !== null && value !== void 0 ? value : 1);
+        this._cache.setCullFace(value ?? 1);
     }
     get cull() {
         return this._cull;
@@ -98,7 +98,7 @@ export class WebGPUDepthCullingState extends DepthCullingState {
         }
         this._frontFace = value;
         this._isFrontFaceDirty = true;
-        this._cache.setFrontFace(value !== null && value !== void 0 ? value : 2);
+        this._cache.setFrontFace(value ?? 2);
     }
     reset() {
         super.reset();

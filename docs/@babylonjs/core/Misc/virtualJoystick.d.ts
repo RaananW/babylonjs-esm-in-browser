@@ -1,5 +1,5 @@
-import type { Nullable } from "../types";
-import { Vector3 } from "../Maths/math.vector";
+import { type Nullable } from "../types.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
 /**
  * Defines the potential axis of a Joystick
  */
@@ -15,7 +15,7 @@ export declare enum JoystickAxis {
  * Represents the different customization options available
  * for VirtualJoystick
  */
-interface VirtualJoystickCustomizations {
+interface IVirtualJoystickCustomizations {
     /**
      * Size of the joystick's puck
      */
@@ -82,9 +82,9 @@ export declare class VirtualJoystick {
     limitToContainer: boolean;
     private static _GlobalJoystickIndex;
     private static _AlwaysVisibleSticks;
-    private static _VJCanvasContext;
-    private static _VJCanvasWidth;
-    private static _VJCanvasHeight;
+    private static _VjCanvasContext;
+    private static _VjCanvasWidth;
+    private static _VjCanvasHeight;
     private static _HalfWidth;
     private static _GetDefaultOptions;
     private _action;
@@ -120,7 +120,7 @@ export declare class VirtualJoystick {
      * @param leftJoystick defines that the joystick is for left hand (false by default)
      * @param customizations Defines the options we want to customize the VirtualJoystick
      */
-    constructor(leftJoystick?: boolean, customizations?: Partial<VirtualJoystickCustomizations>);
+    constructor(leftJoystick?: boolean, customizations?: Partial<IVirtualJoystickCustomizations>);
     /**
      * Defines joystick sensibility (ie. the ratio between a physical move and virtual joystick position change)
      * @param newJoystickSensibility defines the new sensibility

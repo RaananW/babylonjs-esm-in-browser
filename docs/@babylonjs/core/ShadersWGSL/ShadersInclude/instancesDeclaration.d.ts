@@ -1,5 +1,5 @@
 /** @internal */
-export declare const instancesDeclaration: {
+export declare const instancesDeclarationWGSL: {
     name: string;
     shader: string;
 };

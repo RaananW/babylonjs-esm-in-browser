@@ -1,15 +1,52 @@
-import { Mesh } from "../../Meshes/mesh.js";
-import { Scene } from "../../scene.js";
+import { Mesh } from "../../Meshes/mesh.pure.js";
+import { Scene } from "../../scene.pure.js";
 import { Observable } from "../../Misc/observable.js";
-import { Vector3 } from "../../Maths/math.vector.js";
+import { TmpVectors, Vector3 } from "../../Maths/math.vector.pure.js";
 import { PointerEventTypes } from "../../Events/pointerEvents.js";
-import { Ray } from "../../Culling/ray.js";
+import { Ray } from "../../Culling/ray.pure.js";
 import { PivotTools } from "../../Misc/pivotTools.js";
-import { CreatePlane } from "../../Meshes/Builders/planeBuilder.js";
+import { CreatePlane } from "../../Meshes/Builders/planeBuilder.pure.js";
+import { Epsilon } from "../../Maths/math.constants.js";
 /**
  * A behavior that when attached to a mesh will allow the mesh to be dragged around the screen based on pointer events
  */
 export class PointerDragBehavior {
+    /**
+     * Get or set the currentDraggingPointerId
+     * @deprecated Please use currentDraggingPointerId instead
+     */
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    get currentDraggingPointerID() {
+        return this.currentDraggingPointerId;
+    }
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    set currentDraggingPointerID(currentDraggingPointerId) {
+        this.currentDraggingPointerId = currentDraggingPointerId;
+    }
+    /**
+     *  If the drag behavior will react to drag events (Default: true)
+     */
+    set enabled(value) {
+        if (value != this._enabled) {
+            this.onEnabledObservable.notifyObservers(value);
+        }
+        this._enabled = value;
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    /**
+     * Gets the options used by the behavior
+     */
+    get options() {
+        return this._options;
+    }
+    /**
+     * Sets the options used by the behavior
+     */
+    set options(options) {
+        this._options = options;
+    }
     /**
      * Creates a pointer drag behavior that can be attached to a mesh
      * @param options The drag axis or normal of the plane that will be dragged across. If no options are specified the drag plane will always face the ray's origin (eg. camera)
@@ -52,26 +89,14 @@ export class PointerDragBehavior {
         this._moving = false;
         /**
          *  Fires each time the attached mesh is dragged with the pointer
-         *  * delta between last drag position and current drag position in world space
-         *  * dragDistance along the drag axis
-         *  * dragPlaneNormal normal of the current drag plane used during the drag
-         *  * dragPlanePoint in world space where the drag intersects the drag plane
-         *
-         *  (if validatedDrag is used, the position of the attached mesh might not equal dragPlanePoint)
          */
         this.onDragObservable = new Observable();
         /**
          *  Fires each time a drag begins (eg. mouse down on mesh)
-         *  * dragPlanePoint in world space where the drag intersects the drag plane
-         *
-         *  (if validatedDrag is used, the position of the attached mesh might not equal dragPlanePoint)
          */
         this.onDragStartObservable = new Observable();
         /**
          *  Fires each time a drag ends (eg. mouse release after drag)
-         *  * dragPlanePoint in world space where the drag intersects the drag plane
-         *
-         *  (if validatedDrag is used, the position of the attached mesh might not equal dragPlanePoint)
          */
         this.onDragEndObservable = new Observable();
         /**
@@ -96,11 +121,18 @@ export class PointerDragBehavior {
          */
         this.useObjectOrientationForDragging = true;
         /**
-         * Predicate to determine if it is valid to move the object to a new position when it is moved
-         * @param targetPosition
+         * Normally a drag is canceled when the user presses another button on the same pointer. If this is set to true,
+         * the drag will continue even if another button is pressed on the same pointer.
+         */
+        this.allowOtherButtonsDuringDrag = false;
+        /**
+         * Predicate to determine if it is valid to move the object to a new position when it is moved.
+         * In the case of rotation gizmo, target contains the angle.
+         * @param target destination position or desired angle delta
+         * @returns boolean for whether or not it is valid to move
          */
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        this.validateDrag = (targetPosition) => {
+        this.validateDrag = (target) => {
             return true;
         };
         this._tmpVector = new Vector3(0, 0, 0);
@@ -125,42 +157,9 @@ export class PointerDragBehavior {
             optionCount++;
         }
         if (optionCount > 1) {
+            // eslint-disable-next-line no-throw-literal
             throw "Multiple drag modes specified in dragBehavior options. Only one expected";
         }
-    }
-    /**
-     * Get or set the currentDraggingPointerId
-     * @deprecated Please use currentDraggingPointerId instead
-     */
-    get currentDraggingPointerID() {
-        return this.currentDraggingPointerId;
-    }
-    set currentDraggingPointerID(currentDraggingPointerID) {
-        this.currentDraggingPointerId = currentDraggingPointerID;
-    }
-    /**
-     *  If the drag behavior will react to drag events (Default: true)
-     */
-    set enabled(value) {
-        if (value != this._enabled) {
-            this.onEnabledObservable.notifyObservers(value);
-        }
-        this._enabled = value;
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    /**
-     * Gets the options used by the behavior
-     */
-    get options() {
-        return this._options;
-    }
-    /**
-     * Sets the options used by the behavior
-     */
-    set options(options) {
-        this._options = options;
     }
     /**
      *  The name of the behavior
@@ -211,6 +210,17 @@ export class PointerDragBehavior {
                 }
                 return;
             }
+            // If we are dragging and the user presses another button on the same pointer, end the drag. Otherwise,
+            // tracking when the drag should end becomes very complex.
+            // gizmo.ts has similar behavior.
+            if (this.dragging &&
+                this.currentDraggingPointerId == pointerInfo.event.pointerId &&
+                pointerInfo.event.button !== -1 &&
+                pointerInfo.event.button !== this._activeDragButton &&
+                !this.allowOtherButtonsDuringDrag) {
+                this.releaseDrag();
+                return;
+            }
             if (pointerInfo.type == PointerEventTypes.POINTERDOWN) {
                 if (this.startAndReleaseDragOnPointerEvents &&
                     !this.dragging &&
@@ -222,6 +232,7 @@ export class PointerDragBehavior {
                     pickPredicate(pointerInfo.pickInfo.pickedMesh)) {
                     if (this._activeDragButton === -1 && this.dragButtons.indexOf(pointerInfo.event.button) !== -1) {
                         this._activeDragButton = pointerInfo.event.button;
+                        this._activePointerInfo = pointerInfo;
                         this._startDrag(pointerInfo.event.pointerId, pointerInfo.pickInfo.ray, pointerInfo.pickInfo.pickedPoint);
                     }
                 }
@@ -229,7 +240,7 @@ export class PointerDragBehavior {
             else if (pointerInfo.type == PointerEventTypes.POINTERUP) {
                 if (this.startAndReleaseDragOnPointerEvents &&
                     this.currentDraggingPointerId == pointerInfo.event.pointerId &&
-                    this._activeDragButton === pointerInfo.event.button) {
+                    (this._activeDragButton === pointerInfo.event.button || this._activeDragButton === -1)) {
                     this.releaseDrag();
                 }
             }
@@ -285,10 +296,11 @@ export class PointerDragBehavior {
     releaseDrag() {
         if (this.dragging) {
             this.dragging = false;
-            this.onDragEndObservable.notifyObservers({ dragPlanePoint: this.lastDragPosition, pointerId: this.currentDraggingPointerId });
+            this.onDragEndObservable.notifyObservers({ dragPlanePoint: this.lastDragPosition, pointerId: this.currentDraggingPointerId, pointerInfo: this._activePointerInfo });
         }
         this.currentDraggingPointerId = -1;
         this._activeDragButton = -1;
+        this._activePointerInfo = null;
         this._moving = false;
         // Reattach camera controls
         if (this.detachCameraControls && this._attachedToElement && this._scene.activeCamera && !this._scene.activeCamera.leftCamera) {
@@ -340,7 +352,7 @@ export class PointerDragBehavior {
             this.dragging = true;
             this.currentDraggingPointerId = pointerId;
             this.lastDragPosition.copyFrom(pickedPoint);
-            this.onDragStartObservable.notifyObservers({ dragPlanePoint: pickedPoint, pointerId: this.currentDraggingPointerId });
+            this.onDragStartObservable.notifyObservers({ dragPlanePoint: pickedPoint, pointerId: this.currentDraggingPointerId, pointerInfo: this._activePointerInfo });
             this._targetPosition.copyFrom(this.attachedNode.getAbsolutePosition());
             // Detatch camera controls
             if (this.detachCameraControls && this._scene.activeCamera && this._scene.activeCamera.inputs && !this._scene.activeCamera.leftCamera) {
@@ -353,6 +365,9 @@ export class PointerDragBehavior {
                 }
             }
         }
+        else {
+            this.releaseDrag();
+        }
         PivotTools._RestorePivotPoint(this.attachedNode);
     }
     _moveDrag(ray) {
@@ -363,7 +378,7 @@ export class PointerDragBehavior {
             if (this.updateDragPlane) {
                 this._updateDragPlanePosition(ray, pickedPoint);
             }
-            let dragLength = 0;
+            let dragLength;
             // depending on the drag mode option drag accordingly
             if (this._options.dragAxis) {
                 // Convert local drag axis to world if useObjectOrientationForDragging
@@ -372,6 +387,11 @@ export class PointerDragBehavior {
                     : this._worldDragAxis.copyFrom(this._options.dragAxis);
                 // Project delta drag from the drag plane onto the drag axis
                 pickedPoint.subtractToRef(this.lastDragPosition, this._tmpVector);
+                if (this.additionalTransformNode) {
+                    this.additionalTransformNode.getWorldMatrix().invertToRef(TmpVectors.Matrix[0]);
+                    Vector3.TransformNormalToRef(this._worldDragAxis, TmpVectors.Matrix[0], this._worldDragAxis);
+                }
+                this._worldDragAxis.normalize();
                 dragLength = Vector3.Dot(this._tmpVector, this._worldDragAxis);
                 this._worldDragAxis.scaleToRef(dragLength, this._dragDelta);
             }
@@ -386,6 +406,7 @@ export class PointerDragBehavior {
                 dragPlanePoint: pickedPoint,
                 dragPlaneNormal: this._dragPlane.forward,
                 pointerId: this.currentDraggingPointerId,
+                pointerInfo: this._activePointerInfo,
             });
             this.lastDragPosition.copyFrom(pickedPoint);
             PivotTools._RestorePivotPoint(this.attachedNode);
@@ -421,15 +442,25 @@ export class PointerDragBehavior {
                 return null;
             }
         }
-        const pickResult = PointerDragBehavior._PlaneScene.pickWithRay(ray, (m) => {
-            return m == this._dragPlane;
-        });
-        if (pickResult && pickResult.hit && pickResult.pickedMesh && pickResult.pickedPoint) {
-            return pickResult.pickedPoint;
-        }
-        else {
+        // use an infinite plane instead of ray picking a mesh that must be updated every frame
+        const planeNormal = this._dragPlane.forward;
+        const planePosition = this._dragPlane.position;
+        const dotProduct = ray.direction.dot(planeNormal);
+        if (Math.abs(dotProduct) < Epsilon) {
+            // Ray and plane are parallel, no intersection
             return null;
         }
+        planePosition.subtractToRef(ray.origin, TmpVectors.Vector3[0]);
+        const t = TmpVectors.Vector3[0].dot(planeNormal) / dotProduct;
+        // Ensure the intersection point is in front of the ray (t must be positive)
+        if (t < 0) {
+            // Intersection point is behind the ray
+            return null;
+        }
+        // Calculate the intersection point using the parameter t
+        ray.direction.scaleToRef(t, TmpVectors.Vector3[0]);
+        const intersectionPoint = ray.origin.add(TmpVectors.Vector3[0]);
+        return intersectionPoint;
     }
     // Position the drag plane based on the attached mesh position, for single axis rotate the plane along the axis to face the camera
     _updateDragPlanePosition(ray, dragPlanePosition) {
@@ -470,8 +501,11 @@ export class PointerDragBehavior {
             this._dragPlane.lookAt(this._lookAt);
         }
         else {
+            if (this._scene.activeCamera) {
+                this._scene.activeCamera.getForwardRay().direction.normalizeToRef(this._localAxis);
+            }
             this._dragPlane.position.copyFrom(this._pointA);
-            this._dragPlane.lookAt(ray.origin);
+            this._dragPlane.lookAt(this._pointA.add(this._localAxis));
         }
         // Update the position of the drag plane so it doesn't get out of sync with the node (eg. when moving back and forth quickly)
         this._dragPlane.position.copyFrom(this.attachedNode.getAbsolutePosition());

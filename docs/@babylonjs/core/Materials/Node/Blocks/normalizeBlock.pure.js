@@ -1,0 +1,61 @@
+/** This file must only contain pure code and pure imports */
+import { NodeMaterialBlock } from "../nodeMaterialBlock.js";
+import { NodeMaterialBlockConnectionPointTypes } from "../Enums/nodeMaterialBlockConnectionPointTypes.js";
+import { NodeMaterialBlockTargets } from "../Enums/nodeMaterialBlockTargets.js";
+import { RegisterClass } from "../../../Misc/typeStore.js";
+/**
+ * Block used to normalize a vector
+ */
+export class NormalizeBlock extends NodeMaterialBlock {
+    /**
+     * Creates a new NormalizeBlock
+     * @param name defines the block name
+     */
+    constructor(name) {
+        super(name, NodeMaterialBlockTargets.Neutral);
+        this.registerInput("input", NodeMaterialBlockConnectionPointTypes.AutoDetect);
+        this.registerOutput("output", NodeMaterialBlockConnectionPointTypes.BasedOnInput);
+        this._outputs[0]._typeConnectionSource = this._inputs[0];
+        this._inputs[0].excludedConnectionPointTypes.push(NodeMaterialBlockConnectionPointTypes.Float);
+        this._inputs[0].excludedConnectionPointTypes.push(NodeMaterialBlockConnectionPointTypes.Matrix);
+    }
+    /**
+     * Gets the current class name
+     * @returns the class name
+     */
+    getClassName() {
+        return "NormalizeBlock";
+    }
+    /**
+     * Gets the input component
+     */
+    get input() {
+        return this._inputs[0];
+    }
+    /**
+     * Gets the output component
+     */
+    get output() {
+        return this._outputs[0];
+    }
+    _buildBlock(state) {
+        super._buildBlock(state);
+        const output = this._outputs[0];
+        const input = this._inputs[0];
+        state.compilationString += state._declareOutput(output) + ` = normalize(${input.associatedVariableName});\n`;
+        return this;
+    }
+}
+let _Registered = false;
+/**
+ * Register side effects for normalizeBlock.
+ * Safe to call multiple times; only the first call has an effect.
+ */
+export function RegisterNormalizeBlock() {
+    if (_Registered) {
+        return;
+    }
+    _Registered = true;
+    RegisterClass("BABYLON.NormalizeBlock", NormalizeBlock);
+}
+//# sourceMappingURL=normalizeBlock.pure.js.map

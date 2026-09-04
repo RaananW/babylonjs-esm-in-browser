@@ -1,7 +1,7 @@
-import type { Mesh } from "../../Meshes/mesh";
-import { Vector3, Quaternion } from "../../Maths/math.vector";
-import { Observable } from "../../Misc/observable";
-import { BaseSixDofDragBehavior } from "./baseSixDofDragBehavior";
+import { type Mesh } from "../../Meshes/mesh.js";
+import { Vector3, Quaternion } from "../../Maths/math.vector.pure.js";
+import { Observable } from "../../Misc/observable.js";
+import { BaseSixDofDragBehavior } from "./baseSixDofDragBehavior.js";
 /**
  * A behavior that when attached to a mesh will allow the mesh to be dragged around based on directions and origin of the pointer's ray
  */
@@ -50,6 +50,7 @@ export declare class SixDofDragBehavior extends BaseSixDofDragBehavior {
     faceCameraOnDragStart: boolean;
     /**
      * Attaches the six DoF drag behavior
+     * In XR mode the mesh and its children will have their isNearGrabbable property set to true
      * @param ownerNode The mesh that will be dragged around once attached
      */
     attach(ownerNode: Mesh): void;

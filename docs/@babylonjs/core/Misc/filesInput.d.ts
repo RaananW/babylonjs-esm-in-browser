@@ -1,11 +1,13 @@
-import type { Engine } from "../Engines/engine";
-import type { Scene } from "../scene";
-import type { ISceneLoaderProgressEvent } from "../Loading/sceneLoader";
-import type { Nullable } from "../types";
+import { type AbstractEngine } from "../Engines/abstractEngine.js";
+import { type Scene } from "../scene.js";
+import { type ISceneLoaderProgressEvent } from "../Loading/sceneLoader.js";
+import { type Nullable } from "../types.js";
 /**
  * Class used to help managing file picking and drag-n-drop
  */
 export declare class FilesInput {
+    readonly useAppend: boolean;
+    readonly dontInjectRenderLoop: boolean;
     /**
      * List of files ready to be loaded
      */
@@ -14,12 +16,18 @@ export declare class FilesInput {
     };
     /**
      * Callback called when a file is processed
+     * @returns false to abort the process
      */
     onProcessFileCallback: (file: File, name: string, extension: string, setSceneFileToLoad: (sceneFile: File) => void) => boolean;
     /**
+     * If a loading UI should be displayed while loading a file
+     */
+    displayLoadingUI: boolean;
+    /**
      * Function used when loading the scene file
-     * @param sceneFile
-     * @param onProgress
+     * @param sceneFile defines the file to load
+     * @param onProgress onProgress callback called while loading the file
+     * @returns a promise completing when the load is complete
      */
     loadAsync: (sceneFile: File, onProgress: Nullable<(event: ISceneLoaderProgressEvent) => void>) => Promise<Scene>;
     private _engine;
@@ -38,15 +46,17 @@ export declare class FilesInput {
      * Creates a new FilesInput
      * @param engine defines the rendering engine
      * @param scene defines the hosting scene
-     * @param sceneLoadedCallback callback called when scene is loaded
+     * @param sceneLoadedCallback callback called when scene (files provided) is loaded
      * @param progressCallback callback called to track progress
      * @param additionalRenderLoopLogicCallback callback called to add user logic to the rendering loop
      * @param textureLoadingCallback callback called when a texture is loading
      * @param startingProcessingFilesCallback callback called when the system is about to process all files
      * @param onReloadCallback callback called when a reload is requested
      * @param errorCallback callback call if an error occurs
+     * @param useAppend defines if the file loaded must be appended (true) or have the scene replaced (false, default behavior)
+     * @param dontInjectRenderLoop defines if the render loop mustn't be injected into engine (default is false). Used only if useAppend is false.
      */
-    constructor(engine: Engine, scene: Nullable<Scene>, sceneLoadedCallback: Nullable<(sceneFile: File, scene: Scene) => void>, progressCallback: Nullable<(progress: ISceneLoaderProgressEvent) => void>, additionalRenderLoopLogicCallback: Nullable<() => void>, textureLoadingCallback: Nullable<(remaining: number) => void>, startingProcessingFilesCallback: Nullable<(files?: File[]) => void>, onReloadCallback: Nullable<(sceneFile: File) => void>, errorCallback: Nullable<(sceneFile: File, scene: Nullable<Scene>, message: string) => void>);
+    constructor(engine: AbstractEngine, scene: Nullable<Scene>, sceneLoadedCallback: Nullable<(sceneFile: File, scene: Scene) => void>, progressCallback: Nullable<(progress: ISceneLoaderProgressEvent) => void>, additionalRenderLoopLogicCallback: Nullable<() => void>, textureLoadingCallback: Nullable<(remaining: number) => void>, startingProcessingFilesCallback: Nullable<(files?: File[]) => void>, onReloadCallback: Nullable<(sceneFile: File) => void>, errorCallback: Nullable<(sceneFile: File, scene: Nullable<Scene>, message: string) => void>, useAppend?: boolean, dontInjectRenderLoop?: boolean);
     private _dragEnterHandler;
     private _dragOverHandler;
     private _dropHandler;

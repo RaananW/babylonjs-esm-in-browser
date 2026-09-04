@@ -1,144 +1,29 @@
-import { Matrix, Vector3, Vector2 } from "../../Maths/math.vector.js";
-import { Color4 } from "../../Maths/math.color.js";
-import { VertexBuffer } from "../../Buffers/buffer.js";
+import { Matrix, Vector3, Vector2, TmpVectors } from "../../Maths/math.vector.pure.js";
+import { Color4 } from "../../Maths/math.color.pure.js";
+import { VertexBuffer } from "../../Buffers/buffer.pure.js";
 import { Light } from "../../Lights/light.js";
-import { MaterialHelper } from "../../Materials/materialHelper.js";
-import { Texture } from "../../Materials/Textures/texture.js";
-import { RenderTargetTexture } from "../../Materials/Textures/renderTargetTexture.js";
-import { PostProcess } from "../../PostProcesses/postProcess.js";
-import { BlurPostProcess } from "../../PostProcesses/blurPostProcess.js";
+import { Texture } from "../../Materials/Textures/texture.pure.js";
+import { RegisterRenderTargetTexture, RenderTargetTexture } from "../../Materials/Textures/renderTargetTexture.pure.js";
+import { PostProcess } from "../../PostProcesses/postProcess.pure.js";
+import { BlurPostProcess } from "../../PostProcesses/blurPostProcess.pure.js";
 
 import { Observable } from "../../Misc/observable.js";
 import { _WarnImport } from "../../Misc/devTools.js";
+import { RegisterShadowGeneratorSceneComponent } from "./shadowGeneratorSceneComponent.pure.js";
 import { EffectFallbacks } from "../../Materials/effectFallbacks.js";
 import { RenderingManager } from "../../Rendering/renderingManager.js";
 import { DrawWrapper } from "../../Materials/drawWrapper.js";
-import "../../Shaders/shadowMap.fragment.js";
-import "../../Shaders/shadowMap.vertex.js";
-import "../../Shaders/depthBoxBlur.fragment.js";
-import "../../Shaders/ShadersInclude/shadowMapFragmentSoftTransparentShadow.js";
-import { addClipPlaneUniforms, bindClipPlane, prepareDefinesForClipPlanes } from "../../Materials/clipPlaneMaterialHelper.js";
+import { AddClipPlaneUniforms, BindClipPlane, PrepareStringDefinesForClipPlanes } from "../../Materials/clipPlaneMaterialHelper.js";
+import { BindBonesParameters, BindMorphTargetParameters, BindSceneUniformBuffer, PrepareDefinesAndAttributesForMorphTargets, PushAttributesForInstances, } from "../../Materials/materialHelper.functions.js";
+import { FloatingOriginCurrentScene, GetFullOffsetViewProjectionToRef } from "../../Materials/floatingOriginMatrixOverrides.js";
 /**
  * Default implementation IShadowGenerator.
  * This is the main object responsible of generating shadows in the framework.
  * Documentation: https://doc.babylonjs.com/features/featuresDeepDive/lights/shadows
+ * @see [WebGL](https://playground.babylonjs.com/#IFYDRS#0)
+ * @see [WebGPU](https://playground.babylonjs.com/#IFYDRS#835)
  */
 export class ShadowGenerator {
-    /**
-     * Creates a ShadowGenerator object.
-     * A ShadowGenerator is the required tool to use the shadows.
-     * Each light casting shadows needs to use its own ShadowGenerator.
-     * Documentation : https://doc.babylonjs.com/features/featuresDeepDive/lights/shadows
-     * @param mapSize The size of the texture what stores the shadows. Example : 1024.
-     * @param light The light object generating the shadows.
-     * @param usefullFloatFirst By default the generator will try to use half float textures but if you need precision (for self shadowing for instance), you can use this option to enforce full float texture.
-     * @param camera Camera associated with this shadow generator (default: null). If null, takes the scene active camera at the time we need to access it
-     */
-    constructor(mapSize, light, usefullFloatFirst, camera) {
-        /**
-         * Observable triggered before the shadow is rendered. Can be used to update internal effect state
-         */
-        this.onBeforeShadowMapRenderObservable = new Observable();
-        /**
-         * Observable triggered after the shadow is rendered. Can be used to restore internal effect state
-         */
-        this.onAfterShadowMapRenderObservable = new Observable();
-        /**
-         * Observable triggered before a mesh is rendered in the shadow map.
-         * Can be used to update internal effect state (that you can get from the onBeforeShadowMapRenderObservable)
-         */
-        this.onBeforeShadowMapRenderMeshObservable = new Observable();
-        /**
-         * Observable triggered after a mesh is rendered in the shadow map.
-         * Can be used to update internal effect state (that you can get from the onAfterShadowMapRenderObservable)
-         */
-        this.onAfterShadowMapRenderMeshObservable = new Observable();
-        this._bias = 0.00005;
-        this._normalBias = 0;
-        this._blurBoxOffset = 1;
-        this._blurScale = 2;
-        this._blurKernel = 1;
-        this._useKernelBlur = false;
-        this._filter = ShadowGenerator.FILTER_NONE;
-        this._filteringQuality = ShadowGenerator.QUALITY_HIGH;
-        this._contactHardeningLightSizeUVRatio = 0.1;
-        this._darkness = 0;
-        this._transparencyShadow = false;
-        /**
-         * Enables or disables shadows with varying strength based on the transparency
-         * When it is enabled, the strength of the shadow is taken equal to mesh.visibility
-         * If you enabled an alpha texture on your material, the alpha value red from the texture is also combined to compute the strength:
-         *          mesh.visibility * alphaTexture.a
-         * The texture used is the diffuse by default, but it can be set to the opacity by setting useOpacityTextureForTransparentShadow
-         * Note that by definition transparencyShadow must be set to true for enableSoftTransparentShadow to work!
-         */
-        this.enableSoftTransparentShadow = false;
-        /**
-         * If this is true, use the opacity texture's alpha channel for transparent shadows instead of the diffuse one
-         */
-        this.useOpacityTextureForTransparentShadow = false;
-        /**
-         * Controls the extent to which the shadows fade out at the edge of the frustum
-         */
-        this.frustumEdgeFalloff = 0;
-        /**
-         * If true the shadow map is generated by rendering the back face of the mesh instead of the front face.
-         * This can help with self-shadowing as the geometry making up the back of objects is slightly offset.
-         * It might on the other hand introduce peter panning.
-         */
-        this.forceBackFacesOnly = false;
-        this._lightDirection = Vector3.Zero();
-        this._viewMatrix = Matrix.Zero();
-        this._projectionMatrix = Matrix.Zero();
-        this._transformMatrix = Matrix.Zero();
-        this._cachedPosition = new Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
-        this._cachedDirection = new Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
-        this._currentFaceIndex = 0;
-        this._currentFaceIndexCache = 0;
-        this._defaultTextureMatrix = Matrix.Identity();
-        this._mapSize = mapSize;
-        this._light = light;
-        this._scene = light.getScene();
-        this._camera = camera !== null && camera !== void 0 ? camera : null;
-        let shadowGenerators = light._shadowGenerators;
-        if (!shadowGenerators) {
-            shadowGenerators = light._shadowGenerators = new Map();
-        }
-        shadowGenerators.set(this._camera, this);
-        this.id = light.id;
-        this._useUBO = this._scene.getEngine().supportsUniformBuffers;
-        if (this._useUBO) {
-            this._sceneUBOs = [];
-            this._sceneUBOs.push(this._scene.createSceneUniformBuffer(`Scene for Shadow Generator (light "${this._light.name}")`));
-        }
-        ShadowGenerator._SceneComponentInitialization(this._scene);
-        // Texture type fallback from float to int if not supported.
-        const caps = this._scene.getEngine().getCaps();
-        if (!usefullFloatFirst) {
-            if (caps.textureHalfFloatRender && caps.textureHalfFloatLinearFiltering) {
-                this._textureType = 2;
-            }
-            else if (caps.textureFloatRender && caps.textureFloatLinearFiltering) {
-                this._textureType = 1;
-            }
-            else {
-                this._textureType = 0;
-            }
-        }
-        else {
-            if (caps.textureFloatRender && caps.textureFloatLinearFiltering) {
-                this._textureType = 1;
-            }
-            else if (caps.textureHalfFloatRender && caps.textureHalfFloatLinearFiltering) {
-                this._textureType = 2;
-            }
-            else {
-                this._textureType = 0;
-            }
-        }
-        this._initializeGenerator();
-        this._applyFilterValues();
-    }
     /**
      * Gets the bias: offset applied on the depth preventing acnea (in light direction).
      */
@@ -487,7 +372,7 @@ export class ShadowGenerator {
         }
         return this;
     }
-    /** Gets or sets the ability to have transparent shadow  */
+    /** Gets or sets the ability to have transparent shadow */
     get transparencyShadow() {
         return this._transparencyShadow;
     }
@@ -580,9 +465,14 @@ export class ShadowGenerator {
     getLight() {
         return this._light;
     }
+    /**
+     * Gets the shader language used in this generator.
+     */
+    get shaderLanguage() {
+        return this._shaderLanguage;
+    }
     _getCamera() {
-        var _a;
-        return (_a = this._camera) !== null && _a !== void 0 ? _a : this._scene.activeCamera;
+        return this._camera ?? this._scene.activeCamera;
     }
     /**
      * Gets or sets the size of the texture what stores the shadows
@@ -595,19 +485,218 @@ export class ShadowGenerator {
         this._light._markMeshesAsLightDirty();
         this.recreateShadowMap();
     }
+    /**
+     * Gets or sets the light that is casting the shadows
+     */
+    get light() {
+        return this._light;
+    }
+    set light(light) {
+        if (this._light === light) {
+            return;
+        }
+        this.dispose(false);
+        this._light = light;
+        this._createInstance();
+    }
+    /**
+     * Gets or sets a value indicating whether the shadow map should use full float texture type (instead of half float, which is the default).
+     * Use this option when you need more precision (for self shadowing, for instance).
+     */
+    get useFloat32TextureType() {
+        return this._usefullFloatFirst;
+    }
+    set useFloat32TextureType(useFloat32TextureType) {
+        if (this._usefullFloatFirst === useFloat32TextureType) {
+            return;
+        }
+        this.dispose(false);
+        this._usefullFloatFirst = useFloat32TextureType;
+        this._createInstance();
+    }
+    /**
+     * Gets or sets the camera associated with this shadow generator.
+     * When null, the scene's active camera is used at render time.
+     */
+    get camera() {
+        return this._camera;
+    }
+    set camera(camera) {
+        if (this._camera === camera) {
+            return;
+        }
+        this.dispose(false);
+        this._camera = camera;
+        this._createInstance();
+    }
+    /**
+     * Gets or sets a value indicating whether the shadow map should use a red-channel-only texture format.
+     * Using a single-channel format reduces memory usage when color data is not needed.
+     */
+    get useRedTextureFormat() {
+        return this._useRedTextureType;
+    }
+    set useRedTextureFormat(useRedTextureFormat) {
+        if (this._useRedTextureType === useRedTextureFormat) {
+            return;
+        }
+        this.dispose(false);
+        this._useRedTextureType = useRedTextureFormat;
+        this._createInstance();
+    }
+    /**
+     * Creates a ShadowGenerator object.
+     * A ShadowGenerator is the required tool to use the shadows.
+     * Each light casting shadows needs to use its own ShadowGenerator.
+     * Documentation : https://doc.babylonjs.com/features/featuresDeepDive/lights/shadows
+     * @param mapSize The size of the texture what stores the shadows. Example : 1024.
+     * @param light The light object generating the shadows.
+     * @param usefullFloatFirst By default the generator will try to use half float textures but if you need precision (for self shadowing for instance), you can use this option to enforce full float texture.
+     * @param camera Camera associated with this shadow generator (default: null). If null, takes the scene active camera at the time we need to access it
+     * @param useRedTextureType Forces the generator to use a Red instead of a RGBA type for the shadow map texture format (default: false)
+     * @param forceGLSL defines a boolean indicating if the shader must be compiled in GLSL even if we are using WebGPU
+     */
+    constructor(mapSize, light, usefullFloatFirst, camera, useRedTextureType, forceGLSL = false) {
+        /**
+         * Observable triggered before the shadow is rendered. Can be used to update internal effect state
+         */
+        this.onBeforeShadowMapRenderObservable = new Observable();
+        /**
+         * Observable triggered after the shadow is rendered. Can be used to restore internal effect state
+         */
+        this.onAfterShadowMapRenderObservable = new Observable();
+        /**
+         * Observable triggered before a mesh is rendered in the shadow map.
+         * Can be used to update internal effect state (that you can get from the onBeforeShadowMapRenderObservable)
+         */
+        this.onBeforeShadowMapRenderMeshObservable = new Observable();
+        /**
+         * Observable triggered after a mesh is rendered in the shadow map.
+         * Can be used to update internal effect state (that you can get from the onAfterShadowMapRenderObservable)
+         */
+        this.onAfterShadowMapRenderMeshObservable = new Observable();
+        /**
+         * Specifies if the `ShadowGenerator` should be serialized, `true` to skip serialization.
+         * Note a `ShadowGenerator` will not be serialized if its light has `doNotSerialize=true`
+         */
+        this.doNotSerialize = false;
+        this._bias = 0.00005;
+        this._normalBias = 0;
+        this._blurBoxOffset = 1;
+        this._blurScale = 2;
+        this._blurKernel = 1;
+        this._useKernelBlur = false;
+        this._filter = ShadowGenerator.FILTER_NONE;
+        this._filteringQuality = ShadowGenerator.QUALITY_HIGH;
+        this._contactHardeningLightSizeUVRatio = 0.1;
+        this._darkness = 0;
+        this._transparencyShadow = false;
+        /**
+         * Enables or disables shadows with varying strength based on the transparency
+         * When it is enabled, the strength of the shadow is taken equal to mesh.visibility
+         * If you enabled an alpha texture on your material, the alpha value red from the texture is also combined to compute the strength:
+         *          mesh.visibility * alphaTexture.a
+         * The texture used is the diffuse by default, but it can be set to the opacity by setting useOpacityTextureForTransparentShadow
+         * Note that by definition transparencyShadow must be set to true for enableSoftTransparentShadow to work!
+         */
+        this.enableSoftTransparentShadow = false;
+        /**
+         * If this is true, use the opacity texture's alpha channel for transparent shadows instead of the diffuse one
+         */
+        this.useOpacityTextureForTransparentShadow = false;
+        /**
+         * Controls the extent to which the shadows fade out at the edge of the frustum
+         */
+        this.frustumEdgeFalloff = 0;
+        /** Shader language used by the generator */
+        this._shaderLanguage = 0 /* ShaderLanguage.GLSL */;
+        /**
+         * If true the shadow map is generated by rendering the back face of the mesh instead of the front face.
+         * This can help with self-shadowing as the geometry making up the back of objects is slightly offset.
+         * It might on the other hand introduce peter panning.
+         */
+        this.forceBackFacesOnly = false;
+        this._lightDirection = Vector3.Zero();
+        this._viewMatrix = Matrix.Zero();
+        this._projectionMatrix = Matrix.Zero();
+        this._transformMatrix = Matrix.Zero();
+        this._cachedPosition = new Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+        this._cachedDirection = new Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+        this._currentFaceIndex = 0;
+        this._currentFaceIndexCache = 0;
+        this._defaultTextureMatrix = Matrix.Identity();
+        this._shadersLoaded = false;
+        this._mapSize = mapSize;
+        this._light = light;
+        this._usefullFloatFirst = !!usefullFloatFirst;
+        this._scene = light.getScene();
+        this._camera = camera ?? null;
+        this._useRedTextureType = !!useRedTextureType;
+        this._forceGLSL = forceGLSL;
+        this._createInstance();
+    }
+    _createInstance() {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        this._initShaderSourceAsync(this._forceGLSL);
+        let shadowGenerators = this._light._shadowGenerators;
+        if (!shadowGenerators) {
+            shadowGenerators = this._light._shadowGenerators = new Map();
+        }
+        shadowGenerators.set(this._camera, this);
+        this.id = this._light.id;
+        this._useUBO = this._scene.getEngine().supportsUniformBuffers;
+        if (this._useUBO) {
+            this._sceneUBOs = [this._scene.createSceneUniformBuffer(`Scene for Shadow Generator (light "${this._light.name}")`, { forceMono: true })];
+        }
+        RegisterShadowGeneratorSceneComponent(ShadowGenerator);
+        ShadowGenerator._SceneComponentInitialization(this._scene);
+        // PCF and PCSS filtering bind a comparison sampler through Effect.setDepthStencilTexture,
+        // which is only installed by the render target texture registration. This module imports
+        // renderTargetTexture.pure (side-effect free), so pull the registration in here to guarantee
+        // the sampler is available (otherwise WebGPU bind-group assembly fails for filtered shadows).
+        RegisterRenderTargetTexture();
+        // Texture type fallback from float to int if not supported.
+        const caps = this._scene.getEngine().getCaps();
+        if (!this._usefullFloatFirst) {
+            if (caps.textureHalfFloatRender && caps.textureHalfFloatLinearFiltering) {
+                this._textureType = 2;
+            }
+            else if (caps.textureFloatRender && caps.textureFloatLinearFiltering) {
+                this._textureType = 1;
+            }
+            else {
+                this._textureType = 0;
+            }
+        }
+        else {
+            if (caps.textureFloatRender && caps.textureFloatLinearFiltering) {
+                this._textureType = 1;
+            }
+            else if (caps.textureHalfFloatRender && caps.textureHalfFloatLinearFiltering) {
+                this._textureType = 2;
+            }
+            else {
+                this._textureType = 0;
+            }
+        }
+        this._initializeGenerator();
+        this._applyFilterValues();
+    }
     _initializeGenerator() {
         this._light._markMeshesAsLightDirty();
         this._initializeShadowMap();
     }
     _createTargetRenderTexture() {
         const engine = this._scene.getEngine();
+        this._shadowMap?.dispose();
         if (engine._features.supportDepthStencilTexture) {
-            this._shadowMap = new RenderTargetTexture(this._light.name + "_shadowMap", this._mapSize, this._scene, false, true, this._textureType, this._light.needCube(), undefined, false, false);
-            this._shadowMap.createDepthStencilTexture(engine.useReverseDepthBuffer ? 516 : 513, true);
+            this._shadowMap = new RenderTargetTexture(this._light.name + "_shadowMap", this._mapSize, this._scene, false, true, this._textureType, this._light.needCube(), undefined, false, false, undefined, this._useRedTextureType ? 6 : 5);
+            this._shadowMap.createDepthStencilTexture(engine.useReverseDepthBuffer ? 516 : 513, true, undefined, undefined, undefined, `DepthStencilForShadowGenerator-${this._light.name}`);
         }
         else {
             this._shadowMap = new RenderTargetTexture(this._light.name + "_shadowMap", this._mapSize, this._scene, false, true, this._textureType, this._light.needCube());
         }
+        this._shadowMap.noPrePassRenderer = true;
     }
     _initializeShadowMap() {
         this._createTargetRenderTexture();
@@ -624,18 +713,40 @@ export class ShadowGenerator {
             this._shadowMap.uniqueId = this._storedUniqueId;
         }
         // Custom render function.
-        this._shadowMap.customRenderFunction = this._renderForShadowMap.bind(this);
-        // Force the mesh is ready function to true as we are double checking it
+        this._shadowMap.customRenderFunction = (opaqueSubMeshes, alphaTestSubMeshes, transparentSubMeshes, depthOnlySubMeshes) => this._renderForShadowMap(opaqueSubMeshes, alphaTestSubMeshes, transparentSubMeshes, depthOnlySubMeshes);
+        // When preWarm is false, forces the mesh is ready function to true as we are double checking it
         // in the custom render function. Also it prevents side effects and useless
         // shader variations in DEPTHPREPASS mode.
-        this._shadowMap.customIsReadyFunction = () => {
-            return true;
+        this._shadowMap.customIsReadyFunction = (mesh, _refreshRate, preWarm) => {
+            if (!preWarm || !mesh.subMeshes) {
+                return true;
+            }
+            let isReady = true;
+            for (const subMesh of mesh.subMeshes) {
+                const renderingMesh = subMesh.getRenderingMesh();
+                const scene = this._scene;
+                const engine = scene.getEngine();
+                const material = subMesh.getMaterial();
+                if (!material || subMesh.verticesCount === 0 || (this.customAllowRendering && !this.customAllowRendering(subMesh))) {
+                    continue;
+                }
+                const batch = renderingMesh._getInstancesRenderList(subMesh._id, !!subMesh.getReplacementMesh());
+                if (batch.mustReturn) {
+                    continue;
+                }
+                const hardwareInstancedRendering = engine.getCaps().instancedArrays &&
+                    ((batch.visibleInstances[subMesh._id] !== null && batch.visibleInstances[subMesh._id] !== undefined) || renderingMesh.hasThinInstances);
+                const isTransparent = material.needAlphaBlendingForMesh(renderingMesh);
+                isReady = this.isReady(subMesh, hardwareInstancedRendering, isTransparent) && isReady;
+            }
+            return isReady;
         };
         const engine = this._scene.getEngine();
         this._shadowMap.onBeforeBindObservable.add(() => {
-            var _a;
             this._currentSceneUBO = this._scene.getSceneUniformBuffer();
-            (_a = engine._debugPushGroup) === null || _a === void 0 ? void 0 : _a.call(engine, `shadow map generation for pass id ${engine.currentRenderPassId}`, 1);
+            if (engine._enableGPUDebugMarkers) {
+                engine._debugPushGroup?.(`Shadow map generation for pass id ${engine.currentRenderPassId}`);
+            }
         });
         // Record Face Index before render.
         this._shadowMap.onBeforeRenderObservable.add((faceIndex) => {
@@ -647,31 +758,34 @@ export class ShadowGenerator {
                 engine.setColorWrite(false);
             }
             this.getTransformMatrix(); // generate the view/projection matrix
+            FloatingOriginCurrentScene.eyeAtCamera = false;
             this._scene.setTransformMatrix(this._viewMatrix, this._projectionMatrix);
-            if (this._useUBO) {
+            if (this._sceneUBOs) {
                 this._scene.getSceneUniformBuffer().unbindEffect();
                 this._scene.finalizeSceneUbo();
             }
         });
         // Blur if required after render.
         this._shadowMap.onAfterUnbindObservable.add(() => {
-            var _a, _b;
             if (this._sceneUBOs) {
                 this._scene.setSceneUniformBuffer(this._currentSceneUBO);
             }
+            FloatingOriginCurrentScene.eyeAtCamera = true;
             this._scene.updateTransformMatrix(); // restore the view/projection matrices of the active camera
             if (this._filter === ShadowGenerator.FILTER_PCF) {
                 engine.setColorWrite(true);
             }
             if (!this.useBlurExponentialShadowMap && !this.useBlurCloseExponentialShadowMap) {
-                (_a = engine._debugPopGroup) === null || _a === void 0 ? void 0 : _a.call(engine, 1);
+                engine._debugPopGroup?.();
                 return;
             }
             const shadowMap = this.getShadowMapForRendering();
             if (shadowMap) {
                 this._scene.postProcessManager.directRender(this._blurPostProcesses, shadowMap.renderTarget, true);
                 engine.unBindFramebuffer(shadowMap.renderTarget, true);
-                (_b = engine._debugPopGroup) === null || _b === void 0 ? void 0 : _b.call(engine, 1);
+            }
+            if (engine._enableGPUDebugMarkers) {
+                engine._debugPopGroup?.();
             }
         });
         // Clear according to the chosen filter.
@@ -701,6 +815,27 @@ export class ShadowGenerator {
             this._shadowMap.setRenderingAutoClearDepthStencil(i, false);
         }
     }
+    async _initShaderSourceAsync(forceGLSL = false) {
+        const engine = this._scene.getEngine();
+        if (engine.isWebGPU && !forceGLSL && !ShadowGenerator.ForceGLSL) {
+            this._shaderLanguage = 1 /* ShaderLanguage.WGSL */;
+            await Promise.all([
+                import("../../ShadersWGSL/shadowMap.fragment.js"),
+                import("../../ShadersWGSL/shadowMap.vertex.js"),
+                import("../../ShadersWGSL/depthBoxBlur.fragment.js"),
+                import("../../ShadersWGSL/ShadersInclude/shadowMapFragmentSoftTransparentShadow.js"),
+            ]);
+        }
+        else {
+            await Promise.all([
+                import("../../Shaders/shadowMap.fragment.js"),
+                import("../../Shaders/shadowMap.vertex.js"),
+                import("../../Shaders/depthBoxBlur.fragment.js"),
+                import("../../Shaders/ShadersInclude/shadowMapFragmentSoftTransparentShadow.js"),
+            ]);
+        }
+        this._shadersLoaded = true;
+    }
     _initializeBlurRTTAndPostProcesses() {
         const engine = this._scene.getEngine();
         const targetSize = this._mapSize / this.blurScale;
@@ -728,7 +863,7 @@ export class ShadowGenerator {
             this._blurPostProcesses = [this._kernelBlurXPostprocess, this._kernelBlurYPostprocess];
         }
         else {
-            this._boxBlurPostprocess = new PostProcess(this._light.name + "DepthBoxBlur", "depthBoxBlur", ["screenSize", "boxOffset"], [], 1.0, null, Texture.BILINEAR_SAMPLINGMODE, engine, false, "#define OFFSET " + this._blurBoxOffset, this._textureType);
+            this._boxBlurPostprocess = new PostProcess(this._light.name + "DepthBoxBlur", "depthBoxBlur", ["screenSize", "boxOffset"], [], 1.0, null, Texture.BILINEAR_SAMPLINGMODE, engine, false, "#define OFFSET " + this._blurBoxOffset, this._textureType, undefined, undefined, undefined, undefined, this._shaderLanguage);
             this._boxBlurPostprocess.externalTextureSamplerBinding = true;
             this._boxBlurPostprocess.onApplyObservable.add((effect) => {
                 effect.setFloat2("screenSize", targetSize, targetSize);
@@ -767,7 +902,6 @@ export class ShadowGenerator {
         effect.setMatrix("viewProjection", this.getTransformMatrix());
     }
     _renderSubMeshForShadowMap(subMesh, isTransparent = false) {
-        var _a, _b;
         const renderingMesh = subMesh.getRenderingMesh();
         const effectiveMesh = subMesh.getEffectiveMesh();
         const scene = this._scene;
@@ -778,9 +912,14 @@ export class ShadowGenerator {
             return;
         }
         // Culling
+        // Note:
+        // In rhs mode, we assume that meshes will be rendered in right-handed space (i.e. with an RHS camera), so the default value of material.sideOrientation is updated accordingly (see material constructor).
+        // However, when generating a shadow map, we render from the point of view of the light, whose view/projection matrices are always in lhs mode.
+        // We therefore need to "undo" the sideOrientation inversion that was previously performed when constructing the material.
+        const useRHS = scene.useRightHandedSystem;
         const detNeg = effectiveMesh._getWorldMatrixDeterminant() < 0;
-        let sideOrientation = (_a = renderingMesh.overrideMaterialSideOrientation) !== null && _a !== void 0 ? _a : material.sideOrientation;
-        if (detNeg) {
+        let sideOrientation = material._getEffectiveOrientation(renderingMesh);
+        if ((detNeg && !useRHS) || (!detNeg && useRHS)) {
             sideOrientation =
                 sideOrientation === 0 ? 1 : 0;
         }
@@ -799,7 +938,7 @@ export class ShadowGenerator {
         if (this.isReady(subMesh, hardwareInstancedRendering, isTransparent)) {
             subMesh._renderId = scene.getRenderId();
             const shadowDepthWrapper = material.shadowDepthWrapper;
-            const drawWrapper = (_b = shadowDepthWrapper === null || shadowDepthWrapper === void 0 ? void 0 : shadowDepthWrapper.getEffect(subMesh, this, engine.currentRenderPassId)) !== null && _b !== void 0 ? _b : subMesh._getDrawWrapper();
+            const drawWrapper = shadowDepthWrapper?.getEffect(subMesh, this, engine.currentRenderPassId) ?? subMesh._getDrawWrapper();
             const effect = DrawWrapper.GetEffect(drawWrapper);
             engine.enableEffect(drawWrapper);
             if (!hardwareInstancedRendering) {
@@ -811,14 +950,12 @@ export class ShadowGenerator {
                 effect.setVector3("lightDataSM", this._cachedDirection);
             }
             else {
-                effect.setVector3("lightDataSM", this._cachedPosition);
+                effect.setVector3("lightDataSM", this._cachedPosition.subtractToRef(this._scene.floatingOriginOffset, TmpVectors.Vector3[0]));
             }
             const camera = this._getCamera();
-            if (camera) {
-                effect.setFloat2("depthValuesSM", this.getLight().getDepthMinZ(camera), this.getLight().getDepthMinZ(camera) + this.getLight().getDepthMaxZ(camera));
-            }
+            effect.setFloat2("depthValuesSM", this.getLight().getDepthMinZ(camera), this.getLight().getDepthMinZ(camera) + this.getLight().getDepthMaxZ(camera));
             if (isTransparent && this.enableSoftTransparentShadow) {
-                effect.setFloat("softTransparentShadowSM", effectiveMesh.visibility * material.alpha);
+                effect.setFloat2("softTransparentShadowSM", effectiveMesh.visibility * material.alpha, this._opacityTexture?.getAlphaFromRGB ? 1 : 0);
             }
             if (shadowDepthWrapper) {
                 subMesh._setMainDrawWrapperOverride(drawWrapper);
@@ -832,47 +969,29 @@ export class ShadowGenerator {
             }
             else {
                 // Alpha test
-                if (this.useOpacityTextureForTransparentShadow) {
-                    const opacityTexture = material.opacityTexture;
-                    if (opacityTexture) {
-                        effect.setTexture("diffuseSampler", opacityTexture);
-                        effect.setMatrix("diffuseMatrix", opacityTexture.getTextureMatrix() || this._defaultTextureMatrix);
-                    }
-                }
-                else if (material.needAlphaTesting() || material.needAlphaBlending()) {
-                    const alphaTexture = material.getAlphaTestTexture();
-                    if (alphaTexture) {
-                        effect.setTexture("diffuseSampler", alphaTexture);
-                        effect.setMatrix("diffuseMatrix", alphaTexture.getTextureMatrix() || this._defaultTextureMatrix);
-                    }
+                if (this._opacityTexture) {
+                    effect.setTexture("diffuseSampler", this._opacityTexture);
+                    effect.setMatrix("diffuseMatrix", this._opacityTexture.getTextureMatrix() || this._defaultTextureMatrix);
                 }
                 // Bones
-                if (renderingMesh.useBones && renderingMesh.computeBonesUsingShaders && renderingMesh.skeleton) {
-                    const skeleton = renderingMesh.skeleton;
-                    if (skeleton.isUsingTextureForMatrices) {
-                        const boneTexture = skeleton.getTransformMatrixTexture(renderingMesh);
-                        if (!boneTexture) {
-                            return;
-                        }
-                        effect.setTexture("boneSampler", boneTexture);
-                        effect.setFloat("boneTextureWidth", 4.0 * (skeleton.bones.length + 1));
-                    }
-                    else {
-                        effect.setMatrices("mBones", skeleton.getTransformMatrices(renderingMesh));
-                    }
-                }
+                BindBonesParameters(renderingMesh, effect);
                 // Morph targets
-                MaterialHelper.BindMorphTargetParameters(renderingMesh, effect);
+                BindMorphTargetParameters(renderingMesh, effect);
                 if (renderingMesh.morphTargetManager && renderingMesh.morphTargetManager.isUsingTextureForTargets) {
                     renderingMesh.morphTargetManager._bind(effect);
                 }
+                // Baked vertex animations
+                const bvaManager = subMesh.getMesh().bakedVertexAnimationManager;
+                if (bvaManager && bvaManager.isEnabled) {
+                    bvaManager.bind(effect, hardwareInstancedRendering);
+                }
                 // Clip planes
-                bindClipPlane(effect, material, scene);
+                BindClipPlane(effect, material, scene);
             }
             if (!this._useUBO && !shadowDepthWrapper) {
                 this._bindCustomEffectForRenderSubMeshForShadowMap(subMesh, effect, effectiveMesh);
             }
-            MaterialHelper.BindSceneUniformBuffer(effect, this._scene.getSceneUniformBuffer());
+            BindSceneUniformBuffer(effect, this._scene.getSceneUniformBuffer());
             this._scene.getSceneUniformBuffer().bindUniformBuffer();
             const world = effectiveMesh.getWorldMatrix();
             // In the non hardware instanced mode, the Mesh ubo update is done by the callback passed to renderingMesh._processRendering (see below)
@@ -946,7 +1065,7 @@ export class ShadowGenerator {
             }
             return;
         }
-        const subMeshes = new Array();
+        const subMeshes = [];
         for (const mesh of renderList) {
             subMeshes.push(...mesh.subMeshes);
         }
@@ -958,11 +1077,10 @@ export class ShadowGenerator {
         }
         let currentIndex = 0;
         const checkReady = () => {
-            var _a, _b;
             if (!this._scene || !this._scene.getEngine()) {
                 return;
             }
-            while (this.isReady(subMeshes[currentIndex], localOptions.useInstances, (_b = (_a = subMeshes[currentIndex].getMaterial()) === null || _a === void 0 ? void 0 : _a.needAlphaBlendingForMesh(subMeshes[currentIndex].getMesh())) !== null && _b !== void 0 ? _b : false)) {
+            while (this.isReady(subMeshes[currentIndex], localOptions.useInstances, subMeshes[currentIndex].getMaterial()?.needAlphaBlendingForMesh(subMeshes[currentIndex].getMesh()) ?? false)) {
                 currentIndex++;
                 if (currentIndex >= subMeshes.length) {
                     if (onCompiled) {
@@ -980,8 +1098,8 @@ export class ShadowGenerator {
      * @param options Sets of optional options forcing the compilation with different modes
      * @returns A promise that resolves when the compilation completes
      */
-    forceCompilationAsync(options) {
-        return new Promise((resolve) => {
+    async forceCompilationAsync(options) {
+        return await new Promise((resolve) => {
             this.forceCompilation(() => {
                 resolve();
             }, options);
@@ -1013,8 +1131,11 @@ export class ShadowGenerator {
      * @returns true if ready otherwise, false
      */
     isReady(subMesh, useInstances, isTransparent) {
-        var _a;
-        const material = subMesh.getMaterial(), shadowDepthWrapper = material === null || material === void 0 ? void 0 : material.shadowDepthWrapper;
+        if (!this._shadersLoaded) {
+            return false;
+        }
+        const material = subMesh.getMaterial(), shadowDepthWrapper = material?.shadowDepthWrapper;
+        this._opacityTexture = null;
         if (!material) {
             return false;
         }
@@ -1031,30 +1152,33 @@ export class ShadowGenerator {
             let cachedDefines = subMeshEffect.defines;
             const attribs = [VertexBuffer.PositionKind];
             const mesh = subMesh.getMesh();
+            let useNormal = false;
+            let uv1 = false;
+            let uv2 = false;
+            const color = false;
             // Normal bias.
             if (this.normalBias && mesh.isVerticesDataPresent(VertexBuffer.NormalKind)) {
                 attribs.push(VertexBuffer.NormalKind);
                 defines.push("#define NORMAL");
+                useNormal = true;
                 if (mesh.nonUniformScaling) {
                     defines.push("#define NONUNIFORMSCALING");
                 }
             }
             // Alpha test
-            const needAlphaTesting = material === null || material === void 0 ? void 0 : material.needAlphaTesting();
-            const needAlphaBlending = material === null || material === void 0 ? void 0 : material.needAlphaBlending();
-            if (material && (needAlphaTesting || needAlphaBlending)) {
-                let alphaTexture = null;
+            const needAlphaTesting = material.needAlphaTestingForMesh(mesh);
+            if (needAlphaTesting || material.needAlphaBlendingForMesh(mesh)) {
                 if (this.useOpacityTextureForTransparentShadow) {
-                    alphaTexture = material.opacityTexture;
+                    this._opacityTexture = material.opacityTexture;
                 }
                 else {
-                    alphaTexture = material.getAlphaTestTexture();
+                    this._opacityTexture = material.getAlphaTestTexture();
                 }
-                if (alphaTexture) {
-                    if (!alphaTexture.isReady()) {
+                if (this._opacityTexture) {
+                    if (!this._opacityTexture.isReady()) {
                         return false;
                     }
-                    const alphaCutOff = (_a = material.alphaCutOff) !== null && _a !== void 0 ? _a : ShadowGenerator.DEFAULT_ALPHA_CUTOFF;
+                    const alphaCutOff = material.alphaCutOff ?? ShadowGenerator.DEFAULT_ALPHA_CUTOFF;
                     defines.push("#define ALPHATEXTURE");
                     if (needAlphaTesting) {
                         defines.push(`#define ALPHATESTVALUE ${alphaCutOff}${alphaCutOff % 1 === 0 ? "." : ""}`);
@@ -1062,11 +1186,13 @@ export class ShadowGenerator {
                     if (mesh.isVerticesDataPresent(VertexBuffer.UVKind)) {
                         attribs.push(VertexBuffer.UVKind);
                         defines.push("#define UV1");
+                        uv1 = true;
                     }
                     if (mesh.isVerticesDataPresent(VertexBuffer.UV2Kind)) {
-                        if (alphaTexture.coordinatesIndex === 1) {
+                        if (this._opacityTexture.coordinatesIndex === 1) {
                             attribs.push(VertexBuffer.UV2Kind);
                             defines.push("#define UV2");
+                            uv2 = true;
                         }
                     }
                 }
@@ -1096,25 +1222,21 @@ export class ShadowGenerator {
                 defines.push("#define NUM_BONE_INFLUENCERS 0");
             }
             // Morph targets
-            const manager = mesh.morphTargetManager;
-            let morphInfluencers = 0;
-            if (manager) {
-                if (manager.numInfluencers > 0) {
-                    defines.push("#define MORPHTARGETS");
-                    morphInfluencers = manager.numInfluencers;
-                    defines.push("#define NUM_MORPH_INFLUENCERS " + morphInfluencers);
-                    if (manager.isUsingTextureForTargets) {
-                        defines.push("#define MORPHTARGETS_TEXTURE");
-                    }
-                    MaterialHelper.PrepareAttributesForMorphTargetsInfluencers(attribs, mesh, morphInfluencers);
-                }
-            }
+            const numMorphInfluencers = mesh.morphTargetManager
+                ? PrepareDefinesAndAttributesForMorphTargets(mesh.morphTargetManager, defines, attribs, mesh, true, // usePositionMorph
+                useNormal, // useNormalMorph
+                false, // useTangentMorph
+                uv1, // useUVMorph
+                uv2, // useUV2Morph
+                color // useColorMorph
+                )
+                : 0;
             // ClipPlanes
-            prepareDefinesForClipPlanes(material, this._scene, defines);
+            PrepareStringDefinesForClipPlanes(material, this._scene, defines);
             // Instances
             if (useInstances) {
                 defines.push("#define INSTANCES");
-                MaterialHelper.PushAttributesForInstances(attribs);
+                PushAttributesForInstances(attribs);
                 if (subMesh.getRenderingMesh().hasThinInstances) {
                     defines.push("#define THIN_INSTANCES");
                 }
@@ -1126,6 +1248,14 @@ export class ShadowGenerator {
                             defines.push(define);
                         }
                     }
+                }
+            }
+            // Baked vertex animations
+            const bvaManager = mesh.bakedVertexAnimationManager;
+            if (bvaManager && bvaManager.isEnabled) {
+                defines.push("#define BAKED_VERTEX_ANIMATION_TEXTURE");
+                if (useInstances) {
+                    attribs.push("bakedVertexAnimationSettingsInstanced");
                 }
             }
             // Get correct effect
@@ -1142,14 +1272,19 @@ export class ShadowGenerator {
                     "depthValuesSM",
                     "biasAndScaleSM",
                     "morphTargetInfluences",
-                    "boneTextureWidth",
+                    "morphTargetCount",
+                    "boneTextureInfo",
                     "softTransparentShadowSM",
                     "morphTargetTextureInfo",
                     "morphTargetTextureIndices",
+                    "bakedVertexAnimationSettings",
+                    "bakedVertexAnimationTextureSizeInverted",
+                    "bakedVertexAnimationTime",
+                    "bakedVertexAnimationTexture",
                 ];
-                const samplers = ["diffuseSampler", "boneSampler", "morphTargets"];
+                const samplers = ["diffuseSampler", "boneSampler", "morphTargets", "bakedVertexAnimationTexture"];
                 const uniformBuffers = ["Scene", "Mesh"];
-                addClipPlaneUniforms(uniforms);
+                AddClipPlaneUniforms(uniforms);
                 // Custom shader?
                 if (this.customShaderOptions) {
                     shaderName = this.customShaderOptions.shaderName;
@@ -1185,7 +1320,8 @@ export class ShadowGenerator {
                     fallbacks: fallbacks,
                     onCompiled: null,
                     onError: null,
-                    indexParameters: { maxSimultaneousMorphTargets: morphInfluencers },
+                    indexParameters: { maxSimultaneousMorphTargets: numMorphInfluencers },
+                    shaderLanguage: this._shaderLanguage,
                 }, engine);
                 subMeshEffect.setEffect(effect, cachedDefines);
             }
@@ -1267,31 +1403,45 @@ export class ShadowGenerator {
             return;
         }
         const camera = this._getCamera();
-        if (!camera) {
-            return;
-        }
         const shadowMap = this.getShadowMap();
         if (!shadowMap) {
             return;
         }
         if (!light.needCube()) {
-            effect.setMatrix("lightMatrix" + lightIndex, this.getTransformMatrix());
+            const offset = scene.floatingOriginOffset;
+            const transform = this.getTransformMatrix(); // ensures updated view/projection
+            // Doing the check for floatingOrigin here to avoid unnecessary matrix operations when offset is 0
+            const lightMatrix = scene.floatingOriginMode ? GetFullOffsetViewProjectionToRef(offset, this._viewMatrix, this._projectionMatrix, TmpVectors.Matrix[0]) : transform;
+            effect.setMatrix("lightMatrix" + lightIndex, lightMatrix);
         }
         // Only PCF uses depth stencil texture.
+        const shadowMapForRendering = this.getShadowMapForRendering();
         if (this._filter === ShadowGenerator.FILTER_PCF) {
-            effect.setDepthStencilTexture("shadowSampler" + lightIndex, this.getShadowMapForRendering());
+            effect.setDepthStencilTexture("shadowTexture" + lightIndex, shadowMapForRendering);
             light._uniformBuffer.updateFloat4("shadowsInfo", this.getDarkness(), shadowMap.getSize().width, 1 / shadowMap.getSize().width, this.frustumEdgeFalloff, lightIndex);
         }
         else if (this._filter === ShadowGenerator.FILTER_PCSS) {
-            effect.setDepthStencilTexture("shadowSampler" + lightIndex, this.getShadowMapForRendering());
-            effect.setTexture("depthSampler" + lightIndex, this.getShadowMapForRendering());
+            effect.setDepthStencilTexture("shadowTexture" + lightIndex, shadowMapForRendering);
+            effect.setTexture("depthTexture" + lightIndex, shadowMapForRendering);
             light._uniformBuffer.updateFloat4("shadowsInfo", this.getDarkness(), 1 / shadowMap.getSize().width, this._contactHardeningLightSizeUVRatio * shadowMap.getSize().width, this.frustumEdgeFalloff, lightIndex);
         }
         else {
-            effect.setTexture("shadowSampler" + lightIndex, this.getShadowMapForRendering());
+            effect.setTexture("shadowTexture" + lightIndex, shadowMapForRendering);
             light._uniformBuffer.updateFloat4("shadowsInfo", this.getDarkness(), this.blurScale / shadowMap.getSize().width, this.depthScale, this.frustumEdgeFalloff, lightIndex);
         }
         light._uniformBuffer.updateFloat2("depthValues", this.getLight().getDepthMinZ(camera), this.getLight().getDepthMinZ(camera) + this.getLight().getDepthMaxZ(camera), lightIndex);
+    }
+    /**
+     * Gets the view matrix used to render the shadow map.
+     */
+    get viewMatrix() {
+        return this._viewMatrix;
+    }
+    /**
+     * Gets the projection matrix used to render the shadow map.
+     */
+    get projectionMatrix() {
+        return this._projectionMatrix;
     }
     /**
      * Gets the transformation matrix used to project the meshes into the map from the light point of view.
@@ -1402,9 +1552,10 @@ export class ShadowGenerator {
     }
     /**
      * Disposes the ShadowGenerator.
+     * @param clearObservables Defines whether to clear the observables or not (true by default).
      * Returns nothing.
      */
-    dispose() {
+    dispose(clearObservables = true) {
         this._disposeRTTandPostProcesses();
         this._disposeSceneUBOs();
         if (this._light) {
@@ -1422,17 +1573,18 @@ export class ShadowGenerator {
             }
             this._light._markMeshesAsLightDirty();
         }
-        this.onBeforeShadowMapRenderMeshObservable.clear();
-        this.onBeforeShadowMapRenderObservable.clear();
-        this.onAfterShadowMapRenderMeshObservable.clear();
-        this.onAfterShadowMapRenderObservable.clear();
+        if (clearObservables) {
+            this.onBeforeShadowMapRenderMeshObservable.clear();
+            this.onBeforeShadowMapRenderObservable.clear();
+            this.onAfterShadowMapRenderMeshObservable.clear();
+            this.onAfterShadowMapRenderObservable.clear();
+        }
     }
     /**
      * Serializes the shadow generator setup to a json object.
      * @returns The serialized JSON object
      */
     serialize() {
-        var _a;
         const serializationObject = {};
         const shadowMap = this.getShadowMap();
         if (!shadowMap) {
@@ -1440,7 +1592,7 @@ export class ShadowGenerator {
         }
         serializationObject.className = this.getClassName();
         serializationObject.lightId = this._light.id;
-        serializationObject.cameraId = (_a = this._camera) === null || _a === void 0 ? void 0 : _a.id;
+        serializationObject.cameraId = this._camera?.id;
         serializationObject.id = this.id;
         serializationObject.mapSize = shadowMap.getRenderSize();
         serializationObject.forceBackFacesOnly = this.forceBackFacesOnly;
@@ -1455,8 +1607,8 @@ export class ShadowGenerator {
         serializationObject.filteringQuality = this.filteringQuality;
         serializationObject.useExponentialShadowMap = this.useExponentialShadowMap;
         serializationObject.useBlurExponentialShadowMap = this.useBlurExponentialShadowMap;
-        serializationObject.useCloseExponentialShadowMap = this.useBlurExponentialShadowMap;
-        serializationObject.useBlurCloseExponentialShadowMap = this.useBlurExponentialShadowMap;
+        serializationObject.useCloseExponentialShadowMap = this.useCloseExponentialShadowMap;
+        serializationObject.useBlurCloseExponentialShadowMap = this.useBlurCloseExponentialShadowMap;
         serializationObject.usePoissonSampling = this.usePoissonSampling;
         serializationObject.depthScale = this.depthScale;
         serializationObject.blurBoxOffset = this.blurBoxOffset;
@@ -1484,17 +1636,18 @@ export class ShadowGenerator {
         const camera = parsedShadowGenerator.cameraId !== undefined ? scene.getCameraById(parsedShadowGenerator.cameraId) : null;
         const shadowGenerator = constr ? constr(parsedShadowGenerator.mapSize, light, camera) : new ShadowGenerator(parsedShadowGenerator.mapSize, light, undefined, camera);
         const shadowMap = shadowGenerator.getShadowMap();
-        for (let meshIndex = 0; meshIndex < parsedShadowGenerator.renderList.length; meshIndex++) {
-            const meshes = scene.getMeshesById(parsedShadowGenerator.renderList[meshIndex]);
-            meshes.forEach(function (mesh) {
-                if (!shadowMap) {
-                    return;
+        if (parsedShadowGenerator.renderList.length && shadowMap) {
+            const renderSet = new Set(parsedShadowGenerator.renderList);
+            let renderList = shadowMap.renderList;
+            if (!renderList) {
+                renderList = shadowMap.renderList = [];
+            }
+            const meshes = scene.meshes;
+            for (const mesh of meshes) {
+                if (renderSet.has(mesh.id)) {
+                    renderList.push(mesh);
                 }
-                if (!shadowMap.renderList) {
-                    shadowMap.renderList = [];
-                }
-                shadowMap.renderList.push(mesh);
-            });
+            }
         }
         if (parsedShadowGenerator.id !== undefined) {
             shadowGenerator.id = parsedShadowGenerator.id;
@@ -1571,6 +1724,11 @@ export class ShadowGenerator {
  * Name of the shadow generator class
  */
 ShadowGenerator.CLASSNAME = "ShadowGenerator";
+/**
+ * Force all the shadow generators to compile to glsl even on WebGPU engines.
+ * False by default. This is mostly meant for backward compatibility.
+ */
+ShadowGenerator.ForceGLSL = false;
 /**
  * Shadow generator mode None: no filtering applied.
  */
@@ -1651,4 +1809,10 @@ ShadowGenerator.DEFAULT_ALPHA_CUTOFF = 0.5;
 ShadowGenerator._SceneComponentInitialization = (_) => {
     throw _WarnImport("ShadowGeneratorSceneComponent");
 };
+/**
+ * @internal
+ * Used by the scene component parser to parse cascaded shadow generators without a direct import
+ * (avoids circular dependency between shadowGeneratorSceneComponent and cascadedShadowGenerator).
+ */
+ShadowGenerator._CascadedShadowGeneratorParser = null;
 //# sourceMappingURL=shadowGenerator.js.map

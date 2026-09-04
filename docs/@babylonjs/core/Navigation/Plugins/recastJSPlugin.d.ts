@@ -1,9 +1,10 @@
-import type { INavigationEnginePlugin, ICrowd, IAgentParameters, INavMeshParameters, IObstacle } from "../../Navigation/INavigationEngine";
-import { Mesh } from "../../Meshes/mesh";
-import type { Scene } from "../../scene";
-import { Vector3 } from "../../Maths/math";
-import type { TransformNode } from "../../Meshes/transformNode";
-import { Observable } from "../../Misc/observable";
+import { type INavigationEnginePlugin, type ICrowd, type IAgentParameters, type INavMeshParameters, type IObstacle } from "../../Navigation/INavigationEngine.js";
+import { Mesh } from "../../Meshes/mesh.pure.js";
+import { type Scene } from "../../scene.js";
+import { Vector3 } from "../../Maths/math.js";
+import { type TransformNode } from "../../Meshes/transformNode.js";
+import { Observable } from "../../Misc/observable.js";
+import { type Nullable } from "../../types.js";
 /**
  * RecastJS navigation plugin
  */
@@ -36,7 +37,7 @@ export declare class RecastJSPlugin implements INavigationEnginePlugin {
      * @param workerURL url string
      * @returns boolean indicating if worker is created
      */
-    setWorkerURL(workerURL: string): boolean;
+    setWorkerURL(workerURL: string | URL): boolean;
     /**
      * Set the time step of the navigation tick update.
      * Default is 1/60.
@@ -51,7 +52,7 @@ export declare class RecastJSPlugin implements INavigationEnginePlugin {
     getTimeStep(): number;
     /**
      * If delta time in navigation tick update is greater than the time step
-     * a number of sub iterations are done. If more iterations are need to reach deltatime
+     * a number of sub iterations are done. If more iterations are needed to reach deltatime
      * they will be discarded.
      * A value of 0 will set to no maximum and update will use as many substeps as needed
      * @param newStepCount the maximum number of iterations
@@ -125,13 +126,23 @@ export declare class RecastJSPlugin implements INavigationEnginePlugin {
      * @param result output the resulting point along the navmesh
      */
     moveAlongToRef(position: Vector3, destination: Vector3, result: Vector3): void;
+    private _convertNavPathPoints;
     /**
      * Compute a navigation path from start to end. Returns an empty array if no path can be computed
+     * Path is straight.
      * @param start world position
      * @param end world position
      * @returns array containing world position composing the path
      */
     computePath(start: Vector3, end: Vector3): Vector3[];
+    /**
+     * Compute a navigation path from start to end. Returns an empty array if no path can be computed.
+     * Path follows navigation mesh geometry.
+     * @param start world position
+     * @param end world position
+     * @returns array containing world position composing the path
+     */
+    computePathSmooth(start: Vector3, end: Vector3): Vector3[];
     /**
      * Create a new Crowd so you can add agents
      * @param maxAgents the maximum agent count in the crowd
@@ -168,7 +179,7 @@ export declare class RecastJSPlugin implements INavigationEnginePlugin {
      */
     getDefaultQueryExtentToRef(result: Vector3): void;
     /**
-     * Disposes
+     * Disposes of the plugin resources
      */
     dispose(): void;
     /**
@@ -178,7 +189,7 @@ export declare class RecastJSPlugin implements INavigationEnginePlugin {
      * @param height cylinder height
      * @returns the obstacle freshly created
      */
-    addCylinderObstacle(position: Vector3, radius: number, height: number): IObstacle;
+    addCylinderObstacle(position: Vector3, radius: number, height: number): Nullable<IObstacle>;
     /**
      * Creates an oriented box obstacle and add it to the navigation
      * @param position world position
@@ -186,7 +197,7 @@ export declare class RecastJSPlugin implements INavigationEnginePlugin {
      * @param angle angle in radians of the box orientation on Y axis
      * @returns the obstacle freshly created
      */
-    addBoxObstacle(position: Vector3, extent: Vector3, angle: number): IObstacle;
+    addBoxObstacle(position: Vector3, extent: Vector3, angle: number): Nullable<IObstacle>;
     /**
      * Removes an obstacle created by addCylinderObstacle or addBoxObstacle
      * @param obstacle obstacle to remove from the navigation
@@ -197,6 +208,16 @@ export declare class RecastJSPlugin implements INavigationEnginePlugin {
      * @returns true if plugin is supported
      */
     isSupported(): boolean;
+    /**
+     * Returns the seed used for randomized functions like `getRandomPointAround`
+     * @returns seed number
+     */
+    getRandomSeed(): number;
+    /**
+     * Set the seed used for randomized functions like `getRandomPointAround`
+     * @param seed number used as seed for random functions
+     */
+    setRandomSeed(seed: number): void;
 }
 /**
  * Recast detour crowd implementation

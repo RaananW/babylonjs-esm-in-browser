@@ -1,4 +1,4 @@
-import { Vector3 } from "./math.vector";
+import { Vector3 } from "./math.vector.pure.js";
 /** Defines supported spaces */
 export declare enum Space {
     /** Local (object) space */

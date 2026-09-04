@@ -1,5 +1,5 @@
-import { Observable } from "../Misc/observable";
-import { Gamepad } from "../Gamepads/gamepad";
+import { Observable } from "../Misc/observable.js";
+import { Gamepad } from "../Gamepads/gamepad.js";
 /**
  * Defines supported buttons for XBox360 compatible gamepads
  */
@@ -62,8 +62,8 @@ export declare class Xbox360Pad extends Gamepad {
     private _buttonY;
     private _buttonBack;
     private _buttonStart;
-    private _buttonLB;
-    private _buttonRB;
+    private _buttonLb;
+    private _buttonRb;
     private _buttonLeftStick;
     private _buttonRightStick;
     private _dPadUp;
@@ -126,7 +126,7 @@ export declare class Xbox360Pad extends Gamepad {
      */
     ondpadup(callback: (dPadReleased: Xbox360Dpad) => void): void;
     private _setButtonValue;
-    private _setDPadValue;
+    private _setDpadValue;
     /**
      * Gets the value of the `A` button
      */

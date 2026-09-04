@@ -1,3 +1,5 @@
+import { Observable } from "../../Misc/observable.js";
+import { RegisterPostProcessRenderPipelineManagerSceneComponent } from "./postProcessRenderPipelineManagerSceneComponent.pure.js";
 /**
  * PostProcessRenderPipelineManager class
  * @see https://doc.babylonjs.com/features/featuresDeepDive/postProcesses/postProcessRenderPipeline
@@ -9,6 +11,21 @@ export class PostProcessRenderPipelineManager {
      */
     constructor() {
         this._renderPipelines = {};
+        this._onNewPipelineAddedObservable = new Observable();
+        this._onPipelineRemovedObservable = new Observable();
+        RegisterPostProcessRenderPipelineManagerSceneComponent(PostProcessRenderPipelineManager);
+    }
+    /**
+     * An event triggered when a pipeline is added to the manager
+     */
+    get onNewPipelineAddedObservable() {
+        return this._onNewPipelineAddedObservable;
+    }
+    /**
+     * An event triggered when a pipeline is removed from the manager
+     */
+    get onPipelineRemovedObservable() {
+        return this._onPipelineRemovedObservable;
     }
     /**
      * Gets the list of supported render pipelines
@@ -30,7 +47,20 @@ export class PostProcessRenderPipelineManager {
      * @param renderPipeline The pipeline to add
      */
     addPipeline(renderPipeline) {
+        this.removePipeline(renderPipeline._name);
         this._renderPipelines[renderPipeline._name] = renderPipeline;
+        this._onNewPipelineAddedObservable.notifyObservers(renderPipeline);
+    }
+    /**
+     * Remove the pipeline from the manager
+     * @param renderPipelineName the name of the pipeline to remove
+     */
+    removePipeline(renderPipelineName) {
+        const pipeline = this._renderPipelines[renderPipelineName];
+        if (pipeline) {
+            this._onPipelineRemovedObservable.notifyObservers(pipeline);
+            delete this._renderPipelines[renderPipelineName];
+        }
     }
     /**
      * Attaches a camera to the pipeline

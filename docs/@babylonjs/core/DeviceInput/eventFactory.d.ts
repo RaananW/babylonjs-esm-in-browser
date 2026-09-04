@@ -1,7 +1,7 @@
-import type { IUIEvent } from "../Events/deviceInputEvents";
-import type { Nullable } from "../types";
-import { DeviceType } from "./InputDevices/deviceEnums";
-import type { IDeviceInputSystem } from "./inputInterfaces";
+import { type IUIEvent } from "../Events/deviceInputEvents.js";
+import { type Nullable } from "../types.js";
+import { DeviceType } from "./InputDevices/deviceEnums.js";
+import { type IDeviceInputSystem } from "./inputInterfaces.js";
 /**
  * Class to wrap DeviceInputSystem data into an event object
  */
@@ -15,9 +15,10 @@ export declare class DeviceEventFactory {
      * @param currentState Current value for given input
      * @param deviceInputSystem Reference to DeviceInputSystem
      * @param elementToAttachTo HTMLElement to reference as target for inputs
+     * @param pointerId PointerId to use for pointer events
      * @returns IUIEvent object
      */
-    static CreateDeviceEvent(deviceType: DeviceType, deviceSlot: number, inputIndex: number, currentState: Nullable<number>, deviceInputSystem: IDeviceInputSystem, elementToAttachTo?: any): IUIEvent;
+    static CreateDeviceEvent(deviceType: DeviceType, deviceSlot: number, inputIndex: number, currentState: Nullable<number>, deviceInputSystem: IDeviceInputSystem, elementToAttachTo?: any, pointerId?: number): IUIEvent;
     /**
      * Creates pointer event
      *
@@ -27,6 +28,7 @@ export declare class DeviceEventFactory {
      * @param currentState Current value for given input
      * @param deviceInputSystem Reference to DeviceInputSystem
      * @param elementToAttachTo HTMLElement to reference as target for inputs
+     * @param pointerId PointerId to use for pointer events
      * @returns IUIEvent object (Pointer)
      */
     private static _CreatePointerEvent;

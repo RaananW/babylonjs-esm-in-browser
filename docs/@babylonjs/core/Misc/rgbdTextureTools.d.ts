@@ -1,8 +1,6 @@
-import "../Shaders/rgbdDecode.fragment";
-import "../Engines/Extensions/engine.renderTarget";
-declare type Texture = import("../Materials/Textures/texture").Texture;
-declare type InternalTexture = import("../Materials/Textures/internalTexture").InternalTexture;
-declare type Scene = import("../scene").Scene;
+import { type Texture } from "../Materials/Textures/texture.js";
+import { type InternalTexture } from "../Materials/Textures/internalTexture.js";
+import { type Scene } from "../scene.js";
 /**
  * Class used to host RGBD texture specific utilities
  */
@@ -21,4 +19,3 @@ export declare class RGBDTextureTools {
      */
     static EncodeTextureToRGBD(internalTexture: InternalTexture, scene: Scene, outputTextureType?: number): Promise<InternalTexture>;
 }
-export {};

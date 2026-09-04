@@ -1,2 +1,2 @@
-export * from "../glTF/glTFFileLoader";
-export * from "../glTF/glTFValidation";
+export * from "../glTF/glTFFileLoader.js";
+export * from "../glTF/glTFValidation.js";

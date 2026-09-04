@@ -11,24 +11,15 @@ export class RenderingGroupInfo {
  */
 export class RenderingManager {
     /**
-     * Instantiates a new rendering group for a particular scene
-     * @param scene Defines the scene the groups belongs to
+     * Specifies to disable depth pre-pass if true (default: false)
      */
-    constructor(scene) {
-        /**
-         * @internal
-         */
-        this._useSceneAutoClearSetup = false;
-        this._renderingGroups = new Array();
-        this._autoClearDepthStencil = {};
-        this._customOpaqueSortCompareFn = {};
-        this._customAlphaTestSortCompareFn = {};
-        this._customTransparentSortCompareFn = {};
-        this._renderingGroupInfo = new RenderingGroupInfo();
-        this._maintainStateBetweenFrames = false;
-        this._scene = scene;
-        for (let i = RenderingManager.MIN_RENDERINGGROUPS; i < RenderingManager.MAX_RENDERINGGROUPS; i++) {
-            this._autoClearDepthStencil[i] = { autoClear: true, depth: true, stencil: true };
+    get disableDepthPrePass() {
+        return this._disableDepthPrePass;
+    }
+    set disableDepthPrePass(value) {
+        this._disableDepthPrePass = value;
+        for (const group of this._renderingGroups) {
+            group.disableDepthPrePass = value;
         }
     }
     /**
@@ -45,25 +36,61 @@ export class RenderingManager {
             return;
         }
         this._maintainStateBetweenFrames = value;
-        // Restore wasDispatched flags when switching to maintainStateBetweenFrames to false
         if (!this._maintainStateBetweenFrames) {
-            for (const mesh of this._scene.meshes) {
-                if (mesh.subMeshes) {
-                    for (const subMesh of mesh.subMeshes) {
-                        subMesh._wasDispatched = false;
-                    }
-                }
-            }
-            for (const spriteManager of this._scene.spriteManagers) {
-                spriteManager._wasDispatched = false;
-            }
-            for (const particleSystem of this._scene.particleSystems) {
-                particleSystem._wasDispatched = false;
-            }
+            this.restoreDispachedFlags();
         }
     }
     /**
-     * Gets the rendering group with the specified id.
+     * Restore wasDispatched flags on the lists of elements to render.
+     */
+    restoreDispachedFlags() {
+        for (const mesh of this._scene.meshes) {
+            if (mesh.subMeshes) {
+                for (const subMesh of mesh.subMeshes) {
+                    subMesh._wasDispatched = false;
+                }
+            }
+        }
+        if (this._scene.spriteManagers) {
+            for (const spriteManager of this._scene.spriteManagers) {
+                spriteManager._wasDispatched = false;
+            }
+        }
+        for (const particleSystem of this._scene.particleSystems) {
+            particleSystem._wasDispatched = false;
+        }
+    }
+    /**
+     * Instantiates a new rendering group for a particular scene
+     * @param scene Defines the scene the groups belongs to
+     */
+    constructor(scene) {
+        /**
+         * @internal
+         */
+        this._useSceneAutoClearSetup = false;
+        this._disableDepthPrePass = false;
+        this._renderingGroups = new Array();
+        this._autoClearDepthStencil = {};
+        this._customOpaqueSortCompareFn = {};
+        this._customAlphaTestSortCompareFn = {};
+        this._customTransparentSortCompareFn = {};
+        this._renderingGroupInfo = new RenderingGroupInfo();
+        this._maintainStateBetweenFrames = false;
+        this._scene = scene;
+        for (let i = RenderingManager.MIN_RENDERINGGROUPS; i < RenderingManager.MAX_RENDERINGGROUPS; i++) {
+            this._autoClearDepthStencil[i] = { autoClear: true, depth: true, stencil: true };
+        }
+    }
+    /**
+     * @returns the list of rendering groups managed by the manager.
+     */
+    get renderingGroups() {
+        return this._renderingGroups;
+    }
+    /**
+     * @returns the rendering group with the specified id.
+     * @param id the id of the rendering group (0 by default)
      */
     getRenderingGroup(id) {
         const renderingGroupId = id || 0;
@@ -81,11 +108,12 @@ export class RenderingManager {
      * Renders the entire managed groups. This is used by the scene or the different render targets.
      * @internal
      */
-    render(customRenderFunction, activeMeshes, renderParticles, renderSprites) {
+    render(customRenderFunction, activeMeshes, renderParticles, renderSprites, renderDepthOnlyMeshes = true, renderOpaqueMeshes = true, renderAlphaTestMeshes = true, renderTransparentMeshes = true, customRenderTransparentSubMeshes) {
         // Update the observable context (not null as it only goes away on dispose)
         const info = this._renderingGroupInfo;
         info.scene = this._scene;
         info.camera = this._scene.activeCamera;
+        info.renderingManager = this;
         // Dispatch sprites
         if (this._scene.spriteManagers && renderSprites) {
             for (let index = 0; index < this._scene.spriteManagers.length; index++) {
@@ -100,7 +128,7 @@ export class RenderingManager {
             if (!renderingGroup || renderingGroup._empty) {
                 continue;
             }
-            const renderingGroupMask = Math.pow(2, index);
+            const renderingGroupMask = 1 << index;
             info.renderingGroupId = index;
             // Before Observable
             this._scene.onBeforeRenderingGroupObservable.notifyObservers(info, renderingGroupMask);
@@ -115,7 +143,7 @@ export class RenderingManager {
             for (const step of this._scene._beforeRenderingGroupDrawStage) {
                 step.action(index);
             }
-            renderingGroup.render(customRenderFunction, renderSprites, renderParticles, activeMeshes);
+            renderingGroup.render(customRenderFunction, renderSprites, renderParticles, activeMeshes, renderDepthOnlyMeshes, renderOpaqueMeshes, renderAlphaTestMeshes, renderTransparentMeshes, customRenderTransparentSubMeshes);
             for (const step of this._scene._afterRenderingGroupDrawStage) {
                 step.action(index);
             }
@@ -176,6 +204,7 @@ export class RenderingManager {
     _prepareRenderingGroup(renderingGroupId) {
         if (this._renderingGroups[renderingGroupId] === undefined) {
             this._renderingGroups[renderingGroupId] = new RenderingGroup(renderingGroupId, this._scene, this._customOpaqueSortCompareFn[renderingGroupId], this._customAlphaTestSortCompareFn[renderingGroupId], this._customTransparentSortCompareFn[renderingGroupId]);
+            this._renderingGroups[renderingGroupId].disableDepthPrePass = this._disableDepthPrePass;
         }
     }
     /**

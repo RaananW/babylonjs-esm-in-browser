@@ -1,38 +1,51 @@
-# Babylon.js in-browser es modules support
+# Babylon.js native ES modules in the browser
 
-**EXPERIMENTAL**
+This project demonstrates how to load Babylon.js directly as native browser ES
+modules. An [import map](https://developer.mozilla.org/docs/Web/HTML/Element/script/type/importmap)
+maps Babylon.js package specifiers to locally served package files, so the
+application does not bundle Babylon.js.
 
-This project is an example of how to use babylon in a modules-script in-browser.
-
-It is using the import-map feature, which sadly is not available in all browsers (I am looking at you, Apple. AGAIN.).
-
-To check in which browser(s) it does work, see [caniuse import-maps](https://caniuse.com/import-maps).
+Import maps are supported by all current major browsers. See
+[Can I use import maps](https://caniuse.com/import-maps) for exact browser
+versions.
 
 ## How to use
 
-To get started you need to serve the @babylonjs/core (and /loaders) folders, along with your own code. The `npm run build` command will do that for you.
+The build transpiles `src/index.ts` with TypeScript, copies the static files in
+`public`, and copies `@babylonjs/core` and `@babylonjs/loaders` into `dist`. The
+import map in `public/index.html` points browsers at those local package copies.
+No bundler or framework is involved: the browser loads the original Babylon.js
+ES modules.
 
-Afterwards you can either open a web-server in the dist folder, or run `npm run watch` to start a web-server and watch for changes.
+The application uses deep `.pure.js` imports and explicitly registers the
+features it needs. A root import from `@babylonjs/core/pure.js` is convenient
+for bundled applications, where tree shaking removes unused exports. In this
+unbundled example, that barrel would make the browser fetch every re-exported
+module, so granular pure imports keep the initial module graph substantially
+smaller. Babylon's dynamic loader registration also defers the glTF
+implementation and extensions until a glTF asset is requested.
 
 ## TL;dr
 
 ```bash
 npm install
 npm run build
-npm run watch # or serve the dist folder on your own
+npm run dev
 ```
 
-All files you need are now in the dist folder.
+`npm run dev` serves `dist` at <http://localhost:3000> and rebuilds when the
+TypeScript entry point or public HTML changes. Run `npm run check` for a
+standalone TypeScript check.
 
-## Why rollup
-
-Rollup is NOT needed in this project. I only use rollup's plugin system to run the copy plugin. Otherwise, you can use pure typescript to compile your file(s).
-You can technically ignore the rollup unresolved import warning - it is quite expected.
+All deployable files are generated in `dist`.
 
 ## It doesn't work
 
-Yes it does... If it doesn't, you are probably using a browser that doesn't support import-maps or es modules. Note that IE11 is already retired. And Apple browsers are always behind.
+[View the live example](https://raananw.github.io/babylonjs-esm-in-browser/).
+If a local build does not load, confirm that it is being accessed through an
+HTTP server rather than directly from the filesystem.
 
 ## Adding other babylon packages
 
-Go right ahead. Just make sure to run `npm run build` afterwards.
+Add the package to `package.json`, map it in `public/index.html`, and include it
+in `babylonPackages` in `scripts/build.mjs`. Then run `npm run build`.

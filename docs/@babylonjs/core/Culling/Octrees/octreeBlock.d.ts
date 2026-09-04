@@ -1,7 +1,7 @@
-import type { SmartArrayNoDuplicate } from "../../Misc/smartArray";
-import { Vector3 } from "../../Maths/math.vector";
-import type { Ray } from "../../Culling/ray";
-import type { Plane } from "../../Maths/math.plane";
+import { type SmartArrayNoDuplicate } from "../../Misc/smartArray.js";
+import { Vector3 } from "../../Maths/math.vector.pure.js";
+import { type Ray } from "../../Culling/ray.js";
+import { type Plane } from "../../Maths/math.plane.js";
 /**
  * Contains an array of blocks representing the octree
  */

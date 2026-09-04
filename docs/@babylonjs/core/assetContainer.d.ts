@@ -1,16 +1,160 @@
-import { AbstractScene } from "./abstractScene";
-import type { Scene } from "./scene";
-import { Mesh } from "./Meshes/mesh";
-import type { TransformNode } from "./Meshes/transformNode";
-import type { Skeleton } from "./Bones/skeleton";
-import type { AnimationGroup } from "./Animations/animationGroup";
-import type { Animatable } from "./Animations/animatable";
-import type { Nullable } from "./types";
-import type { Node } from "./node";
+import { type Scene } from "./scene.js";
+import { Mesh } from "./Meshes/mesh.pure.js";
+import { TransformNode } from "./Meshes/transformNode.pure.js";
+import { type Skeleton } from "./Bones/skeleton.js";
+import { type AnimationGroup } from "./Animations/animationGroup.js";
+import { type Animatable } from "./Animations/animatable.core.js";
+import { AbstractMesh } from "./Meshes/abstractMesh.pure.js";
+import { type MultiMaterial } from "./Materials/multiMaterial.js";
+import { type Material } from "./Materials/material.js";
+import { type Nullable } from "./types.js";
+import { type Node } from "./node.js";
+import { Light } from "./Lights/light.js";
+import { Camera } from "./Cameras/camera.pure.js";
+import { type IParticleSystem } from "./Particles/IParticleSystem.js";
+import { type IAssetContainer } from "./IAssetContainer.js";
+import { type Animation } from "./Animations/animation.js";
+import { type MorphTargetManager } from "./Morph/morphTargetManager.js";
+import { type Geometry } from "./Meshes/geometry.js";
+import { type AbstractActionManager } from "./Actions/abstractActionManager.js";
+import { type BaseTexture } from "./Materials/Textures/baseTexture.js";
+import { type PostProcess } from "./PostProcesses/postProcess.js";
+import { type Sound } from "./Audio/sound.js";
+import { type Layer } from "./Layers/layer.js";
+import { type EffectLayer } from "./Layers/effectLayer.js";
+import { type ReflectionProbe } from "./Probes/reflectionProbe.js";
+import { type LensFlareSystem } from "./LensFlares/lensFlareSystem.js";
+import { type ProceduralTexture } from "./Materials/Textures/Procedurals/proceduralTexture.js";
+import { type SpriteManager } from "./Sprites/spriteManager.js";
+/**
+ * Root class for AssetContainer and KeepAssets
+ */
+export declare class AbstractAssetContainer implements IAssetContainer {
+    /**
+     * Gets the list of root nodes (ie. nodes with no parent)
+     */
+    rootNodes: Node[];
+    /** All of the cameras added to this scene
+     * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras
+     */
+    cameras: Camera[];
+    /**
+     * All of the lights added to this scene
+     * @see https://doc.babylonjs.com/features/featuresDeepDive/lights/lights_introduction
+     */
+    lights: Light[];
+    /**
+     * All of the (abstract) meshes added to this scene
+     */
+    meshes: AbstractMesh[];
+    /**
+     * The list of skeletons added to the scene
+     * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/bonesSkeletons
+     */
+    skeletons: Skeleton[];
+    /**
+     * All of the particle systems added to this scene
+     * @see https://doc.babylonjs.com/features/featuresDeepDive/particles/particle_system/particle_system_intro
+     */
+    particleSystems: IParticleSystem[];
+    /**
+     * Gets a list of Animations associated with the scene
+     */
+    animations: Animation[];
+    /**
+     * All of the animation groups added to this scene
+     * @see https://doc.babylonjs.com/features/featuresDeepDive/animation/groupAnimations
+     */
+    animationGroups: AnimationGroup[];
+    /**
+     * All of the multi-materials added to this scene
+     * @see https://doc.babylonjs.com/features/featuresDeepDive/materials/using/multiMaterials
+     */
+    multiMaterials: MultiMaterial[];
+    /**
+     * All of the materials added to this scene
+     * In the context of a Scene, it is not supposed to be modified manually.
+     * Any addition or removal should be done using the addMaterial and removeMaterial Scene methods.
+     * Note also that the order of the Material within the array is not significant and might change.
+     * @see https://doc.babylonjs.com/features/featuresDeepDive/materials/using/materials_introduction
+     */
+    materials: Material[];
+    /**
+     * The list of morph target managers added to the scene
+     * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/dynamicMeshMorph
+     */
+    morphTargetManagers: MorphTargetManager[];
+    /**
+     * The list of geometries used in the scene.
+     */
+    geometries: Geometry[];
+    /**
+     * All of the transform nodes added to this scene
+     * In the context of a Scene, it is not supposed to be modified manually.
+     * Any addition or removal should be done using the addTransformNode and removeTransformNode Scene methods.
+     * Note also that the order of the TransformNode within the array is not significant and might change.
+     * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/transforms/parent_pivot/transform_node
+     */
+    transformNodes: TransformNode[];
+    /**
+     * ActionManagers available on the scene.
+     * @deprecated
+     */
+    actionManagers: AbstractActionManager[];
+    /**
+     * Textures to keep.
+     */
+    textures: BaseTexture[];
+    /** @internal */
+    protected _environmentTexture: Nullable<BaseTexture>;
+    /**
+     * Texture used in all pbr material as the reflection texture.
+     * As in the majority of the scene they are the same (exception for multi room and so on),
+     * this is easier to reference from here than from all the materials.
+     */
+    get environmentTexture(): Nullable<BaseTexture>;
+    set environmentTexture(value: Nullable<BaseTexture>);
+    /**
+     * The list of postprocesses added to the scene
+     */
+    postProcesses: PostProcess[];
+    /**
+     * The list of sounds
+     */
+    sounds: Nullable<Sound[]>;
+    /**
+     * The list of effect layers added to the scene
+     */
+    effectLayers: EffectLayer[];
+    /**
+     * The list of layers added to the scene
+     */
+    layers: Layer[];
+    /**
+     * The list of reflection probes added to the scene
+     */
+    reflectionProbes: ReflectionProbe[];
+    /**
+     * The list of lens flare systems added to the scene
+     */
+    lensFlareSystems: LensFlareSystem[];
+    /**
+     * The list of procedural textures added to the scene
+     */
+    proceduralTextures: ProceduralTexture[];
+    /**
+     * The list of sprite managers added to the scene
+     */
+    spriteManagers: SpriteManager[];
+    /**
+     * @returns all meshes, lights, cameras, transformNodes and bones
+     */
+    getNodes(): Array<Node>;
+}
 /**
  * Set of assets to keep when moving a scene into an asset container.
  */
-export declare class KeepAssets extends AbstractScene {
+export declare class KeepAssets extends AbstractAssetContainer {
 }
 /**
  * Class used to store the output of the AssetContainer.instantiateAllMeshesToScene function
@@ -19,7 +163,7 @@ export declare class InstantiatedEntries {
     /**
      * List of new root nodes (eg. nodes with no parent)
      */
-    rootNodes: TransformNode[];
+    rootNodes: Node[];
     /**
      * List of new skeletons
      */
@@ -28,11 +172,15 @@ export declare class InstantiatedEntries {
      * List of new animation groups
      */
     animationGroups: AnimationGroup[];
+    /**
+     * Disposes the instantiated entries from the scene
+     */
+    dispose(): void;
 }
 /**
  * Container with a set of assets that can be added or removed from a scene.
  */
-export declare class AssetContainer extends AbstractScene {
+export declare class AssetContainer extends AbstractAssetContainer {
     private _wasAddedToScene;
     private _onContextRestoredObserver;
     /**
@@ -45,6 +193,24 @@ export declare class AssetContainer extends AbstractScene {
      */
     constructor(scene?: Nullable<Scene>);
     /**
+     * Given a list of nodes, return a topological sorting of them.
+     * @param nodes
+     * @returns a sorted array of nodes
+     */
+    private _topologicalSort;
+    private _addNodeAndDescendantsToList;
+    /**
+     * Check if a specific node is contained in this asset container.
+     * @param node the node to check
+     * @returns true if the node is contained in this container, otherwise false.
+     */
+    private _isNodeInContainer;
+    /**
+     * For every node in the scene, check if its parent node is also in the scene.
+     * @returns true if every node's parent is also in the scene, otherwise false.
+     */
+    private _isValidHierarchy;
+    /**
      * Instantiate or clone all meshes and add the new ones to the scene.
      * Skeletons and animation groups will all be cloned
      * @param nameFunction defines an optional function used to get new names for clones
@@ -55,7 +221,7 @@ export declare class AssetContainer extends AbstractScene {
      * @returns a list of rootNodes, skeletons and animation groups that were duplicated
      */
     instantiateModelsToScene(nameFunction?: (sourceName: string) => string, cloneMaterials?: boolean, options?: {
-        doNotInstantiate?: boolean | ((node: TransformNode) => boolean);
+        doNotInstantiate?: boolean | ((node: Node) => boolean);
         predicate?: (entity: any) => boolean;
     }): InstantiatedEntries;
     /**
@@ -99,4 +265,60 @@ export declare class AssetContainer extends AbstractScene {
      * @returns an array of the new AnimationGroup added to the scene (empty array if none)
      */
     mergeAnimationsTo(scene: Nullable<Scene> | undefined, animatables: Animatable[], targetConverter?: Nullable<(target: any) => Nullable<Node>>): AnimationGroup[];
+    /**
+     * @since 6.15.0
+     * This method checks for any node that has no parent
+     * and is not in the rootNodes array, and adds the node
+     * there, if so.
+     */
+    populateRootNodes(): void;
+    /**
+     * @since 6.26.0
+     * Given a root asset, this method will traverse its hierarchy and add it, its children and any materials/skeletons to the container.
+     * @param root root node
+     */
+    addAllAssetsToContainer(root: Node): void;
+    /**
+     * Get from a list of objects by tags
+     * @param list the list of objects to use
+     * @param tagsQuery the query to use
+     * @param filter a predicate to filter for tags
+     * @returns
+     */
+    private _getByTags;
+    /**
+     * Get a list of meshes by tags
+     * @param tagsQuery defines the tags query to use
+     * @param filter defines a predicate used to filter results
+     * @returns an array of Mesh
+     */
+    getMeshesByTags(tagsQuery: string, filter?: (mesh: AbstractMesh) => boolean): AbstractMesh[];
+    /**
+     * Get a list of cameras by tags
+     * @param tagsQuery defines the tags query to use
+     * @param filter defines a predicate used to filter results
+     * @returns an array of Camera
+     */
+    getCamerasByTags(tagsQuery: string, filter?: (camera: Camera) => boolean): Camera[];
+    /**
+     * Get a list of lights by tags
+     * @param tagsQuery defines the tags query to use
+     * @param filter defines a predicate used to filter results
+     * @returns an array of Light
+     */
+    getLightsByTags(tagsQuery: string, filter?: (light: Light) => boolean): Light[];
+    /**
+     * Get a list of materials by tags
+     * @param tagsQuery defines the tags query to use
+     * @param filter defines a predicate used to filter results
+     * @returns an array of Material
+     */
+    getMaterialsByTags(tagsQuery: string, filter?: (material: Material) => boolean): Material[];
+    /**
+     * Get a list of transform nodes by tags
+     * @param tagsQuery defines the tags query to use
+     * @param filter defines a predicate used to filter results
+     * @returns an array of TransformNode
+     */
+    getTransformNodesByTags(tagsQuery: string, filter?: (transform: TransformNode) => boolean): TransformNode[];
 }

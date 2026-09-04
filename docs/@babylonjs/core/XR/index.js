@@ -1,4 +1,4 @@
-/* eslint-disable import/no-internal-modules */
+/* eslint-disable @typescript-eslint/no-restricted-imports */
 export * from "./webXRCamera.js";
 export * from "./webXREnterExitUI.js";
 export * from "./webXRExperienceHelper.js";
@@ -12,4 +12,5 @@ export * from "./webXRFeaturesManager.js";
 export * from "./features/index.js";
 export * from "./motionController/index.js";
 export * from "./native/index.js";
+export * from "./webXRRenderTargetTextureProvider.js";
 //# sourceMappingURL=index.js.map

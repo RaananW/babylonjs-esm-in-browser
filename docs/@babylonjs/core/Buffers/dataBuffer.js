@@ -3,6 +3,12 @@
  */
 export class DataBuffer {
     /**
+     * Gets the underlying buffer
+     */
+    get underlyingResource() {
+        return null;
+    }
+    /**
      * Constructs the buffer
      */
     constructor() {
@@ -17,12 +23,6 @@ export class DataBuffer {
          */
         this.is32Bits = false;
         this.uniqueId = DataBuffer._Counter++;
-    }
-    /**
-     * Gets the underlying buffer
-     */
-    get underlyingResource() {
-        return null;
     }
 }
 DataBuffer._Counter = 0;

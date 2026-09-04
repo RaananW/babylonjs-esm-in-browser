@@ -1,5 +1,5 @@
-import type { Scene, IDisposable } from "../scene";
-import { PerfCounter } from "../Misc/perfCounter";
+import { type Scene, type IDisposable } from "../scene.js";
+import { PerfCounter } from "../Misc/perfCounter.js";
 /**
  * This class can be used to get instrumentation data from a Babylon engine
  * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/optimize_your_scene#sceneinstrumentation
@@ -46,6 +46,7 @@ export declare class SceneInstrumentation implements IDisposable {
     private _onAfterAnimationsObserver;
     private _onBeforeCameraRenderObserver;
     private _onAfterCameraRenderObserver;
+    private _disposed;
     /**
      * Gets the perf counter used for active meshes evaluation time
      */
@@ -181,6 +182,8 @@ export declare class SceneInstrumentation implements IDisposable {
      * Defines the scene to instrument
      */
     scene: Scene);
+    private _removeRenderTargetsObservers;
+    private _removeRenderTimeObservers;
     /**
      * Dispose and release associated resources.
      */

@@ -1,6 +1,6 @@
-import type { IEffectFallbacks } from "./iEffectFallbacks";
-declare type Effect = import("./effect").Effect;
-declare type AbstractMesh = import("../Meshes/abstractMesh").AbstractMesh;
+import { type IEffectFallbacks } from "./iEffectFallbacks.js";
+import { type Effect } from "./effect.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
 /**
  * EffectFallbacks can be used to add fallbacks (properties to disable) to certain properties when desired to improve performance.
  * (Eg. Start at high quality with reflection and fog, if fps is low, remove reflection, if still low remove fog)
@@ -38,4 +38,3 @@ export declare class EffectFallbacks implements IEffectFallbacks {
      */
     reduce(currentDefines: string, effect: Effect): string;
 }
-export {};

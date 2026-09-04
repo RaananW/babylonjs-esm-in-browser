@@ -1,4 +1,4 @@
-import { Vector3 } from "../Maths/math.vector.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
 import { _WarnImport } from "../Misc/devTools.js";
 import { GetClass } from "../Misc/typeStore.js";
 /**
@@ -32,7 +32,7 @@ export class SubEmitter {
         /**
          * Type of the submitter (Default: END)
          */
-        this.type = SubEmitterType.END;
+        this.type = 1 /* SubEmitterType.END */;
         /**
          * If the particle should inherit the direction from the particle it's attached to. (+Y will face the direction the particle is moving) (Default: false)
          * Note: This only is supported when using an emitter of type Mesh

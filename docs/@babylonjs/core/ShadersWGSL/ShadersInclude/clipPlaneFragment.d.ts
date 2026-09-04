@@ -1,5 +1,5 @@
 /** @internal */
-export declare const clipPlaneFragment: {
+export declare const clipPlaneFragmentWGSL: {
     name: string;
     shader: string;
 };

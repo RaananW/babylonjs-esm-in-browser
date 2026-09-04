@@ -1,35 +1,54 @@
 import { SceneLoader } from "../Loading/sceneLoader.js";
 import { Logger } from "../Misc/logger.js";
 import { FilesInputStore } from "./filesInputStore.js";
+import { SceneLoaderFlags } from "../Loading/sceneLoaderFlags.js";
 /**
  * Class used to help managing file picking and drag-n-drop
  */
 export class FilesInput {
     /**
+     * List of files ready to be loaded
+     */
+    static get FilesToLoad() {
+        return FilesInputStore.FilesToLoad;
+    }
+    /**
      * Creates a new FilesInput
      * @param engine defines the rendering engine
      * @param scene defines the hosting scene
-     * @param sceneLoadedCallback callback called when scene is loaded
+     * @param sceneLoadedCallback callback called when scene (files provided) is loaded
      * @param progressCallback callback called to track progress
      * @param additionalRenderLoopLogicCallback callback called to add user logic to the rendering loop
      * @param textureLoadingCallback callback called when a texture is loading
      * @param startingProcessingFilesCallback callback called when the system is about to process all files
      * @param onReloadCallback callback called when a reload is requested
      * @param errorCallback callback call if an error occurs
+     * @param useAppend defines if the file loaded must be appended (true) or have the scene replaced (false, default behavior)
+     * @param dontInjectRenderLoop defines if the render loop mustn't be injected into engine (default is false). Used only if useAppend is false.
      */
-    constructor(engine, scene, sceneLoadedCallback, progressCallback, additionalRenderLoopLogicCallback, textureLoadingCallback, startingProcessingFilesCallback, onReloadCallback, errorCallback) {
+    constructor(engine, scene, sceneLoadedCallback, progressCallback, additionalRenderLoopLogicCallback, textureLoadingCallback, startingProcessingFilesCallback, onReloadCallback, errorCallback, useAppend = false, dontInjectRenderLoop = false) {
+        this.useAppend = useAppend;
+        this.dontInjectRenderLoop = dontInjectRenderLoop;
         /**
          * Callback called when a file is processed
+         * @returns false to abort the process
          */
         this.onProcessFileCallback = () => {
             return true;
         };
         /**
-         * Function used when loading the scene file
-         * @param sceneFile
-         * @param onProgress
+         * If a loading UI should be displayed while loading a file
          */
-        this.loadAsync = (sceneFile, onProgress) => SceneLoader.LoadAsync("file:", sceneFile, this._engine, onProgress);
+        this.displayLoadingUI = true;
+        /**
+         * Function used when loading the scene file
+         * @param sceneFile defines the file to load
+         * @param onProgress onProgress callback called while loading the file
+         * @returns a promise completing when the load is complete
+         */
+        this.loadAsync = async (sceneFile, onProgress) => this.useAppend
+            ? await SceneLoader.AppendAsync("file:", sceneFile, this._currentScene, onProgress)
+            : await SceneLoader.LoadAsync("file:", sceneFile, this._engine, onProgress);
         this._engine = engine;
         this._currentScene = scene;
         this._sceneLoadedCallback = sceneLoadedCallback;
@@ -41,15 +60,11 @@ export class FilesInput {
         this._errorCallback = errorCallback;
     }
     /**
-     * List of files ready to be loaded
-     */
-    static get FilesToLoad() {
-        return FilesInputStore.FilesToLoad;
-    }
-    /**
      * Calls this function to listen to drag'n'drop events on a specific DOM element
      * @param elementToMonitor defines the DOM element to track
      */
+    // should probably be DragAndDrop
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     monitorElementForDragNDrop(elementToMonitor) {
         if (elementToMonitor) {
             this._elementToMonitor = elementToMonitor;
@@ -162,7 +177,7 @@ export class FilesInput {
             this._startingProcessingFilesCallback(this._filesToLoad);
         }
         if (this._filesToLoad && this._filesToLoad.length > 0) {
-            const files = new Array();
+            const files = [];
             const folders = [];
             const items = event.dataTransfer ? event.dataTransfer.items : null;
             for (let i = 0; i < this._filesToLoad.length; i++) {
@@ -222,39 +237,72 @@ export class FilesInput {
     reload() {
         // If a scene file has been provided
         if (this._sceneFileToLoad) {
-            if (this._currentScene) {
-                if (Logger.errorsCount > 0) {
-                    Logger.ClearLogCache();
-                }
-                this._engine.stopRenderLoop();
-            }
-            SceneLoader.ShowLoadingScreen = false;
-            this._engine.displayLoadingUI();
-            this.loadAsync(this._sceneFileToLoad, this._progressCallback)
-                .then((scene) => {
+            if (!this.useAppend) {
                 if (this._currentScene) {
-                    this._currentScene.dispose();
+                    if (Logger.errorsCount > 0) {
+                        Logger.ClearLogCache();
+                    }
+                    this._engine.stopRenderLoop();
                 }
-                this._currentScene = scene;
-                if (this._sceneLoadedCallback) {
+            }
+            SceneLoaderFlags.ShowLoadingScreen = false;
+            if (this.displayLoadingUI) {
+                this._engine.displayLoadingUI();
+            }
+            this.loadAsync(this._sceneFileToLoad, this._progressCallback)
+                // eslint-disable-next-line github/no-then
+                .then((scene) => {
+                // if appending do nothing
+                if (!this.useAppend) {
+                    if (this._currentScene) {
+                        this._currentScene.dispose();
+                    }
+                    this._currentScene = scene;
+                    // Wait for textures and shaders to be ready
+                    this._currentScene.executeWhenReady(() => {
+                        if (this.displayLoadingUI) {
+                            this._engine.hideLoadingUI();
+                        }
+                        if (!this.dontInjectRenderLoop) {
+                            this._engine.runRenderLoop(() => {
+                                this._renderFunction();
+                            });
+                        }
+                    });
+                }
+                else {
+                    if (this.displayLoadingUI) {
+                        this._engine.hideLoadingUI();
+                    }
+                }
+                if (this._sceneLoadedCallback && this._currentScene) {
                     this._sceneLoadedCallback(this._sceneFileToLoad, this._currentScene);
                 }
-                // Wait for textures and shaders to be ready
-                this._currentScene.executeWhenReady(() => {
-                    this._engine.hideLoadingUI();
-                    this._engine.runRenderLoop(() => {
-                        this._renderFunction();
-                    });
-                });
             })
+                // eslint-disable-next-line github/no-then
                 .catch((error) => {
-                this._engine.hideLoadingUI();
+                if (this.displayLoadingUI) {
+                    this._engine.hideLoadingUI();
+                }
                 if (this._errorCallback) {
                     this._errorCallback(this._sceneFileToLoad, this._currentScene, error.message);
                 }
             });
         }
         else {
+            if (this._filesToLoad.length === 1) {
+                const name = this._filesToLoad[0].name.toLowerCase();
+                const extension = name.split(".").pop();
+                if (extension) {
+                    switch (extension.toLowerCase()) {
+                        case "dds":
+                        case "env":
+                        case "hdr": {
+                            return; // Ignore error in that case
+                        }
+                    }
+                }
+            }
             Logger.Error("Please provide a valid .babylon file.");
         }
     }

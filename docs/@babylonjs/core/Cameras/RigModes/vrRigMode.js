@@ -1,13 +1,13 @@
-import { Matrix } from "../../Maths/math.vector.js";
+import { Matrix } from "../../Maths/math.vector.pure.js";
 import { VRDistortionCorrectionPostProcess } from "../../PostProcesses/vrDistortionCorrectionPostProcess.js";
-import { VRMultiviewToSingleviewPostProcess } from "../../PostProcesses/vrMultiviewToSingleviewPostProcess.js";
+import { VRMultiviewToSingleviewPostProcess } from "../../PostProcesses/vrMultiviewToSingleviewPostProcess.pure.js";
 import { VRCameraMetrics } from "../VR/vrCameraMetrics.js";
 import { Logger } from "../../Misc/logger.js";
 import { Viewport } from "../../Maths/math.viewport.js";
 /**
  * @internal
  */
-export function setVRRigMode(camera, rigParams) {
+export function _SetVrRigMode(camera, rigParams) {
     const metrics = rigParams.vrCameraMetrics || VRCameraMetrics.GetDefault();
     camera._rigCameras[0]._cameraRigParams.vrMetrics = metrics;
     camera._rigCameras[0].viewport = new Viewport(0, 0, 0.5, 1.0);
@@ -21,7 +21,7 @@ export function setVRRigMode(camera, rigParams) {
     camera._rigCameras[1]._cameraRigParams.vrHMatrix = metrics.rightHMatrix;
     camera._rigCameras[1]._cameraRigParams.vrPreViewMatrix = metrics.rightPreViewMatrix;
     camera._rigCameras[1].getProjectionMatrix = camera._rigCameras[1]._getVRProjectionMatrix;
-    // For multiview on a webVR camera
+    // For multiview camera
     // First multiview will be rendered to camera._multiviewTexture
     // Then this postprocess will run on each eye to copy the right texture to each eye
     if (metrics.multiviewEnabled) {

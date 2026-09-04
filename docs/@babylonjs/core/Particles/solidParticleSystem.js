@@ -1,18 +1,18 @@
-import { Vector3, Matrix, TmpVectors, Quaternion } from "../Maths/math.vector.js";
-import { Color4 } from "../Maths/math.color.js";
-import { VertexBuffer } from "../Buffers/buffer.js";
+import { Vector3, Matrix, TmpVectors, Quaternion } from "../Maths/math.vector.pure.js";
+import { Color4 } from "../Maths/math.color.pure.js";
+import { VertexBuffer } from "../Buffers/buffer.pure.js";
 import { VertexData } from "../Meshes/mesh.vertexData.js";
-import { Mesh } from "../Meshes/mesh.js";
-import { CreateDisc } from "../Meshes/Builders/discBuilder.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
+import { CreateDisc } from "../Meshes/Builders/discBuilder.pure.js";
 import { EngineStore } from "../Engines/engineStore.js";
 import { DepthSortedParticle, SolidParticle, ModelShape, SolidParticleVertex } from "./solidParticle.js";
 import { BoundingInfo } from "../Culling/boundingInfo.js";
 import { Axis } from "../Maths/math.axis.js";
 import { SubMesh } from "../Meshes/subMesh.js";
-import { StandardMaterial } from "../Materials/standardMaterial.js";
-import { MultiMaterial } from "../Materials/multiMaterial.js";
+import { StandardMaterial } from "../Materials/standardMaterial.pure.js";
+import { MultiMaterial } from "../Materials/multiMaterial.pure.js";
 /**
- * The SPS is a single updatable mesh. The solid particles are simply separate parts or faces fo this big mesh.
+ * The SPS is a single updatable mesh. The solid particles are simply separate parts or faces of this big mesh.
  *As it is just a mesh, the SPS has all the same properties than any other BJS mesh : not more, not less. It can be scaled, rotated, translated, enlighted, textured, moved, etc.
 
  * The SPS is also a particle system. It provides some methods to manage the particles.
@@ -37,6 +37,7 @@ export class SolidParticleSystem {
      * * bSphereRadiusFactor (optional float, default 1.0) : a number to multiply the bounding sphere radius by in order to reduce it for instance.
      * * computeBoundingBox (optional boolean, default false): if the bounding box of the entire SPS will be computed (for occlusion detection, for example). If it is false, the bounding box will be the bounding box of the first particle.
      * * autoFixFaceOrientation (optional boolean, default false): if the particle face orientations will be flipped for transformations that change orientation (scale (-1, 1, 1), for example)
+     * * camera (optional Camera) : the camera to use with the particule system. If not provided, use the scene active camera.
      * @param options.updatable
      * @param options.isPickable
      * @param options.enableDepthSort
@@ -48,6 +49,7 @@ export class SolidParticleSystem {
      * @param options.enableMultiMaterial
      * @param options.computeBoundingBox
      * @param options.autoFixFaceOrientation
+     * @param options.camera
      * @example bSphereRadiusFactor = 1.0 / Math.sqrt(3.0) => the bounding sphere exactly matches a spherical mesh.
      */
     constructor(name, scene, options) {
@@ -121,9 +123,16 @@ export class SolidParticleSystem {
         this._materialSortFunction = (p1, p2) => p1.materialIndex - p2.materialIndex;
         this._autoUpdateSubMeshes = false;
         this._recomputeInvisibles = false;
+        this._started = false;
+        this._stopped = false;
+        this._onBeforeRenderObserver = null;
+        /**
+         * The overall motion speed (0.01 is default update speed, faster updates = faster animation)
+         */
+        this.updateSpeed = 0.01;
         this.name = name;
         this._scene = scene || EngineStore.LastCreatedScene;
-        this._camera = scene.activeCamera;
+        this._camera = options && options.camera ? options.camera : scene.activeCamera;
         this._pickable = options ? options.isPickable : false;
         this._depthSort = options ? options.enableDepthSort : false;
         this._multimaterialEnabled = options ? options.enableMultiMaterial : false;
@@ -133,8 +142,8 @@ export class SolidParticleSystem {
         this._particlesIntersect = options ? options.particleIntersection : false;
         this._bSphereOnly = options ? options.boundingSphereOnly : false;
         this._bSphereRadiusFactor = options && options.bSphereRadiusFactor ? options.bSphereRadiusFactor : 1.0;
-        this._computeBoundingBox = (options === null || options === void 0 ? void 0 : options.computeBoundingBox) ? options.computeBoundingBox : false;
-        this._autoFixFaceOrientation = (options === null || options === void 0 ? void 0 : options.autoFixFaceOrientation) ? options.autoFixFaceOrientation : false;
+        this._computeBoundingBox = options?.computeBoundingBox ? options.computeBoundingBox : false;
+        this._autoFixFaceOrientation = options?.autoFixFaceOrientation ? options.autoFixFaceOrientation : false;
         if (options && options.updatable !== undefined) {
             this._updatable = options.updatable;
         }
@@ -238,6 +247,17 @@ export class SolidParticleSystem {
         this._recomputeInvisibles = true;
         return this.mesh;
     }
+    _getUVKind(mesh, uvKind) {
+        if (uvKind === -1) {
+            if (mesh.material?.diffuseTexture) {
+                uvKind = mesh.material.diffuseTexture.coordinatesIndex;
+            }
+            else if (mesh.material?.albedoTexture) {
+                uvKind = mesh.material.albedoTexture.coordinatesIndex;
+            }
+        }
+        return "uv" + (uvKind ? uvKind + 1 : "");
+    }
     /**
      * Digests the mesh and generates as many solid particles in the system as wanted. Returns the SPS.
      * These particles will have the same geometry than the mesh parts and will be positioned at the same localisation than the mesh original places.
@@ -247,10 +267,12 @@ export class SolidParticleSystem {
      * {delta} (optional integer, default 0) is the random extra number of facets per particle , each particle will have between `facetNb` and `facetNb + delta` facets
      * {number} (optional positive integer) is the wanted number of particles : each particle is built with `mesh_total_facets / number` facets
      * {storage} (optional existing array) is an array where the particles will be stored for a further use instead of being inserted in the SPS.
+     * {uvKind} (optional positive integer, default 0) is the kind of UV to read from. Use -1 to deduce it from the diffuse/albedo texture (if any) of the mesh material
      * @param options.facetNb
      * @param options.number
      * @param options.delta
      * @param options.storage
+     * @param options.uvKind
      * @returns the current SPS
      */
     digest(mesh, options) {
@@ -259,10 +281,13 @@ export class SolidParticleSystem {
         let delta = (options && options.delta) || 0;
         const meshPos = mesh.getVerticesData(VertexBuffer.PositionKind);
         const meshInd = mesh.getIndices();
-        const meshUV = mesh.getVerticesData(VertexBuffer.UVKind);
-        const meshCol = mesh.getVerticesData(VertexBuffer.ColorKind);
+        const meshUV = mesh.getVerticesData(this._getUVKind(mesh, options?.uvKind ?? 0));
+        let meshCol = mesh.getVerticesData(VertexBuffer.ColorKind);
         const meshNor = mesh.getVerticesData(VertexBuffer.NormalKind);
         const storage = options && options.storage ? options.storage : null;
+        // Normalize vertex colors to RGBA (4 components) since the code below always reads 4 components per color.
+        // Source meshes (e.g. from glTF) may provide RGB (3 components) vertex colors.
+        meshCol = this._normalizeMeshVertexColors(mesh, meshPos, meshCol);
         let f = 0; // facet counter
         const totalFacets = meshInd.length / 3; // a facet is a triangle, so 3 indices
         // compute size from number
@@ -311,7 +336,7 @@ export class SolidParticleSystem {
                 fi++;
             }
             // create a model shape for each single particle
-            let idx = this.nbParticles;
+            const idx = this.nbParticles;
             const shape = this._posToShape(facetPos);
             const shapeUV = this._uvsToShapeUV(facetUV);
             const shapeInd = facetInd.slice();
@@ -351,7 +376,6 @@ export class SolidParticleSystem {
             this.particles[this.nbParticles].position.addInPlace(barycenter);
             if (!storage) {
                 this._index += shape.length;
-                idx++;
                 this.nbParticles++;
                 this._lastParticleId++;
             }
@@ -525,9 +549,9 @@ export class SolidParticleSystem {
             }
         }
         for (i = 0; i < meshInd.length; i++) {
-            const current_ind = p + meshInd[i];
-            indices.push(current_ind);
-            if (current_ind > 65535) {
+            const currentInd = p + meshInd[i];
+            indices.push(currentInd);
+            if (currentInd > 65535) {
                 this._needs32Bits = true;
             }
         }
@@ -584,10 +608,34 @@ export class SolidParticleSystem {
         target.push(sp);
         return sp;
     }
+    _normalizeMeshVertexColors(mesh, meshPos, meshCol) {
+        if (!meshCol) {
+            return meshCol;
+        }
+        const vertexCount = meshPos.length / 3;
+        if (!vertexCount) {
+            return meshCol;
+        }
+        const colorBuffer = mesh.getVertexBuffer(VertexBuffer.ColorKind);
+        const colorStride = colorBuffer ? colorBuffer.getSize() : Math.round(meshCol.length / vertexCount);
+        if (colorStride !== 3 || meshCol.length !== vertexCount * 3) {
+            return meshCol;
+        }
+        const rgba = new Float32Array(vertexCount * 4);
+        for (let i = 0; i < vertexCount; i++) {
+            const rgbIndex = i * 3;
+            const rgbaIndex = i * 4;
+            rgba[rgbaIndex] = meshCol[rgbIndex];
+            rgba[rgbaIndex + 1] = meshCol[rgbIndex + 1];
+            rgba[rgbaIndex + 2] = meshCol[rgbIndex + 2];
+            rgba[rgbaIndex + 3] = 1;
+        }
+        return rgba;
+    }
     /**
      * Adds some particles to the SPS from the model shape. Returns the shape id.
      * Please read the doc : https://doc.babylonjs.com/features/featuresDeepDive/particles/solid_particle_system/immutable_sps
-     * @param mesh is any Mesh object that will be used as a model for the solid particles.
+     * @param mesh is any Mesh object that will be used as a model for the solid particles. If the mesh does not have vertex normals, it will turn on the recomputeNormals attribute.
      * @param nb (positive integer) the number of particles to be created from this model
      * @param options {positionFunction} is an optional javascript function to called for each particle on SPS creation.
      * {vertexFunction} is an optional javascript function to called for each vertex of each particle on SPS creation
@@ -601,11 +649,14 @@ export class SolidParticleSystem {
         const meshPos = mesh.getVerticesData(VertexBuffer.PositionKind);
         const meshInd = mesh.getIndices();
         const meshUV = mesh.getVerticesData(VertexBuffer.UVKind);
-        const meshCol = mesh.getVerticesData(VertexBuffer.ColorKind);
+        let meshCol = mesh.getVerticesData(VertexBuffer.ColorKind);
         const meshNor = mesh.getVerticesData(VertexBuffer.NormalKind);
         this.recomputeNormals = meshNor ? false : true;
+        // Normalize vertex colors to RGBA (4 components) since _meshBuilder always reads 4 components per color.
+        // Source meshes (e.g. from glTF) may provide RGB (3 components) vertex colors.
+        meshCol = this._normalizeMeshVertexColors(mesh, meshPos, meshCol);
         const indices = Array.from(meshInd);
-        const shapeNormals = Array.from(meshNor);
+        const shapeNormals = meshNor ? Array.from(meshNor) : [];
         const shapeColors = meshCol ? Array.from(meshCol) : [];
         const storage = options && options.storage ? options.storage : null;
         let bbInfo = null;
@@ -884,15 +935,16 @@ export class SolidParticleSystem {
             this.mesh.computeWorldMatrix(true);
             this.mesh._worldMatrix.invertToRef(invertedMatrix);
         }
+        const camera = this._camera ? this._camera : this._scene.activeCamera ? this._scene.activeCamera : this._scene.cameras[0];
         // if the particles will always face the camera
         if (this.billboard) {
             // compute the camera position and un-rotate it by the current mesh rotation
             const tmpVector0 = tempVectors[0];
-            this._camera.getDirectionToRef(Axis.Z, tmpVector0);
+            camera.getDirectionToRef(Axis.Z, tmpVector0);
             Vector3.TransformNormalToRef(tmpVector0, invertedMatrix, camAxisZ);
             camAxisZ.normalize();
             // same for camera up vector extracted from the cam view matrix
-            const view = this._camera.getViewMatrix(true);
+            const view = camera.getViewMatrix(true);
             Vector3.TransformNormalFromFloatsToRef(view.m[1], view.m[5], view.m[9], invertedMatrix, camAxisY);
             Vector3.CrossToRef(camAxisY, camAxisZ, camAxisX);
             camAxisY.normalize();
@@ -900,16 +952,16 @@ export class SolidParticleSystem {
         }
         // if depthSort, compute the camera global position in the mesh local system
         if (this._depthSort) {
-            Vector3.TransformCoordinatesToRef(this._camera.globalPosition, invertedMatrix, camInvertedPosition); // then un-rotate the camera
+            Vector3.TransformCoordinatesToRef(camera.globalPosition, invertedMatrix, camInvertedPosition); // then un-rotate the camera
         }
         Matrix.IdentityToRef(rotMatrix);
         let idx = 0; // current position index in the global array positions32
-        let index = 0; // position start index in the global array positions32 of the current particle
+        let index; // position start index in the global array positions32 of the current particle
         let colidx = 0; // current color index in the global array colors32
-        let colorIndex = 0; // color start index in the global array colors32 of the current particle
+        let colorIndex; // color start index in the global array colors32 of the current particle
         let uvidx = 0; // current uv index in the global array uvs32
-        let uvIndex = 0; // uv start index in the global array uvs32 of the current particle
-        let pt = 0; // current index in the particle model shape
+        let uvIndex; // uv start index in the global array uvs32 of the current particle
+        let pt; // current index in the particle model shape
         if (this.mesh.isFacetDataEnabled) {
             this._computeBoundingBox = true;
         }
@@ -929,8 +981,20 @@ export class SolidParticleSystem {
         const vpos = (index / 3) | 0;
         colorIndex = vpos * 4;
         uvIndex = vpos * 2;
+        // Calculate scaled update speed based on animation ratio (for FPS independence)
+        if (this._started && !this._stopped) {
+            this._scaledUpdateSpeed = this.updateSpeed * (this._scene?.getAnimationRatio() || 1);
+        }
         for (let p = start; p <= end; p++) {
             const particle = this.particles[p];
+            // Update particle age and check lifetime
+            if (this._started && !this._stopped) {
+                particle.age += this._scaledUpdateSpeed;
+                // Only check lifetime if it's finite (Infinity means particle never dies)
+                if (isFinite(particle.lifeTime) && particle.age >= particle.lifeTime) {
+                    particle.alive = false;
+                }
+            }
             // call to custom user function to update the particle properties
             this.updateParticle(particle);
             const shape = particle._model._shape;
@@ -1266,6 +1330,7 @@ export class SolidParticleSystem {
      * Disposes the SPS.
      */
     dispose() {
+        this.stop();
         this.mesh.dispose();
         this.vars = null;
         // drop references to internal big arrays for the GC
@@ -1344,8 +1409,8 @@ export class SolidParticleSystem {
     /**
      * Populates the passed array "ref" with the particles having the passed shapeId.
      * @param shapeId the shape identifier
+     * @param ref array to populate
      * @returns the SPS
-     * @param ref
      */
     getParticlesByShapeIdToRef(shapeId, ref) {
         ref.length = 0;
@@ -1757,5 +1822,60 @@ export class SolidParticleSystem {
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     afterUpdateParticles(start, stop, update) { }
+    /**
+     * Starts the particle system and begins to emit.
+     * This will call buildMesh(), initParticles(), setParticles() and register the update loop.
+     * @param delay defines the delay in milliseconds before starting the system (0 by default)
+     */
+    start(delay = 0) {
+        if (this._started) {
+            return;
+        }
+        if (delay > 0) {
+            setTimeout(() => {
+                this.start(0);
+            }, delay);
+            return;
+        }
+        this.buildMesh();
+        this.initParticles();
+        this.setParticles();
+        this._started = true;
+        this._stopped = false;
+        // Register update loop
+        if (this._scene) {
+            this._onBeforeRenderObserver = this._scene.onBeforeRenderObservable.add(() => {
+                if (this._started && !this._stopped) {
+                    this.setParticles();
+                }
+            });
+        }
+    }
+    /**
+     * Stops the particle system.
+     */
+    stop() {
+        if (this._stopped) {
+            return;
+        }
+        this._stopped = true;
+        // Unregister update loop
+        if (this._onBeforeRenderObserver && this._scene) {
+            this._scene.onBeforeRenderObservable.remove(this._onBeforeRenderObserver);
+            this._onBeforeRenderObserver = null;
+        }
+    }
+    /**
+     * Gets if the particle system is started
+     */
+    get started() {
+        return this._started;
+    }
+    /**
+     * Gets if the particle system is stopped
+     */
+    get stopped() {
+        return this._stopped;
+    }
 }
 //# sourceMappingURL=solidParticleSystem.js.map

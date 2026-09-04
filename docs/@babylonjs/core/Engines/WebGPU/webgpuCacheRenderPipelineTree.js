@@ -18,11 +18,6 @@ class NodeState {
 }
 /** @internal */
 export class WebGPUCacheRenderPipelineTree extends WebGPUCacheRenderPipeline {
-    constructor(device, emptyVertexBuffer, useTextureStage) {
-        super(device, emptyVertexBuffer, useTextureStage);
-        this._nodeStack = [];
-        this._nodeStack[0] = WebGPUCacheRenderPipelineTree._Cache;
-    }
     static GetNodeCounts() {
         const counts = WebGPUCacheRenderPipelineTree._Cache.count();
         return { nodeCount: counts[0], pipelineCount: counts[1] };
@@ -43,6 +38,14 @@ export class WebGPUCacheRenderPipelineTree extends WebGPUCacheRenderPipeline {
         const pipelines = [];
         WebGPUCacheRenderPipelineTree._GetPipelines(WebGPUCacheRenderPipelineTree._Cache, pipelines, [], 0);
         return pipelines;
+    }
+    static ResetCache() {
+        WebGPUCacheRenderPipelineTree._Cache = new NodeState();
+    }
+    reset() {
+        this._nodeStack = [];
+        this._nodeStack[0] = WebGPUCacheRenderPipelineTree._Cache;
+        super.reset();
     }
     _getRenderPipeline(param) {
         let node = this._nodeStack[this._stateDirtyLowestIndex];

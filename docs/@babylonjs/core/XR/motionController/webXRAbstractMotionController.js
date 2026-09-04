@@ -2,8 +2,8 @@ import { WebXRControllerComponent } from "./webXRControllerComponent.js";
 import { Observable } from "../../Misc/observable.js";
 import { Logger } from "../../Misc/logger.js";
 import { SceneLoader } from "../../Loading/sceneLoader.js";
-import { Quaternion, Vector3 } from "../../Maths/math.vector.js";
-import { Mesh } from "../../Meshes/mesh.js";
+import { Quaternion, Vector3 } from "../../Maths/math.vector.pure.js";
+import { Mesh } from "../../Meshes/mesh.pure.js";
 /**
  * An Abstract Motion controller
  * This class receives an xrInput and a profile layout and uses those to initialize the components
@@ -34,6 +34,7 @@ export class WebXRAbstractMotionController {
     handedness, 
     /**
      * @internal
+     * [false]
      */
     _doNotLoadControllerMesh = false, _controllerCache) {
         this.scene = scene;
@@ -72,7 +73,10 @@ export class WebXRAbstractMotionController {
         this.onModelLoadedObservable = new Observable();
         // initialize the components
         if (layout.components) {
-            Object.keys(layout.components).forEach(this._initComponent);
+            const keys = Object.keys(layout.components);
+            for (const key of keys) {
+                this._initComponent(key);
+            }
         }
         // Model is loaded in WebXRInput
     }
@@ -80,13 +84,18 @@ export class WebXRAbstractMotionController {
      * Dispose this controller, the model mesh and all its components
      */
     dispose() {
-        this.getComponentIds().forEach((id) => this.getComponent(id).dispose());
+        const ids = this.getComponentIds();
+        for (const id of ids) {
+            this.getComponent(id).dispose();
+        }
         if (this.rootMesh) {
-            this.rootMesh.getChildren(undefined, true).forEach((node) => {
+            const nodes = this.rootMesh.getChildren(undefined, true);
+            for (const node of nodes) {
                 node.setEnabled(false);
-            });
+            }
             this.rootMesh.dispose(!!this._controllerCache, !this._controllerCache);
         }
+        this.onModelLoadedObservable.clear();
     }
     /**
      * Returns all components of specific type
@@ -133,6 +142,7 @@ export class WebXRAbstractMotionController {
      * When the mesh is loaded, the onModelLoadedObservable will be triggered
      * @returns A promise fulfilled with the result of the model loading
      */
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     async loadModel() {
         const useGeneric = !this._getModelLoadingConstraints();
         let loadingParams = this._getGenericFilenameAndPath();
@@ -143,7 +153,7 @@ export class WebXRAbstractMotionController {
         else {
             loadingParams = this._getFilenameAndPath();
         }
-        return new Promise((resolve, reject) => {
+        return await new Promise((resolve, reject) => {
             const meshesLoaded = (meshes) => {
                 if (useGeneric) {
                     this._getGenericParentMesh(meshes);
@@ -162,7 +172,9 @@ export class WebXRAbstractMotionController {
                     return c.filename === loadingParams.filename && c.path === loadingParams.path;
                 });
                 if (found[0]) {
-                    found[0].meshes.forEach((mesh) => mesh.setEnabled(true));
+                    for (const mesh of found[0].meshes) {
+                        mesh.setEnabled(true);
+                    }
                     meshesLoaded(found[0].meshes);
                     return;
                     // found, don't continue to load
@@ -179,6 +191,7 @@ export class WebXRAbstractMotionController {
             }, null, (_scene, message) => {
                 Logger.Log(message);
                 Logger.Warn(`Failed to retrieve controller model of type ${this.profileId} from the remote server: ${loadingParams.path}${loadingParams.filename}`);
+                // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
                 reject(message);
             });
         });
@@ -188,7 +201,9 @@ export class WebXRAbstractMotionController {
      * @param xrFrame the current xr frame to use and update the model
      */
     updateFromXRFrame(xrFrame) {
-        this.getComponentIds().forEach((id) => this.getComponent(id).update(this.gamepadObject));
+        for (const id of this.getComponentIds()) {
+            this.getComponent(id).update(this.gamepadObject);
+        }
         this.updateModel(xrFrame);
     }
     /**
@@ -196,6 +211,53 @@ export class WebXRAbstractMotionController {
      */
     get handness() {
         return this.handedness;
+    }
+    /**
+     * Gets the haptic effects reported as supported by an actuator.
+     * See https://playground.babylonjs.com/#ULVR1X#0 for an interactive example.
+     *
+     * @param hapticActuatorIndex index of the actuator (usually 0)
+     * @returns the effects reported by the actuator, or an empty array when effect discovery is unavailable
+     * @throws a RangeError when the actuator index is invalid
+     */
+    getHapticEffects(hapticActuatorIndex = 0) {
+        return this._getHapticActuator(hapticActuatorIndex).effects ?? [];
+    }
+    /**
+     * Plays an advanced haptic effect on this controller.
+     *
+     * @param effectType the standard Gamepad haptic effect to play
+     * @param parameters effect duration, delay, and motor magnitudes
+     * @param hapticActuatorIndex index of the actuator (usually 0)
+     * @returns the native completion result from the actuator
+     * @throws an Error when the actuator or requested effect is unsupported, or a RangeError when the actuator index is invalid
+     */
+    async playHapticEffectAsync(effectType, parameters, hapticActuatorIndex = 0) {
+        const actuator = this._getHapticActuator(hapticActuatorIndex);
+        if (!actuator.effects) {
+            throw new Error(`Haptic actuator ${hapticActuatorIndex} does not support effect discovery.`);
+        }
+        if (actuator.effects.indexOf(effectType) === -1) {
+            throw new Error(`Haptic effect "${effectType}" is not supported by actuator ${hapticActuatorIndex}.`);
+        }
+        if (!actuator.playEffect) {
+            throw new Error(`Haptic actuator ${hapticActuatorIndex} does not support advanced effect playback.`);
+        }
+        return await actuator.playEffect(effectType, parameters);
+    }
+    /**
+     * Stops the active haptic effect on an actuator.
+     *
+     * @param hapticActuatorIndex index of the actuator (usually 0)
+     * @returns the native completion result from the actuator
+     * @throws an Error when reset is unsupported, or a RangeError when the actuator index is invalid
+     */
+    async resetHapticActuatorAsync(hapticActuatorIndex = 0) {
+        const actuator = this._getHapticActuator(hapticActuatorIndex);
+        if (!actuator.reset) {
+            throw new Error(`Haptic actuator ${hapticActuatorIndex} does not support reset.`);
+        }
+        return await actuator.reset();
     }
     /**
      * Pulse (vibrate) this controller
@@ -207,13 +269,28 @@ export class WebXRAbstractMotionController {
      * @param hapticActuatorIndex optional index of actuator (will usually be 0)
      * @returns a promise that will send true when the pulse has ended and false if the device doesn't support pulse or an error accrued
      */
-    pulse(value, duration, hapticActuatorIndex = 0) {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    async pulse(value, duration, hapticActuatorIndex = 0) {
         if (this.gamepadObject.hapticActuators && this.gamepadObject.hapticActuators[hapticActuatorIndex]) {
-            return this.gamepadObject.hapticActuators[hapticActuatorIndex].pulse(value, duration);
+            return await this.gamepadObject.hapticActuators[hapticActuatorIndex].pulse(value, duration);
         }
         else {
-            return Promise.resolve(false);
+            return false;
         }
+    }
+    _getHapticActuator(hapticActuatorIndex) {
+        if (!Number.isInteger(hapticActuatorIndex) || hapticActuatorIndex < 0) {
+            throw new RangeError(`Haptic actuator index ${hapticActuatorIndex} is out of range.`);
+        }
+        if (hapticActuatorIndex === 0 && this.gamepadObject.vibrationActuator) {
+            return this.gamepadObject.vibrationActuator;
+        }
+        const actuators = this.gamepadObject.hapticActuators;
+        const actuator = actuators?.[hapticActuatorIndex];
+        if (!actuator) {
+            throw new RangeError(`Haptic actuator index ${hapticActuatorIndex} is out of range.`);
+        }
+        return actuator;
     }
     // Look through all children recursively. This will return null if no mesh exists with the given name.
     _getChildByName(node, name) {
@@ -260,12 +337,12 @@ export class WebXRAbstractMotionController {
     }
     _getGenericParentMesh(meshes) {
         this.rootMesh = new Mesh(this.profileId + " " + this.handedness, this.scene);
-        meshes.forEach((mesh) => {
+        for (const mesh of meshes) {
             if (!mesh.parent) {
                 mesh.isPickable = false;
                 mesh.setParent(this.rootMesh);
             }
-        });
+        }
         this.rootMesh.rotationQuaternion = Quaternion.FromEulerAngles(0, Math.PI, 0);
     }
 }

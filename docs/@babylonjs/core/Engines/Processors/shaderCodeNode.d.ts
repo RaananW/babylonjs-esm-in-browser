@@ -1,4 +1,4 @@
-import type { ProcessingOptions } from "./shaderProcessingOptions";
+import { type _IProcessingOptions } from "./shaderProcessingOptions.js";
 /** @internal */
 export declare class ShaderCodeNode {
     line: string;
@@ -10,5 +10,7 @@ export declare class ShaderCodeNode {
     }): boolean;
     process(preprocessors: {
         [key: string]: string;
-    }, options: ProcessingOptions): string;
+    }, options: _IProcessingOptions, preProcessorsFromCode: {
+        [key: string]: string;
+    }): string;
 }

@@ -1,114 +1,110 @@
-import type { PhysicsBody } from "./physicsBody";
-import { PhysicsMaterial } from "./physicsMaterial";
-import type { PhysicsShape } from "./physicsShape";
-import type { Scene } from "../../scene";
-import type { TransformNode } from "../../Meshes/transformNode";
+import { PhysicsBody } from "./physicsBody.js";
+import { type PhysicsMaterial } from "./physicsMaterial.js";
+import { PhysicsShape } from "./physicsShape.js";
+import { type Scene } from "../../scene.js";
+import { type TransformNode } from "../../Meshes/transformNode.js";
+import { Quaternion, Vector3 } from "../../Maths/math.vector.pure.js";
+import { PhysicsShapeType } from "./IPhysicsEnginePlugin.js";
+import { type Mesh } from "../../Meshes/mesh.js";
 /**
  * The interface for the physics aggregate parameters
  */
-/** @internal */
 export interface PhysicsAggregateParameters {
-    /** @internal */
     /**
-     * The mass of the physics imposter
+     * The mass of the physics aggregate
      */
     mass: number;
     /**
-     * The friction of the physics imposter
+     * The friction of the physics aggregate
      */
     friction?: number;
     /**
-     * The coefficient of restitution of the physics imposter
+     * The coefficient of restitution of the physics aggregate
      */
     restitution?: number;
     /**
-     * The native options of the physics imposter
+     * Radius for sphere, cylinder and capsule
      */
-    nativeOptions?: any;
+    radius?: number;
     /**
-     * Specifies if the parent should be ignored
+     * Starting point for cylinder/capsule
      */
-    ignoreParent?: boolean;
+    pointA?: Vector3;
     /**
-     * Specifies if bi-directional transformations should be disabled
+     * Ending point for cylinder/capsule
      */
-    disableBidirectionalTransformation?: boolean;
+    pointB?: Vector3;
     /**
-     * The pressure inside the physics imposter, soft object only
+     * Extents for box
      */
-    pressure?: number;
+    extents?: Vector3;
     /**
-     * The stiffness the physics imposter, soft object only
+     * Orientation for box
      */
-    stiffness?: number;
+    rotation?: Quaternion;
     /**
-     * The number of iterations used in maintaining consistent vertex velocities, soft object only
+     * mesh local center
      */
-    velocityIterations?: number;
+    center?: Vector3;
     /**
-     * The number of iterations used in maintaining consistent vertex positions, soft object only
+     * mesh object. Used for mesh and convex hull aggregates.
      */
-    positionIterations?: number;
+    mesh?: Mesh;
     /**
-     * The number used to fix points on a cloth (0, 1, 2, 4, 8) or rope (0, 1, 2) only
-     * 0 None, 1, back left or top, 2, back right or bottom, 4, front left, 8, front right
-     * Add to fix multiple points
+     * Physics engine will try to make this body sleeping and not active
      */
-    fixedPoints?: number;
+    startAsleep?: boolean;
     /**
-     * The collision margin around a soft object
+     * If true, mark the created shape as a trigger shape
      */
-    margin?: number;
-    /**
-     * The collision margin around a soft object
-     */
-    damping?: number;
-    /**
-     * The path for a rope based on an extrusion
-     */
-    path?: any;
-    /**
-     * The shape of an extrusion used for a rope based on an extrusion
-     */
-    shape?: any;
+    isTriggerShape?: boolean;
 }
 /**
- *
+ * Helper class to create and interact with a PhysicsAggregate.
+ * This is a transition object that works like Physics Plugin V1 Impostors.
+ * This helper instantiates all mandatory physics objects to get a body/shape and material.
+ * It's less efficient than handling body and shapes independently but for prototyping or
+ * a small numbers of physics objects, it's good enough.
  */
 export declare class PhysicsAggregate {
     /**
-     * The physics-enabled object used as the physics imposter
+     * The physics-enabled object used as the physics aggregate
      */
     transformNode: TransformNode;
     /**
-     * The type of the physics imposter
+     * The type of the physics aggregate
      */
-    type: number;
-    private _options;
+    type: PhysicsShapeType | PhysicsShape;
     private _scene?;
     /**
-     *
+     * The body that is associated with this aggregate
      */
     body: PhysicsBody;
     /**
-     *
+     * The shape that is associated with this aggregate
      */
     shape: PhysicsShape;
     /**
-     *
+     * The material that is associated with this aggregate
      */
     material: PhysicsMaterial;
+    private _disposeShapeWhenDisposed;
+    private _nodeDisposeObserver;
+    private _options;
     constructor(
     /**
-     * The physics-enabled object used as the physics imposter
+     * The physics-enabled object used as the physics aggregate
      */
     transformNode: TransformNode, 
     /**
-     * The type of the physics imposter
+     * The type of the physics aggregate
      */
-    type: number, _options?: PhysicsAggregateParameters, _scene?: Scene | undefined);
+    type: PhysicsShapeType | PhysicsShape, options?: PhysicsAggregateParameters, _scene?: Scene | undefined);
+    private _getObjectBoundingBox;
+    private _hasVertices;
+    private _addSizeOptions;
     /**
-     *
+     * Releases the body, shape and material
      */
     dispose(): void;
 }

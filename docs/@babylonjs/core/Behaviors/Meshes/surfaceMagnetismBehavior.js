@@ -1,11 +1,12 @@
 import { PointerEventTypes } from "../../Events/pointerEvents.js";
-import { Quaternion, TmpVectors, Vector3 } from "../../Maths/math.vector.js";
+import { Quaternion, TmpVectors, Vector3 } from "../../Maths/math.vector.pure.js";
 /**
  * A behavior that allows a transform node to stick to a surface position/orientation
  * @since 5.0.0
  */
 export class SurfaceMagnetismBehavior {
     constructor() {
+        this._attachedMesh = null;
         this._attachPointLocalOffset = new Vector3();
         this._workingPosition = new Vector3();
         this._workingQuaternion = new Quaternion();
@@ -51,6 +52,12 @@ export class SurfaceMagnetismBehavior {
      * Function called when the behavior needs to be initialized (after attaching it to a target)
      */
     init() { }
+    /**
+     * Attached node of this behavior
+     */
+    get attachedNode() {
+        return this._attachedMesh;
+    }
     /**
      * Attaches the behavior to a transform node
      * @param target defines the target where the behavior is attached to
@@ -160,6 +167,7 @@ export class SurfaceMagnetismBehavior {
         if (!this.interpolatePose) {
             this._attachedMesh.position.copyFrom(this._workingPosition).subtractInPlace(worldOffset);
             this._attachedMesh.rotationQuaternion.copyFrom(this._workingQuaternion);
+            this._attachedMesh.setParent(oldParent);
             return;
         }
         // position

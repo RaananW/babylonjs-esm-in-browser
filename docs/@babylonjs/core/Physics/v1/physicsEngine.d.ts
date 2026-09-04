@@ -1,10 +1,10 @@
-import type { Nullable } from "../../types";
-import { Vector3 } from "../../Maths/math.vector";
-import type { IPhysicsEnginePlugin } from "./IPhysicsEnginePlugin";
-import type { IPhysicsEngine } from "../IPhysicsEngine";
-import type { PhysicsImpostor, IPhysicsEnabledObject } from "./physicsImpostor";
-import type { PhysicsJoint } from "./physicsJoint";
-import type { PhysicsRaycastResult } from "../physicsRaycastResult";
+import { type Nullable } from "../../types.js";
+import { Vector3 } from "../../Maths/math.vector.pure.js";
+import { type IPhysicsEnginePlugin } from "./IPhysicsEnginePlugin.js";
+import { type IPhysicsEngine } from "../IPhysicsEngine.js";
+import { type PhysicsImpostor, type IPhysicsEnabledObject } from "./physicsImpostor.js";
+import { type PhysicsJoint } from "./physicsJoint.js";
+import { type PhysicsRaycastResult } from "../physicsRaycastResult.js";
 /**
  * Class used to control physics engine
  * @see https://doc.babylonjs.com/features/featuresDeepDive/physics/usingPhysicsEngine
@@ -28,6 +28,7 @@ export declare class PhysicsEngine implements IPhysicsEngine {
      */
     getPluginVersion(): number;
     /**
+     * @virtual
      * Factory used to create the default physics plugin.
      * @returns The default physics plugin
      */
@@ -142,6 +143,7 @@ export declare class PhysicsEngine implements IPhysicsEngine {
      * @param from when should the ray start?
      * @param to when should the ray end?
      * @param result resulting PhysicsRaycastResult
+     * @returns true if the ray hits an impostor, else false
      */
     raycastToRef(from: Vector3, to: Vector3, result: PhysicsRaycastResult): void;
 }

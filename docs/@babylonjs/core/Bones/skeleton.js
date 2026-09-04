@@ -1,8 +1,8 @@
 import { Bone } from "./bone.js";
 import { Observable } from "../Misc/observable.js";
-import { Vector3, Matrix, TmpVectors } from "../Maths/math.vector.js";
+import { Vector3, Matrix, TmpVectors } from "../Maths/math.vector.pure.js";
 import { RawTexture } from "../Materials/Textures/rawTexture.js";
-import { Animation } from "../Animations/animation.js";
+import { AnimationMakeAnimationAdditive, AnimationParse } from "../Animations/animation.pure.js";
 import { AnimationRange } from "../Animations/animationRange.js";
 import { EngineStore } from "../Engines/engineStore.js";
 
@@ -13,60 +13,6 @@ import { DeepCopier } from "../Misc/deepCopier.js";
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/bonesSkeletons
  */
 export class Skeleton {
-    /**
-     * Creates a new skeleton
-     * @param name defines the skeleton name
-     * @param id defines the skeleton Id
-     * @param scene defines the hosting scene
-     */
-    constructor(
-    /** defines the skeleton name */
-    name, 
-    /** defines the skeleton Id */
-    id, scene) {
-        this.name = name;
-        this.id = id;
-        /**
-         * Defines the list of child bones
-         */
-        this.bones = new Array();
-        /**
-         * Defines a boolean indicating if the root matrix is provided by meshes or by the current skeleton (this is the default value)
-         */
-        this.needInitialSkinMatrix = false;
-        this._isDirty = true;
-        this._meshesWithPoseMatrix = new Array();
-        this._identity = Matrix.Identity();
-        this._ranges = {};
-        this._absoluteTransformIsDirty = true;
-        this._canUseTextureForBones = false;
-        this._uniqueId = 0;
-        /** @internal */
-        this._numBonesWithLinkedTransformNode = 0;
-        /** @internal */
-        this._hasWaitingData = null;
-        /** @internal */
-        this._parentContainer = null;
-        /**
-         * Specifies if the skeleton should be serialized
-         */
-        this.doNotSerialize = false;
-        this._useTextureToStoreBoneMatrices = true;
-        this._animationPropertiesOverride = null;
-        // Events
-        /**
-         * An observable triggered before computing the skeleton's matrices
-         */
-        this.onBeforeComputeObservable = new Observable();
-        this.bones = [];
-        this._scene = scene || EngineStore.LastCreatedScene;
-        this._uniqueId = this._scene.getUniqueId();
-        this._scene.addSkeleton(this);
-        //make sure it will recalculate the matrix next time prepare is called.
-        this._isDirty = true;
-        const engineCaps = this._scene.getEngine().getCaps();
-        this._canUseTextureForBones = engineCaps.textureFloat && engineCaps.maxVertexTextureImageUnits > 0;
-    }
     /**
      * Gets or sets a boolean indicating that bone matrices should be stored as a texture instead of using shader uniforms (default is true).
      * Please note that this option is not available if the hardware does not support it
@@ -103,6 +49,69 @@ export class Skeleton {
         return this._uniqueId;
     }
     /**
+     * Creates a new skeleton
+     * @param name defines the skeleton name
+     * @param id defines the skeleton Id
+     * @param scene defines the hosting scene
+     */
+    constructor(
+    /** defines the skeleton name */
+    name, 
+    /** defines the skeleton Id */
+    id, scene) {
+        this.name = name;
+        this.id = id;
+        /**
+         * Defines the list of child bones
+         */
+        this.bones = [];
+        /**
+         * Defines a boolean indicating if the root matrix is provided by meshes or by the current skeleton (this is the default value)
+         */
+        this.needInitialSkinMatrix = false;
+        this._isDirty = true;
+        this._meshesWithPoseMatrix = new Array();
+        this._identity = Matrix.Identity();
+        this._currentRenderId = -1;
+        /** @internal */
+        this._textureWidth = 0;
+        /** @internal */
+        this._textureHeight = 1;
+        this._ranges = {};
+        this._absoluteTransformIsDirty = true;
+        this._canUseTextureForBones = false;
+        this._uniqueId = 0;
+        /** @internal */
+        this._numBonesWithLinkedTransformNode = 0;
+        /** @internal */
+        this._hasWaitingData = null;
+        /** @internal */
+        this._parentContainer = null;
+        /**
+         * Specifies if the skeleton should be serialized
+         */
+        this.doNotSerialize = false;
+        this._useTextureToStoreBoneMatrices = true;
+        this._animationPropertiesOverride = null;
+        // Events
+        /**
+         * An observable triggered before computing the skeleton's matrices
+         */
+        this.onBeforeComputeObservable = new Observable();
+        /**
+         * Gets or sets an object used to store user defined information for the skeleton
+         */
+        this.metadata = null;
+        this.bones = [];
+        this._scene = scene || EngineStore.LastCreatedScene;
+        this._uniqueId = this._scene.getUniqueId();
+        this._scene.addSkeleton(this);
+        //make sure it will recalculate the matrix next time prepare is called.
+        this._isDirty = true;
+        const engineCaps = this._scene.getEngine().getCaps();
+        this._canUseTextureForBones = engineCaps.textureFloat && engineCaps.maxVertexTextureImageUnits > 0;
+    }
+    /**
      * Gets the current object class name.
      * @returns the class name
      */
@@ -124,13 +133,16 @@ export class Skeleton {
      */
     getTransformMatrices(mesh) {
         if (this.needInitialSkinMatrix) {
+            if (!mesh) {
+                throw new Error("getTransformMatrices: When using the needInitialSkinMatrix flag, a mesh must be provided");
+            }
             if (!mesh._bonesTransformMatrices) {
-                this.prepare();
+                this.prepare(true);
             }
             return mesh._bonesTransformMatrices;
         }
-        if (!this._transformMatrices) {
-            this.prepare();
+        if (!this._transformMatrices || this._isDirty) {
+            this.prepare(!this._transformMatrices);
         }
         return this._transformMatrices;
     }
@@ -187,6 +199,32 @@ export class Skeleton {
             }
         }
         return -1;
+    }
+    /**
+     * Finds a bone in a skeleton that is linked to the given transform node.
+     * @param transformNode The transform node to find the bone for
+     * @returns The bone linked to the transform node, or null if not found
+     */
+    findBoneFromLinkedTransformNode(transformNode) {
+        for (const bone of this.bones) {
+            if (bone._linkedTransformNode === transformNode) {
+                return bone;
+            }
+        }
+        return null;
+    }
+    /**
+     * Finds a bone in a skeleton by the name of its linked transform node.
+     * @param name The name of the linked transform node
+     * @returns The bone linked to the transform node with the given name, or null if not found
+     */
+    findBoneFromLinkedTransformNodeName(name) {
+        for (const bone of this.bones) {
+            if (bone._linkedTransformNode && bone._linkedTransformNode.name === name) {
+                return bone;
+            }
+        }
+        return null;
     }
     /**
      * Create a new animation range
@@ -338,7 +376,7 @@ export class Skeleton {
         let rangeAnimatable = null;
         for (let index = 0; index < sceneAnimatables.length; index++) {
             const sceneAnimatable = sceneAnimatables[index];
-            if (sceneAnimatable.fromFrame === (rangeValue === null || rangeValue === void 0 ? void 0 : rangeValue.from) && sceneAnimatable.toFrame === (rangeValue === null || rangeValue === void 0 ? void 0 : rangeValue.to)) {
+            if (sceneAnimatable.fromFrame === rangeValue?.from && sceneAnimatable.toFrame === rangeValue?.to) {
                 rangeAnimatable = sceneAnimatable;
                 break;
             }
@@ -352,7 +390,7 @@ export class Skeleton {
                 continue;
             }
             for (let animIndex = 0; animIndex < animations.length; animIndex++) {
-                Animation.MakeAnimationAdditive(animations[animIndex], referenceFrame, range);
+                AnimationMakeAnimationAdditive(animations[animIndex], referenceFrame, range);
             }
         }
         // Mark the scene-level animatable as additive
@@ -388,27 +426,50 @@ export class Skeleton {
             bone._childUpdateId++;
             const parentBone = bone.getParent();
             if (parentBone) {
-                bone.getLocalMatrix().multiplyToRef(parentBone.getWorldMatrix(), bone.getWorldMatrix());
+                bone.getLocalMatrix().multiplyToRef(parentBone.getFinalMatrix(), bone.getFinalMatrix());
             }
             else {
                 if (initialSkinMatrix) {
-                    bone.getLocalMatrix().multiplyToRef(initialSkinMatrix, bone.getWorldMatrix());
+                    bone.getLocalMatrix().multiplyToRef(initialSkinMatrix, bone.getFinalMatrix());
                 }
                 else {
-                    bone.getWorldMatrix().copyFrom(bone.getLocalMatrix());
+                    bone.getFinalMatrix().copyFrom(bone.getLocalMatrix());
                 }
             }
             if (bone._index !== -1) {
                 const mappedIndex = bone._index === null ? index : bone._index;
-                bone.getInvertedAbsoluteTransform().multiplyToArray(bone.getWorldMatrix(), targetMatrix, mappedIndex * 16);
+                bone.getAbsoluteInverseBindMatrix().multiplyToArray(bone.getFinalMatrix(), targetMatrix, mappedIndex * 16);
             }
         }
         this._identity.copyToArray(targetMatrix, this.bones.length * 16);
     }
+    _computeTextureSize() {
+        const requiredElementCount = 4 * (this.bones.length + 1); // 16 element -> RGBA x 4
+        let requiredTextureWidth = requiredElementCount;
+        let requiredTextureHeight = 1;
+        if (this.isUsingTextureForMatrices) {
+            const maxTextureSize = this.getScene().getEngine().getCaps().maxTextureSize & ~3; // must be a multiple of 4
+            if (maxTextureSize < requiredTextureWidth) {
+                requiredTextureWidth = maxTextureSize;
+                requiredTextureHeight = Math.ceil(requiredElementCount / maxTextureSize);
+            }
+        }
+        this._textureWidth = requiredTextureWidth;
+        this._textureHeight = requiredTextureHeight;
+        return this._textureWidth * this._textureHeight * 4; // 4 floats per RGBA pixel
+    }
     /**
      * Build all resources required to render a skeleton
+     * @param dontCheckFrameId defines a boolean indicating if prepare should be run without checking first the current frame id (default: false)
      */
-    prepare() {
+    prepare(dontCheckFrameId = false) {
+        if (!dontCheckFrameId) {
+            const currentRenderId = this.getScene().getRenderId();
+            if (this._currentRenderId === currentRenderId) {
+                return;
+            }
+            this._currentRenderId = currentRenderId;
+        }
         // Update the local matrix of bones with linked transform nodes.
         if (this._numBonesWithLinkedTransformNode > 0) {
             for (const bone of this.bones) {
@@ -425,12 +486,16 @@ export class Skeleton {
                 }
             }
         }
+        let requiredTransformBufferElementCount = null;
         if (this.needInitialSkinMatrix) {
             for (const mesh of this._meshesWithPoseMatrix) {
                 const poseMatrix = mesh.getPoseMatrix();
                 let needsUpdate = this._isDirty;
-                if (!mesh._bonesTransformMatrices || mesh._bonesTransformMatrices.length !== 16 * (this.bones.length + 1)) {
-                    mesh._bonesTransformMatrices = new Float32Array(16 * (this.bones.length + 1));
+                if (requiredTransformBufferElementCount === null) {
+                    requiredTransformBufferElementCount = this._computeTextureSize();
+                }
+                if (!mesh._bonesTransformMatrices || mesh._bonesTransformMatrices.length !== requiredTransformBufferElementCount) {
+                    mesh._bonesTransformMatrices = new Float32Array(requiredTransformBufferElementCount);
                     needsUpdate = true;
                 }
                 if (!needsUpdate) {
@@ -441,18 +506,19 @@ export class Skeleton {
                     // Prepare bones
                     for (const bone of this.bones) {
                         if (!bone.getParent()) {
-                            const matrix = bone.getBaseMatrix();
+                            const matrix = bone.getBindMatrix();
                             matrix.multiplyToRef(poseMatrix, TmpVectors.Matrix[1]);
-                            bone._updateDifferenceMatrix(TmpVectors.Matrix[1]);
+                            bone._updateAbsoluteBindMatrices(TmpVectors.Matrix[1]);
                         }
                     }
                     if (this.isUsingTextureForMatrices) {
-                        const textureWidth = (this.bones.length + 1) * 4;
-                        if (!mesh._transformMatrixTexture || mesh._transformMatrixTexture.getSize().width !== textureWidth) {
+                        const meshTextureSize = mesh._transformMatrixTexture?.getSize();
+                        const meshTextureElementCount = meshTextureSize ? meshTextureSize.width * meshTextureSize.height * 4 : 0;
+                        if (!mesh._transformMatrixTexture || meshTextureElementCount !== requiredTransformBufferElementCount) {
                             if (mesh._transformMatrixTexture) {
                                 mesh._transformMatrixTexture.dispose();
                             }
-                            mesh._transformMatrixTexture = RawTexture.CreateRGBATexture(mesh._bonesTransformMatrices, (this.bones.length + 1) * 4, 1, this._scene, false, false, 1, 1);
+                            mesh._transformMatrixTexture = RawTexture.CreateRGBATexture(mesh._bonesTransformMatrices, this._textureWidth, this._textureHeight, this._scene, false, false, 1, 1);
                         }
                     }
                 }
@@ -466,13 +532,16 @@ export class Skeleton {
             if (!this._isDirty) {
                 return;
             }
-            if (!this._transformMatrices || this._transformMatrices.length !== 16 * (this.bones.length + 1)) {
-                this._transformMatrices = new Float32Array(16 * (this.bones.length + 1));
+            if (requiredTransformBufferElementCount === null) {
+                requiredTransformBufferElementCount = this._computeTextureSize();
+            }
+            if (!this._transformMatrices || this._transformMatrices.length !== requiredTransformBufferElementCount) {
+                this._transformMatrices = new Float32Array(requiredTransformBufferElementCount);
                 if (this.isUsingTextureForMatrices) {
                     if (this._transformMatrixTexture) {
                         this._transformMatrixTexture.dispose();
                     }
-                    this._transformMatrixTexture = RawTexture.CreateRGBATexture(this._transformMatrices, (this.bones.length + 1) * 4, 1, this._scene, false, false, 1, 1);
+                    this._transformMatrixTexture = RawTexture.CreateRGBATexture(this._transformMatrices, this._textureWidth, this._textureHeight, this._scene, false, false, 1, 1);
                 }
             }
             this._computeTransformMatrices(this._transformMatrices, null);
@@ -504,6 +573,7 @@ export class Skeleton {
     clone(name, id) {
         const result = new Skeleton(name, id || name, this._scene);
         result.needInitialSkinMatrix = this.needInitialSkinMatrix;
+        result.metadata = this.metadata;
         for (let index = 0; index < this.bones.length; index++) {
             const source = this.bones[index];
             let parentBone = null;
@@ -512,7 +582,7 @@ export class Skeleton {
                 const parentIndex = this.bones.indexOf(parent);
                 parentBone = result.bones[parentIndex];
             }
-            const bone = new Bone(source.name, result, parentBone, source.getBaseMatrix().clone(), source.getRestPose().clone());
+            const bone = new Bone(source.name, result, parentBone, source.getBindMatrix().clone(), source.getRestMatrix().clone());
             bone._index = source._index;
             if (source._linkedTransformNode) {
                 bone.linkTransformNode(source._linkedTransformNode);
@@ -529,6 +599,7 @@ export class Skeleton {
             }
         }
         this._isDirty = true;
+        result.prepare(true);
         return result;
     }
     /**
@@ -537,18 +608,19 @@ export class Skeleton {
      * @see https://doc.babylonjs.com/features/featuresDeepDive/animation/advanced_animations#animation-blending
      */
     enableBlending(blendingSpeed = 0.01) {
-        this.bones.forEach((bone) => {
-            bone.animations.forEach((animation) => {
+        for (const bone of this.bones) {
+            for (const animation of bone.animations) {
                 animation.enableBlending = true;
                 animation.blendingSpeed = blendingSpeed;
-            });
-        });
+            }
+        }
     }
     /**
      * Releases all resources associated with the current skeleton
      */
     dispose() {
         this._meshesWithPoseMatrix.length = 0;
+        this.metadata = null;
         // Animations
         this.getScene().stopAnimation(this);
         // Remove from scene
@@ -570,15 +642,18 @@ export class Skeleton {
      * @returns a JSON object
      */
     serialize() {
-        var _a;
         const serializationObject = {};
         serializationObject.name = this.name;
         serializationObject.id = this.id;
+        serializationObject.uniqueId = this.uniqueId;
         if (this.dimensionsAtRest) {
             serializationObject.dimensionsAtRest = this.dimensionsAtRest.asArray();
         }
         serializationObject.bones = [];
         serializationObject.needInitialSkinMatrix = this.needInitialSkinMatrix;
+        if (this.metadata) {
+            serializationObject.metadata = this.metadata;
+        }
         for (let index = 0; index < this.bones.length; index++) {
             const bone = this.bones[index];
             const parent = bone.getParent();
@@ -587,9 +662,11 @@ export class Skeleton {
                 index: bone.getIndex(),
                 name: bone.name,
                 id: bone.id,
-                matrix: bone.getBaseMatrix().toArray(),
-                rest: bone.getRestPose().toArray(),
-                linkedTransformNodeId: (_a = bone.getTransformNode()) === null || _a === void 0 ? void 0 : _a.id,
+                uniqueId: bone.uniqueId,
+                matrix: bone.getBindMatrix().asArray(),
+                rest: bone.getRestMatrix().asArray(),
+                linkedTransformNodeId: bone.getTransformNode()?.id,
+                linkedTransformNodeUniqueId: bone.getTransformNode()?.uniqueId,
             };
             serializationObject.bones.push(serializedBone);
             if (bone.length) {
@@ -628,6 +705,9 @@ export class Skeleton {
             skeleton.dimensionsAtRest = Vector3.FromArray(parsedSkeleton.dimensionsAtRest);
         }
         skeleton.needInitialSkinMatrix = parsedSkeleton.needInitialSkinMatrix;
+        if (parsedSkeleton.metadata) {
+            skeleton.metadata = parsedSkeleton.metadata;
+        }
         let index;
         for (index = 0; index < parsedSkeleton.bones.length; index++) {
             const parsedBone = parsedSkeleton.bones[index];
@@ -648,11 +728,15 @@ export class Skeleton {
                 bone.metadata = parsedBone.metadata;
             }
             if (parsedBone.animation) {
-                bone.animations.push(Animation.Parse(parsedBone.animation));
+                bone.animations.push(AnimationParse(parsedBone.animation));
             }
             if (parsedBone.linkedTransformNodeId !== undefined && parsedBone.linkedTransformNodeId !== null) {
                 skeleton._hasWaitingData = true;
                 bone._waitingTransformNodeId = parsedBone.linkedTransformNodeId;
+            }
+            if (parsedBone.linkedTransformNodeUniqueId !== undefined && parsedBone.linkedTransformNodeUniqueId !== null) {
+                skeleton._hasWaitingData = true;
+                bone._waitingTransformNodeUniqueId = parsedBone.linkedTransformNodeUniqueId;
             }
         }
         // placed after bones, so createAnimationRange can cascade down
@@ -665,14 +749,22 @@ export class Skeleton {
         return skeleton;
     }
     /**
-     * Compute all node absolute transforms
+     * Compute all node absolute matrices
      * @param forceUpdate defines if computation must be done even if cache is up to date
      */
-    computeAbsoluteTransforms(forceUpdate = false) {
+    computeAbsoluteMatrices(forceUpdate = false) {
         if (this._absoluteTransformIsDirty || forceUpdate) {
-            this.bones[0].computeAbsoluteTransforms();
+            this.bones[0].computeAbsoluteMatrices();
             this._absoluteTransformIsDirty = false;
         }
+    }
+    /**
+     * Compute all node absolute matrices
+     * @param forceUpdate defines if computation must be done even if cache is up to date
+     * @deprecated Please use computeAbsoluteMatrices instead
+     */
+    computeAbsoluteTransforms(forceUpdate = false) {
+        this.computeAbsoluteMatrices(forceUpdate);
     }
     /**
      * Gets the root pose matrix
@@ -689,7 +781,7 @@ export class Skeleton {
      * Sorts bones per internal index
      */
     sortBones() {
-        const bones = new Array();
+        const bones = [];
         const visited = new Array(this.bones.length);
         for (let index = 0; index < this.bones.length; index++) {
             this._sortBones(index, bones, visited);
@@ -702,8 +794,9 @@ export class Skeleton {
         }
         visited[index] = true;
         const bone = this.bones[index];
-        if (!bone)
+        if (!bone) {
             return;
+        }
         if (bone._index === undefined) {
             bone._index = index;
         }
@@ -717,9 +810,9 @@ export class Skeleton {
      * Set the current local matrix as the restPose for all bones in the skeleton.
      */
     setCurrentPoseAsRest() {
-        this.bones.forEach((b) => {
+        for (const b of this.bones) {
             b.setCurrentPoseAsRest();
-        });
+        }
     }
 }
 //# sourceMappingURL=skeleton.js.map

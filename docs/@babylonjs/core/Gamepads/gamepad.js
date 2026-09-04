@@ -26,6 +26,12 @@ export class StickValues {
  */
 export class Gamepad {
     /**
+     * Specifies if the gamepad has been connected
+     */
+    get isConnected() {
+        return this._isConnected;
+    }
+    /**
      * Initializes the gamepad
      * @param id The id of the gamepad
      * @param index The index of the gamepad
@@ -72,21 +78,15 @@ export class Gamepad {
         }
     }
     /**
-     * Specifies if the gamepad has been connected
-     */
-    get isConnected() {
-        return this._isConnected;
-    }
-    /**
      * Callback triggered when the left joystick has changed
-     * @param callback
+     * @param callback callback to trigger
      */
     onleftstickchanged(callback) {
         this._onleftstickchanged = callback;
     }
     /**
      * Callback triggered when the right joystick has changed
-     * @param callback
+     * @param callback callback to trigger
      */
     onrightstickchanged(callback) {
         this._onrightstickchanged = callback;
@@ -165,6 +165,20 @@ Gamepad.DUALSHOCK = 4;
  */
 export class GenericPad extends Gamepad {
     /**
+     * Callback triggered when a button has been pressed
+     * @param callback Called when a button has been pressed
+     */
+    onbuttondown(callback) {
+        this._onbuttondown = callback;
+    }
+    /**
+     * Callback triggered when a button has been released
+     * @param callback Called when a button has been released
+     */
+    onbuttonup(callback) {
+        this._onbuttonup = callback;
+    }
+    /**
      * Initializes the generic gamepad
      * @param id The id of the generic gamepad
      * @param index The index of the generic gamepad
@@ -182,20 +196,6 @@ export class GenericPad extends Gamepad {
         this.onButtonUpObservable = new Observable();
         this.type = Gamepad.GENERIC;
         this._buttons = new Array(browserGamepad.buttons.length);
-    }
-    /**
-     * Callback triggered when a button has been pressed
-     * @param callback Called when a button has been pressed
-     */
-    onbuttondown(callback) {
-        this._onbuttondown = callback;
-    }
-    /**
-     * Callback triggered when a button has been released
-     * @param callback Called when a button has been released
-     */
-    onbuttonup(callback) {
-        this._onbuttonup = callback;
     }
     _setButtonValue(newValue, currentValue, buttonIndex) {
         if (newValue !== currentValue) {

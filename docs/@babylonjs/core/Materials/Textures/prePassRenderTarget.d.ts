@@ -1,11 +1,10 @@
-import type { IMultiRenderTargetOptions } from "./multiRenderTarget";
-import { MultiRenderTarget } from "./multiRenderTarget";
-import type { Engine } from "../../Engines/engine";
-import type { RenderTargetTexture } from "./renderTargetTexture";
-import type { Scene } from "../../scene";
-import type { PostProcess } from "../../PostProcesses/postProcess";
-import { ImageProcessingPostProcess } from "../../PostProcesses/imageProcessingPostProcess";
-import type { Nullable } from "../../types";
+import { type IMultiRenderTargetOptions, MultiRenderTarget } from "./multiRenderTarget.pure.js";
+import { type Engine } from "../../Engines/engine.js";
+import { type RenderTargetTexture } from "./renderTargetTexture.js";
+import { type Scene } from "../../scene.js";
+import { type PostProcess } from "../../PostProcesses/postProcess.js";
+import { ImageProcessingPostProcess } from "../../PostProcesses/imageProcessingPostProcess.js";
+import { type Nullable } from "../../types.js";
 /**
  * A multi render target designed to render the prepass.
  * Prepass is a scene component used to render information in multiple textures
@@ -49,7 +48,7 @@ export declare class PrePassRenderTarget extends MultiRenderTarget {
      * If this is `null`, it means this prePassRenderTarget is associated with the scene
      */
     renderTargetTexture: Nullable<RenderTargetTexture>;
-    constructor(name: string, renderTargetTexture: Nullable<RenderTargetTexture>, size: any, count: number, scene?: Scene, options?: IMultiRenderTargetOptions | undefined);
+    constructor(name: string, renderTargetTexture: Nullable<RenderTargetTexture>, size: any, count: number, scene?: Scene, options?: IMultiRenderTargetOptions);
     /**
      * Creates a composition effect for this RT
      * @internal

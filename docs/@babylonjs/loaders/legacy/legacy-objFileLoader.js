@@ -1,14 +1,14 @@
-/* eslint-disable import/no-internal-modules */
+/* eslint-disable @typescript-eslint/no-restricted-imports */
 import * as Loaders from "../OBJ/index.js";
 /**
  * This is the entry point for the UMD module.
  * The entry point for a future ESM package should be index.ts
  */
-const globalObject = typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : undefined;
-if (typeof globalObject !== "undefined") {
+const GlobalObject = typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : undefined;
+if (typeof GlobalObject !== "undefined") {
     for (const key in Loaders) {
-        if (!globalObject.BABYLON[key]) {
-            globalObject.BABYLON[key] = Loaders[key];
+        if (!GlobalObject.BABYLON[key]) {
+            GlobalObject.BABYLON[key] = Loaders[key];
         }
     }
 }

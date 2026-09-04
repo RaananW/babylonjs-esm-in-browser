@@ -1,12 +1,12 @@
 import { Observable } from "../Misc/observable.js";
-import { Vector3, TmpVectors, Matrix } from "../Maths/math.vector.js";
+import { Vector3, TmpVectors, Matrix } from "../Maths/math.vector.pure.js";
 import { Sprite } from "./sprite.js";
-import { SpriteSceneComponent } from "./spriteSceneComponent.js";
+import { RegisterSpriteSceneComponent, SpriteSceneComponent } from "./spriteSceneComponent.pure.js";
 import { PickingInfo } from "../Collisions/pickingInfo.js";
-import { Texture } from "../Materials/Textures/texture.js";
+import { Texture } from "../Materials/Textures/texture.pure.js";
 import { SceneComponentConstants } from "../sceneComponent.js";
 import { Logger } from "../Misc/logger.js";
-import { Tools } from "../Misc/tools.js";
+import { Tools } from "../Misc/tools.pure.js";
 import { WebRequest } from "../Misc/webRequest.js";
 import { SpriteRenderer } from "./spriteRenderer.js";
 import { EngineStore } from "../Engines/engineStore.js";
@@ -16,87 +16,6 @@ import { EngineStore } from "../Engines/engineStore.js";
  * @see https://doc.babylonjs.com/features/featuresDeepDive/sprites
  */
 export class SpriteManager {
-    /**
-     * Creates a new sprite manager
-     * @param name defines the manager's name
-     * @param imgUrl defines the sprite sheet url
-     * @param capacity defines the maximum allowed number of sprites
-     * @param cellSize defines the size of a sprite cell
-     * @param scene defines the hosting scene
-     * @param epsilon defines the epsilon value to align texture (0.01 by default)
-     * @param samplingMode defines the sampling mode to use with spritesheet
-     * @param fromPacked set to false; do not alter
-     * @param spriteJSON null otherwise a JSON object defining sprite sheet data; do not alter
-     */
-    constructor(
-    /** defines the manager's name */
-    name, imgUrl, capacity, cellSize, scene, epsilon = 0.01, samplingMode = Texture.TRILINEAR_SAMPLINGMODE, fromPacked = false, spriteJSON = null) {
-        this.name = name;
-        /** Gets the list of sprites */
-        this.sprites = new Array();
-        /** Gets or sets the rendering group id (0 by default) */
-        this.renderingGroupId = 0;
-        /** Gets or sets camera layer mask */
-        this.layerMask = 0x0fffffff;
-        /** Gets or sets a boolean indicating if the sprites are pickable */
-        this.isPickable = false;
-        /**
-         * Gets or sets an object used to store user defined information for the sprite manager
-         */
-        this.metadata = null;
-        /** @internal */
-        this._wasDispatched = false;
-        /**
-         * An event triggered when the manager is disposed.
-         */
-        this.onDisposeObservable = new Observable();
-        this._disableDepthWrite = false;
-        /** True when packed cell data from JSON file is ready*/
-        this._packedAndReady = false;
-        this._customUpdate = (sprite, baseSize) => {
-            if (!sprite.cellRef) {
-                sprite.cellIndex = 0;
-            }
-            const num = sprite.cellIndex;
-            if (typeof num === "number" && isFinite(num) && Math.floor(num) === num) {
-                sprite.cellRef = this._spriteMap[sprite.cellIndex];
-            }
-            sprite._xOffset = this._cellData[sprite.cellRef].frame.x / baseSize.width;
-            sprite._yOffset = this._cellData[sprite.cellRef].frame.y / baseSize.height;
-            sprite._xSize = this._cellData[sprite.cellRef].frame.w;
-            sprite._ySize = this._cellData[sprite.cellRef].frame.h;
-        };
-        if (!scene) {
-            scene = EngineStore.LastCreatedScene;
-        }
-        if (!scene._getComponent(SceneComponentConstants.NAME_SPRITE)) {
-            scene._addComponent(new SpriteSceneComponent(scene));
-        }
-        this._fromPacked = fromPacked;
-        this._scene = scene;
-        const engine = this._scene.getEngine();
-        this._spriteRenderer = new SpriteRenderer(engine, capacity, epsilon, scene);
-        if (cellSize.width && cellSize.height) {
-            this.cellWidth = cellSize.width;
-            this.cellHeight = cellSize.height;
-        }
-        else if (cellSize !== undefined) {
-            this.cellWidth = cellSize;
-            this.cellHeight = cellSize;
-        }
-        else {
-            this._spriteRenderer = null;
-            return;
-        }
-        this._scene.spriteManagers.push(this);
-        this.uniqueId = this.scene.getUniqueId();
-        if (imgUrl) {
-            this.texture = new Texture(imgUrl, scene, true, false, samplingMode);
-        }
-        if (this._fromPacked) {
-            this._makePacked(imgUrl, spriteJSON);
-        }
-    }
     /**
      * Callback called when the manager is disposed
      */
@@ -157,6 +76,13 @@ export class SpriteManager {
     set fogEnabled(value) {
         this._spriteRenderer.fogEnabled = value;
     }
+    /** Gets or sets a boolean indicating if the manager must use logarithmic depth when rendering */
+    get useLogarithmicDepth() {
+        return this._spriteRenderer.useLogarithmicDepth;
+    }
+    set useLogarithmicDepth(value) {
+        this._spriteRenderer.useLogarithmicDepth = value;
+    }
     /**
      * Blend mode use to render the particle, it can be any of
      * the static undefined properties provided in this class.
@@ -178,6 +104,117 @@ export class SpriteManager {
     set disableDepthWrite(value) {
         this._disableDepthWrite = value;
         this._spriteRenderer.disableDepthWrite = value;
+    }
+    /**
+     * Gets or sets a boolean indicating if the renderer must render sprites with pixel perfect rendering
+     * In this mode, sprites are rendered as "pixel art", which means that they appear as pixelated but remain stable when moving or when rotated or scaled.
+     * Note that for this mode to work as expected, the sprite texture must use the BILINEAR sampling mode, not NEAREST!
+     */
+    get pixelPerfect() {
+        return this._spriteRenderer.pixelPerfect;
+    }
+    set pixelPerfect(value) {
+        this._spriteRenderer.pixelPerfect = value;
+        if (value && this.texture.samplingMode !== 3) {
+            this.texture.updateSamplingMode(3);
+        }
+    }
+    /**
+     * Gets the sprite renderer associated with this manager
+     */
+    get spriteRenderer() {
+        return this._spriteRenderer;
+    }
+    /**
+     * Creates a new sprite manager
+     * @param name defines the manager's name
+     * @param imgUrl defines the sprite sheet url
+     * @param capacity defines the maximum allowed number of sprites
+     * @param cellSize defines the size of a sprite cell
+     * @param scene defines the hosting scene
+     * @param epsilon defines the epsilon value to align texture (0.01 by default)
+     * @param samplingMode defines the sampling mode to use with spritesheet
+     * @param fromPacked set to false; do not alter
+     * @param spriteJSON null otherwise a JSON object defining sprite sheet data; do not alter
+     * @param options options used to create the SpriteManager instance
+     */
+    constructor(
+    /** defines the manager's name */
+    name, imgUrl, capacity, cellSize, scene, epsilon = 0.01, samplingMode = Texture.TRILINEAR_SAMPLINGMODE, fromPacked = false, spriteJSON = null, options) {
+        this.name = name;
+        /** @internal */
+        this._parentContainer = null;
+        /** Gets the list of sprites */
+        this.sprites = [];
+        /** Gets or sets the rendering group id (0 by default) */
+        this.renderingGroupId = 0;
+        /** Gets or sets camera layer mask */
+        this.layerMask = 0x0fffffff;
+        /** Gets or sets a boolean indicating if the sprites are pickable */
+        this.isPickable = false;
+        /**
+         * Gets or sets an object used to store user defined information for the sprite manager
+         */
+        this.metadata = null;
+        /** @internal */
+        this._wasDispatched = false;
+        /**
+         * An event triggered when the manager is disposed.
+         */
+        this.onDisposeObservable = new Observable();
+        /**
+         * Specifies if the sprite manager should be serialized
+         */
+        this.doNotSerialize = false;
+        this._disableDepthWrite = false;
+        /** True when packed cell data from JSON file is ready*/
+        this._packedAndReady = false;
+        this._customUpdate = (sprite, baseSize) => {
+            if (!sprite.cellRef) {
+                sprite.cellIndex = 0;
+            }
+            const num = sprite.cellIndex;
+            if (typeof num === "number" && isFinite(num) && Math.floor(num) === num) {
+                sprite.cellRef = this._spriteMap[sprite.cellIndex];
+            }
+            sprite._xOffset = this._cellData[sprite.cellRef].frame.x / baseSize.width;
+            sprite._yOffset = this._cellData[sprite.cellRef].frame.y / baseSize.height;
+            sprite._xSize = this._cellData[sprite.cellRef].frame.w;
+            sprite._ySize = this._cellData[sprite.cellRef].frame.h;
+        };
+        if (!scene) {
+            scene = EngineStore.LastCreatedScene;
+        }
+        this.layerMask = scene.defaultRenderableLayerMask;
+        RegisterSpriteSceneComponent();
+        if (!scene._getComponent(SceneComponentConstants.NAME_SPRITE)) {
+            scene._addComponent(new SpriteSceneComponent(scene));
+        }
+        this._fromPacked = fromPacked;
+        this._scene = scene;
+        const engine = this._scene.getEngine();
+        this._spriteRenderer = new SpriteRenderer(engine, capacity, epsilon, scene, options?.spriteRendererOptions);
+        if (cellSize.width && cellSize.height) {
+            this.cellWidth = cellSize.width;
+            this.cellHeight = cellSize.height;
+        }
+        else if (cellSize !== undefined) {
+            this.cellWidth = cellSize;
+            this.cellHeight = cellSize;
+        }
+        else {
+            this._spriteRenderer = null;
+            return;
+        }
+        this._scene.spriteManagers && this._scene.spriteManagers.push(this);
+        this.uniqueId = this.scene.getUniqueId();
+        if (imgUrl) {
+            this.texture = new Texture(imgUrl, scene, true, false, samplingMode);
+        }
+        if (this._fromPacked) {
+            this._makePacked(imgUrl, spriteJSON);
+        }
+        this._scene._onNewSpriteManagerAddedObservable?.notifyObservers(this);
     }
     /**
      * Returns the string "SpriteManager"
@@ -217,7 +254,7 @@ export class SpriteManager {
             catch (e) {
                 this._fromPacked = false;
                 this._packedAndReady = false;
-                throw new Error("Invalid JSON from string. Spritesheet managed with constant cell size.");
+                throw new Error("Invalid JSON from string. Spritesheet managed with constant cell size.", { cause: e });
             }
         }
         else {
@@ -244,19 +281,20 @@ export class SpriteManager {
                 catch (e) {
                     this._fromPacked = false;
                     this._packedAndReady = false;
-                    throw new Error("Invalid JSON format. Please check documentation for format specifications.");
+                    throw new Error("Invalid JSON format. Please check documentation for format specifications.", { cause: e });
                 }
             };
             Tools.LoadFile(jsonUrl, onload, undefined, undefined, false, onerror);
         }
     }
     _checkTextureAlpha(sprite, ray, distance, min, max) {
-        if (!sprite.useAlphaForPicking || !this.texture) {
+        if (!sprite.useAlphaForPicking || !this.texture?.isReady()) {
             return true;
         }
         const textureSize = this.texture.getSize();
         if (!this._textureContent) {
             this._textureContent = new Uint8Array(textureSize.width * textureSize.height * 4);
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             this.texture.readPixels(0, 0, this._textureContent);
         }
         const contactPoint = TmpVectors.Vector3[0];
@@ -264,14 +302,10 @@ export class SpriteManager {
         contactPoint.normalize();
         contactPoint.scaleInPlace(distance);
         contactPoint.addInPlace(ray.origin);
-        const contactPointU = (contactPoint.x - min.x) / (max.x - min.x) - 0.5;
-        const contactPointV = 1.0 - (contactPoint.y - min.y) / (max.y - min.y) - 0.5;
-        // Rotate
-        const angle = sprite.angle;
-        const rotatedU = 0.5 + (contactPointU * Math.cos(angle) - contactPointV * Math.sin(angle));
-        const rotatedV = 0.5 + (contactPointU * Math.sin(angle) + contactPointV * Math.cos(angle));
-        const u = (sprite._xOffset * textureSize.width + rotatedU * sprite._xSize) | 0;
-        const v = (sprite._yOffset * textureSize.height + rotatedV * sprite._ySize) | 0;
+        const contactPointU = (contactPoint.x - min.x) / (max.x - min.x);
+        const contactPointV = 1.0 - (contactPoint.y - min.y) / (max.y - min.y);
+        const u = (sprite._xOffset * textureSize.width + contactPointU * sprite._xSize) | 0;
+        const v = (sprite._yOffset * textureSize.height + contactPointV * sprite._ySize) | 0;
         const alpha = this._textureContent[(u + v * textureSize.width) * 4 + 3];
         return alpha > 0.5;
     }
@@ -292,8 +326,8 @@ export class SpriteManager {
         const pickedPoint = TmpVectors.Vector3[0];
         const cameraSpacePosition = TmpVectors.Vector3[1];
         const cameraView = camera.getViewMatrix();
-        let activeRay = ray;
-        let pickedRay = ray;
+        let activeRay;
+        let pickedRay;
         for (let index = 0; index < count; index++) {
             const sprite = this.sprites[index];
             if (!sprite) {
@@ -312,7 +346,7 @@ export class SpriteManager {
                 // Create a rotation matrix to rotate the ray to the sprite's rotation
                 Matrix.TranslationToRef(-cameraSpacePosition.x, -cameraSpacePosition.y, 0, TmpVectors.Matrix[1]);
                 Matrix.TranslationToRef(cameraSpacePosition.x, cameraSpacePosition.y, 0, TmpVectors.Matrix[2]);
-                Matrix.RotationZToRef(sprite.angle, TmpVectors.Matrix[3]);
+                Matrix.RotationZToRef(-sprite.angle, TmpVectors.Matrix[3]);
                 // inv translation x rotation x translation
                 TmpVectors.Matrix[1].multiplyToRef(TmpVectors.Matrix[3], TmpVectors.Matrix[4]);
                 TmpVectors.Matrix[4].multiplyToRef(TmpVectors.Matrix[2], TmpVectors.Matrix[0]);
@@ -432,8 +466,7 @@ export class SpriteManager {
      * Rebuilds the manager (after a context lost, for eg)
      */
     rebuild() {
-        var _a;
-        (_a = this._spriteRenderer) === null || _a === void 0 ? void 0 : _a.rebuild();
+        this._spriteRenderer?.rebuild();
     }
     /**
      * Release associated resources
@@ -445,8 +478,18 @@ export class SpriteManager {
         }
         this._textureContent = null;
         // Remove from scene
-        const index = this._scene.spriteManagers.indexOf(this);
-        this._scene.spriteManagers.splice(index, 1);
+        if (this._scene.spriteManagers) {
+            const index = this._scene.spriteManagers.indexOf(this);
+            this._scene.spriteManagers.splice(index, 1);
+            this._scene._onSpriteManagerRemovedObservable?.notifyObservers(this);
+        }
+        if (this._parentContainer && this._parentContainer.spriteManagers) {
+            const index = this._parentContainer.spriteManagers.indexOf(this);
+            if (index > -1) {
+                this._parentContainer.spriteManagers.splice(index, 1);
+            }
+            this._parentContainer = null;
+        }
         // Callback
         this.onDisposeObservable.notifyObservers(this);
         this.onDisposeObservable.clear();
@@ -463,6 +506,11 @@ export class SpriteManager {
         serializationObject.capacity = this.capacity;
         serializationObject.cellWidth = this.cellWidth;
         serializationObject.cellHeight = this.cellHeight;
+        serializationObject.fogEnabled = this.fogEnabled;
+        serializationObject.blendMode = this.blendMode;
+        serializationObject.disableDepthWrite = this.disableDepthWrite;
+        serializationObject.pixelPerfect = this.pixelPerfect;
+        serializationObject.useLogarithmicDepth = this.useLogarithmicDepth;
         if (this.texture) {
             if (serializeTexture) {
                 serializationObject.texture = this.texture.serialize();
@@ -491,6 +539,21 @@ export class SpriteManager {
             width: parsedManager.cellWidth,
             height: parsedManager.cellHeight,
         }, scene);
+        if (parsedManager.fogEnabled !== undefined) {
+            manager.fogEnabled = parsedManager.fogEnabled;
+        }
+        if (parsedManager.blendMode !== undefined) {
+            manager.blendMode = parsedManager.blendMode;
+        }
+        if (parsedManager.disableDepthWrite !== undefined) {
+            manager.disableDepthWrite = parsedManager.disableDepthWrite;
+        }
+        if (parsedManager.pixelPerfect !== undefined) {
+            manager.pixelPerfect = parsedManager.pixelPerfect;
+        }
+        if (parsedManager.useLogarithmicDepth !== undefined) {
+            manager.useLogarithmicDepth = parsedManager.useLogarithmicDepth;
+        }
         if (parsedManager.metadata !== undefined) {
             manager.metadata = parsedManager.metadata;
         }
@@ -513,8 +576,8 @@ export class SpriteManager {
      * @param rootUrl defines the root URL to use to load textures and relative dependencies
      * @returns a promise that will resolve to the new sprite manager
      */
-    static ParseFromFileAsync(name, url, scene, rootUrl = "") {
-        return new Promise((resolve, reject) => {
+    static async ParseFromFileAsync(name, url, scene, rootUrl = "") {
+        return await new Promise((resolve, reject) => {
             const request = new WebRequest();
             request.addEventListener("readystatechange", () => {
                 if (request.readyState == 4) {
@@ -527,6 +590,7 @@ export class SpriteManager {
                         resolve(output);
                     }
                     else {
+                        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
                         reject("Unable to load the sprite manager");
                     }
                 }
@@ -542,6 +606,7 @@ export class SpriteManager {
      * @param rootUrl defines the root URL to use to load textures and relative dependencies
      * @returns a promise that will resolve to the new sprite manager
      */
+    // eslint-disable-next-line @typescript-eslint/promise-function-async, no-restricted-syntax
     static ParseFromSnippetAsync(snippetId, scene, rootUrl = "") {
         if (snippetId === "_BLANK") {
             return Promise.resolve(new SpriteManager("Default sprite manager", "//playground.babylonjs.com/textures/player.png", 500, 64, scene));
@@ -558,6 +623,7 @@ export class SpriteManager {
                         resolve(output);
                     }
                     else {
+                        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
                         reject("Unable to load the snippet " + snippetId);
                     }
                 }

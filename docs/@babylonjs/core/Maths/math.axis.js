@@ -1,4 +1,4 @@
-import { Vector3 } from "./math.vector.js";
+import { Vector3 } from "./math.vector.pure.js";
 /** Defines supported spaces */
 export var Space;
 (function (Space) {

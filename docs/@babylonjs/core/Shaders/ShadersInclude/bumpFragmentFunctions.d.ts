@@ -1,4 +1,4 @@
-import "./samplerFragmentDeclaration";
+import "./samplerFragmentDeclaration.js";
 /** @internal */
 export declare const bumpFragmentFunctions: {
     name: string;

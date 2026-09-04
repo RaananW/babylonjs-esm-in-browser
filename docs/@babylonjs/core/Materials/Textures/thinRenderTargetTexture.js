@@ -5,10 +5,16 @@ import { ThinTexture } from "./thinTexture.js";
  */
 export class ThinRenderTargetTexture extends ThinTexture {
     /**
+     * Gets the render target wrapper associated with this render target
+     */
+    get renderTarget() {
+        return this._renderTarget;
+    }
+    /**
      * Instantiates a new ThinRenderTargetTexture.
      * Tiny helper class to wrap a RenderTargetWrapper in a texture.
-     * This can be used as an internal texture wrapper in ThinEngine to benefit from the cache and to hold on the associated RTT
-     * @param engine Define the internalTexture to wrap
+     * This can be used as an internal texture wrapper to benefit from the cache and to hold on the associated RTT
+     * @param engine Define the engine used to create and host the render target
      * @param size Define the size of the RTT to create
      * @param options Define rendertarget options
      */
@@ -20,12 +26,6 @@ export class ThinRenderTargetTexture extends ThinTexture {
         this.resize(size);
     }
     /**
-     * Gets the render target wrapper associated with this render target
-     */
-    get renderTarget() {
-        return this._renderTarget;
-    }
-    /**
      * Resize the texture to a new desired size.
      * Be careful as it will recreate all the data in the new texture.
      * @param size Define the new size. It can be:
@@ -33,8 +33,7 @@ export class ThinRenderTargetTexture extends ThinTexture {
      *   - an object containing { width: number, height: number }
      */
     resize(size) {
-        var _a;
-        (_a = this._renderTarget) === null || _a === void 0 ? void 0 : _a.dispose();
+        this._renderTarget?.dispose();
         this._renderTarget = null;
         this._texture = null;
         this._size = size;
@@ -59,11 +58,10 @@ export class ThinRenderTargetTexture extends ThinTexture {
     }
     /**
      * Dispose the texture and release its associated resources.
-     * @param disposeOnlyFramebuffers
+     * @param disposeOnlyFramebuffers if set to true it will dispose only the frame buffers (default: false)
      */
     dispose(disposeOnlyFramebuffers = false) {
-        var _a;
-        (_a = this._renderTarget) === null || _a === void 0 ? void 0 : _a.dispose(true);
+        this._renderTarget?.dispose(true);
         this._renderTarget = null;
         if (!disposeOnlyFramebuffers) {
             super.dispose();

@@ -1,5 +1,6 @@
-import { Vector3, TmpVectors } from "../Maths/math.vector.js";
-import { Scalar } from "../Maths/math.scalar.js";
+/* eslint-disable @typescript-eslint/naming-convention */
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { HighestCommonFactor } from "../Maths/math.scalar.functions.js";
 import { PHI } from "../Maths/math.constants.js";
 import { _IsoVector } from "../Maths/math.isovector.js";
 /**
@@ -7,20 +8,29 @@ import { _IsoVector } from "../Maths/math.isovector.js";
  * When O is the isovector (0, 0), A is isovector (m, n)
  * @internal
  */
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export class _PrimaryIsoTriangle {
     constructor() {
+        /** @internal */
         this.cartesian = [];
+        /** @internal */
         this.vertices = [];
+        /** @internal */
         this.max = [];
+        /** @internal */
         this.min = [];
+        /** @internal */
         this.closestTo = [];
+        /** @internal */
         this.innerFacets = [];
+        /** @internal */
         this.isoVecsABOB = [];
+        /** @internal */
         this.isoVecsOBOA = [];
+        /** @internal */
         this.isoVecsBAOA = [];
+        /** @internal */
         this.vertexTypes = [];
-        // eslint-disable-next-line @typescript-eslint/naming-convention
+        /** @internal */
         this.IDATA = new PolyhedronData("icosahedron", "Regular", [
             [0, PHI, -1],
             [-PHI, 1, 0],
@@ -69,13 +79,11 @@ export class _PrimaryIsoTriangle {
         const m = this.m;
         const n = this.n;
         let g = m; // hcf of m, n when n != 0
-        let m1 = 1;
-        let n1 = 0;
         if (n !== 0) {
-            g = Scalar.HCF(m, n);
+            g = HighestCommonFactor(m, n);
         }
-        m1 = m / g;
-        n1 = n / g;
+        const m1 = m / g;
+        const n1 = n / g;
         let fr; //face to the right of current face
         let rot; //rotation about which vertex for fr
         let O;
@@ -217,6 +225,7 @@ export class _PrimaryIsoTriangle {
         this.closestTo = closestTo;
         this.vecToidx = vecToidx;
     }
+    /** @internal */
     calcCoeffs() {
         const m = this.m;
         const n = this.n;
@@ -227,6 +236,7 @@ export class _PrimaryIsoTriangle {
         this.coav = (-thirdR3 * (m - n)) / LSQD;
         this.cobv = (thirdR3 * (2 * m + n)) / LSQD;
     }
+    /** @internal */
     createInnerFacets() {
         const m = this.m;
         const n = this.n;
@@ -241,6 +251,7 @@ export class _PrimaryIsoTriangle {
             }
         }
     }
+    /** @internal */
     edgeVecsABOB() {
         const m = this.m;
         const n = this.n;
@@ -289,6 +300,7 @@ export class _PrimaryIsoTriangle {
             }
         }
     }
+    /** @internal */
     mapABOBtoOBOA() {
         const point = new _IsoVector(0, 0);
         for (let i = 0; i < this.isoVecsABOB.length; i++) {
@@ -304,6 +316,7 @@ export class _PrimaryIsoTriangle {
             this.isoVecsOBOA.push(temp);
         }
     }
+    /** @internal */
     mapABOBtoBAOA() {
         const point = new _IsoVector(0, 0);
         for (let i = 0; i < this.isoVecsABOB.length; i++) {
@@ -319,7 +332,7 @@ export class _PrimaryIsoTriangle {
             this.isoVecsBAOA.push(temp);
         }
     }
-    // eslint-disable-next-line @typescript-eslint/naming-convention
+    /** @internal */
     MapToFace(faceNb, geodesicData) {
         const F = this.IDATA.face[faceNb];
         const oidx = F[2];
@@ -334,7 +347,7 @@ export class _PrimaryIsoTriangle {
         const y = OA.scale(this.coav).add(OB.scale(this.cobv));
         const mapped = [];
         let idx;
-        let tempVec = TmpVectors.Vector3[0];
+        let tempVec;
         for (let i = 0; i < this.cartesian.length; i++) {
             tempVec = x.scale(this.cartesian[i].x).add(y.scale(this.cartesian[i].y)).add(O);
             mapped[i] = [tempVec.x, tempVec.y, tempVec.z];
@@ -347,7 +360,7 @@ export class _PrimaryIsoTriangle {
      * @internal
      */
     build(m, n) {
-        const vertices = new Array();
+        const vertices = [];
         const O = _IsoVector.Zero();
         const A = new _IsoVector(m, n);
         const B = new _IsoVector(-n, m + n);
@@ -360,7 +373,7 @@ export class _PrimaryIsoTriangle {
         }
         //shared vertices along edges when needed
         if (n > 0) {
-            const g = Scalar.HCF(m, n);
+            const g = HighestCommonFactor(m, n);
             const m1 = m / g;
             const n1 = n / g;
             for (let i = 1; i < g; i++) {
@@ -391,8 +404,8 @@ export class _PrimaryIsoTriangle {
             min[i] = Infinity;
             max[i] = -Infinity;
         }
-        let y = 0;
-        let x = 0;
+        let y;
+        let x;
         const len = vertices.length;
         for (let i = 0; i < len; i++) {
             x = vertices[i].x;
@@ -486,7 +499,24 @@ export class _PrimaryIsoTriangle {
  * @internal
  */
 export class PolyhedronData {
-    constructor(name, category, vertex, face) {
+    /** @internal */
+    constructor(
+    /**
+     * The name of the polyhedron
+     */
+    name, 
+    /**
+     * The category of the polyhedron
+     */
+    category, 
+    /**
+     * vertex data
+     */
+    vertex, 
+    /**
+     * face data
+     */
+    face) {
         this.name = name;
         this.category = category;
         this.vertex = vertex;
@@ -658,15 +688,15 @@ export class GeodesicData extends PolyhedronData {
                 map[this.face[f][i]].push(f);
             }
         }
-        let cx = 0;
-        let cy = 0;
-        let cz = 0;
-        let face = [];
-        let vertex = [];
+        let cx;
+        let cy;
+        let cz;
+        let face;
+        let vertex;
         this.adjacentFaces = [];
         for (let m = 0; m < map.length; m++) {
             goldbergPolyhedronData.face[m] = this.setOrder(m, map[m].concat([]));
-            map[m].forEach((el) => {
+            for (const el of map[m]) {
                 cx = 0;
                 cy = 0;
                 cz = 0;
@@ -678,7 +708,7 @@ export class GeodesicData extends PolyhedronData {
                     cz += vertex[2];
                 }
                 goldbergPolyhedronData.vertex[el] = [cx / 3, cy / 3, cz / 3];
-            });
+            }
         }
         return goldbergPolyhedronData;
     }

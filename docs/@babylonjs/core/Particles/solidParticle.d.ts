@@ -1,12 +1,11 @@
-import type { Nullable } from "../types";
-import type { Matrix } from "../Maths/math.vector";
-import { Vector3, Quaternion, Vector4, Vector2 } from "../Maths/math.vector";
-import { Color4 } from "../Maths/math.color";
-import type { Mesh } from "../Meshes/mesh";
-import { BoundingInfo } from "../Culling/boundingInfo";
-import type { SolidParticleSystem } from "./solidParticleSystem";
-import type { Plane } from "../Maths/math.plane";
-import type { Material } from "../Materials/material";
+import { type Nullable } from "../types.js";
+import { type Matrix, Vector3, Quaternion, Vector4, Vector2 } from "../Maths/math.vector.pure.js";
+import { Color4 } from "../Maths/math.color.pure.js";
+import { type Mesh } from "../Meshes/mesh.js";
+import { BoundingInfo } from "../Culling/boundingInfo.js";
+import { type SolidParticleSystem } from "./solidParticleSystem.js";
+import { type Plane } from "../Maths/math.plane.js";
+import { type Material } from "../Materials/material.js";
 /**
  * Represents one particle of a solid particle system.
  */
@@ -65,6 +64,15 @@ export declare class SolidParticle {
      * Is the particle visible or not ?
      */
     isVisible: boolean;
+    /**
+     * Defines how long will the life of the particle be.
+     * Set to Infinity for particles that should never die (default behavior for SolidParticleSystem).
+     */
+    lifeTime: number;
+    /**
+     * The current age of the particle.
+     */
+    age: number;
     /**
      * Index of this particle in the global "positions" array (Internal use)
      * @internal

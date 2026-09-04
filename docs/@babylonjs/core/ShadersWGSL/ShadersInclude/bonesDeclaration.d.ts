@@ -1,5 +1,5 @@
 /** @internal */
-export declare const bonesDeclaration: {
+export declare const bonesDeclarationWGSL: {
     name: string;
     shader: string;
 };

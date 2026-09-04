@@ -1,15 +1,16 @@
-import type { Camera } from "../../Cameras/camera.js";
-import type { Engine } from "../../Engines/engine.js";
-import type { BaseTexture } from "../../Materials/Textures/baseTexture.js";
-import type { InternalTexture } from "../../Materials/Textures/internalTexture.js";
-import { Color3, Color4 } from "../../Maths/math.color.js";
-import { Matrix, Vector3 } from "../../Maths/math.vector.js";
+import { type Camera } from "../../Cameras/camera.js";
+import { type AbstractEngine } from "../../Engines/abstractEngine.js";
+import { type BaseTexture } from "../../Materials/Textures/baseTexture.js";
+import { type InternalTexture } from "../../Materials/Textures/internalTexture.js";
+import { Color3, Color4 } from "../../Maths/math.color.pure.js";
+import { Matrix, Vector3 } from "../../Maths/math.vector.pure.js";
 import { Observable } from "../../Misc/observable.js";
-import { PostProcess } from "../../PostProcesses/postProcess.js";
-import type { Scene } from "../../scene.js";
-import type { Nullable } from "../../types.js";
-import type { FluidRenderingObject } from "./fluidRenderingObject";
-import { FluidRenderingTextures } from "./fluidRenderingTextures";
+import { PostProcess } from "../../PostProcesses/postProcess.pure.js";
+import { type Scene } from "../../scene.js";
+import { type Nullable } from "../../types.js";
+import { type FluidRenderingObject } from "./fluidRenderingObject.js";
+import { FluidRenderingTextures } from "./fluidRenderingTextures.js";
+import { ShaderLanguage } from "../../Materials/shaderLanguage.js";
 /**
  * Textures that can be displayed as a debugging tool
  */
@@ -28,7 +29,7 @@ export declare enum FluidRenderingDebug {
 export declare class FluidRenderingTargetRenderer {
     protected _scene: Scene;
     protected _camera: Nullable<Camera>;
-    protected _engine: Engine;
+    protected _engine: AbstractEngine;
     protected _invProjectionMatrix: Matrix;
     protected _depthClearColor: Color4;
     protected _thicknessClearColor: Color4;
@@ -197,6 +198,13 @@ export declare class FluidRenderingTargetRenderer {
      */
     get samples(): number;
     set samples(samples: number);
+    private _compositeMode;
+    /**
+     * If compositeMode is true (default: false), when the alpha value of the background (the scene rendered without the fluid objects) is 0, the final alpha value of the pixel will be set to the thickness value.
+     * This way, it is possible to composite the fluid rendering on top of the HTML background.
+     */
+    get compositeMode(): boolean;
+    set compositeMode(value: boolean);
     /**
      * Gets the camera used for the rendering
      */
@@ -209,12 +217,19 @@ export declare class FluidRenderingTargetRenderer {
     _diffuseRenderTarget: Nullable<FluidRenderingTextures>;
     /** @internal */
     _thicknessRenderTarget: Nullable<FluidRenderingTextures>;
+    /** Shader language used by the renderer */
+    protected _shaderLanguage: ShaderLanguage;
+    /**
+     * Gets the shader language used in this renderer
+     */
+    get shaderLanguage(): ShaderLanguage;
     /**
      * Creates an instance of the class
      * @param scene Scene used to render the fluid object into
      * @param camera Camera used to render the fluid object. If not provided, use the active camera of the scene instead
+     * @param shaderLanguage The shader language to use
      */
-    constructor(scene: Scene, camera?: Camera);
+    constructor(scene: Scene, camera?: Camera, shaderLanguage?: ShaderLanguage);
     /** @internal */
     _initialize(): void;
     protected _setBlurParameters(renderTarget?: Nullable<FluidRenderingTextures>): void;
@@ -227,8 +242,8 @@ export declare class FluidRenderingTargetRenderer {
     /** @internal */
     _render(fluidObject: FluidRenderingObject): void;
     /**
-     * Releases all the ressources used by the class
-     * @param onlyPostProcesses If true, releases only the ressources used by the render post processes
+     * Releases all the resources used by the class
+     * @param onlyPostProcesses If true, releases only the resources used by the render post processes
      */
     dispose(onlyPostProcesses?: boolean): void;
 }

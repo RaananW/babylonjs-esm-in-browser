@@ -1,4 +1,4 @@
-import { Vector2, Vector3 } from "./math.vector.js";
+import { Vector2, Vector3 } from "./math.vector.pure.js";
 /**
  * Class used to store (r, theta) vector representation
  */
@@ -9,6 +9,8 @@ export class Polar {
      * @param theta the angle of the vector
      */
     constructor(radius, theta) {
+        this.radius = radius;
+        this.theta = theta;
         this.radius = radius;
         this.theta = theta;
     }
@@ -28,7 +30,7 @@ export class Polar {
     }
     /**
      * Converts the current polar to an array
-     * @reutrns the current polar as an array
+     * @returns the current polar as an array
      */
     asArray() {
         return [this.radius, this.theta];
@@ -291,7 +293,7 @@ export class Polar {
      * @returns the updated reference
      */
     static FromVector2ToRef(v, ref) {
-        const theta = Math.sign(v.y) * Math.acos(v.x / v.length());
+        const theta = Math.atan2(v.y, v.x);
         ref.radius = v.length();
         ref.theta = theta;
         return ref;
@@ -320,11 +322,15 @@ export class Polar {
  */
 export class Spherical {
     /**
+     * Creates a new Spherical object from the given spherical coordinates
      * @param radius spherical radius
      * @param theta angle from positive y axis to radial line from 0 to PI (vertical)
      * @param phi angle from positive x axis measured anticlockwise from -PI to PI (horizontal)
      */
     constructor(radius, theta, phi) {
+        this.radius = radius;
+        this.theta = theta;
+        this.phi = phi;
         this.radius = radius;
         this.theta = theta;
         this.phi = phi;
@@ -345,7 +351,7 @@ export class Spherical {
     }
     /**
      * Converts the current spherical to an array
-     * @reutrns the current spherical as an array
+     * @returns the current spherical as an array
      */
     asArray() {
         return [this.radius, this.theta, this.phi];

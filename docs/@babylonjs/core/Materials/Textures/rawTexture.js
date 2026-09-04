@@ -1,6 +1,5 @@
-import { Texture } from "./texture.js";
+import { Texture } from "./texture.pure.js";
 
-import "../../Engines/Extensions/engine.rawTexture.js";
 /**
  * Raw texture can help creating a texture directly from an array of data.
  * This can be super useful if you either get the data from an uncompressed source or
@@ -23,12 +22,14 @@ export class RawTexture extends Texture {
      * @param type define the format of the data (int, float... Engine.TEXTURETYPE_xxx)
      * @param creationFlags specific flags to use when creating the texture (1 for storage textures, for eg)
      * @param useSRGBBuffer defines if the texture must be loaded in a sRGB GPU buffer (if supported by the GPU).
+     * @param waitDataToBeReady If set to true Rawtexture will wait data to be set in order to be flaged as ready.
+     * @param mipLevelCount defines the number of mip levels to allocate for the texture
      */
     constructor(data, width, height, 
     /**
      * Define the format of the data (RGB, RGBA... Engine.TEXTUREFORMAT_xxx)
      */
-    format, sceneOrEngine, generateMipMaps = true, invertY = false, samplingMode = 3, type = 0, creationFlags, useSRGBBuffer) {
+    format, sceneOrEngine, generateMipMaps = true, invertY = false, samplingMode = 3, type = 0, creationFlags, useSRGBBuffer, waitDataToBeReady, mipLevelCount) {
         super(null, sceneOrEngine, !generateMipMaps, invertY, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, creationFlags);
         this.format = format;
         if (!this._engine) {
@@ -40,16 +41,42 @@ export class RawTexture extends Texture {
         if (!this._engine._caps.textureHalfFloatLinearFiltering && type === 2) {
             samplingMode = 1;
         }
-        this._texture = this._engine.createRawTexture(data, width, height, format, generateMipMaps, invertY, samplingMode, null, type, creationFlags !== null && creationFlags !== void 0 ? creationFlags : 0, useSRGBBuffer !== null && useSRGBBuffer !== void 0 ? useSRGBBuffer : false);
+        this._texture = this._engine.createRawTexture(data, width, height, format, generateMipMaps, invertY, samplingMode, null, type, creationFlags ?? 0, useSRGBBuffer ?? false, mipLevelCount);
         this.wrapU = Texture.CLAMP_ADDRESSMODE;
         this.wrapV = Texture.CLAMP_ADDRESSMODE;
+        this._waitingForData = !!waitDataToBeReady && !data;
     }
     /**
      * Updates the texture underlying data.
      * @param data Define the new data of the texture
      */
     update(data) {
-        this._getEngine().updateRawTexture(this._texture, data, this._texture.format, this._texture.invertY, null, this._texture.type, this._texture._useSRGBBuffer);
+        this.updateMipLevel(data, 0);
+    }
+    /**
+     * Updates a specific mip level of the texture.
+     * @param data The new data for the mip level
+     * @param mipLevel The mip level to update (0 is the base level)
+     */
+    updateMipLevel(data, mipLevel) {
+        this._getEngine().updateRawTexture(this._texture, data, this._texture.format, this._texture.invertY, null, this._texture.type, this._texture._useSRGBBuffer, mipLevel);
+        this._waitingForData = false;
+    }
+    /**
+     * Clones the texture.
+     * @returns the cloned texture
+     */
+    clone() {
+        if (!this._texture) {
+            return super.clone();
+        }
+        const rawTexture = new RawTexture(null, this.getSize().width, this.getSize().height, this.format, this.getScene(), this._texture.generateMipMaps, this._invertY, this.samplingMode, this._texture.type, this._texture._creationFlags, this._useSRGBBuffer);
+        rawTexture._texture = this._texture;
+        this._texture.incrementReferences();
+        return rawTexture;
+    }
+    isReady() {
+        return super.isReady() && !this._waitingForData;
     }
     /**
      * Creates a luminance texture from some data.
@@ -122,10 +149,11 @@ export class RawTexture extends Texture {
      * @param type define the format of the data (int, float... Engine.TEXTURETYPE_xxx)
      * @param creationFlags specific flags to use when creating the texture (1 for storage textures, for eg)
      * @param useSRGBBuffer defines if the texture must be loaded in a sRGB GPU buffer (if supported by the GPU).
+     * @param waitDataToBeReady if set to true this will force texture to wait for data to be set before it is considered ready.
      * @returns the RGBA texture
      */
-    static CreateRGBATexture(data, width, height, sceneOrEngine, generateMipMaps = true, invertY = false, samplingMode = 3, type = 0, creationFlags = 0, useSRGBBuffer = false) {
-        return new RawTexture(data, width, height, 5, sceneOrEngine, generateMipMaps, invertY, samplingMode, type, creationFlags, useSRGBBuffer);
+    static CreateRGBATexture(data, width, height, sceneOrEngine, generateMipMaps = true, invertY = false, samplingMode = 3, type = 0, creationFlags = 0, useSRGBBuffer = false, waitDataToBeReady = false) {
+        return new RawTexture(data, width, height, 5, sceneOrEngine, generateMipMaps, invertY, samplingMode, type, creationFlags, useSRGBBuffer, waitDataToBeReady);
     }
     /**
      * Creates a RGBA storage texture from some data.
@@ -170,6 +198,7 @@ export class RawTexture extends Texture {
      * @param type define the format of the data (int, float... Engine.TEXTURETYPE_xxx)
      * @returns the R texture
      */
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     static CreateRStorageTexture(data, width, height, sceneOrEngine, generateMipMaps = true, invertY = false, samplingMode = Texture.TRILINEAR_SAMPLINGMODE, type = 1) {
         return new RawTexture(data, width, height, 6, sceneOrEngine, generateMipMaps, invertY, samplingMode, type, 1);
     }

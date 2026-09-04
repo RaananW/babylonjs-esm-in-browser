@@ -1,23 +1,23 @@
 
-import { DepthRenderer } from "../Rendering/depthRenderer.js";
-import { MinMaxReducer } from "./minMaxReducer.js";
+import { DepthRenderer } from "../Rendering/depthRenderer.pure.js";
+import { MinMaxReducer } from "./minMaxReducer.pure.js";
 /**
  * This class is a small wrapper around the MinMaxReducer class to compute the min/max values of a depth texture
  */
 export class DepthReducer extends MinMaxReducer {
-    /**
-     * Creates a depth reducer
-     * @param camera The camera used to render the depth texture
-     */
-    constructor(camera) {
-        super(camera);
-    }
     /**
      * Gets the depth renderer used for the computation.
      * Note that the result is null if you provide your own renderer when calling setDepthRenderer.
      */
     get depthRenderer() {
         return this._depthRenderer;
+    }
+    /**
+     * Creates a depth reducer
+     * @param camera The camera used to render the depth texture
+     */
+    constructor(camera) {
+        super(camera);
     }
     /**
      * Sets the depth renderer to use to generate the depth map
@@ -36,9 +36,9 @@ export class DepthReducer extends MinMaxReducer {
             if (!scene._depthRenderer) {
                 scene._depthRenderer = {};
             }
-            depthRenderer = this._depthRenderer = new DepthRenderer(scene, type, this._camera, false, 1);
+            this._depthRendererId = "minmax_" + this._camera.uniqueId;
+            depthRenderer = this._depthRenderer = new DepthRenderer(scene, type, this._camera, false, 1, false, `DepthRenderer ${this._depthRendererId}`);
             depthRenderer.enabled = false;
-            this._depthRendererId = "minmax" + this._camera.id;
             scene._depthRenderer[this._depthRendererId] = depthRenderer;
         }
         super.setSourceTexture(depthRenderer.getDepthMap(), true, type, forceFullscreenViewport);
@@ -76,10 +76,6 @@ export class DepthReducer extends MinMaxReducer {
     dispose(disposeAll = true) {
         super.dispose(disposeAll);
         if (this._depthRenderer && disposeAll) {
-            const scene = this._depthRenderer.getDepthMap().getScene();
-            if (scene) {
-                delete scene._depthRenderer[this._depthRendererId];
-            }
             this._depthRenderer.dispose();
             this._depthRenderer = null;
         }

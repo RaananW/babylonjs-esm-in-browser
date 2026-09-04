@@ -1,6 +1,6 @@
-import type { IWebXRFeature } from "../webXRFeaturesManager";
-import type { Observable, EventState } from "../../Misc/observable";
-import type { WebXRSessionManager } from "../webXRSessionManager";
+import { type IWebXRFeature } from "../webXRFeaturesManager.js";
+import { type EventState, Observable } from "../../Misc/observable.js";
+import { type WebXRSessionManager } from "../webXRSessionManager.js";
 /**
  * This is the base class for all WebXR features.
  * Since most features require almost the same resources and callbacks, this class can be used to simplify the development
@@ -9,6 +9,7 @@ import type { WebXRSessionManager } from "../webXRSessionManager";
 export declare abstract class WebXRAbstractFeature implements IWebXRFeature {
     protected _xrSessionManager: WebXRSessionManager;
     private _attached;
+    private _disableAutoAttachWarningEmitted;
     private _removeOnDetach;
     /**
      * Is this feature disposed?
@@ -18,10 +19,26 @@ export declare abstract class WebXRAbstractFeature implements IWebXRFeature {
      * Should auto-attach be disabled?
      */
     disableAutoAttach: boolean;
+    /** @internal */
+    _autoAttachPolicyBeforeAttach?: boolean;
+    protected _xrNativeFeatureName: string;
     /**
      * The name of the native xr feature name (like anchor, hit-test, or hand-tracking)
      */
-    xrNativeFeatureName: string;
+    get xrNativeFeatureName(): string;
+    set xrNativeFeatureName(name: string);
+    /**
+     * Observers registered here will be executed when the feature is attached
+     */
+    onFeatureAttachObservable: Observable<IWebXRFeature>;
+    /**
+     * Observers registered here will be executed when the feature is detached
+     */
+    onFeatureDetachObservable: Observable<IWebXRFeature>;
+    /**
+     * The dependencies of this feature, if any
+     */
+    dependsOn?: string[];
     /**
      * Construct a new (abstract) WebXR feature
      * @param _xrSessionManager the xr session manager for this feature
@@ -56,11 +73,18 @@ export declare abstract class WebXRAbstractFeature implements IWebXRFeature {
      */
     isCompatible(): boolean;
     /**
+     * Disables future automatic attachment when a runtime capability required by the feature is unavailable.
+     * @param warning the specific warning explaining why the feature was disabled
+     * @returns false so feature attach implementations can return the result directly
+     */
+    protected _disableAutoAttach(warning: string): false;
+    /**
      * This is used to register callbacks that will automatically be removed when detach is called.
      * @param observable the observable to which the observer will be attached
      * @param callback the callback to register
+     * @param insertFirst should the callback be executed as soon as it is registered
      */
-    protected _addNewAttachObserver<T>(observable: Observable<T>, callback: (eventData: T, eventState: EventState) => void): void;
+    protected _addNewAttachObserver<T>(observable: Observable<T>, callback: (eventData: T, eventState: EventState) => void, insertFirst?: boolean): void;
     /**
      * Code in this function will be executed on each xrFrame received from the browser.
      * This function will not execute after the feature is detached.

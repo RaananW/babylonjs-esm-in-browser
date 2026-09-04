@@ -1,0 +1,80 @@
+/** This file must only contain pure code and pure imports */
+import { type Nullable } from "../types.js";
+import { type RenderTargetTexture } from "../Materials/Textures/renderTargetTexture.pure.js";
+import { type Camera } from "../Cameras/camera.pure.js";
+import { type Observer } from "./observable.pure.js";
+import { PostProcess } from "../PostProcesses/postProcess.pure.js";
+import { PostProcessManager } from "../PostProcesses/postProcessManager.js";
+import { type AbstractEngine } from "../Engines/abstractEngine.pure.js";
+import { ThinMinMaxReducer } from "./thinMinMaxReducer.js";
+/**
+ * This class computes a min/max reduction from a texture: it means it computes the minimum
+ * and maximum values from all values of the texture.
+ * It is performed on the GPU for better performances, thanks to a succession of post processes.
+ * The source values are read from the red channel of the texture.
+ */
+export declare class MinMaxReducer {
+    /**
+     * Observable triggered when the computation has been performed
+     */
+    get onAfterReductionPerformed(): import("./observable.pure.js").Observable<{
+        min: number;
+        max: number;
+    }>;
+    protected readonly _camera: Camera;
+    protected readonly _thinMinMaxReducer: ThinMinMaxReducer;
+    protected _sourceTexture: Nullable<RenderTargetTexture>;
+    protected readonly _reductionSteps: Array<PostProcess>;
+    protected readonly _postProcessManager: PostProcessManager;
+    protected _onAfterUnbindObserver: Nullable<Observer<RenderTargetTexture>>;
+    protected _forceFullscreenViewport: boolean;
+    protected readonly _onContextRestoredObserver: Observer<AbstractEngine>;
+    /**
+     * Creates a min/max reducer
+     * @param camera The camera to use for the post processes
+     */
+    constructor(camera: Camera);
+    /**
+     * Gets the texture used to read the values from.
+     */
+    get sourceTexture(): Nullable<RenderTargetTexture>;
+    /**
+     * Sets the source texture to read the values from.
+     * One must indicate if the texture is a depth texture or not through the depthRedux parameter
+     * because in such textures '1' value must not be taken into account to compute the maximum
+     * as this value is used to clear the texture.
+     * Note that the computation is not activated by calling this function, you must call activate() for that!
+     * @param sourceTexture The texture to read the values from. The values should be in the red channel.
+     * @param depthRedux Indicates if the texture is a depth texture or not
+     * @param type The type of the textures created for the reduction (defaults to TEXTURETYPE_HALF_FLOAT)
+     * @param forceFullscreenViewport Forces the post processes used for the reduction to be applied without taking into account viewport (defaults to true)
+     */
+    setSourceTexture(sourceTexture: RenderTargetTexture, depthRedux: boolean, type?: number, forceFullscreenViewport?: boolean): void;
+    /**
+     * Defines the refresh rate of the computation.
+     * Use 0 to compute just once, 1 to compute on every frame, 2 to compute every two frames and so on...
+     */
+    get refreshRate(): number;
+    set refreshRate(value: number);
+    protected _activated: boolean;
+    /**
+     * Gets the activation status of the reducer
+     */
+    get activated(): boolean;
+    /**
+     * Activates the reduction computation.
+     * When activated, the observers registered in onAfterReductionPerformed are
+     * called after the computation is performed
+     */
+    activate(): void;
+    /**
+     * Deactivates the reduction computation.
+     */
+    deactivate(): void;
+    /**
+     * Disposes the min/max reducer
+     * @param disposeAll true to dispose all the resources. You should always call this function with true as the parameter (or without any parameter as it is the default one). This flag is meant to be used internally.
+     */
+    dispose(disposeAll?: boolean): void;
+    private _disposePostProcesses;
+}

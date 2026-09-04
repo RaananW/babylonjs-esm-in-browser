@@ -1,5 +1,5 @@
-import type { DeepImmutable, Nullable } from "../types";
-import { Vector2, Vector3 } from "./math.vector";
+import { type DeepImmutable, type Nullable } from "../types.js";
+import { Vector2, Vector3, type Vector4 } from "./math.vector.pure.js";
 /**
  * Defines potential orientation for back face culling
  */
@@ -45,12 +45,19 @@ export declare class Angle {
      */
     radians(): number;
     /**
-     * Gets a new Angle object valued with the gradient angle, in radians, of the line joining two points
+     * Gets a new Angle object with a value of the angle (in radians) between the line connecting the two points and the x-axis
      * @param a defines first point as the origin
      * @param b defines point
      * @returns a new Angle
      */
     static BetweenTwoPoints(a: DeepImmutable<Vector2>, b: DeepImmutable<Vector2>): Angle;
+    /**
+     * Gets the angle between the two vectors
+     * @param a defines first vector
+     * @param b defines vector
+     * @returns Returns an new Angle between 0 and PI
+     */
+    static BetweenTwoVectors<Vec extends Vector2 | Vector3 | Vector4>(a: DeepImmutable<Vec>, b: DeepImmutable<Vec>): Angle;
     /**
      * Gets a new Angle object from the given float in radians
      * @param radians defines the angle value in radians
@@ -142,6 +149,34 @@ export declare class Path2 {
      */
     addArcTo(midX: number, midY: number, endX: number, endY: number, numberOfSegments?: number): Path2;
     /**
+     * Adds _numberOfSegments_ segments according to the quadratic curve definition to the current Path2.
+     * @param controlX control point x value
+     * @param controlY control point y value
+     * @param endX end point x value
+     * @param endY end point y value
+     * @param numberOfSegments (default: 36)
+     * @returns the updated Path2.
+     */
+    addQuadraticCurveTo(controlX: number, controlY: number, endX: number, endY: number, numberOfSegments?: number): Path2;
+    /**
+     * Adds _numberOfSegments_ segments according to the bezier curve definition to the current Path2.
+     * @param originTangentX tangent vector at the origin point x value
+     * @param originTangentY tangent vector at the origin point y value
+     * @param destinationTangentX tangent vector at the destination point x value
+     * @param destinationTangentY tangent vector at the destination point y value
+     * @param endX end point x value
+     * @param endY end point y value
+     * @param numberOfSegments (default: 36)
+     * @returns the updated Path2.
+     */
+    addBezierCurveTo(originTangentX: number, originTangentY: number, destinationTangentX: number, destinationTangentY: number, endX: number, endY: number, numberOfSegments?: number): Path2;
+    /**
+     * Defines if a given point is inside the polygon defines by the path
+     * @param point defines the point to test
+     * @returns true if the point is inside
+     */
+    isPointInside(point: Vector2): boolean;
+    /**
      * Closes the Path2.
      * @returns the Path2.
      */
@@ -152,12 +187,17 @@ export declare class Path2 {
      */
     length(): number;
     /**
+     * Gets the area of the polygon defined by the path
+     * @returns area value
+     */
+    area(): number;
+    /**
      * Gets the points which construct the path
      * @returns the Path2 internal array of points.
      */
     getPoints(): Vector2[];
     /**
-     * Retreives the point at the distance aways from the starting point
+     * Retrieves the point at the distance aways from the starting point
      * @param normalizedLengthPosition the length along the path to retrieve the point from
      * @returns a new Vector2 located at a percentage of the Path2 total length on this path.
      */
@@ -319,7 +359,8 @@ export declare class Path3D {
      * @param subPosition
      * @param point the interpolated point
      * @param parentIndex the index of an existing curve point that is on, or else positionally the first behind, the interpolated point
-     * @param interpolateTNB
+     * @param interpolateTNB whether to compute the interpolated tangent, normal and binormal
+     * @returns the (updated) point at data
      */
     private _setPointAtData;
     /**

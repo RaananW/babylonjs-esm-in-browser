@@ -1,5 +1,5 @@
 import { SmartArray, SmartArrayNoDuplicate } from "../Misc/smartArray.js";
-import { Vector3 } from "../Maths/math.vector.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
 
 /**
  * This represents the object necessary to create a rendering group.
@@ -8,31 +8,6 @@ import { Vector3 } from "../Maths/math.vector.js";
  * @internal
  */
 export class RenderingGroup {
-    /**
-     * Creates a new rendering group.
-     * @param index The rendering group index
-     * @param scene
-     * @param opaqueSortCompareFn The opaque sort comparison function. If null no order is applied
-     * @param alphaTestSortCompareFn The alpha test sort comparison function. If null no order is applied
-     * @param transparentSortCompareFn The transparent sort comparison function. If null back to front + alpha index sort is applied
-     */
-    constructor(index, scene, opaqueSortCompareFn = null, alphaTestSortCompareFn = null, transparentSortCompareFn = null) {
-        this.index = index;
-        this._opaqueSubMeshes = new SmartArray(256);
-        this._transparentSubMeshes = new SmartArray(256);
-        this._alphaTestSubMeshes = new SmartArray(256);
-        this._depthOnlySubMeshes = new SmartArray(256);
-        this._particleSystems = new SmartArray(256);
-        this._spriteManagers = new SmartArray(256);
-        /** @internal */
-        this._empty = true;
-        /** @internal */
-        this._edgesRenderers = new SmartArrayNoDuplicate(16);
-        this._scene = scene;
-        this.opaqueSortCompareFn = opaqueSortCompareFn;
-        this.alphaTestSortCompareFn = alphaTestSortCompareFn;
-        this.transparentSortCompareFn = transparentSortCompareFn;
-    }
     /**
      * Set the opaque sort comparison function.
      * If null the sub meshes will be render in the order they were created
@@ -73,31 +48,62 @@ export class RenderingGroup {
         this._renderTransparent = this._renderTransparentSorted;
     }
     /**
+     * Creates a new rendering group.
+     * @param index The rendering group index
+     * @param scene
+     * @param opaqueSortCompareFn The opaque sort comparison function. If null no order is applied
+     * @param alphaTestSortCompareFn The alpha test sort comparison function. If null no order is applied
+     * @param transparentSortCompareFn The transparent sort comparison function. If null back to front + alpha index sort is applied
+     */
+    constructor(index, scene, opaqueSortCompareFn = null, alphaTestSortCompareFn = null, transparentSortCompareFn = null) {
+        this.index = index;
+        this._opaqueSubMeshes = new SmartArray(256);
+        /** @internal */
+        this._transparentSubMeshes = new SmartArray(256);
+        this._alphaTestSubMeshes = new SmartArray(256);
+        this._depthOnlySubMeshes = new SmartArray(256);
+        this._particleSystems = new SmartArray(256);
+        this._spriteManagers = new SmartArray(256);
+        /** @internal */
+        this._empty = true;
+        /** @internal */
+        this._edgesRenderers = new SmartArrayNoDuplicate(16);
+        this.disableDepthPrePass = false;
+        this._scene = scene;
+        this.opaqueSortCompareFn = opaqueSortCompareFn;
+        this.alphaTestSortCompareFn = alphaTestSortCompareFn;
+        this.transparentSortCompareFn = transparentSortCompareFn;
+    }
+    /**
      * Render all the sub meshes contained in the group.
      * @param customRenderFunction Used to override the default render behaviour of the group.
      * @param renderSprites
      * @param renderParticles
      * @param activeMeshes
-     * @returns true if rendered some submeshes.
+     * @param renderDepthOnlyMeshes
+     * @param renderOpaqueMeshes
+     * @param renderAlphaTestMeshes
+     * @param renderTransparentMeshes
+     * @param customRenderTransparentSubMeshes
      */
-    render(customRenderFunction, renderSprites, renderParticles, activeMeshes) {
+    render(customRenderFunction, renderSprites, renderParticles, activeMeshes, renderDepthOnlyMeshes = true, renderOpaqueMeshes = true, renderAlphaTestMeshes = true, renderTransparentMeshes = true, customRenderTransparentSubMeshes) {
         if (customRenderFunction) {
             customRenderFunction(this._opaqueSubMeshes, this._alphaTestSubMeshes, this._transparentSubMeshes, this._depthOnlySubMeshes);
             return;
         }
         const engine = this._scene.getEngine();
         // Depth only
-        if (this._depthOnlySubMeshes.length !== 0) {
+        if (renderDepthOnlyMeshes && this._depthOnlySubMeshes.length !== 0) {
             engine.setColorWrite(false);
             this._renderAlphaTest(this._depthOnlySubMeshes);
             engine.setColorWrite(true);
         }
         // Opaque
-        if (this._opaqueSubMeshes.length !== 0) {
+        if (renderOpaqueMeshes && this._opaqueSubMeshes.length !== 0) {
             this._renderOpaque(this._opaqueSubMeshes);
         }
         // Alpha test
-        if (this._alphaTestSubMeshes.length !== 0) {
+        if (renderAlphaTestMeshes && this._alphaTestSubMeshes.length !== 0) {
             this._renderAlphaTest(this._alphaTestSubMeshes);
         }
         const stencilState = engine.getStencilBuffer();
@@ -114,24 +120,29 @@ export class RenderingGroup {
             this.onBeforeTransparentRendering();
         }
         // Transparent
-        if (this._transparentSubMeshes.length !== 0 || this._scene.useOrderIndependentTransparency) {
+        if (renderTransparentMeshes && (customRenderTransparentSubMeshes || this._transparentSubMeshes.length !== 0 || this._scene.useOrderIndependentTransparency)) {
             engine.setStencilBuffer(stencilState);
-            if (this._scene.useOrderIndependentTransparency) {
-                const excludedMeshes = this._scene.depthPeelingRenderer.render(this._transparentSubMeshes);
-                if (excludedMeshes.length) {
-                    // Render leftover meshes that could not be processed by depth peeling
-                    this._renderTransparent(excludedMeshes);
-                }
+            if (customRenderTransparentSubMeshes) {
+                customRenderTransparentSubMeshes(this._transparentSubMeshes, this);
             }
             else {
-                this._renderTransparent(this._transparentSubMeshes);
+                if (this._scene.useOrderIndependentTransparency) {
+                    const excludedMeshes = this._scene.depthPeelingRenderer.render(this._transparentSubMeshes);
+                    if (excludedMeshes.length) {
+                        // Render leftover meshes that could not be processed by depth peeling
+                        this._renderTransparent(excludedMeshes);
+                    }
+                }
+                else {
+                    this._renderTransparent(this._transparentSubMeshes);
+                }
             }
             engine.setAlphaMode(0);
         }
         // Set back stencil to false in case it changes before the edge renderer.
         engine.setStencilBuffer(false);
         // Edges
-        if (this._edgesRenderers.length) {
+        if (renderOpaqueMeshes && this._edgesRenderers.length) {
             for (let edgesRendererIndex = 0; edgesRendererIndex < this._edgesRenderers.length; edgesRendererIndex++) {
                 this._edgesRenderers.data[edgesRendererIndex].render();
             }
@@ -145,21 +156,21 @@ export class RenderingGroup {
      * @param subMeshes The submeshes to render
      */
     _renderOpaqueSorted(subMeshes) {
-        return RenderingGroup._RenderSorted(subMeshes, this._opaqueSortCompareFn, this._scene.activeCamera, false);
+        RenderingGroup._RenderSorted(subMeshes, this._opaqueSortCompareFn, this._scene.activeCamera, false, this.disableDepthPrePass);
     }
     /**
      * Renders the opaque submeshes in the order from the alphatestSortCompareFn.
      * @param subMeshes The submeshes to render
      */
     _renderAlphaTestSorted(subMeshes) {
-        return RenderingGroup._RenderSorted(subMeshes, this._alphaTestSortCompareFn, this._scene.activeCamera, false);
+        RenderingGroup._RenderSorted(subMeshes, this._alphaTestSortCompareFn, this._scene.activeCamera, false, this.disableDepthPrePass);
     }
     /**
      * Renders the opaque submeshes in the order from the transparentSortCompareFn.
      * @param subMeshes The submeshes to render
      */
     _renderTransparentSorted(subMeshes) {
-        return RenderingGroup._RenderSorted(subMeshes, this._transparentSortCompareFn, this._scene.activeCamera, true);
+        RenderingGroup._RenderSorted(subMeshes, this._transparentSortCompareFn, this._scene.activeCamera, true, this.disableDepthPrePass);
     }
     /**
      * Renders the submeshes in a specified order.
@@ -167,8 +178,9 @@ export class RenderingGroup {
      * @param sortCompareFn The comparison function use to sort
      * @param camera The camera position use to preprocess the submeshes to help sorting
      * @param transparent Specifies to activate blending if true
+     * @param disableDepthPrePass Specifies to disable depth pre-pass if true (default: false)
      */
-    static _RenderSorted(subMeshes, sortCompareFn, camera, transparent) {
+    static _RenderSorted(subMeshes, sortCompareFn, camera, transparent, disableDepthPrePass) {
         let subIndex = 0;
         let subMesh;
         const cameraPosition = camera ? camera.globalPosition : RenderingGroup._ZeroVector;
@@ -191,7 +203,7 @@ export class RenderingGroup {
             }
             if (transparent) {
                 const material = subMesh.getMaterial();
-                if (material && material.needDepthPrePass) {
+                if (material && material.needDepthPrePass && !disableDepthPrePass) {
                     const engine = material.getScene().getEngine();
                     engine.setColorWrite(false);
                     engine.setAlphaMode(0);
@@ -325,21 +337,21 @@ export class RenderingGroup {
             // Transparent
             this._transparentSubMeshes.push(subMesh);
         }
-        else if (material.needAlphaTesting()) {
+        else if (material.needAlphaTestingForMesh(mesh)) {
             // Alpha test
-            if (material.needDepthPrePass) {
+            if (material.needDepthPrePass && !this.disableDepthPrePass) {
                 this._depthOnlySubMeshes.push(subMesh);
             }
             this._alphaTestSubMeshes.push(subMesh);
         }
         else {
-            if (material.needDepthPrePass) {
+            if (material.needDepthPrePass && !this.disableDepthPrePass) {
                 this._depthOnlySubMeshes.push(subMesh);
             }
             this._opaqueSubMeshes.push(subMesh); // Opaque
         }
         mesh._renderingGroup = this;
-        if (mesh._edgesRenderer && mesh._edgesRenderer.isEnabled) {
+        if (mesh._edgesRenderer && mesh.isEnabled() && mesh.isVisible && mesh._edgesRenderer.isEnabled) {
             this._edgesRenderers.pushNoDuplicate(mesh._edgesRenderer);
         }
         this._empty = false;

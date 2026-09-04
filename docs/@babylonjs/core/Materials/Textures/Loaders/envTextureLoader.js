@@ -1,5 +1,5 @@
-import { GetEnvInfo, UploadEnvLevelsAsync, UploadEnvSpherical } from "../../../Misc/environmentTextureTools.js";
-import { Engine } from "../../../Engines/engine.js";
+import { GetEnvInfo, UploadEnvLevelsAsync, UploadEnvSpherical } from "../../../Misc/environmentTextureTools.pure.js";
+import { RegisterBaseTexturePolynomial } from "../baseTexture.polynomial.pure.js";
 /**
  * Implementation of the ENV Texture Loader.
  * @internal
@@ -11,14 +11,6 @@ export class _ENVTextureLoader {
          * Defines whether the loader supports cascade loading the different faces.
          */
         this.supportCascades = false;
-    }
-    /**
-     * This returns if the loader support the current file information.
-     * @param extension defines the file extension of the file being loaded
-     * @returns true if the loader can load the specified file
-     */
-    canLoad(extension) {
-        return extension.endsWith(".env");
     }
     /**
      * Uploads the cube texture data to the WebGL texture. It has already been bound.
@@ -37,7 +29,9 @@ export class _ENVTextureLoader {
             texture.width = info.width;
             texture.height = info.width;
             try {
+                RegisterBaseTexturePolynomial();
                 UploadEnvSpherical(texture, info);
+                // eslint-disable-next-line github/no-then
                 UploadEnvLevelsAsync(texture, data, info).then(() => {
                     texture.isReady = true;
                     texture.onLoadedObservable.notifyObservers(texture);
@@ -46,11 +40,11 @@ export class _ENVTextureLoader {
                         onLoad();
                     }
                 }, (reason) => {
-                    onError === null || onError === void 0 ? void 0 : onError("Can not upload environment levels", reason);
+                    onError?.("Can not upload environment levels", reason);
                 });
             }
             catch (e) {
-                onError === null || onError === void 0 ? void 0 : onError("Can not upload environment file", e);
+                onError?.("Can not upload environment file", e);
             }
         }
         else if (onError) {
@@ -61,9 +55,8 @@ export class _ENVTextureLoader {
      * Uploads the 2D texture data to the WebGL texture. It has already been bound once in the callback.
      */
     loadData() {
+        // eslint-disable-next-line no-throw-literal
         throw ".env not supported in 2d.";
     }
 }
-// Register the loader.
-Engine._TextureLoaders.push(new _ENVTextureLoader());
 //# sourceMappingURL=envTextureLoader.js.map

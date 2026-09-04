@@ -1,24 +1,23 @@
-import type { Matrix } from "../../Maths/math.vector";
-import { Vector3 } from "../../Maths/math.vector";
-import type { Particle } from "../../Particles/particle";
-import type { IParticleEmitterType } from "./IParticleEmitterType";
-import type { UniformBufferEffectCommonAccessor } from "../../Materials/uniformBufferEffectCommonAccessor";
-import type { UniformBuffer } from "../../Materials/uniformBuffer";
+import { type Matrix, Vector3 } from "../../Maths/math.vector.pure.js";
+import { type Particle } from "../../Particles/particle.js";
+import { type IParticleEmitterType } from "./IParticleEmitterType.js";
+import { type UniformBufferEffectCommonAccessor } from "../../Materials/uniformBufferEffectCommonAccessor.js";
+import { type UniformBuffer } from "../../Materials/uniformBuffer.js";
 /**
  * Particle emitter emitting particles from the inside of a sphere.
  * It emits the particles alongside the sphere radius. The emission direction might be randomized.
  */
 export declare class SphereParticleEmitter implements IParticleEmitterType {
     /**
-     * The radius of the emission sphere.
+     * [1] The radius of the emission sphere.
      */
     radius: number;
     /**
-     * The range of emission [0-1] 0 Surface only, 1 Entire Radius.
+     * [1] The range of emission [0-1] 0 Surface only, 1 Entire Radius.
      */
     radiusRange: number;
     /**
-     * How much to randomize the particle direction [0-1].
+     * [0] How much to randomize the particle direction [0-1].
      */
     directionRandomizer: number;
     /**
@@ -29,15 +28,15 @@ export declare class SphereParticleEmitter implements IParticleEmitterType {
      */
     constructor(
     /**
-     * The radius of the emission sphere.
+     * [1] The radius of the emission sphere.
      */
     radius?: number, 
     /**
-     * The range of emission [0-1] 0 Surface only, 1 Entire Radius.
+     * [1] The range of emission [0-1] 0 Surface only, 1 Entire Radius.
      */
     radiusRange?: number, 
     /**
-     * How much to randomize the particle direction [0-1].
+     * [0] How much to randomize the particle direction [0-1].
      */
     directionRandomizer?: number);
     /**
@@ -98,11 +97,11 @@ export declare class SphereParticleEmitter implements IParticleEmitterType {
  */
 export declare class SphereDirectedParticleEmitter extends SphereParticleEmitter {
     /**
-     * The min limit of the emission direction.
+     * [Up vector] The min limit of the emission direction.
      */
     direction1: Vector3;
     /**
-     * The max limit of the emission direction.
+     * [Up vector] The max limit of the emission direction.
      */
     direction2: Vector3;
     /**
@@ -113,19 +112,21 @@ export declare class SphereDirectedParticleEmitter extends SphereParticleEmitter
      */
     constructor(radius?: number, 
     /**
-     * The min limit of the emission direction.
+     * [Up vector] The min limit of the emission direction.
      */
     direction1?: Vector3, 
     /**
-     * The max limit of the emission direction.
+     * [Up vector] The max limit of the emission direction.
      */
     direction2?: Vector3);
     /**
      * Called by the particle System when the direction is computed for the created particle.
      * @param worldMatrix is the world matrix of the particle system
      * @param directionToUpdate is the direction vector to update with the result
+     * @param particle is the particle we are computed the position for
+     * @param isLocal defines if the direction should be set in local space
      */
-    startDirectionFunction(worldMatrix: Matrix, directionToUpdate: Vector3): void;
+    startDirectionFunction(worldMatrix: Matrix, directionToUpdate: Vector3, particle: Particle, isLocal: boolean): void;
     /**
      * Clones the current emitter and returns a copy of it
      * @returns the new emitter

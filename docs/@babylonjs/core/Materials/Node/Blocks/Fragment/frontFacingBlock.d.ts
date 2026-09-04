@@ -1,23 +1,5 @@
-import { NodeMaterialBlock } from "../../nodeMaterialBlock";
-import type { NodeMaterialBuildState } from "../../nodeMaterialBuildState";
-import type { NodeMaterialConnectionPoint } from "../../nodeMaterialBlockConnectionPoint";
 /**
- * Block used to test if the fragment shader is front facing
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import frontFacingBlock.pure for tree-shakeable, side-effect-free usage.
  */
-export declare class FrontFacingBlock extends NodeMaterialBlock {
-    /**
-     * Creates a new FrontFacingBlock
-     * @param name defines the block name
-     */
-    constructor(name: string);
-    /**
-     * Gets the current class name
-     * @returns the class name
-     */
-    getClassName(): string;
-    /**
-     * Gets the output component
-     */
-    get output(): NodeMaterialConnectionPoint;
-    protected _buildBlock(state: NodeMaterialBuildState): this;
-}
+export * from "./frontFacingBlock.pure.js";

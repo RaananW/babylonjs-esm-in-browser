@@ -1,12 +1,25 @@
-import { Vector3, TmpVectors, Quaternion, Vector4, Vector2 } from "../Maths/math.vector.js";
-import { Color4 } from "../Maths/math.color.js";
+import { Vector3, TmpVectors, Quaternion, Vector4, Vector2 } from "../Maths/math.vector.pure.js";
+import { Color4 } from "../Maths/math.color.pure.js";
 import { BoundingInfo } from "../Culling/boundingInfo.js";
 import { BoundingSphere } from "../Culling/boundingSphere.js";
-import { AbstractMesh } from "../Meshes/abstractMesh.js";
+import { AbstractMesh } from "../Meshes/abstractMesh.pure.js";
 /**
  * Represents one particle of a solid particle system.
  */
 export class SolidParticle {
+    /**
+     * Particle BoundingInfo object
+     * @returns a BoundingInfo
+     */
+    getBoundingInfo() {
+        return this._boundingInfo;
+    }
+    /**
+     * Returns true if there is already a bounding info
+     */
+    get hasBoundingInfo() {
+        return this._boundingInfo !== null;
+    }
     /**
      * Creates a Solid Particle object.
      * Don't create particles manually, use instead the Solid Particle System internal tools like _addParticle()
@@ -72,6 +85,15 @@ export class SolidParticle {
          * Is the particle visible or not ?
          */
         this.isVisible = true;
+        /**
+         * Defines how long will the life of the particle be.
+         * Set to Infinity for particles that should never die (default behavior for SolidParticleSystem).
+         */
+        this.lifeTime = Infinity;
+        /**
+         * The current age of the particle.
+         */
+        this.age = 0;
         /**
          * Index of this particle in the global "positions" array (Internal use)
          * @internal
@@ -142,19 +164,6 @@ export class SolidParticle {
         }
     }
     /**
-     * Particle BoundingInfo object
-     * @returns a BoundingInfo
-     */
-    getBoundingInfo() {
-        return this._boundingInfo;
-    }
-    /**
-     * Returns true if there is already a bounding info
-     */
-    get hasBoundingInfo() {
-        return this._boundingInfo !== null;
-    }
-    /**
      * Copies the particle property values into the existing target : position, rotation, scaling, uvs, colors, pivot, parent, visibility, alive
      * @param target the particle target
      * @returns the current particle
@@ -187,6 +196,8 @@ export class SolidParticle {
         target.isVisible = this.isVisible;
         target.parentId = this.parentId;
         target.cullingStrategy = this.cullingStrategy;
+        target.lifeTime = this.lifeTime;
+        target.age = this.age;
         if (this.materialIndex !== null) {
             target.materialIndex = this.materialIndex;
         }
@@ -263,6 +274,18 @@ export class SolidParticle {
  */
 export class ModelShape {
     /**
+     * Get or set the shapeId
+     * @deprecated Please use shapeId instead
+     */
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    get shapeID() {
+        return this.shapeId;
+    }
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    set shapeID(shapeID) {
+        this.shapeId = shapeID;
+    }
+    /**
      * Creates a ModelShape object. This is an internal simplified reference to a mesh used as for a model to replicate particles from by the SPS.
      * SPS internal tool, don't use it manually.
      * @internal
@@ -283,16 +306,6 @@ export class ModelShape {
         this._positionFunction = posFunction;
         this._vertexFunction = vtxFunction;
         this._material = material;
-    }
-    /**
-     * Get or set the shapeId
-     * @deprecated Please use shapeId instead
-     */
-    get shapeID() {
-        return this.shapeId;
-    }
-    set shapeID(shapeID) {
-        this.shapeId = shapeID;
     }
 }
 /**

@@ -1,4 +1,4 @@
-import type { PrePassEffectConfiguration } from "./prePassEffectConfiguration";
+import { type PrePassEffectConfiguration } from "./prePassEffectConfiguration.js";
 /**
  * Contains all parameters needed for the prepass to perform
  * motion blur

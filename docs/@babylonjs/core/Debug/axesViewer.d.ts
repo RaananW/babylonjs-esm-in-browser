@@ -1,7 +1,7 @@
-import { Vector3 } from "../Maths/math.vector";
-import type { Nullable } from "../types";
-import type { Scene } from "../scene";
-import type { TransformNode } from "../Meshes/transformNode";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { type Nullable } from "../types.js";
+import { type Scene } from "../scene.js";
+import { type TransformNode } from "../Meshes/transformNode.js";
 /**
  * The Axes viewer will show 3 axes in a specific point in space
  * @see https://doc.babylonjs.com/toolsAndResources/utilities/World_Axes
@@ -16,10 +16,12 @@ export declare class AxesViewer {
      * Gets the hosting scene
      */
     scene: Nullable<Scene>;
+    private _scaleLines;
     /**
      * Gets or sets a number used to scale line length
      */
-    scaleLines: number;
+    get scaleLines(): number;
+    set scaleLines(value: number);
     /** Gets the node hierarchy used to render x-axis */
     get xAxis(): TransformNode;
     /** Gets the node hierarchy used to render y-axis */

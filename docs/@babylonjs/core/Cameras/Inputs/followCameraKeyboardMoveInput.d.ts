@@ -1,5 +1,5 @@
-import type { ICameraInput } from "../../Cameras/cameraInputsManager";
-import type { FollowCamera } from "../../Cameras/followCamera";
+import { type ICameraInput } from "../../Cameras/cameraInputsManager.js";
+import { type FollowCamera } from "../../Cameras/followCamera.js";
 /**
  * Manage the keyboard inputs to control the movement of a follow camera.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs
@@ -116,16 +116,19 @@ export declare class FollowCameraKeyboardMoveInput implements ICameraInput<Follo
     /**
      * Check if the pressed modifier keys (Alt/Ctrl/Shift) match those configured to
      * allow modification of the heightOffset value.
+     * @returns true if modifier keys match
      */
     private _modifierHeightOffset;
     /**
      * Check if the pressed modifier keys (Alt/Ctrl/Shift) match those configured to
      * allow modification of the rotationOffset value.
+     * @returns true if modifier keys match
      */
     private _modifierRotationOffset;
     /**
      * Check if the pressed modifier keys (Alt/Ctrl/Shift) match those configured to
      * allow modification of the radius value.
+     * @returns true if modifier keys match
      */
     private _modifierRadius;
 }

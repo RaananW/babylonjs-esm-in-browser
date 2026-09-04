@@ -1,10 +1,10 @@
 import { SceneLoader } from "../Loading/sceneLoader.js";
-import { Tools } from "./tools.js";
+import { Tools } from "./tools.pure.js";
 import { Observable } from "./observable.js";
-import { Texture } from "../Materials/Textures/texture.js";
-import { CubeTexture } from "../Materials/Textures/cubeTexture.js";
-import { HDRCubeTexture } from "../Materials/Textures/hdrCubeTexture.js";
-import { EquiRectangularCubeTexture } from "../Materials/Textures/equiRectangularCubeTexture.js";
+import { Texture } from "../Materials/Textures/texture.pure.js";
+import { CubeTexture } from "../Materials/Textures/cubeTexture.pure.js";
+import { HDRCubeTexture } from "../Materials/Textures/hdrCubeTexture.pure.js";
+import { EquiRectangularCubeTexture } from "../Materials/Textures/equiRectangularCubeTexture.pure.js";
 import { Logger } from "../Misc/logger.js";
 import { EngineStore } from "../Engines/engineStore.js";
 /**
@@ -43,7 +43,7 @@ export class AbstractAssetTask {
      */ name) {
         this.name = name;
         this._isCompleted = false;
-        this._taskState = AssetTaskState.INIT;
+        this._taskState = 0 /* AssetTaskState.INIT */;
     }
     /**
      * Get if the task is completed
@@ -83,7 +83,7 @@ export class AbstractAssetTask {
      * @param onError is a callback called if an error occurs
      */
     run(scene, onSuccess, onError) {
-        this._taskState = AssetTaskState.RUNNING;
+        this._taskState = 1 /* AssetTaskState.RUNNING */;
         this.runTask(scene, () => {
             this._onDoneCallback(onSuccess, onError);
         }, (msg, exception) => {
@@ -105,10 +105,10 @@ export class AbstractAssetTask {
      * This can be used with failed tasks that have the reason for failure fixed.
      */
     reset() {
-        this._taskState = AssetTaskState.INIT;
+        this._taskState = 0 /* AssetTaskState.INIT */;
     }
     _onErrorCallback(onError, message, exception) {
-        this._taskState = AssetTaskState.ERROR;
+        this._taskState = 3 /* AssetTaskState.ERROR */;
         this._errorObject = {
             message: message,
             exception: exception,
@@ -120,7 +120,7 @@ export class AbstractAssetTask {
     }
     _onDoneCallback(onSuccess, onError) {
         try {
-            this._taskState = AssetTaskState.DONE;
+            this._taskState = 2 /* AssetTaskState.DONE */;
             this._isCompleted = true;
             if (this.onSuccess) {
                 this.onSuccess(this);
@@ -158,6 +158,7 @@ export class ContainerAssetTask extends AbstractAssetTask {
      * @param meshesNames defines the list of mesh's names you want to load
      * @param rootUrl defines the root url to use as a base to load your meshes and associated resources
      * @param sceneFilename defines the filename or File of the scene to load from
+     * @param extension defines the extension to use to load the scene (if not defined, ".babylon" will be used)
      */
     constructor(
     /**
@@ -217,6 +218,9 @@ export class MeshAssetTask extends AbstractAssetTask {
      * @param meshesNames defines the list of mesh's names you want to load
      * @param rootUrl defines the root url to use as a base to load your meshes and associated resources
      * @param sceneFilename defines the filename or File of the scene to load from
+     * @param extension defines the extension to use to load the scene (if not defined, ".babylon" will be used)
+     * @param fileName defines the name of the file, if the data is binary
+     * @param pluginOptions defines the options to use with the plugin
      */
     constructor(
     /**
@@ -238,13 +242,23 @@ export class MeshAssetTask extends AbstractAssetTask {
     /**
      * Defines the extension to use to load the scene (if not defined, ".babylon" will be used)
      */
-    extension) {
+    extension, 
+    /**
+     * defines the name of the file, if the data is binary
+     */
+    fileName, 
+    /**
+     * defines the options to use with the plugin
+     */
+    pluginOptions) {
         super(name);
         this.name = name;
         this.meshesNames = meshesNames;
         this.rootUrl = rootUrl;
         this.sceneFilename = sceneFilename;
         this.extension = extension;
+        this.fileName = fileName;
+        this.pluginOptions = pluginOptions;
     }
     /**
      * Execute the current task
@@ -259,6 +273,66 @@ export class MeshAssetTask extends AbstractAssetTask {
             this.loadedParticleSystems = particleSystems;
             this.loadedSkeletons = skeletons;
             this.loadedAnimationGroups = animationGroups;
+            onSuccess();
+        }, null, (scene, message, exception) => {
+            onError(message, exception);
+        }, this.extension, this.fileName, this.pluginOptions);
+    }
+}
+/**
+ * Define a task used by AssetsManager to load animations
+ */
+export class AnimationAssetTask extends AbstractAssetTask {
+    /**
+     * Creates a new AnimationAssetTask
+     * @param name defines the name of the task
+     * @param rootUrl defines the root url to use as a base to load your meshes and associated resources
+     * @param filename defines the filename or File of the scene to load from
+     * @param targetConverter defines a function used to convert animation targets from loaded scene to current scene (default: search node by name)
+     * @param extension defines the extension to use to load the scene (if not defined, ".babylon" will be used)
+     */
+    constructor(
+    /**
+     * Defines the name of the task
+     */
+    name, 
+    /**
+     * Defines the root url to use as a base to load your meshes and associated resources
+     */
+    rootUrl, 
+    /**
+     * Defines the filename to load from
+     */
+    filename, 
+    /**
+     * Defines a function used to convert animation targets from loaded scene to current scene (default: search node by name)
+     */
+    targetConverter, 
+    /**
+     * Defines the extension to use to load the scene (if not defined, ".babylon" will be used)
+     */
+    extension) {
+        super(name);
+        this.name = name;
+        this.rootUrl = rootUrl;
+        this.filename = filename;
+        this.targetConverter = targetConverter;
+        this.extension = extension;
+    }
+    /**
+     * Execute the current task
+     * @param scene defines the scene where you want your assets to be loaded
+     * @param onSuccess is a callback called when the task is successfully executed
+     * @param onError is a callback called if an error occurs
+     */
+    runTask(scene, onSuccess, onError) {
+        const startingIndexForNewAnimatables = scene.animatables.length;
+        const startingIndexForNewAnimationGroups = scene.animationGroups.length;
+        this.loadedAnimatables = [];
+        this.loadedAnimationGroups = [];
+        SceneLoader.ImportAnimations(this.rootUrl, this.filename, scene, false, 3 /* SceneLoaderAnimationGroupLoadingMode.NoSync */, this.targetConverter, () => {
+            this.loadedAnimatables = scene.animatables.slice(startingIndexForNewAnimatables);
+            this.loadedAnimationGroups = scene.animationGroups.slice(startingIndexForNewAnimationGroups);
             onSuccess();
         }, null, (scene, message, exception) => {
             onError(message, exception);
@@ -392,7 +466,7 @@ export class TextureAssetTask extends AbstractAssetTask {
      * Creates a new TextureAssetTask object
      * @param name defines the name of the task
      * @param url defines the location of the file to load
-     * @param noMipmap defines if mipmap should not be generated (default is false)
+     * @param noMipmapOrOptions defines if mipmap should not be generated (default is false) or the creation options to use
      * @param invertY defines if texture must be inverted on Y axis (default is true)
      * @param samplingMode defines the sampling mode to use (default is Texture.TRILINEAR_SAMPLINGMODE)
      */
@@ -406,21 +480,21 @@ export class TextureAssetTask extends AbstractAssetTask {
      */
     url, 
     /**
-     * Defines if mipmap should not be generated (default is false)
+     * Defines if mipmap should not be generated (default is false) or the creation options to use
      */
-    noMipmap, 
+    noMipmapOrOptions, 
     /**
-     * Defines if texture must be inverted on Y axis (default is true)
+     * [true] Defines if texture must be inverted on Y axis (default is true)
      */
     invertY = true, 
     /**
-     * Defines the sampling mode to use (default is Texture.TRILINEAR_SAMPLINGMODE)
+     * [3] Defines the sampling mode to use (default is Texture.TRILINEAR_SAMPLINGMODE)
      */
     samplingMode = Texture.TRILINEAR_SAMPLINGMODE) {
         super(name);
         this.name = name;
         this.url = url;
-        this.noMipmap = noMipmap;
+        this.noMipmapOrOptions = noMipmapOrOptions;
         this.invertY = invertY;
         this.samplingMode = samplingMode;
     }
@@ -437,7 +511,7 @@ export class TextureAssetTask extends AbstractAssetTask {
         const onerror = (message, exception) => {
             onError(message, exception);
         };
-        this.texture = new Texture(this.url, scene, this.noMipmap, this.invertY, this.samplingMode, onload, onerror);
+        this.texture = new Texture(this.url, scene, this.noMipmapOrOptions, this.invertY, this.samplingMode, onload, onerror);
     }
 }
 /**
@@ -448,7 +522,7 @@ export class CubeTextureAssetTask extends AbstractAssetTask {
      * Creates a new CubeTextureAssetTask
      * @param name defines the name of the task
      * @param url defines the location of the files to load (You have to specify the folder where the files are + filename with no extension)
-     * @param extensions defines the extensions to use to load files (["_px", "_py", "_pz", "_nx", "_ny", "_nz"] by default)
+     * @param extensionsOrOptions defines the suffixes add to the picture name in case six images are in use like _px.jpg or set of all options to create the cube texture
      * @param noMipmap defines if mipmaps should not be generated (default is false)
      * @param files defines the explicit list of files (undefined by default)
      * @param prefiltered
@@ -463,9 +537,9 @@ export class CubeTextureAssetTask extends AbstractAssetTask {
      */
     url, 
     /**
-     * Defines the extensions to use to load files (["_px", "_py", "_pz", "_nx", "_ny", "_nz"] by default)
+     * Defines the suffixes add to the picture name in case six images are in use like _px.jpg or set of all options to create the cube texture
      */
-    extensions, 
+    extensionsOrOptions = null, 
     /**
      * Defines if mipmaps should not be generated (default is false)
      */
@@ -481,7 +555,7 @@ export class CubeTextureAssetTask extends AbstractAssetTask {
         super(name);
         this.name = name;
         this.url = url;
-        this.extensions = extensions;
+        this.extensionsOrOptions = extensionsOrOptions;
         this.noMipmap = noMipmap;
         this.files = files;
         this.prefiltered = prefiltered;
@@ -499,7 +573,7 @@ export class CubeTextureAssetTask extends AbstractAssetTask {
         const onerror = (message, exception) => {
             onError(message, exception);
         };
-        this.texture = new CubeTexture(this.url, scene, this.extensions, this.noMipmap, this.files, onload, onerror, undefined, this.prefiltered);
+        this.texture = new CubeTexture(this.url, scene, this.extensionsOrOptions, this.noMipmap, this.files, onload, onerror, undefined, this.prefiltered);
     }
 }
 /**
@@ -514,7 +588,10 @@ export class HDRCubeTextureAssetTask extends AbstractAssetTask {
      * @param noMipmap defines if mipmaps should not be generated (default is false)
      * @param generateHarmonics specifies whether you want to extract the polynomial harmonics during the generation process (default is true)
      * @param gammaSpace specifies if the texture will be use in gamma or linear space (the PBR material requires those texture in linear space, but the standard material would require them in Gamma space) (default is false)
-     * @param reserved Internal use only
+     * @param prefilterOnLoad specifies if the texture should be prefiltered on load (default is false)
+     * @param supersample specifies if the texture will be generated with super sampling (default is false)
+     * @param prefilterIrradianceOnLoad specifies if the irradiance should be prefiltered on load (default is false)
+     * @param prefilterUsingCdf specifies if the texture should be prefiltered using CDF (default is false)
      */
     constructor(
     /**
@@ -530,21 +607,33 @@ export class HDRCubeTextureAssetTask extends AbstractAssetTask {
      */
     size, 
     /**
-     * Defines if mipmaps should not be generated (default is false)
+     * [false] Defines if mipmaps should not be generated (default is false)
      */
     noMipmap = false, 
     /**
-     * Specifies whether you want to extract the polynomial harmonics during the generation process (default is true)
+     * [true] Specifies whether you want to extract the polynomial harmonics during the generation process (default is true)
      */
     generateHarmonics = true, 
     /**
-     * Specifies if the texture will be use in gamma or linear space (the PBR material requires those texture in linear space, but the standard material would require them in Gamma space) (default is false)
+     * [false] Specifies if the texture will be use in gamma or linear space (the PBR material requires those texture in linear space, but the standard material would require them in Gamma space) (default is false)
      */
     gammaSpace = false, 
     /**
-     * Internal Use Only
+     * [false] Specifies if the texture should be prefiltered on load (default is false)
      */
-    reserved = false) {
+    prefilterOnLoad = false, 
+    /**
+     * [false] Specifies if the texture will be generated with super sampling (default is false)
+     */
+    supersample = false, 
+    /**
+     * [false] Specifies if the irradiance should be prefiltered on load (default is false)
+     */
+    prefilterIrradianceOnLoad = false, 
+    /**
+     * [false] Specifies if the texture should be prefiltered using CDF (default is false)
+     */
+    prefilterUsingCdf = false) {
         super(name);
         this.name = name;
         this.url = url;
@@ -552,7 +641,10 @@ export class HDRCubeTextureAssetTask extends AbstractAssetTask {
         this.noMipmap = noMipmap;
         this.generateHarmonics = generateHarmonics;
         this.gammaSpace = gammaSpace;
-        this.reserved = reserved;
+        this.prefilterOnLoad = prefilterOnLoad;
+        this.supersample = supersample;
+        this.prefilterIrradianceOnLoad = prefilterIrradianceOnLoad;
+        this.prefilterUsingCdf = prefilterUsingCdf;
     }
     /**
      * Execute the current task
@@ -567,7 +659,7 @@ export class HDRCubeTextureAssetTask extends AbstractAssetTask {
         const onerror = (message, exception) => {
             onError(message, exception);
         };
-        this.texture = new HDRCubeTexture(this.url, scene, this.size, this.noMipmap, this.generateHarmonics, this.gammaSpace, this.reserved, onload, onerror);
+        this.texture = new HDRCubeTexture(this.url, scene, this.size, this.noMipmap, this.generateHarmonics, this.gammaSpace, this.prefilterOnLoad, onload, onerror, this.supersample, this.prefilterIrradianceOnLoad, this.prefilterUsingCdf);
     }
 }
 /**
@@ -582,6 +674,7 @@ export class EquiRectangularCubeTextureAssetTask extends AbstractAssetTask {
      * If the size is omitted this implies you are using a preprocessed cubemap.
      * @param noMipmap defines if mipmaps should not be generated (default is false)
      * @param gammaSpace specifies if the texture will be used in gamma or linear space
+     * @param superSample specifies if the texture will be generated with super sampling (default is false)
      * (the PBR material requires those texture in linear space, but the standard material would require them in Gamma space)
      * (default is true)
      */
@@ -599,20 +692,21 @@ export class EquiRectangularCubeTextureAssetTask extends AbstractAssetTask {
      */
     size, 
     /**
-     * Defines if mipmaps should not be generated (default is false)
+     * [false] Defines if mipmaps should not be generated (default is false)
      */
     noMipmap = false, 
     /**
-     * Specifies if the texture will be use in gamma or linear space (the PBR material requires those texture in linear space,
+     * [true] Specifies if the texture will be use in gamma or linear space (the PBR material requires those texture in linear space,
      * but the standard material would require them in Gamma space) (default is true)
      */
-    gammaSpace = true) {
+    gammaSpace = true, superSample = false) {
         super(name);
         this.name = name;
         this.url = url;
         this.size = size;
         this.noMipmap = noMipmap;
         this.gammaSpace = gammaSpace;
+        this.superSample = superSample;
     }
     /**
      * Execute the current task
@@ -627,7 +721,7 @@ export class EquiRectangularCubeTextureAssetTask extends AbstractAssetTask {
         const onerror = (message, exception) => {
             onError(message, exception);
         };
-        this.texture = new EquiRectangularCubeTexture(this.url, scene, this.size, this.noMipmap, this.gammaSpace, onload, onerror);
+        this.texture = new EquiRectangularCubeTexture(this.url, scene, this.size, this.noMipmap, this.gammaSpace, onload, onerror, this.superSample);
     }
 }
 /**
@@ -694,10 +788,12 @@ export class AssetsManager {
      * @param rootUrl defines the root url to use to locate files
      * @param sceneFilename defines the filename of the scene file or the File itself
      * @param extension defines the extension to use to load the file
+     * @param filename defines the name of the file, if the data is binary
+     * @param pluginOptions defines the options to use with the plugin
      * @returns a new MeshAssetTask object
      */
-    addMeshTask(taskName, meshesNames, rootUrl, sceneFilename, extension) {
-        const task = new MeshAssetTask(taskName, meshesNames, rootUrl, sceneFilename, extension);
+    addMeshTask(taskName, meshesNames, rootUrl, sceneFilename, extension, filename, pluginOptions) {
+        const task = new MeshAssetTask(taskName, meshesNames, rootUrl, sceneFilename, extension, filename, pluginOptions);
         this._tasks.push(task);
         return task;
     }
@@ -738,13 +834,13 @@ export class AssetsManager {
      * Add a TextureAssetTask to the list of active tasks
      * @param taskName defines the name of the new task
      * @param url defines the url of the file to load
-     * @param noMipmap defines if the texture must not receive mipmaps (false by default)
+     * @param noMipmapOrOptions defines if mipmap should not be generated (default is false) or the creation options to use
      * @param invertY defines if you want to invert Y axis of the loaded texture (true by default)
      * @param samplingMode defines the sampling mode to use (Texture.TRILINEAR_SAMPLINGMODE by default)
      * @returns a new TextureAssetTask object
      */
-    addTextureTask(taskName, url, noMipmap, invertY, samplingMode = Texture.TRILINEAR_SAMPLINGMODE) {
-        const task = new TextureAssetTask(taskName, url, noMipmap, invertY, samplingMode);
+    addTextureTask(taskName, url, noMipmapOrOptions, invertY, samplingMode = Texture.TRILINEAR_SAMPLINGMODE) {
+        const task = new TextureAssetTask(taskName, url, noMipmapOrOptions, invertY, samplingMode);
         this._tasks.push(task);
         return task;
     }
@@ -752,14 +848,14 @@ export class AssetsManager {
      * Add a CubeTextureAssetTask to the list of active tasks
      * @param taskName defines the name of the new task
      * @param url defines the url of the file to load
-     * @param extensions defines the extension to use to load the cube map (can be null)
+     * @param extensionsOrOptions defines the extension to use to load the cube map (can be null) or the options to use for the cube texture
      * @param noMipmap defines if the texture must not receive mipmaps (false by default)
      * @param files defines the list of files to load (can be null)
      * @param prefiltered defines the prefiltered texture option (default is false)
      * @returns a new CubeTextureAssetTask object
      */
-    addCubeTextureTask(taskName, url, extensions, noMipmap, files, prefiltered) {
-        const task = new CubeTextureAssetTask(taskName, url, extensions, noMipmap, files, prefiltered);
+    addCubeTextureTask(taskName, url, extensionsOrOptions, noMipmap, files, prefiltered) {
+        const task = new CubeTextureAssetTask(taskName, url, extensionsOrOptions, noMipmap, files, prefiltered);
         this._tasks.push(task);
         return task;
     }
@@ -772,11 +868,14 @@ export class AssetsManager {
      * @param noMipmap defines if the texture must not receive mipmaps (false by default)
      * @param generateHarmonics defines if you want to automatically generate (true by default)
      * @param gammaSpace specifies if the texture will be use in gamma or linear space (the PBR material requires those texture in linear space, but the standard material would require them in Gamma space) (default is false)
-     * @param reserved Internal use only
+     * @param prefilterOnLoad specifies if the texture should be prefiltered on load (default is false)
+     * @param supersample specifies if the texture will be generated with super sampling (default is false)
+     * @param prefilterIrradianceOnLoad specifies if the irradiance should be prefiltered on load (default is false)
+     * @param prefilterUsingCdf specifies if the texture should be prefiltered using CDF (default is false)
      * @returns a new HDRCubeTextureAssetTask object
      */
-    addHDRCubeTextureTask(taskName, url, size, noMipmap = false, generateHarmonics = true, gammaSpace = false, reserved = false) {
-        const task = new HDRCubeTextureAssetTask(taskName, url, size, noMipmap, generateHarmonics, gammaSpace, reserved);
+    addHDRCubeTextureTask(taskName, url, size, noMipmap = false, generateHarmonics = true, gammaSpace = false, prefilterOnLoad = false, supersample = false, prefilterIrradianceOnLoad = false, prefilterUsingCdf = false) {
+        const task = new HDRCubeTextureAssetTask(taskName, url, size, noMipmap, generateHarmonics, gammaSpace, prefilterOnLoad, supersample, prefilterIrradianceOnLoad, prefilterUsingCdf);
         this._tasks.push(task);
         return task;
     }
@@ -788,11 +887,12 @@ export class AssetsManager {
      * @param size defines the size you want for the cubemap (can be null)
      * @param noMipmap defines if the texture must not receive mipmaps (false by default)
      * @param gammaSpace Specifies if the texture will be used in gamma or linear space
+     * @param superSample specifies if the texture will be generated with super sampling (default is false)
      * (the PBR material requires those textures in linear space, but the standard material would require them in Gamma space)
      * @returns a new EquiRectangularCubeTextureAssetTask object
      */
-    addEquiRectangularCubeTextureAssetTask(taskName, url, size, noMipmap = false, gammaSpace = true) {
-        const task = new EquiRectangularCubeTextureAssetTask(taskName, url, size, noMipmap, gammaSpace);
+    addEquiRectangularCubeTextureAssetTask(taskName, url, size, noMipmap = false, gammaSpace = true, superSample = false) {
+        const task = new EquiRectangularCubeTextureAssetTask(taskName, url, size, noMipmap, gammaSpace, superSample);
         this._tasks.push(task);
         return task;
     }
@@ -816,7 +916,7 @@ export class AssetsManager {
         }
         catch (e) {
             Logger.Error("Error running progress callbacks.");
-            console.log(e);
+            Logger.Log(e);
         }
         if (this._waitingTasksCount === 0) {
             try {
@@ -827,7 +927,7 @@ export class AssetsManager {
                 }
                 // Let's remove successful tasks
                 for (const task of currentTasks) {
-                    if (task.taskState === AssetTaskState.DONE) {
+                    if (task.taskState === 2 /* AssetTaskState.DONE */) {
                         const index = this._tasks.indexOf(task);
                         if (index > -1) {
                             this._tasks.splice(index, 1);
@@ -838,7 +938,7 @@ export class AssetsManager {
             }
             catch (e) {
                 Logger.Error("Error running tasks-done callbacks.");
-                console.log(e);
+                Logger.Log(e);
             }
             this._isLoading = false;
             if (this.autoHideLoadingUI) {
@@ -915,7 +1015,7 @@ export class AssetsManager {
         }
         for (let index = 0; index < this._tasks.length; index++) {
             const task = this._tasks[index];
-            if (task.taskState === AssetTaskState.INIT) {
+            if (task.taskState === 0 /* AssetTaskState.INIT */) {
                 this._runTask(task);
             }
         }
@@ -925,14 +1025,15 @@ export class AssetsManager {
      * Start the loading process as an async operation
      * @returns a promise returning the list of failed tasks
      */
-    loadAsync() {
-        return new Promise((resolve, reject) => {
+    async loadAsync() {
+        return await new Promise((resolve, reject) => {
             if (this._isLoading) {
                 resolve();
                 return;
             }
             this.onTasksDoneObservable.addOnce((remainingTasks) => {
                 if (remainingTasks && remainingTasks.length) {
+                    // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
                     reject(remainingTasks);
                 }
                 else {

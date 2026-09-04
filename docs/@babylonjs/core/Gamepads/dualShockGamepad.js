@@ -165,7 +165,7 @@ export class DualShockPad extends Gamepad {
         }
         return newValue;
     }
-    _setDPadValue(newValue, currentValue, buttonType) {
+    _setDpadValue(newValue, currentValue, buttonType) {
         if (newValue !== currentValue) {
             if (newValue === 1) {
                 if (this._ondpaddown) {
@@ -192,7 +192,7 @@ export class DualShockPad extends Gamepad {
      * Sets the value of the `Cross` button
      */
     set buttonCross(value) {
-        this._buttonCross = this._setButtonValue(value, this._buttonCross, DualShockButton.Cross);
+        this._buttonCross = this._setButtonValue(value, this._buttonCross, 0 /* DualShockButton.Cross */);
     }
     /**
      * Gets the value of the `Circle` button
@@ -204,7 +204,7 @@ export class DualShockPad extends Gamepad {
      * Sets the value of the `Circle` button
      */
     set buttonCircle(value) {
-        this._buttonCircle = this._setButtonValue(value, this._buttonCircle, DualShockButton.Circle);
+        this._buttonCircle = this._setButtonValue(value, this._buttonCircle, 1 /* DualShockButton.Circle */);
     }
     /**
      * Gets the value of the `Square` button
@@ -216,7 +216,7 @@ export class DualShockPad extends Gamepad {
      * Sets the value of the `Square` button
      */
     set buttonSquare(value) {
-        this._buttonSquare = this._setButtonValue(value, this._buttonSquare, DualShockButton.Square);
+        this._buttonSquare = this._setButtonValue(value, this._buttonSquare, 2 /* DualShockButton.Square */);
     }
     /**
      * Gets the value of the `Triangle` button
@@ -228,7 +228,7 @@ export class DualShockPad extends Gamepad {
      * Sets the value of the `Triangle` button
      */
     set buttonTriangle(value) {
-        this._buttonTriangle = this._setButtonValue(value, this._buttonTriangle, DualShockButton.Triangle);
+        this._buttonTriangle = this._setButtonValue(value, this._buttonTriangle, 3 /* DualShockButton.Triangle */);
     }
     /**
      * Gets the value of the `Options` button
@@ -240,7 +240,7 @@ export class DualShockPad extends Gamepad {
      * Sets the value of the `Options` button
      */
     set buttonOptions(value) {
-        this._buttonOptions = this._setButtonValue(value, this._buttonOptions, DualShockButton.Options);
+        this._buttonOptions = this._setButtonValue(value, this._buttonOptions, 9 /* DualShockButton.Options */);
     }
     /**
      * Gets the value of the `Share` button
@@ -252,7 +252,7 @@ export class DualShockPad extends Gamepad {
      * Sets the value of the `Share` button
      */
     set buttonShare(value) {
-        this._buttonShare = this._setButtonValue(value, this._buttonShare, DualShockButton.Share);
+        this._buttonShare = this._setButtonValue(value, this._buttonShare, 8 /* DualShockButton.Share */);
     }
     /**
      * Gets the value of the `L1` button
@@ -264,7 +264,7 @@ export class DualShockPad extends Gamepad {
      * Sets the value of the `L1` button
      */
     set buttonL1(value) {
-        this._buttonL1 = this._setButtonValue(value, this._buttonL1, DualShockButton.L1);
+        this._buttonL1 = this._setButtonValue(value, this._buttonL1, 4 /* DualShockButton.L1 */);
     }
     /**
      * Gets the value of the `R1` button
@@ -276,7 +276,7 @@ export class DualShockPad extends Gamepad {
      * Sets the value of the `R1` button
      */
     set buttonR1(value) {
-        this._buttonR1 = this._setButtonValue(value, this._buttonR1, DualShockButton.R1);
+        this._buttonR1 = this._setButtonValue(value, this._buttonR1, 5 /* DualShockButton.R1 */);
     }
     /**
      * Gets the value of the Left joystick
@@ -288,7 +288,7 @@ export class DualShockPad extends Gamepad {
      * Sets the value of the Left joystick
      */
     set buttonLeftStick(value) {
-        this._buttonLeftStick = this._setButtonValue(value, this._buttonLeftStick, DualShockButton.LeftStick);
+        this._buttonLeftStick = this._setButtonValue(value, this._buttonLeftStick, 10 /* DualShockButton.LeftStick */);
     }
     /**
      * Gets the value of the Right joystick
@@ -300,7 +300,7 @@ export class DualShockPad extends Gamepad {
      * Sets the value of the Right joystick
      */
     set buttonRightStick(value) {
-        this._buttonRightStick = this._setButtonValue(value, this._buttonRightStick, DualShockButton.RightStick);
+        this._buttonRightStick = this._setButtonValue(value, this._buttonRightStick, 11 /* DualShockButton.RightStick */);
     }
     /**
      * Gets the value of D-pad up
@@ -312,7 +312,7 @@ export class DualShockPad extends Gamepad {
      * Sets the value of D-pad up
      */
     set dPadUp(value) {
-        this._dPadUp = this._setDPadValue(value, this._dPadUp, DualShockDpad.Up);
+        this._dPadUp = this._setDpadValue(value, this._dPadUp, 12 /* DualShockDpad.Up */);
     }
     /**
      * Gets the value of D-pad down
@@ -324,7 +324,7 @@ export class DualShockPad extends Gamepad {
      * Sets the value of D-pad down
      */
     set dPadDown(value) {
-        this._dPadDown = this._setDPadValue(value, this._dPadDown, DualShockDpad.Down);
+        this._dPadDown = this._setDpadValue(value, this._dPadDown, 13 /* DualShockDpad.Down */);
     }
     /**
      * Gets the value of D-pad left
@@ -336,7 +336,7 @@ export class DualShockPad extends Gamepad {
      * Sets the value of D-pad left
      */
     set dPadLeft(value) {
-        this._dPadLeft = this._setDPadValue(value, this._dPadLeft, DualShockDpad.Left);
+        this._dPadLeft = this._setDpadValue(value, this._dPadLeft, 14 /* DualShockDpad.Left */);
     }
     /**
      * Gets the value of D-pad right
@@ -348,7 +348,7 @@ export class DualShockPad extends Gamepad {
      * Sets the value of D-pad right
      */
     set dPadRight(value) {
-        this._dPadRight = this._setDPadValue(value, this._dPadRight, DualShockDpad.Right);
+        this._dPadRight = this._setDpadValue(value, this._dPadRight, 15 /* DualShockDpad.Right */);
     }
     /**
      * Force the gamepad to synchronize with device values

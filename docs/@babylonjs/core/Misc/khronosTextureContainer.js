@@ -43,6 +43,7 @@ export class KhronosTextureContainer {
         // Make sure we have a compressed type.  Not only reduces work, but probably better to let dev know they are not compressing.
         if (this.glType !== 0) {
             Logger.Error("only compressed formats currently supported");
+            this.isInvalid = true;
             return;
         }
         else {
@@ -51,14 +52,17 @@ export class KhronosTextureContainer {
         }
         if (this.pixelHeight === 0 || this.pixelDepth !== 0) {
             Logger.Error("only 2D textures currently supported");
+            this.isInvalid = true;
             return;
         }
         if (this.numberOfArrayElements !== 0) {
             Logger.Error("texture arrays not currently supported");
+            this.isInvalid = true;
             return;
         }
         if (this.numberOfFaces !== facesExpected) {
             Logger.Error("number of faces expected" + facesExpected + ", but found " + this.numberOfFaces);
+            this.isInvalid = true;
             return;
         }
         // we now have a completely validated file, so could use existence of loadType as success

@@ -1,20 +1,23 @@
-import type { Observer } from "../Misc/observable";
-import { Observable } from "../Misc/observable";
-import type { Nullable } from "../types";
-import { Color3 } from "../Maths/math.color";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import type { Mesh } from "../Meshes/mesh";
-import type { GizmoAxisCache, IGizmo } from "./gizmo";
-import { Gizmo } from "./gizmo";
-import type { IPlaneRotationGizmo } from "./planeRotationGizmo";
-import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer";
-import type { Node } from "../node";
-import type { PointerInfo } from "../Events/pointerEvents";
-import type { GizmoManager } from "./gizmoManager";
+import { type Observer, Observable } from "../Misc/observable.js";
+import { type Nullable } from "../types.js";
+import { type Quaternion } from "../Maths/math.vector.pure.js";
+import { Color3 } from "../Maths/math.color.pure.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { type Mesh } from "../Meshes/mesh.js";
+import { type GizmoAnchorPoint, type GizmoCoordinatesMode, type GizmoAxisCache, type IGizmo, Gizmo } from "./gizmo.js";
+import { type IPlaneRotationGizmo } from "./planeRotationGizmo.pure.js";
+import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer.js";
+import { type Node } from "../node.js";
+import { type PointerInfo } from "../Events/pointerEvents.js";
+import { type TransformNode } from "../Meshes/transformNode.js";
+import { type GizmoManager } from "./gizmoManager.js";
+import { type DragEvent, type DragStartEndEvent } from "../Behaviors/Meshes/pointerDragEvents.js";
 /**
  * Interface for rotation gizmo
  */
 export interface IRotationGizmo extends IGizmo {
+    /** True when the mouse pointer is dragging a gizmo mesh */
+    readonly isDragging: boolean;
     /** Internal gizmo used for interactions on the x axis */
     xGizmo: IPlaneRotationGizmo;
     /** Internal gizmo used for interactions on the y axis */
@@ -22,17 +25,25 @@ export interface IRotationGizmo extends IGizmo {
     /** Internal gizmo used for interactions on the z axis */
     zGizmo: IPlaneRotationGizmo;
     /** Fires an event when any of it's sub gizmos are dragged */
-    onDragStartObservable: Observable<unknown>;
+    onDragStartObservable: Observable<DragStartEndEvent>;
+    /** Fires an event when any of it's sub gizmos are being dragged */
+    onDragObservable: Observable<DragEvent>;
     /** Fires an event when any of it's sub gizmos are released from dragging */
-    onDragEndObservable: Observable<unknown>;
+    onDragEndObservable: Observable<DragStartEndEvent>;
     /** Drag distance in babylon units that the gizmo will snap to when dragged */
     snapDistance: number;
+    /** Custom sensitivity value for the drag strength */
+    sensitivity: number;
     /**
      * Builds Gizmo Axis Cache to enable features such as hover state preservation and graying out other axis during manipulation
      * @param mesh Axis gizmo mesh
      * @param cache Gizmo axis definition used for reactive gizmo UI
      */
     addToAxisCache(mesh: Mesh, cache: GizmoAxisCache): void;
+    /**
+     * Force release the drag action by code
+     */
+    releaseDrag(): void;
 }
 /**
  * Options for each individual plane rotation gizmo contained within RotationGizmo
@@ -64,6 +75,11 @@ export interface RotationGizmoOptions {
      * Specific options for zGizmo
      */
     zOptions?: PlaneRotationGizmoOptions;
+    /**
+     * Additional transform applied to the gizmo.
+     * @See Gizmo.additionalTransformNode for more detail
+     */
+    additionalTransformNode?: TransformNode;
 }
 /**
  * Gizmo that enables rotating a mesh along 3 axis
@@ -82,12 +98,15 @@ export declare class RotationGizmo extends Gizmo implements IRotationGizmo {
      */
     zGizmo: IPlaneRotationGizmo;
     /** Fires an event when any of it's sub gizmos are dragged */
-    onDragStartObservable: Observable<unknown>;
+    onDragStartObservable: Observable<DragStartEndEvent>;
+    /** Fires an event when any of it's sub gizmos are being dragged */
+    onDragObservable: Observable<DragEvent>;
     /** Fires an event when any of it's sub gizmos are released from dragging */
-    onDragEndObservable: Observable<unknown>;
+    onDragEndObservable: Observable<DragStartEndEvent>;
     protected _meshAttached: Nullable<AbstractMesh>;
     protected _nodeAttached: Nullable<Node>;
     protected _observables: Observer<PointerInfo>[];
+    protected _sensitivity: number;
     /** Node Caching for quick lookup */
     protected _gizmoAxisCache: Map<Mesh, GizmoAxisCache>;
     get attachedMesh(): Nullable<AbstractMesh>;
@@ -96,9 +115,20 @@ export declare class RotationGizmo extends Gizmo implements IRotationGizmo {
     set attachedNode(node: Nullable<Node>);
     protected _checkBillboardTransform(): void;
     /**
+     * Sensitivity factor for dragging (Default: 1)
+     */
+    set sensitivity(value: number);
+    get sensitivity(): number;
+    /**
      * True when the mouse pointer is hovering a gizmo mesh
      */
     get isHovered(): boolean;
+    /**
+     * True when the mouse pointer is dragging a gizmo mesh
+     */
+    get isDragging(): boolean;
+    get additionalTransformNode(): TransformNode | undefined;
+    set additionalTransformNode(transformNode: TransformNode | undefined);
     /**
      * Creates a RotationGizmo
      * @param gizmoLayer The utility layer the gizmo will be added to
@@ -117,6 +147,14 @@ export declare class RotationGizmo extends Gizmo implements IRotationGizmo {
     get updateGizmoRotationToMatchAttachedMesh(): boolean;
     set updateGizmoPositionToMatchAttachedMesh(value: boolean);
     get updateGizmoPositionToMatchAttachedMesh(): boolean;
+    set anchorPoint(value: GizmoAnchorPoint);
+    get anchorPoint(): GizmoAnchorPoint;
+    /**
+     * Set the coordinate system to use. By default it's local.
+     * But it's possible for a user to tweak so its local for translation and world for rotation.
+     * In that case, setting the coordinate system will change `updateGizmoRotationToMatchAttachedMesh` and `updateGizmoPositionToMatchAttachedMesh`
+     */
+    set coordinatesMode(coordinatesMode: GizmoCoordinatesMode);
     set updateScale(value: boolean);
     get updateScale(): boolean;
     /**
@@ -130,11 +168,21 @@ export declare class RotationGizmo extends Gizmo implements IRotationGizmo {
     set scaleRatio(value: number);
     get scaleRatio(): number;
     /**
+     * Orientation that the gizmo will be displayed with.
+     * When set null, default value will be used (Quaternion(0, 0, 0, 1))
+     */
+    get customRotationQuaternion(): Nullable<Quaternion>;
+    set customRotationQuaternion(customRotationQuaternion: Nullable<Quaternion>);
+    /**
      * Builds Gizmo Axis Cache to enable features such as hover state preservation and graying out other axis during manipulation
      * @param mesh Axis gizmo mesh
      * @param cache Gizmo axis definition used for reactive gizmo UI
      */
     addToAxisCache(mesh: Mesh, cache: GizmoAxisCache): void;
+    /**
+     * Force release the drag action by code
+     */
+    releaseDrag(): void;
     /**
      * Disposes of the gizmo
      */

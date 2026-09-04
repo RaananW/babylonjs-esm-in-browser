@@ -1,6 +1,8 @@
-import { PhysicsImpostor } from "../physicsImpostor.js";
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/naming-convention */
+import { PhysicsImpostor } from "../physicsImpostor.pure.js";
 import { PhysicsJoint } from "../physicsJoint.js";
-import { Vector3, Quaternion } from "../../../Maths/math.vector.js";
+import { Vector3, Quaternion } from "../../../Maths/math.vector.pure.js";
 import { Logger } from "../../../Misc/logger.js";
 import { PhysicsRaycastResult } from "../../physicsRaycastResult.js";
 import { Epsilon } from "../../../Maths/math.constants.js";
@@ -36,16 +38,16 @@ export class OimoJSPlugin {
         return this.world.timeStep;
     }
     executeStep(delta, impostors) {
-        impostors.forEach(function (impostor) {
+        for (const impostor of impostors) {
             impostor.beforeStep();
-        });
+        }
         this.world.timeStep = this._useDeltaForWorldStep ? delta : this._fixedTimeStep;
         this.world.step();
-        impostors.forEach((impostor) => {
+        for (const impostor of impostors) {
             impostor.afterStep();
             //update the ordered impostors array
             this._tmpImpostorsArray[impostor.uniqueId] = impostor;
-        });
+        }
         //check for collisions
         let contact = this.world.contacts;
         while (contact !== null) {
@@ -106,21 +108,22 @@ export class OimoJSPlugin {
                 if (!parent.getChildMeshes) {
                     return;
                 }
-                parent.getChildMeshes().forEach(function (m) {
+                const meshes = parent.getChildMeshes();
+                for (const m of meshes) {
                     if (m.physicsImpostor) {
                         impostors.push(m.physicsImpostor);
                         //m.physicsImpostor._init();
                     }
-                });
+                }
             };
             addToArray(impostor.object);
             const checkWithEpsilon = (value) => {
                 return Math.max(value, Epsilon);
             };
             const globalQuaternion = new Quaternion();
-            impostors.forEach((i) => {
+            for (const i of impostors) {
                 if (!i.object.rotationQuaternion) {
-                    return;
+                    continue;
                 }
                 //get the correct bounding box
                 const oldQuaternion = i.object.rotationQuaternion;
@@ -197,7 +200,7 @@ export class OimoJSPlugin {
                 }
                 //actually not needed, but hey...
                 i.object.rotationQuaternion = oldQuaternion;
-            });
+            }
             impostor.physicsBody = this.world.add(bodyConfig);
             // set the quaternion, ignoring the previously defined (euler) rotation
             impostor.physicsBody.resetQuaternion(globalQuaternion);

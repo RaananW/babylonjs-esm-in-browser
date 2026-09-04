@@ -1,72 +1,22 @@
-import { Vector3 } from "../Maths/math.vector.js";
-import { Color4 } from "../Maths/math.color.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { Color4 } from "../Maths/math.color.pure.js";
 import { VertexData } from "../Meshes/mesh.vertexData.js";
-import { VertexBuffer } from "../Buffers/buffer.js";
+import { VertexBuffer } from "../Buffers/buffer.pure.js";
 import { SubMesh } from "../Meshes/subMesh.js";
 import { SceneLoaderFlags } from "../Loading/sceneLoaderFlags.js";
 import { BoundingInfo } from "../Culling/boundingInfo.js";
 
-import { Tools } from "../Misc/tools.js";
+import { Tools } from "../Misc/tools.pure.js";
+import { Logger } from "../Misc/logger.js";
 import { Tags } from "../Misc/tags.js";
 import { extractMinAndMax } from "../Maths/math.functions.js";
 import { EngineStore } from "../Engines/engineStore.js";
-import { CompatibilityOptions } from "../Compat/compatibilityOptions.js";
+import { useOpenGLOrientationForUV } from "../Compat/compatibilityOptions.js";
+import { CopyFloatData, GetTypedArrayData } from "../Buffers/bufferUtils.js";
 /**
  * Class used to store geometry data (vertex buffers + index buffer)
  */
 export class Geometry {
-    /**
-     * Creates a new geometry
-     * @param id defines the unique ID
-     * @param scene defines the hosting scene
-     * @param vertexData defines the VertexData used to get geometry data
-     * @param updatable defines if geometry must be updatable (false by default)
-     * @param mesh defines the mesh that will be associated with the geometry
-     */
-    constructor(id, scene, vertexData, updatable = false, mesh = null) {
-        /**
-         * Gets the delay loading state of the geometry (none by default which means not delayed)
-         */
-        this.delayLoadState = 0;
-        this._totalVertices = 0;
-        this._isDisposed = false;
-        this._indexBufferIsUpdatable = false;
-        this._positionsCache = [];
-        /** @internal */
-        this._parentContainer = null;
-        /**
-         * If set to true (false by default), the bounding info applied to the meshes sharing this geometry will be the bounding info defined at the class level
-         * and won't be computed based on the vertex positions (which is what we get when useBoundingInfoFromGeometry = false)
-         */
-        this.useBoundingInfoFromGeometry = false;
-        this._scene = scene || EngineStore.LastCreatedScene;
-        if (!this._scene) {
-            return;
-        }
-        this.id = id;
-        this.uniqueId = this._scene.getUniqueId();
-        this._engine = this._scene.getEngine();
-        this._meshes = [];
-        //Init vertex buffer cache
-        this._vertexBuffers = {};
-        this._indices = [];
-        this._updatable = updatable;
-        // vertexData
-        if (vertexData) {
-            this.setAllVerticesData(vertexData, updatable);
-        }
-        else {
-            this._totalVertices = 0;
-        }
-        if (this._engine.getCaps().vertexArrayObject) {
-            this._vertexArrayObjects = {};
-        }
-        // applyToMesh
-        if (mesh) {
-            this.applyToMesh(mesh);
-            mesh.computeWorldMatrix(true);
-        }
-    }
     /**
      *  Gets or sets the Bias Vector to apply on the bounding elements (box/sphere), the max extend is computed as v += v * bias.x + bias.y, the min is computed as v -= v * bias.x + bias.y
      */
@@ -98,6 +48,66 @@ export class Geometry {
     /** Get the list of meshes using this geometry */
     get meshes() {
         return this._meshes;
+    }
+    /**
+     * Creates a new geometry
+     * @param id defines the unique ID
+     * @param scene defines the hosting scene
+     * @param vertexData defines the VertexData used to get geometry data
+     * @param updatable defines if geometry must be updatable (false by default)
+     * @param mesh defines the mesh that will be associated with the geometry
+     * @param totalVertices defines the total number of vertices (optional)
+     */
+    constructor(id, scene, vertexData, updatable = false, mesh = null, totalVertices = null) {
+        /**
+         * Gets the delay loading state of the geometry (none by default which means not delayed)
+         */
+        this.delayLoadState = 0;
+        this._totalVertices = 0;
+        this._isDisposed = false;
+        this._extend = {
+            minimum: new Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE),
+            maximum: new Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE),
+        };
+        this._indexBufferIsUpdatable = false;
+        this._positionsCache = [];
+        /** @internal */
+        this._parentContainer = null;
+        /**
+         * If set to true (false by default), the bounding info applied to the meshes sharing this geometry will be the bounding info defined at the class level
+         * and won't be computed based on the vertex positions (which is what we get when useBoundingInfoFromGeometry = false)
+         */
+        this.useBoundingInfoFromGeometry = false;
+        this._scene = scene || EngineStore.LastCreatedScene;
+        if (!this._scene) {
+            return;
+        }
+        this.id = id;
+        this.uniqueId = this._scene.getUniqueId();
+        this._engine = this._scene.getEngine();
+        this._meshes = [];
+        //Init vertex buffer cache
+        this._vertexBuffers = {};
+        this._indices = [];
+        this._updatable = updatable;
+        if (totalVertices !== null) {
+            this._totalVertices = totalVertices;
+        }
+        // vertexData
+        if (vertexData) {
+            this.setAllVerticesData(vertexData, updatable);
+        }
+        else if (totalVertices === null) {
+            this._totalVertices = 0;
+        }
+        if (this._engine.getCaps().vertexArrayObject) {
+            this._vertexArrayObjects = {};
+        }
+        // applyToMesh
+        if (mesh) {
+            this.applyToMesh(mesh);
+            mesh.computeWorldMatrix(true);
+        }
     }
     /**
      * Gets the current extend of the geometry
@@ -144,13 +154,16 @@ export class Geometry {
         }
         // Index buffer
         if (this._meshes.length !== 0 && this._indices) {
-            this._indexBuffer = this._engine.createIndexBuffer(this._indices, this._updatable);
+            this._indexBuffer = this._engine.createIndexBuffer(this._indices, this._updatable, "Geometry_" + this.id + "_IndexBuffer");
         }
         // Vertex buffers
+        const buffers = new Set();
         for (const key in this._vertexBuffers) {
-            const vertexBuffer = this._vertexBuffers[key];
-            vertexBuffer._rebuild();
+            buffers.add(this._vertexBuffers[key].getWrapperBuffer());
         }
+        buffers.forEach((buffer) => {
+            buffer._rebuild();
+        });
     }
     /**
      * Affects all geometry data in one call
@@ -173,7 +186,12 @@ export class Geometry {
             // to avoid converting to Float32Array at each draw call in engine.updateDynamicVertexBuffer, we make the conversion a single time here
             data = new Float32Array(data);
         }
-        const buffer = new VertexBuffer(this._engine, data, kind, updatable, this._meshes.length === 0, stride);
+        const buffer = new VertexBuffer(this._engine, data, kind, {
+            updatable,
+            postponeInternalCreation: this._meshes.length === 0,
+            stride,
+            label: "Geometry_" + this.id + "_" + kind,
+        });
         this.setVerticesBuffer(buffer);
     }
     /**
@@ -200,27 +218,22 @@ export class Geometry {
         if (this._vertexBuffers[kind] && disposeExistingBuffer) {
             this._vertexBuffers[kind].dispose();
         }
-        if (buffer._buffer) {
+        if (buffer._buffer && buffer._ownsBuffer) {
             buffer._buffer._increaseReferences();
         }
         this._vertexBuffers[kind] = buffer;
         const meshes = this._meshes;
         const numOfMeshes = meshes.length;
         if (kind === VertexBuffer.PositionKind) {
-            const data = buffer.getData();
-            if (totalVertices != null) {
-                this._totalVertices = totalVertices;
-            }
-            else {
-                if (data != null) {
-                    this._totalVertices = data.length / (buffer.type === VertexBuffer.BYTE ? buffer.byteStride : buffer.byteStride / 4);
-                }
-            }
-            this._updateExtend(data);
+            this._totalVertices = totalVertices ?? buffer._maxVerticesCount;
+            this._updateExtend(this.useBoundingInfoFromGeometry && this._boundingInfo ? null : buffer.getFloatData(this._totalVertices));
             this._resetPointsArrayCache();
+            // this._extend can be empty if buffer.getFloatData(this._totalVertices) returned null
+            const minimum = (this._extend && this._extend.minimum) || new Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+            const maximum = (this._extend && this._extend.maximum) || new Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
             for (let index = 0; index < numOfMeshes; index++) {
                 const mesh = meshes[index];
-                mesh.buildBoundingInfo(this._extend.minimum, this._extend.maximum);
+                mesh.buildBoundingInfo(minimum, maximum);
                 mesh._createGlobalSubMesh(mesh.isUnIndexed);
                 mesh.computeWorldMatrix(true);
                 mesh.synchronizeInstances();
@@ -303,11 +316,12 @@ export class Geometry {
             return;
         }
         const vaos = overrideVertexArrayObjects ? overrideVertexArrayObjects : this._vertexArrayObjects;
+        const engine = this._engine;
         // Using VAO
         if (!vaos[effect.key]) {
-            vaos[effect.key] = this._engine.recordVertexArrayObject(vbs, indexToBind, effect, overrideVertexBuffers);
+            vaos[effect.key] = engine.recordVertexArrayObject(vbs, indexToBind, effect, overrideVertexBuffers);
         }
-        this._engine.bindVertexArrayObject(vaos[effect.key], indexToBind);
+        engine.bindVertexArrayObject(vaos[effect.key], indexToBind);
     }
     /**
      * Gets total number of vertices
@@ -332,6 +346,22 @@ export class Geometry {
             return null;
         }
         return vertexBuffer.getFloatData(this._totalVertices, forceCopy || (copyWhenShared && this._meshes.length !== 1));
+    }
+    /**
+     * Copies the requested vertex data kind into the given vertex data map. Float data is constructed if the map doesn't have the data.
+     * @param kind defines the data kind (Position, normal, etc...)
+     * @param vertexData defines the map that stores the resulting data
+     */
+    copyVerticesData(kind, vertexData) {
+        const vertexBuffer = this.getVertexBuffer(kind);
+        if (!vertexBuffer) {
+            return;
+        }
+        vertexData[kind] || (vertexData[kind] = new Float32Array(this._totalVertices * vertexBuffer.getSize()));
+        const data = vertexBuffer.getData();
+        if (data) {
+            CopyFloatData(data, vertexBuffer.getSize(), vertexBuffer.type, vertexBuffer.byteOffset, vertexBuffer.byteStride, vertexBuffer.normalized, this._totalVertices, vertexData[kind]);
+        }
     }
     /**
      * Returns a boolean defining if the vertex data for the requested `kind` is updatable
@@ -426,26 +456,52 @@ export class Geometry {
         }
     }
     /**
+     * Sets the index buffer for this geometry.
+     * @param indexBuffer Defines the index buffer to use for this geometry
+     * @param totalVertices Defines the total number of vertices used by the buffer
+     * @param totalIndices Defines the total number of indices in the index buffer
+     * @param is32Bits Defines if the indices are 32 bits. If null (default), the value is guessed from the number of vertices
+     */
+    setIndexBuffer(indexBuffer, totalVertices, totalIndices, is32Bits = null) {
+        this._indices = [];
+        this._indexBufferIsUpdatable = false;
+        this._indexBuffer = indexBuffer;
+        this._totalVertices = totalVertices;
+        this._totalIndices = totalIndices;
+        if (is32Bits === null) {
+            indexBuffer.is32Bits = totalVertices > 65535;
+        }
+        else {
+            indexBuffer.is32Bits = is32Bits;
+        }
+        for (const mesh of this._meshes) {
+            mesh._createGlobalSubMesh(true);
+            mesh.synchronizeInstances();
+        }
+        this._notifyUpdate();
+    }
+    /**
      * Creates a new index buffer
      * @param indices defines the indices to store in the index buffer
      * @param totalVertices defines the total number of vertices (could be null)
      * @param updatable defines if the index buffer must be flagged as updatable (false by default)
+     * @param dontForceSubMeshRecreation defines a boolean indicating that we don't want to force the recreation of sub-meshes if we don't have to (false by default)
      */
-    setIndices(indices, totalVertices = null, updatable = false) {
+    setIndices(indices, totalVertices = null, updatable = false, dontForceSubMeshRecreation = false) {
         if (this._indexBuffer) {
             this._engine._releaseBuffer(this._indexBuffer);
         }
         this._indices = indices;
         this._indexBufferIsUpdatable = updatable;
         if (this._meshes.length !== 0 && this._indices) {
-            this._indexBuffer = this._engine.createIndexBuffer(this._indices, updatable);
+            this._indexBuffer = this._engine.createIndexBuffer(this._indices, updatable, "Geometry_" + this.id + "_IndexBuffer");
         }
         if (totalVertices != undefined) {
             // including null and undefined
             this._totalVertices = totalVertices;
         }
         for (const mesh of this._meshes) {
-            mesh._createGlobalSubMesh(true);
+            mesh._createGlobalSubMesh(!dontForceSubMeshRecreation);
             mesh.synchronizeInstances();
         }
         this._notifyUpdate();
@@ -458,7 +514,7 @@ export class Geometry {
         if (!this.isReady()) {
             return 0;
         }
-        return this._indices.length;
+        return this._totalIndices !== undefined ? this._totalIndices : this._indices.length;
     }
     /**
      * Gets the index buffer array
@@ -568,11 +624,11 @@ export class Geometry {
         }
     }
     _applyToMesh(mesh) {
-        const numOfMeshes = this._meshes.length;
         // vertexBuffers
         for (const kind in this._vertexBuffers) {
-            if (numOfMeshes === 1) {
-                this._vertexBuffers[kind].create();
+            const vertexBuffer = this._vertexBuffers[kind];
+            if (!vertexBuffer._buffer.getBuffer()) {
+                vertexBuffer.create();
             }
             if (kind === VertexBuffer.PositionKind) {
                 if (!this._extend) {
@@ -585,8 +641,8 @@ export class Geometry {
             }
         }
         // indexBuffer
-        if (numOfMeshes === 1 && this._indices && this._indices.length > 0) {
-            this._indexBuffer = this._engine.createIndexBuffer(this._indices, this._updatable);
+        if (!this._indexBuffer && this._indices && this._indices.length > 0) {
+            this._indexBuffer = this._engine.createIndexBuffer(this._indices, this._updatable, "Geometry_" + this.id + "_IndexBuffer");
         }
         // morphTargets
         mesh._syncGeometryWithMorphTargetManager();
@@ -627,23 +683,37 @@ export class Geometry {
             return;
         }
         scene.addPendingData(this);
-        scene._loadFile(this.delayLoadingFile, (data) => {
-            if (!this._delayLoadingFunction) {
-                return;
+        void (async () => {
+            try {
+                const data = await scene._loadDelayedFileAsync(this.delayLoadingFile, false, true);
+                if (!this._delayLoadingFunction) {
+                    // The geometry was disposed while the load was in flight; still release the pending data so the scene can become ready.
+                    scene.removePendingData(this);
+                    return;
+                }
+                this._delayLoadingFunction(JSON.parse(data), this);
+                this.delayLoadState = 1;
+                this._delayInfo = [];
+                scene.removePendingData(this);
+                const meshes = this._meshes;
+                const numOfMeshes = meshes.length;
+                for (let index = 0; index < numOfMeshes; index++) {
+                    this._applyToMesh(meshes[index]);
+                }
+                if (onLoaded) {
+                    onLoaded();
+                }
             }
-            this._delayLoadingFunction(JSON.parse(data), this);
-            this.delayLoadState = 1;
-            this._delayInfo = [];
-            scene.removePendingData(this);
-            const meshes = this._meshes;
-            const numOfMeshes = meshes.length;
-            for (let index = 0; index < numOfMeshes; index++) {
-                this._applyToMesh(meshes[index]);
+            catch (error) {
+                // Remove the pending data so the scene can still become ready.
+                // The state is intentionally left as LOADING so a persistently failing file is not re-fetched every frame.
+                scene.removePendingData(this);
+                // Don't log when the scene is being disposed: in-flight requests are aborted as part of normal teardown.
+                if (!scene.isDisposed) {
+                    Logger.Error(`Unable to delay load geometry "${this.id}" from "${this.delayLoadingFile}": ${error}`);
+                }
             }
-            if (onLoaded) {
-                onLoaded();
-            }
-        }, undefined, true);
+        })();
     }
     /**
      * Invert the geometry to move from a right handed system to a left handed one.
@@ -764,37 +834,50 @@ export class Geometry {
      * @returns a new geometry object
      */
     copy(id) {
-        const vertexData = new VertexData();
-        vertexData.indices = [];
-        const indices = this.getIndices();
+        const geometry = new Geometry(id, this._scene);
+        const indices = this.getIndices(undefined, true);
         if (indices) {
-            for (let index = 0; index < indices.length; index++) {
-                vertexData.indices.push(indices[index]);
-            }
+            geometry.setIndices(indices);
         }
         let updatable = false;
-        let stopChecking = false;
         let kind;
         for (kind in this._vertexBuffers) {
-            // using slice() to make a copy of the array and not just reference it
-            const data = this.getVerticesData(kind);
-            if (data) {
-                if (data instanceof Float32Array) {
-                    vertexData.set(new Float32Array(data), kind);
+            const vb = this.getVertexBuffer(kind);
+            const bufferData = vb.getData();
+            if (!bufferData) {
+                continue;
+            }
+            const isUpdatable = vb.isUpdatable();
+            const size = vb.getSize();
+            const { type, byteOffset, byteStride, normalized } = vb;
+            updatable = updatable || isUpdatable;
+            let numElements = this._totalVertices;
+            if (vb.getIsInstanced()) {
+                // Do our best with the data we have to find a number of instances when the vertex buffer is instanced...
+                let bufferDataByteSize;
+                if (bufferData instanceof Array) {
+                    bufferDataByteSize = bufferData.length * 4;
                 }
                 else {
-                    vertexData.set(data.slice(0), kind);
+                    bufferDataByteSize = bufferData.byteLength;
                 }
-                if (!stopChecking) {
-                    const vb = this.getVertexBuffer(kind);
-                    if (vb) {
-                        updatable = vb.isUpdatable();
-                        stopChecking = !updatable;
-                    }
-                }
+                numElements = bufferDataByteSize / byteStride;
             }
+            const copy = GetTypedArrayData(bufferData, size, type, byteOffset, byteStride, numElements, true);
+            const newVb = new VertexBuffer(this._engine, copy, kind, {
+                updatable: isUpdatable,
+                useBytes: false,
+                stride: size, // Copy is tightly-packed, so stride = size
+                size: size, // Component size stays the same
+                offset: 0, // Copy starts at beginning of its own buffer
+                type: type,
+                normalized: normalized,
+                takeBufferOwnership: true,
+                instanced: vb.getIsInstanced(),
+            });
+            geometry.setVerticesBuffer(newVb, numElements);
         }
-        const geometry = new Geometry(id, this._scene, vertexData, updatable);
+        geometry._updatable = updatable;
         geometry.delayLoadState = this.delayLoadState;
         geometry.delayLoadingFile = this.delayLoadingFile;
         geometry._delayLoadingFunction = this._delayLoadingFunction;
@@ -835,6 +918,7 @@ export class Geometry {
      * Vertex buffers will not store CPU data anymore (this will prevent picking, collisions or physics to work correctly)
      */
     clearCachedData() {
+        this._totalIndices = this._indices.length; // save the current value so that getTotalIndices can still work
         this._indices = [];
         this._resetPointsArrayCache();
         for (const vbName in this._vertexBuffers) {
@@ -853,74 +937,74 @@ export class Geometry {
         if (this.isVerticesDataPresent(VertexBuffer.PositionKind)) {
             serializationObject.positions = this._toNumberArray(this.getVerticesData(VertexBuffer.PositionKind));
             if (this.isVertexBufferUpdatable(VertexBuffer.PositionKind)) {
-                serializationObject.positions._updatable = true;
+                serializationObject.positionsUpdatable = true;
             }
         }
         if (this.isVerticesDataPresent(VertexBuffer.NormalKind)) {
             serializationObject.normals = this._toNumberArray(this.getVerticesData(VertexBuffer.NormalKind));
             if (this.isVertexBufferUpdatable(VertexBuffer.NormalKind)) {
-                serializationObject.normals._updatable = true;
+                serializationObject.normalsUpdatable = true;
             }
         }
         if (this.isVerticesDataPresent(VertexBuffer.TangentKind)) {
             serializationObject.tangents = this._toNumberArray(this.getVerticesData(VertexBuffer.TangentKind));
             if (this.isVertexBufferUpdatable(VertexBuffer.TangentKind)) {
-                serializationObject.tangents._updatable = true;
+                serializationObject.tangentsUpdatable = true;
             }
         }
         if (this.isVerticesDataPresent(VertexBuffer.UVKind)) {
             serializationObject.uvs = this._toNumberArray(this.getVerticesData(VertexBuffer.UVKind));
             if (this.isVertexBufferUpdatable(VertexBuffer.UVKind)) {
-                serializationObject.uvs._updatable = true;
+                serializationObject.uvsUpdatable = true;
             }
         }
         if (this.isVerticesDataPresent(VertexBuffer.UV2Kind)) {
-            serializationObject.uv2s = this._toNumberArray(this.getVerticesData(VertexBuffer.UV2Kind));
+            serializationObject.uvs2 = this._toNumberArray(this.getVerticesData(VertexBuffer.UV2Kind));
             if (this.isVertexBufferUpdatable(VertexBuffer.UV2Kind)) {
-                serializationObject.uv2s._updatable = true;
+                serializationObject.uvs2Updatable = true;
             }
         }
         if (this.isVerticesDataPresent(VertexBuffer.UV3Kind)) {
-            serializationObject.uv3s = this._toNumberArray(this.getVerticesData(VertexBuffer.UV3Kind));
+            serializationObject.uvs3 = this._toNumberArray(this.getVerticesData(VertexBuffer.UV3Kind));
             if (this.isVertexBufferUpdatable(VertexBuffer.UV3Kind)) {
-                serializationObject.uv3s._updatable = true;
+                serializationObject.uvs3Updatable = true;
             }
         }
         if (this.isVerticesDataPresent(VertexBuffer.UV4Kind)) {
-            serializationObject.uv4s = this._toNumberArray(this.getVerticesData(VertexBuffer.UV4Kind));
+            serializationObject.uvs4 = this._toNumberArray(this.getVerticesData(VertexBuffer.UV4Kind));
             if (this.isVertexBufferUpdatable(VertexBuffer.UV4Kind)) {
-                serializationObject.uv4s._updatable = true;
+                serializationObject.uvs4Updatable = true;
             }
         }
         if (this.isVerticesDataPresent(VertexBuffer.UV5Kind)) {
-            serializationObject.uv5s = this._toNumberArray(this.getVerticesData(VertexBuffer.UV5Kind));
+            serializationObject.uvs5 = this._toNumberArray(this.getVerticesData(VertexBuffer.UV5Kind));
             if (this.isVertexBufferUpdatable(VertexBuffer.UV5Kind)) {
-                serializationObject.uv5s._updatable = true;
+                serializationObject.uvs5Updatable = true;
             }
         }
         if (this.isVerticesDataPresent(VertexBuffer.UV6Kind)) {
-            serializationObject.uv6s = this._toNumberArray(this.getVerticesData(VertexBuffer.UV6Kind));
+            serializationObject.uvs6 = this._toNumberArray(this.getVerticesData(VertexBuffer.UV6Kind));
             if (this.isVertexBufferUpdatable(VertexBuffer.UV6Kind)) {
-                serializationObject.uv6s._updatable = true;
+                serializationObject.uvs6Updatable = true;
             }
         }
         if (this.isVerticesDataPresent(VertexBuffer.ColorKind)) {
             serializationObject.colors = this._toNumberArray(this.getVerticesData(VertexBuffer.ColorKind));
             if (this.isVertexBufferUpdatable(VertexBuffer.ColorKind)) {
-                serializationObject.colors._updatable = true;
+                serializationObject.colorsUpdatable = true;
             }
         }
         if (this.isVerticesDataPresent(VertexBuffer.MatricesIndicesKind)) {
             serializationObject.matricesIndices = this._toNumberArray(this.getVerticesData(VertexBuffer.MatricesIndicesKind));
-            serializationObject.matricesIndices._isExpanded = true;
+            serializationObject.matricesIndicesExpanded = true;
             if (this.isVertexBufferUpdatable(VertexBuffer.MatricesIndicesKind)) {
-                serializationObject.matricesIndices._updatable = true;
+                serializationObject.matricesIndicesUpdatable = true;
             }
         }
         if (this.isVerticesDataPresent(VertexBuffer.MatricesWeightsKind)) {
             serializationObject.matricesWeights = this._toNumberArray(this.getVerticesData(VertexBuffer.MatricesWeightsKind));
             if (this.isVertexBufferUpdatable(VertexBuffer.MatricesWeightsKind)) {
-                serializationObject.matricesWeights._updatable = true;
+                serializationObject.matricesWeightsUpdatable = true;
             }
         }
         serializationObject.indices = this._toNumberArray(this.getIndices());
@@ -988,7 +1072,7 @@ export class Geometry {
             }
             if (binaryInfo.uvsAttrDesc && binaryInfo.uvsAttrDesc.count > 0) {
                 const uvsData = new Float32Array(parsedGeometry, binaryInfo.uvsAttrDesc.offset, binaryInfo.uvsAttrDesc.count);
-                if (CompatibilityOptions.UseOpenGLOrientationForUV) {
+                if (useOpenGLOrientationForUV) {
                     for (let index = 1; index < uvsData.length; index += 2) {
                         uvsData[index] = 1 - uvsData[index];
                     }
@@ -997,7 +1081,7 @@ export class Geometry {
             }
             if (binaryInfo.uvs2AttrDesc && binaryInfo.uvs2AttrDesc.count > 0) {
                 const uvs2Data = new Float32Array(parsedGeometry, binaryInfo.uvs2AttrDesc.offset, binaryInfo.uvs2AttrDesc.count);
-                if (CompatibilityOptions.UseOpenGLOrientationForUV) {
+                if (useOpenGLOrientationForUV) {
                     for (let index = 1; index < uvs2Data.length; index += 2) {
                         uvs2Data[index] = 1 - uvs2Data[index];
                     }
@@ -1006,7 +1090,7 @@ export class Geometry {
             }
             if (binaryInfo.uvs3AttrDesc && binaryInfo.uvs3AttrDesc.count > 0) {
                 const uvs3Data = new Float32Array(parsedGeometry, binaryInfo.uvs3AttrDesc.offset, binaryInfo.uvs3AttrDesc.count);
-                if (CompatibilityOptions.UseOpenGLOrientationForUV) {
+                if (useOpenGLOrientationForUV) {
                     for (let index = 1; index < uvs3Data.length; index += 2) {
                         uvs3Data[index] = 1 - uvs3Data[index];
                     }
@@ -1015,7 +1099,7 @@ export class Geometry {
             }
             if (binaryInfo.uvs4AttrDesc && binaryInfo.uvs4AttrDesc.count > 0) {
                 const uvs4Data = new Float32Array(parsedGeometry, binaryInfo.uvs4AttrDesc.offset, binaryInfo.uvs4AttrDesc.count);
-                if (CompatibilityOptions.UseOpenGLOrientationForUV) {
+                if (useOpenGLOrientationForUV) {
                     for (let index = 1; index < uvs4Data.length; index += 2) {
                         uvs4Data[index] = 1 - uvs4Data[index];
                     }
@@ -1024,7 +1108,7 @@ export class Geometry {
             }
             if (binaryInfo.uvs5AttrDesc && binaryInfo.uvs5AttrDesc.count > 0) {
                 const uvs5Data = new Float32Array(parsedGeometry, binaryInfo.uvs5AttrDesc.offset, binaryInfo.uvs5AttrDesc.count);
-                if (CompatibilityOptions.UseOpenGLOrientationForUV) {
+                if (useOpenGLOrientationForUV) {
                     for (let index = 1; index < uvs5Data.length; index += 2) {
                         uvs5Data[index] = 1 - uvs5Data[index];
                     }
@@ -1033,7 +1117,7 @@ export class Geometry {
             }
             if (binaryInfo.uvs6AttrDesc && binaryInfo.uvs6AttrDesc.count > 0) {
                 const uvs6Data = new Float32Array(parsedGeometry, binaryInfo.uvs6AttrDesc.offset, binaryInfo.uvs6AttrDesc.count);
-                if (CompatibilityOptions.UseOpenGLOrientationForUV) {
+                if (useOpenGLOrientationForUV) {
                     for (let index = 1; index < uvs6Data.length; index += 2) {
                         uvs6Data[index] = 1 - uvs6Data[index];
                     }
@@ -1090,34 +1174,34 @@ export class Geometry {
             }
         }
         else if (parsedGeometry.positions && parsedGeometry.normals && parsedGeometry.indices) {
-            mesh.setVerticesData(VertexBuffer.PositionKind, parsedGeometry.positions, parsedGeometry.positions._updatable);
-            mesh.setVerticesData(VertexBuffer.NormalKind, parsedGeometry.normals, parsedGeometry.normals._updatable);
+            mesh.setVerticesData(VertexBuffer.PositionKind, parsedGeometry.positions, parsedGeometry.positions._updatable || parsedGeometry.positionsUpdatable);
+            mesh.setVerticesData(VertexBuffer.NormalKind, parsedGeometry.normals, parsedGeometry.normals._updatable || parsedGeometry.normalsUpdatable);
             if (parsedGeometry.tangents) {
-                mesh.setVerticesData(VertexBuffer.TangentKind, parsedGeometry.tangents, parsedGeometry.tangents._updatable);
+                mesh.setVerticesData(VertexBuffer.TangentKind, parsedGeometry.tangents, parsedGeometry.tangents._updatable || parsedGeometry.tangentsUpdatable);
             }
             if (parsedGeometry.uvs) {
-                mesh.setVerticesData(VertexBuffer.UVKind, parsedGeometry.uvs, parsedGeometry.uvs._updatable);
+                mesh.setVerticesData(VertexBuffer.UVKind, parsedGeometry.uvs, parsedGeometry.uvs._updatable || parsedGeometry.uvsUpdatable);
             }
             if (parsedGeometry.uvs2) {
-                mesh.setVerticesData(VertexBuffer.UV2Kind, parsedGeometry.uvs2, parsedGeometry.uvs2._updatable);
+                mesh.setVerticesData(VertexBuffer.UV2Kind, parsedGeometry.uvs2, parsedGeometry.uvs2._updatable || parsedGeometry.uvs2Updatable);
             }
             if (parsedGeometry.uvs3) {
-                mesh.setVerticesData(VertexBuffer.UV3Kind, parsedGeometry.uvs3, parsedGeometry.uvs3._updatable);
+                mesh.setVerticesData(VertexBuffer.UV3Kind, parsedGeometry.uvs3, parsedGeometry.uvs3._updatable || parsedGeometry.uvs3Updatable);
             }
             if (parsedGeometry.uvs4) {
-                mesh.setVerticesData(VertexBuffer.UV4Kind, parsedGeometry.uvs4, parsedGeometry.uvs4._updatable);
+                mesh.setVerticesData(VertexBuffer.UV4Kind, parsedGeometry.uvs4, parsedGeometry.uvs4._updatable || parsedGeometry.uvs4Updatable);
             }
             if (parsedGeometry.uvs5) {
-                mesh.setVerticesData(VertexBuffer.UV5Kind, parsedGeometry.uvs5, parsedGeometry.uvs5._updatable);
+                mesh.setVerticesData(VertexBuffer.UV5Kind, parsedGeometry.uvs5, parsedGeometry.uvs5._updatable || parsedGeometry.uvs5Updatable);
             }
             if (parsedGeometry.uvs6) {
-                mesh.setVerticesData(VertexBuffer.UV6Kind, parsedGeometry.uvs6, parsedGeometry.uvs6._updatable);
+                mesh.setVerticesData(VertexBuffer.UV6Kind, parsedGeometry.uvs6, parsedGeometry.uvs6._updatable || parsedGeometry.uvs6Updatable);
             }
             if (parsedGeometry.colors) {
                 mesh.setVerticesData(VertexBuffer.ColorKind, Color4.CheckColors4(parsedGeometry.colors, parsedGeometry.positions.length / 3), parsedGeometry.colors._updatable);
             }
             if (parsedGeometry.matricesIndices) {
-                if (!parsedGeometry.matricesIndices._isExpanded) {
+                if (!parsedGeometry.matricesIndices._isExpanded && !parsedGeometry.matricesIndicesExpanded) {
                     const floatIndices = [];
                     for (let i = 0; i < parsedGeometry.matricesIndices.length; i++) {
                         const matricesIndex = parsedGeometry.matricesIndices[i];
@@ -1126,15 +1210,16 @@ export class Geometry {
                         floatIndices.push((matricesIndex & 0x00ff0000) >> 16);
                         floatIndices.push((matricesIndex >> 24) & 0xff); // & 0xFF to convert to v + 256 if v < 0
                     }
-                    mesh.setVerticesData(VertexBuffer.MatricesIndicesKind, floatIndices, parsedGeometry.matricesIndices._updatable);
+                    mesh.setVerticesData(VertexBuffer.MatricesIndicesKind, floatIndices, parsedGeometry.matricesIndices._updatable || parsedGeometry.matricesIndicesUpdatable);
                 }
                 else {
                     delete parsedGeometry.matricesIndices._isExpanded;
-                    mesh.setVerticesData(VertexBuffer.MatricesIndicesKind, parsedGeometry.matricesIndices, parsedGeometry.matricesIndices._updatable);
+                    delete parsedGeometry.matricesIndicesExpanded;
+                    mesh.setVerticesData(VertexBuffer.MatricesIndicesKind, parsedGeometry.matricesIndices, parsedGeometry.matricesIndices._updatable || parsedGeometry.matricesIndicesUpdatable);
                 }
             }
             if (parsedGeometry.matricesIndicesExtra) {
-                if (!parsedGeometry.matricesIndicesExtra._isExpanded) {
+                if (!(parsedGeometry.matricesIndicesExtraExpanded || parsedGeometry.matricesIndicesExtra._isExpanded)) {
                     const floatIndices = [];
                     for (let i = 0; i < parsedGeometry.matricesIndicesExtra.length; i++) {
                         const matricesIndex = parsedGeometry.matricesIndicesExtra[i];
@@ -1143,11 +1228,12 @@ export class Geometry {
                         floatIndices.push((matricesIndex & 0x00ff0000) >> 16);
                         floatIndices.push((matricesIndex >> 24) & 0xff); // & 0xFF to convert to v + 256 if v < 0
                     }
-                    mesh.setVerticesData(VertexBuffer.MatricesIndicesExtraKind, floatIndices, parsedGeometry.matricesIndicesExtra._updatable);
+                    mesh.setVerticesData(VertexBuffer.MatricesIndicesExtraKind, floatIndices, parsedGeometry.matricesIndicesExtra._updatable || parsedGeometry.matricesIndicesExtraUpdatable);
                 }
                 else {
                     delete parsedGeometry.matricesIndices._isExpanded;
-                    mesh.setVerticesData(VertexBuffer.MatricesIndicesExtraKind, parsedGeometry.matricesIndicesExtra, parsedGeometry.matricesIndicesExtra._updatable);
+                    delete parsedGeometry.matricesIndicesExtraExpanded;
+                    mesh.setVerticesData(VertexBuffer.MatricesIndicesExtraKind, parsedGeometry.matricesIndicesExtra, parsedGeometry.matricesIndicesExtra._updatable || parsedGeometry.matricesIndicesExtraUpdatable);
                 }
             }
             if (parsedGeometry.matricesWeights) {
@@ -1181,7 +1267,7 @@ export class Geometry {
         if (!SceneLoaderFlags.CleanBoneMatrixWeights) {
             return;
         }
-        let noInfluenceBoneIndex = 0.0;
+        let noInfluenceBoneIndex;
         if (parsedGeometry.skeletonId > -1) {
             const skeleton = mesh.getScene().getLastSkeletonById(parsedGeometry.skeletonId);
             if (!skeleton) {

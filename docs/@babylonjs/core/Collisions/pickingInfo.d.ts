@@ -1,9 +1,9 @@
-import type { Nullable } from "../types";
-import { Vector3, Vector2 } from "../Maths/math.vector";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import type { TransformNode } from "../Meshes/transformNode";
-import type { Sprite } from "../Sprites/sprite";
-declare type Ray = import("../Culling/ray").Ray;
+import { type Nullable } from "../types.js";
+import { Vector3, Vector2 } from "../Maths/math.vector.pure.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { type TransformNode } from "../Meshes/transformNode.js";
+import { type Sprite } from "../Sprites/sprite.js";
+import { type Ray } from "../Culling/ray.js";
 /**
  * Information about the result of picking within a scene
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/interactions/picking_collisions
@@ -66,8 +66,8 @@ export declare class PickingInfo {
     getNormal(useWorldCoordinates?: boolean, useVerticesNormals?: boolean): Nullable<Vector3>;
     /**
      * Gets the texture coordinates of where the pick occurred
+     * @param uvSet The UV set to use to calculate the texture coordinates (default: VertexBuffer.UVKind)
      * @returns The vector containing the coordinates of the texture
      */
-    getTextureCoordinates(): Nullable<Vector2>;
+    getTextureCoordinates(uvSet?: string): Nullable<Vector2>;
 }
-export {};

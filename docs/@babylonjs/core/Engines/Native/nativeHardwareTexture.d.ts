@@ -1,8 +1,8 @@
-import type { HardwareTextureWrapper } from "../../Materials/Textures/hardwareTextureWrapper";
-import type { Nullable } from "../../types";
-import type { INativeEngine, NativeTexture } from "./nativeInterfaces";
+import { type IHardwareTextureWrapper } from "../../Materials/Textures/hardwareTextureWrapper.js";
+import { type Nullable } from "../../types.js";
+import { type INativeEngine, type NativeTexture } from "./nativeInterfaces.js";
 /** @internal */
-export declare class NativeHardwareTexture implements HardwareTextureWrapper {
+export declare class NativeHardwareTexture implements IHardwareTextureWrapper {
     private readonly _engine;
     private _nativeTexture;
     get underlyingResource(): Nullable<NativeTexture>;

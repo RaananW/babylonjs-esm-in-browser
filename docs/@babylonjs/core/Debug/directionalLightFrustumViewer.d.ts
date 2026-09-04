@@ -1,6 +1,7 @@
-import type { Camera } from "../Cameras/camera";
-import type { DirectionalLight } from "../Lights/directionalLight";
-import { Matrix } from "../Maths/math.vector";
+import { type Nullable } from "../types.js";
+import { type Camera } from "../Cameras/camera.js";
+import { type DirectionalLight } from "../Lights/directionalLight.js";
+import { Matrix } from "../Maths/math.vector.pure.js";
 /**
  * Class used to render a debug view of the frustum for a directional light
  * @see https://playground.babylonjs.com/#7EFGSG#4
@@ -31,6 +32,10 @@ export declare class DirectionalLightFrustumViewer {
     private _oldAutoCalc;
     private _oldMinZ;
     private _oldMaxZ;
+    private _oldOrthoLeft;
+    private _oldOrthoRight;
+    private _oldOrthoTop;
+    private _oldOrthoBottom;
     private _transparency;
     /**
      * Gets or sets the transparency of the frustum planes
@@ -54,7 +59,7 @@ export declare class DirectionalLightFrustumViewer {
      * @param light directional light to display the frustum for
      * @param camera camera used to retrieve the minZ / maxZ values if the shadowMinZ/shadowMaxZ values of the light are not setup
      */
-    constructor(light: DirectionalLight, camera: Camera);
+    constructor(light: DirectionalLight, camera?: Nullable<Camera>);
     /**
      * Shows the frustum
      */
@@ -63,6 +68,8 @@ export declare class DirectionalLightFrustumViewer {
      * Hides the frustum
      */
     hide(): void;
+    private _addMeshesToFrameGraph;
+    private _removeMeshesFromFrameGraph;
     /**
      * Updates the frustum.
      * Call this method to update the frustum view if the light has changed position/direction

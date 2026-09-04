@@ -1,12 +1,12 @@
-import { SmartArray, SmartArrayNoDuplicate } from "../Misc/smartArray";
-import type { SubMesh } from "../Meshes/subMesh";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import type { Nullable } from "../types";
-import type { IParticleSystem } from "../Particles/IParticleSystem";
-import type { IEdgesRenderer } from "./edgesRenderer";
-import type { ISpriteManager } from "../Sprites/spriteManager";
-import type { Material } from "../Materials/material";
-import type { Scene } from "../scene";
+import { SmartArray, SmartArrayNoDuplicate } from "../Misc/smartArray.js";
+import { type SubMesh } from "../Meshes/subMesh.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { type Nullable } from "../types.js";
+import { type IParticleSystem } from "../Particles/IParticleSystem.js";
+import { type IEdgesRenderer } from "./edgesRenderer.js";
+import { type ISpriteManager } from "../Sprites/spriteManager.js";
+import { type Material } from "../Materials/material.js";
+import { type Scene } from "../scene.js";
 /**
  * This represents the object necessary to create a rendering group.
  * This is exclusively used and created by the rendering manager.
@@ -18,7 +18,8 @@ export declare class RenderingGroup {
     private static _ZeroVector;
     private _scene;
     private _opaqueSubMeshes;
-    private _transparentSubMeshes;
+    /** @internal */
+    _transparentSubMeshes: SmartArray<SubMesh>;
     private _alphaTestSubMeshes;
     private _depthOnlySubMeshes;
     private _particleSystems;
@@ -28,12 +29,14 @@ export declare class RenderingGroup {
     private _transparentSortCompareFn;
     private _renderOpaque;
     private _renderAlphaTest;
-    private _renderTransparent;
+    /** @internal */
+    _renderTransparent: (subMeshes: SmartArray<SubMesh>) => void;
     /** @internal */
     _empty: boolean;
     /** @internal */
     _edgesRenderers: SmartArrayNoDuplicate<IEdgesRenderer>;
     onBeforeTransparentRendering: () => void;
+    disableDepthPrePass: boolean;
     /**
      * Set the opaque sort comparison function.
      * If null the sub meshes will be render in the order they were created
@@ -64,9 +67,13 @@ export declare class RenderingGroup {
      * @param renderSprites
      * @param renderParticles
      * @param activeMeshes
-     * @returns true if rendered some submeshes.
+     * @param renderDepthOnlyMeshes
+     * @param renderOpaqueMeshes
+     * @param renderAlphaTestMeshes
+     * @param renderTransparentMeshes
+     * @param customRenderTransparentSubMeshes
      */
-    render(customRenderFunction: Nullable<(opaqueSubMeshes: SmartArray<SubMesh>, transparentSubMeshes: SmartArray<SubMesh>, alphaTestSubMeshes: SmartArray<SubMesh>, depthOnlySubMeshes: SmartArray<SubMesh>) => void>, renderSprites: boolean, renderParticles: boolean, activeMeshes: Nullable<AbstractMesh[]>): void;
+    render(customRenderFunction: Nullable<(opaqueSubMeshes: SmartArray<SubMesh>, transparentSubMeshes: SmartArray<SubMesh>, alphaTestSubMeshes: SmartArray<SubMesh>, depthOnlySubMeshes: SmartArray<SubMesh>) => void>, renderSprites: boolean, renderParticles: boolean, activeMeshes: Nullable<AbstractMesh[]>, renderDepthOnlyMeshes?: boolean, renderOpaqueMeshes?: boolean, renderAlphaTestMeshes?: boolean, renderTransparentMeshes?: boolean, customRenderTransparentSubMeshes?: (transparentSubMeshes: SmartArray<SubMesh>, renderingGroup?: RenderingGroup) => void): void;
     /**
      * Renders the opaque submeshes in the order from the opaqueSortCompareFn.
      * @param subMeshes The submeshes to render
@@ -88,6 +95,7 @@ export declare class RenderingGroup {
      * @param sortCompareFn The comparison function use to sort
      * @param camera The camera position use to preprocess the submeshes to help sorting
      * @param transparent Specifies to activate blending if true
+     * @param disableDepthPrePass Specifies to disable depth pre-pass if true (default: false)
      */
     private static _RenderSorted;
     /**

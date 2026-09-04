@@ -1,7 +1,7 @@
-import type { Sound } from "./sound";
-import type { Analyser } from "./analyser";
-import type { Nullable } from "../types";
-import type { Scene } from "../scene";
+import { type Sound } from "./sound.js";
+import { type Analyser } from "./analyser.js";
+import { type Nullable } from "../types.js";
+import { type Scene } from "../scene.js";
 /**
  * Options allowed during the creation of a sound track.
  */

@@ -1,10 +1,11 @@
-import type { Effect } from "../../Materials/effect";
-import type { InternalTexture } from "../../Materials/Textures/internalTexture";
-import { VertexBuffer } from "../../Buffers/buffer";
-import type { DataBuffer } from "../../Buffers/dataBuffer";
-import type { Nullable } from "../../types";
+import { type Effect } from "../../Materials/effect.js";
+import { type InternalTexture } from "../../Materials/Textures/internalTexture.js";
+import { VertexBuffer } from "../../Buffers/buffer.pure.js";
+import { type DataBuffer } from "../../Buffers/dataBuffer.js";
+import { type Nullable } from "../../types.js";
 /** @internal */
 export declare abstract class WebGPUCacheRenderPipeline {
+    static LogErrorIfNoVertexBuffer: boolean;
     static NumCacheHitWithoutHash: number;
     static NumCacheHitWithHash: number;
     static NumCacheMiss: number;
@@ -32,15 +33,14 @@ export declare abstract class WebGPUCacheRenderPipeline {
     private _depthBiasSlopeScale;
     private _colorFormat;
     private _webgpuColorFormat;
-    private _mrtAttachments1;
-    private _mrtAttachments2;
+    private _mrtAttachments;
     private _mrtFormats;
     private _mrtEnabledMask;
     private _alphaBlendEnabled;
+    private _numAlphaBlendTargetsEnabled;
     private _alphaBlendFuncParams;
     private _alphaBlendEqParams;
     private _writeMask;
-    private _colorStates;
     private _depthStencilFormat;
     private _webgpuDepthStencilFormat;
     private _depthTestEnabled;
@@ -51,15 +51,18 @@ export declare abstract class WebGPUCacheRenderPipeline {
     private _stencilFrontDepthFailOp;
     private _stencilFrontPassOp;
     private _stencilFrontFailOp;
+    private _stencilBackCompare;
+    private _stencilBackDepthFailOp;
+    private _stencilBackPassOp;
+    private _stencilBackFailOp;
     private _stencilReadMask;
     private _stencilWriteMask;
     private _depthStencilState;
     private _vertexBuffers;
     private _overrideVertexBuffers;
-    private _indexBuffer;
     private _textureState;
     private _useTextureStage;
-    constructor(device: GPUDevice, emptyVertexBuffer: VertexBuffer, useTextureStage: boolean);
+    constructor(device: GPUDevice, emptyVertexBuffer: VertexBuffer);
     reset(): void;
     protected abstract _getRenderPipeline(param: {
         token: any;
@@ -70,10 +73,20 @@ export declare abstract class WebGPUCacheRenderPipeline {
         pipeline: Nullable<GPURenderPipeline>;
     }): void;
     readonly vertexBuffers: VertexBuffer[];
+    readonly indexBuffer: Nullable<DataBuffer>;
     get colorFormats(): (GPUTextureFormat | null)[];
     readonly mrtAttachments: number[];
     readonly mrtTextureArray: InternalTexture[];
     readonly mrtTextureCount: number;
+    /**
+     * Performs the cache state setup and lookup for a render pipeline.
+     * @param fillMode defines the fill mode used to configure the rasterization state
+     * @param effect defines the effect containing the shader and vertex input layout
+     * @param sampleCount defines the number of samples to use for MSAA
+     * @param textureState defines the encoded texture state used for the pipeline cache key
+     * @returns the cached pipeline on hit, or null on miss (with cache state ready for creation)
+     */
+    private _lookupRenderPipeline;
     getRenderPipeline(fillMode: number, effect: Effect, sampleCount: number, textureState?: number): GPURenderPipeline;
     endFrame(): void;
     setAlphaToCoverage(enabled: boolean): void;
@@ -88,7 +101,7 @@ export declare abstract class WebGPUCacheRenderPipeline {
     setColorFormat(format: GPUTextureFormat | null): void;
     setMRTAttachments(attachments: number[]): void;
     setMRT(textureArray: InternalTexture[], textureCount?: number): void;
-    setAlphaBlendEnabled(enabled: boolean): void;
+    setAlphaBlendEnabled(enabled: boolean[], numAlphaBlendTargetsEnabled: number): void;
     setAlphaBlendFactors(factors: Array<Nullable<number>>, operations: Array<Nullable<number>>): void;
     setWriteMask(mask: number): void;
     setDepthStencilFormat(format: GPUTextureFormat | undefined): void;
@@ -100,10 +113,14 @@ export declare abstract class WebGPUCacheRenderPipeline {
     setStencilDepthFailOp(op: Nullable<number>): void;
     setStencilPassOp(op: Nullable<number>): void;
     setStencilFailOp(op: Nullable<number>): void;
+    setStencilBackCompare(func: Nullable<number>): void;
+    setStencilBackDepthFailOp(op: Nullable<number>): void;
+    setStencilBackPassOp(op: Nullable<number>): void;
+    setStencilBackFailOp(op: Nullable<number>): void;
     setStencilReadMask(mask: number): void;
     setStencilWriteMask(mask: number): void;
     resetStencilState(): void;
-    setStencilState(stencilEnabled: boolean, compare: Nullable<number>, depthFailOp: Nullable<number>, passOp: Nullable<number>, failOp: Nullable<number>, readMask: number, writeMask: number): void;
+    setStencilState(stencilEnabled: boolean, compare: Nullable<number>, depthFailOp: Nullable<number>, passOp: Nullable<number>, failOp: Nullable<number>, readMask: number, writeMask: number, backCompare?: Nullable<number>, backDepthFailOp?: Nullable<number>, backPassOp?: Nullable<number>, backFailOp?: Nullable<number>): void;
     setBuffers(vertexBuffers: Nullable<{
         [key: string]: Nullable<VertexBuffer>;
     }>, indexBuffer: Nullable<DataBuffer>, overrideVertexBuffers: Nullable<{
@@ -126,5 +143,17 @@ export declare abstract class WebGPUCacheRenderPipeline {
     private _createPipelineLayout;
     private _createPipelineLayoutWithTextureStage;
     private _getVertexInputDescriptor;
+    private static _CanMergeVertexBuffer;
+    private _buildRenderPipelineDescriptor;
     private _createRenderPipeline;
+    /**
+     * Pre-warms a render pipeline asynchronously. Sets up the cache state,
+     * checks for a cache hit, and on miss starts an async pipeline compilation.
+     * @param fillMode - the fill mode (triangle list, wireframe, etc.)
+     * @param effect - the effect to create the pipeline for
+     * @param sampleCount - the MSAA sample count
+     * @param textureState - the texture state bitmask
+     * @returns a Promise that resolves when the pipeline is compiled and cached, or null if already cached
+     */
+    preWarmPipeline(fillMode: number, effect: Effect, sampleCount: number, textureState?: number): Nullable<Promise<GPURenderPipeline>>;
 }

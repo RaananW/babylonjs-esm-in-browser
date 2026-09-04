@@ -1,4 +1,4 @@
-import { Matrix } from "../../Maths/math.vector.js";
+import { Matrix } from "../../Maths/math.vector.pure.js";
 /**
  * This represents all the required metrics to create a VR camera.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/camera_introduction#device-orientation-camera
@@ -29,6 +29,7 @@ export class VRCameraMetrics {
     /**
      * @internal
      */
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     get leftHMatrix() {
         const meters = this.hScreenSize / 4 - this.lensSeparationDistance / 2;
         const h = (4 * meters) / this.hScreenSize;
@@ -37,6 +38,7 @@ export class VRCameraMetrics {
     /**
      * @internal
      */
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     get rightHMatrix() {
         const meters = this.hScreenSize / 4 - this.lensSeparationDistance / 2;
         const h = (4 * meters) / this.hScreenSize;

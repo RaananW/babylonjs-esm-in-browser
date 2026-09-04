@@ -1,9 +1,8 @@
-import type { Nullable } from "../../types";
-import type { ShaderProcessingContext } from "../Processors/shaderProcessingOptions";
-import type { WebGPUBufferDescription } from "./webgpuShaderProcessingContext";
-import type { ThinEngine } from "../thinEngine";
-import { WebGPUShaderProcessor } from "./webgpuShaderProcessor";
-import { ShaderLanguage } from "../../Materials/shaderLanguage";
+import { type Nullable } from "../../types.js";
+import { type _IShaderProcessingContext } from "../Processors/shaderProcessingOptions.js";
+import { type WebGPUBufferDescription } from "./webgpuShaderProcessingContext.js";
+import { WebGPUShaderProcessor } from "./webgpuShaderProcessor.js";
+import { ShaderLanguage } from "../../Materials/shaderLanguage.js";
 /** @internal */
 export declare class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
     protected _missingVaryings: Array<string>;
@@ -21,8 +20,9 @@ export declare class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
     protected _getArraySize(name: string, type: string, preProcessors: {
         [key: string]: string;
     }): [string, string, number];
-    initializeShaders(processingContext: Nullable<ShaderProcessingContext>): void;
+    initializeShaders(processingContext: Nullable<_IShaderProcessingContext>): void;
     preProcessShaderCode(code: string, isFragment: boolean): string;
+    varyingCheck(varying: string, isFragment: boolean): boolean;
     varyingProcessor(varying: string, isFragment: boolean, preProcessors: {
         [key: string]: string;
     }): string;
@@ -33,7 +33,11 @@ export declare class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
         [key: string]: string;
     }): string;
     uniformBufferProcessor(uniformBuffer: string, isFragment: boolean): string;
-    postProcessor(code: string, defines: string[], isFragment: boolean, processingContext: Nullable<ShaderProcessingContext>, engine: ThinEngine): string;
+    postProcessor(code: string, defines: string[], isFragment: boolean, _processingContext: Nullable<_IShaderProcessingContext>, _parameters: {
+        [key: string]: number | string | boolean | undefined;
+    }, preProcessors: {
+        [key: string]: string;
+    }): string;
     private _applyTextureArrayProcessing;
     protected _generateLeftOverUBOCode(name: string, uniformBufferDescription: WebGPUBufferDescription): string;
     finalizeShaders(vertexCode: string, fragmentCode: string): {

@@ -1,22 +1,22 @@
-import type { Scene } from "./scene";
-import type { Nullable } from "./types";
-import { Matrix, Vector3 } from "./Maths/math.vector";
-import type { Engine } from "./Engines/engine";
-import type { IBehaviorAware, Behavior } from "./Behaviors/behavior";
-import { Observable } from "./Misc/observable";
-import type { AbstractActionManager } from "./Actions/abstractActionManager";
-import type { IInspectable } from "./Misc/iInspectable";
-import type { AbstractScene } from "./abstractScene";
-import type { IAccessibilityTag } from "./IAccessibilityTag";
-declare type Animatable = import("./Animations/animatable").Animatable;
-declare type AnimationPropertiesOverride = import("./Animations/animationPropertiesOverride").AnimationPropertiesOverride;
-declare type Animation = import("./Animations/animation").Animation;
-declare type AnimationRange = import("./Animations/animationRange").AnimationRange;
-declare type AbstractMesh = import("./Meshes/abstractMesh").AbstractMesh;
+import { type Scene } from "./scene.js";
+import { type Nullable } from "./types.js";
+import { Matrix, Vector3 } from "./Maths/math.vector.pure.js";
+import { type AbstractEngine } from "./Engines/abstractEngine.js";
+import { type IBehaviorAware, type Behavior } from "./Behaviors/behavior.js";
+import { Observable } from "./Misc/observable.js";
+import { type AbstractActionManager } from "./Actions/abstractActionManager.js";
+import { type IInspectable } from "./Misc/iInspectable.js";
+import { type IAccessibilityTag } from "./IAccessibilityTag.js";
+import { type AnimationRange } from "./Animations/animationRange.js";
+import { type AnimationPropertiesOverride } from "./Animations/animationPropertiesOverride.js";
+import { type AbstractMesh } from "./Meshes/abstractMesh.js";
+import { type Animation } from "./Animations/animation.js";
+import { type Animatable } from "./Animations/animatable.core.js";
+import { type IAssetContainer } from "./IAssetContainer.js";
 /**
  * Defines how a node can be built from a string name.
  */
-export declare type NodeConstructor = (name: string, scene: Scene, options?: any) => () => Node;
+export type NodeConstructor = (name: string, scene: Scene, options?: any) => () => Node;
 /**
  * Node is the basic class for all scene objects (Mesh, Light, Camera.)
  */
@@ -80,6 +80,9 @@ export declare class Node implements IBehaviorAware<Node> {
     set accessibilityTag(value: Nullable<IAccessibilityTag>);
     get accessibilityTag(): Nullable<IAccessibilityTag>;
     protected _accessibilityTag: Nullable<IAccessibilityTag>;
+    /**
+     * Observable fired when an accessibility tag is changed
+     */
     onAccessibilityTagChangedObservable: Observable<Nullable<IAccessibilityTag>>;
     /**
      * Gets or sets a boolean used to define if the node must be serialized
@@ -87,11 +90,11 @@ export declare class Node implements IBehaviorAware<Node> {
     get doNotSerialize(): boolean;
     set doNotSerialize(value: boolean);
     /** @internal */
-    _parentContainer: Nullable<AbstractScene>;
+    _parentContainer: Nullable<IAssetContainer>;
     /**
      * Gets a list of Animations associated with the node
      */
-    animations: import("./Animations/animation").Animation[];
+    animations: Animation[];
     protected _ranges: {
         [name: string]: Nullable<AnimationRange>;
     };
@@ -135,6 +138,18 @@ export declare class Node implements IBehaviorAware<Node> {
     set parent(parent: Nullable<Node>);
     get parent(): Nullable<Node>;
     /**
+     * If set to true, this node, when renderable, will only be visible if its parent(s) are also visible.
+     * @default false
+     */
+    get inheritVisibility(): boolean;
+    set inheritVisibility(value: boolean);
+    /**
+     * Gets or sets a boolean indicating whether this node is visible, either this node itself when it is renderable or its renderable child nodes when `inheritVisibility` is true.
+     * @default true
+     */
+    get isVisible(): boolean;
+    set isVisible(value: boolean);
+    /**
      * @internal
      */
     _serializeAsParent(serializationObject: any): void;
@@ -165,9 +180,17 @@ export declare class Node implements IBehaviorAware<Node> {
      */
     set onDispose(callback: () => void);
     /**
-     * An event triggered when the enabled state of the node changes
+     * An event triggered when the enabled state of the node changes.
+     * This only reflects changes to the node's own enabled flag (as set via {@link setEnabled}), not changes inherited from an ancestor.
+     * Use {@link onEffectiveEnabledStateChangedObservable} to also be notified when an ancestor's enabled state changes the effective enabled state.
      */
     get onEnabledStateChangedObservable(): Observable<boolean>;
+    /**
+     * An event triggered when the effective enabled state of the node changes, i.e. whenever the value returned by {@link isEnabled} changes.
+     * Unlike {@link onEnabledStateChangedObservable}, this fires for changes caused by an ancestor's enabled state as well as this node's own state.
+     * The observable is created on first access, so no cost is incurred for nodes that never observe it.
+     */
+    get onEffectiveEnabledStateChangedObservable(): Observable<boolean>;
     /**
      * An event triggered when the node is cloned
      */
@@ -176,8 +199,9 @@ export declare class Node implements IBehaviorAware<Node> {
      * Creates a new Node
      * @param name the name and id to be given to this node
      * @param scene the scene this node will be added to
+     * @param isPure indicates this Node is just a Node, and not a derived class like Mesh or Camera
      */
-    constructor(name: string, scene?: Nullable<Scene>);
+    constructor(name: string, scene?: Nullable<Scene>, isPure?: boolean);
     /**
      * Gets the scene of the node
      * @returns a scene
@@ -187,7 +211,7 @@ export declare class Node implements IBehaviorAware<Node> {
      * Gets the engine of the node
      * @returns a Engine
      */
-    getEngine(): Engine;
+    getEngine(): AbstractEngine;
     private _behaviors;
     /**
      * Attach a behavior to the node
@@ -267,8 +291,17 @@ export declare class Node implements IBehaviorAware<Node> {
      * If the node has a parent, all ancestors will be checked and false will be returned if any are false (not enabled), otherwise will return true
      * @param checkAncestors indicates if this method should check the ancestors. The default is to check the ancestors. If set to false, the method will return the value of this node without checking ancestors
      * @returns whether this node (and its parent) is enabled
+     * @remarks
+     * To observe changes to the value returned when calling this with `checkAncestors` set to true (the default, i.e. the effective enabled state), subscribe to {@link onEffectiveEnabledStateChangedObservable}.
+     * To observe changes to the value returned when calling this with `checkAncestors` set to false (i.e. this node's own enabled state only), subscribe to {@link onEnabledStateChangedObservable}.
      */
     isEnabled(checkAncestors?: boolean): boolean;
+    /**
+     * Whether the effective enabled observable exists and has at least one observer.
+     * Used to skip the extra work of tracking effective enabled transitions when nobody is listening.
+     * @returns true if the effective enabled observable exists and has at least one observer, false otherwise
+     */
+    private _hasEffectiveEnabledStateObservers;
     /** @internal */
     protected _syncParentEnabledState(): void;
     /**
@@ -359,6 +392,14 @@ export declare class Node implements IBehaviorAware<Node> {
      */
     getAnimationRange(name: string): Nullable<AnimationRange>;
     /**
+     * Clone the current node
+     * @param name Name of the new clone
+     * @param newParent New parent for the clone
+     * @param doNotCloneChildren Do not clone children hierarchy
+     * @returns the new transform node
+     */
+    clone(name: string, newParent: Nullable<Node>, doNotCloneChildren?: boolean): Nullable<Node>;
+    /**
      * Gets the list of all animation ranges defined on this node
      * @returns an array
      */
@@ -407,4 +448,3 @@ export declare class Node implements IBehaviorAware<Node> {
         max: Vector3;
     };
 }
-export {};

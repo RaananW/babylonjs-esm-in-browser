@@ -1,17 +1,13 @@
-import type { InternalTexture } from "./internalTexture";
+import { type InternalTexture } from "./internalTexture.js";
 /**
  * Define options used to create an internal texture
  */
 export interface InternalTextureCreationOptions {
-    /**
-     * Specifies if mipmaps must be created. If undefined, the value from generateMipMaps is taken instead
-     */
+    /** Specifies if mipmaps must be created. If undefined, the value from generateMipMaps is taken instead */
     createMipMaps?: boolean;
-    /**
-     * Specifies if mipmaps must be generated
-     */
+    /** Specifies if mipmaps must be generated */
     generateMipMaps?: boolean;
-    /** Defines texture type (int by default) */
+    /** Defines texture type (unsigned byte by default) */
     type?: number;
     /** Defines sampling mode (trilinear by default) */
     samplingMode?: number;
@@ -23,6 +19,14 @@ export interface InternalTextureCreationOptions {
     creationFlags?: number;
     /** Creates the RTT in sRGB space */
     useSRGBBuffer?: boolean;
+    /** Label of the texture (used for debugging only) */
+    label?: string;
+    /** If the MSAA texture must be created right away (default: false) */
+    createMSAATexture?: boolean;
+    /** Comparison function. Used only for depth textures (default: 0) */
+    comparisonFunction?: number;
+    /** If the created texture is a cube texture */
+    isCube?: boolean;
 }
 /**
  * Define options used to create a render target texture
@@ -41,7 +45,7 @@ export interface RenderTargetCreationOptions extends InternalTextureCreationOpti
  * Define options used to create a depth texture
  */
 export interface DepthTextureCreationOptions {
-    /** Specifies whether or not a stencil should be allocated in the texture */
+    /** Specifies whether or not a stencil should be allocated in the texture. Not used if depthTextureFormat is supplied, in which case stencil creation will depend on this value. */
     generateStencil?: boolean;
     /** Specifies whether or not bilinear filtering is enable on the texture */
     bilinearFiltering?: boolean;
@@ -53,12 +57,33 @@ export interface DepthTextureCreationOptions {
     samples?: number;
     /** Specifies the depth texture format to use */
     depthTextureFormat?: number;
+    /** Label of the texture (used for debugging only) */
+    label?: string;
 }
 /**
  * Type used to define a texture size (either with a number or with a rect width and height)
  */
-export declare type TextureSize = number | {
+export type TextureSize = number | {
     width: number;
     height: number;
+    depth?: number;
     layers?: number;
+};
+/**
+ * Check if a TextureSize is an object
+ * @param size The TextureSize to check
+ * @returns True if the TextureSize is an object
+ */
+export declare function textureSizeIsObject(size: TextureSize): size is {
+    width: number;
+    height: number;
+};
+/**
+ * Get the width/height dimensions from a TextureSize
+ * @param size The TextureSize to get the dimensions from
+ * @returns The width and height as an object
+ */
+export declare function getDimensionsFromTextureSize(size: TextureSize): {
+    width: number;
+    height: number;
 };

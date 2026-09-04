@@ -1,5 +1,5 @@
-import type { FollowCamera } from "../../Cameras/followCamera";
-import type { ICameraInput } from "../../Cameras/cameraInputsManager";
+import { type FollowCamera } from "../../Cameras/followCamera.js";
+import { type ICameraInput } from "../../Cameras/cameraInputsManager.js";
 /**
  * Manage the mouse wheel inputs to control a follow camera.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs

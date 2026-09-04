@@ -1,13 +1,13 @@
-import type { Nullable } from "../types";
-import type { SmartArray } from "../Misc/smartArray";
-import type { ISpriteManager } from "../Sprites/spriteManager";
-import type { IParticleSystem } from "../Particles/IParticleSystem";
-import { RenderingGroup } from "./renderingGroup";
-declare type Scene = import("../scene").Scene;
-declare type Camera = import("../Cameras/camera").Camera;
-declare type Material = import("../Materials/material").Material;
-declare type SubMesh = import("../Meshes/subMesh").SubMesh;
-declare type AbstractMesh = import("../Meshes/abstractMesh").AbstractMesh;
+import { type Immutable, type Nullable } from "../types.js";
+import { type SmartArray } from "../Misc/smartArray.js";
+import { type ISpriteManager } from "../Sprites/spriteManager.js";
+import { type IParticleSystem } from "../Particles/IParticleSystem.js";
+import { RenderingGroup } from "./renderingGroup.js";
+import { type Scene } from "../scene.js";
+import { type Camera } from "../Cameras/camera.js";
+import { type Material } from "../Materials/material.js";
+import { type SubMesh } from "../Meshes/subMesh.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
 /**
  * Interface describing the different options available in the rendering manager
  * regarding Auto Clear between groups.
@@ -42,6 +42,10 @@ export declare class RenderingGroupInfo {
      * The ID of the renderingGroup being processed
      */
     renderingGroupId: number;
+    /**
+     * The rendering manager
+     */
+    renderingManager: RenderingManager;
 }
 /**
  * This is the manager responsible of all the rendering for meshes sprites and particles.
@@ -65,6 +69,12 @@ export declare class RenderingManager {
      * @internal
      */
     _useSceneAutoClearSetup: boolean;
+    private _disableDepthPrePass;
+    /**
+     * Specifies to disable depth pre-pass if true (default: false)
+     */
+    get disableDepthPrePass(): boolean;
+    set disableDepthPrePass(value: boolean);
     private _scene;
     private _renderingGroups;
     private _depthStencilBufferAlreadyCleaned;
@@ -83,12 +93,21 @@ export declare class RenderingManager {
     get maintainStateBetweenFrames(): boolean;
     set maintainStateBetweenFrames(value: boolean);
     /**
+     * Restore wasDispatched flags on the lists of elements to render.
+     */
+    restoreDispachedFlags(): void;
+    /**
      * Instantiates a new rendering group for a particular scene
      * @param scene Defines the scene the groups belongs to
      */
     constructor(scene: Scene);
     /**
-     * Gets the rendering group with the specified id.
+     * @returns the list of rendering groups managed by the manager.
+     */
+    get renderingGroups(): Immutable<RenderingGroup[]>;
+    /**
+     * @returns the rendering group with the specified id.
+     * @param id the id of the rendering group (0 by default)
      */
     getRenderingGroup(id: number): RenderingGroup;
     private _clearDepthStencilBuffer;
@@ -96,7 +115,7 @@ export declare class RenderingManager {
      * Renders the entire managed groups. This is used by the scene or the different render targets.
      * @internal
      */
-    render(customRenderFunction: Nullable<(opaqueSubMeshes: SmartArray<SubMesh>, transparentSubMeshes: SmartArray<SubMesh>, alphaTestSubMeshes: SmartArray<SubMesh>, depthOnlySubMeshes: SmartArray<SubMesh>) => void>, activeMeshes: Nullable<AbstractMesh[]>, renderParticles: boolean, renderSprites: boolean): void;
+    render(customRenderFunction: Nullable<(opaqueSubMeshes: SmartArray<SubMesh>, transparentSubMeshes: SmartArray<SubMesh>, alphaTestSubMeshes: SmartArray<SubMesh>, depthOnlySubMeshes: SmartArray<SubMesh>) => void>, activeMeshes: Nullable<AbstractMesh[]>, renderParticles: boolean, renderSprites: boolean, renderDepthOnlyMeshes?: boolean, renderOpaqueMeshes?: boolean, renderAlphaTestMeshes?: boolean, renderTransparentMeshes?: boolean, customRenderTransparentSubMeshes?: (transparentSubMeshes: SmartArray<SubMesh>, renderingGroup?: RenderingGroup) => void): void;
     /**
      * Resets the different information of the group to prepare a new frame
      * @internal
@@ -161,4 +180,3 @@ export declare class RenderingManager {
      */
     getAutoClearDepthStencilSetup(index: number): IRenderingManagerAutoClearSetup;
 }
-export {};

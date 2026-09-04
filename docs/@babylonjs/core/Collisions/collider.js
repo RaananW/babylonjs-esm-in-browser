@@ -1,6 +1,6 @@
-import { Vector3 } from "../Maths/math.vector.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
 import { Plane } from "../Maths/math.plane.js";
-const intersectBoxAASphere = (boxMin, boxMax, sphereCenter, sphereRadius) => {
+const IntersectBoxAaSphere = (boxMin, boxMax, sphereCenter, sphereRadius) => {
     if (boxMin.x > sphereCenter.x + sphereRadius) {
         return false;
     }
@@ -21,7 +21,7 @@ const intersectBoxAASphere = (boxMin, boxMax, sphereCenter, sphereRadius) => {
     }
     return true;
 };
-const getLowestRoot = (function () {
+const GetLowestRoot = (function () {
     const result = { root: 0, found: false };
     return function (a, b, c, maxR) {
         result.root = 0;
@@ -140,7 +140,7 @@ export class Collider {
         if (distance > this._velocityWorldLength + max + sphereRadius) {
             return false;
         }
-        if (!intersectBoxAASphere(vecMin, vecMax, this._basePointWorld, this._velocityWorldLength + max)) {
+        if (!IntersectBoxAaSphere(vecMin, vecMax, this._basePointWorld, this._velocityWorldLength + max)) {
             return false;
         }
         return true;
@@ -213,7 +213,7 @@ export class Collider {
             this._basePoint.subtractToRef(p1, this._tempVector);
             let b = 2.0 * Vector3.Dot(this._velocity, this._tempVector);
             let c = this._tempVector.lengthSquared() - 1.0;
-            let lowestRoot = getLowestRoot(a, b, c, t);
+            let lowestRoot = GetLowestRoot(a, b, c, t);
             if (lowestRoot.found) {
                 t = lowestRoot.root;
                 found = true;
@@ -222,7 +222,7 @@ export class Collider {
             this._basePoint.subtractToRef(p2, this._tempVector);
             b = 2.0 * Vector3.Dot(this._velocity, this._tempVector);
             c = this._tempVector.lengthSquared() - 1.0;
-            lowestRoot = getLowestRoot(a, b, c, t);
+            lowestRoot = GetLowestRoot(a, b, c, t);
             if (lowestRoot.found) {
                 t = lowestRoot.root;
                 found = true;
@@ -231,7 +231,7 @@ export class Collider {
             this._basePoint.subtractToRef(p3, this._tempVector);
             b = 2.0 * Vector3.Dot(this._velocity, this._tempVector);
             c = this._tempVector.lengthSquared() - 1.0;
-            lowestRoot = getLowestRoot(a, b, c, t);
+            lowestRoot = GetLowestRoot(a, b, c, t);
             if (lowestRoot.found) {
                 t = lowestRoot.root;
                 found = true;
@@ -245,7 +245,7 @@ export class Collider {
             a = edgeSquaredLength * -this._velocitySquaredLength + edgeDotVelocity * edgeDotVelocity;
             b = 2 * (edgeSquaredLength * Vector3.Dot(this._velocity, this._baseToVertex) - edgeDotVelocity * edgeDotBaseToVertex);
             c = edgeSquaredLength * (1.0 - this._baseToVertex.lengthSquared()) + edgeDotBaseToVertex * edgeDotBaseToVertex;
-            lowestRoot = getLowestRoot(a, b, c, t);
+            lowestRoot = GetLowestRoot(a, b, c, t);
             if (lowestRoot.found) {
                 const f = (edgeDotVelocity * lowestRoot.root - edgeDotBaseToVertex) / edgeSquaredLength;
                 if (f >= 0.0 && f <= 1.0) {
@@ -263,7 +263,7 @@ export class Collider {
             a = edgeSquaredLength * -this._velocitySquaredLength + edgeDotVelocity * edgeDotVelocity;
             b = 2 * (edgeSquaredLength * Vector3.Dot(this._velocity, this._baseToVertex) - edgeDotVelocity * edgeDotBaseToVertex);
             c = edgeSquaredLength * (1.0 - this._baseToVertex.lengthSquared()) + edgeDotBaseToVertex * edgeDotBaseToVertex;
-            lowestRoot = getLowestRoot(a, b, c, t);
+            lowestRoot = GetLowestRoot(a, b, c, t);
             if (lowestRoot.found) {
                 const f = (edgeDotVelocity * lowestRoot.root - edgeDotBaseToVertex) / edgeSquaredLength;
                 if (f >= 0.0 && f <= 1.0) {
@@ -281,7 +281,7 @@ export class Collider {
             a = edgeSquaredLength * -this._velocitySquaredLength + edgeDotVelocity * edgeDotVelocity;
             b = 2 * (edgeSquaredLength * Vector3.Dot(this._velocity, this._baseToVertex) - edgeDotVelocity * edgeDotBaseToVertex);
             c = edgeSquaredLength * (1.0 - this._baseToVertex.lengthSquared()) + edgeDotBaseToVertex * edgeDotBaseToVertex;
-            lowestRoot = getLowestRoot(a, b, c, t);
+            lowestRoot = GetLowestRoot(a, b, c, t);
             if (lowestRoot.found) {
                 const f = (edgeDotVelocity * lowestRoot.root - edgeDotBaseToVertex) / edgeSquaredLength;
                 if (f >= 0.0 && f <= 1.0) {
@@ -328,7 +328,7 @@ export class Collider {
                         continue;
                     }
                     // Handles strip faces one on two is reversed
-                    if ((invertTriangles ? 1 : 0) ^ i % 2) {
+                    if ((invertTriangles ? 1 : 0) ^ (i % 2)) {
                         this._testTriangle(i, trianglePlaneArray, p1, p2, p3, hasMaterial, hostMesh);
                     }
                     else {
@@ -353,7 +353,7 @@ export class Collider {
                         continue;
                     }
                     // Handles strip faces one on two is reversed
-                    if ((invertTriangles ? 1 : 0) ^ i % 2) {
+                    if ((invertTriangles ? 1 : 0) ^ (i % 2)) {
                         this._testTriangle(i, trianglePlaneArray, p1, p2, p3, hasMaterial, hostMesh);
                     }
                     else {
@@ -392,10 +392,21 @@ export class Collider {
     /**
      * @internal
      */
-    _getResponse(pos, vel) {
+    _getResponse(pos, vel, slideOnCollide) {
+        // Handle straight movement up to collision
         pos.addToRef(vel, this._destinationPoint);
-        vel.scaleInPlace(this._nearestDistance / vel.length());
-        this._basePoint.addToRef(vel, pos);
+        if (!slideOnCollide) {
+            // Move to one "close distance" less than the collision point to
+            // prevent any collision penetration from floating point inaccuracy
+            vel.scaleInPlace((this._nearestDistance - this._epsilon) / vel.length());
+            this._basePoint.addToRef(vel, pos);
+            return;
+        }
+        else {
+            vel.scaleInPlace(this._nearestDistance / vel.length());
+            this._basePoint.addToRef(vel, pos);
+        }
+        // Handle slide movement past collision
         pos.subtractToRef(this.intersectionPoint, this._slidePlaneNormal);
         this._slidePlaneNormal.normalize();
         this._slidePlaneNormal.scaleToRef(this._epsilon, this._displacementVector);

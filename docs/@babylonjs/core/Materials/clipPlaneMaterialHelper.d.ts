@@ -1,8 +1,10 @@
-import type { Effect } from "./effect";
-import type { IClipPlanesHolder } from "../Misc/interfaces/iClipPlanesHolder";
+import { type Effect } from "./effect.js";
+import { type IClipPlanesHolder } from "../Misc/interfaces/iClipPlanesHolder.js";
 /** @internal */
-export declare function addClipPlaneUniforms(uniforms: string[]): void;
+export declare function AddClipPlaneUniforms(uniforms: string[]): void;
 /** @internal */
-export declare function prepareDefinesForClipPlanes(primaryHolder: IClipPlanesHolder, secondaryHolder: IClipPlanesHolder, defines: string[] | Record<string, any>): boolean;
+export declare function PrepareStringDefinesForClipPlanes(primaryHolder: IClipPlanesHolder, secondaryHolder: IClipPlanesHolder, defines: string[]): void;
 /** @internal */
-export declare function bindClipPlane(effect: Effect, primaryHolder: IClipPlanesHolder, secondaryHolder: IClipPlanesHolder): void;
+export declare function PrepareDefinesForClipPlanes(primaryHolder: IClipPlanesHolder, secondaryHolder: IClipPlanesHolder, defines: Record<string, any>): boolean;
+/** @internal */
+export declare function BindClipPlane(effect: Effect, primaryHolder: IClipPlanesHolder, secondaryHolder: IClipPlanesHolder): void;

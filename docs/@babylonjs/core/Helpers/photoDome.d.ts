@@ -1,6 +1,6 @@
-import type { Scene } from "../scene";
-import { Texture } from "../Materials/Textures/texture";
-import { TextureDome } from "./textureDome";
+import { type Scene } from "../scene.js";
+import { Texture } from "../Materials/Textures/texture.pure.js";
+import { TextureDome } from "./textureDome.js";
 /**
  * Display a 360 degree photo on an approximately spherical surface, useful for VR applications or skyboxes.
  * As a subclass of TransformNode, this allow parenting to the camera with different locations in the scene.

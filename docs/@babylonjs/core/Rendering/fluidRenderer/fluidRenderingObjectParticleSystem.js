@@ -1,33 +1,16 @@
 
+import { Logger } from "../../Misc/logger.js";
 import { FluidRenderingObject } from "./fluidRenderingObject.js";
 /**
  * Defines a rendering object based on a particle system
  */
 export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
-    /**
-     * Creates a new instance of the class
-     * @param scene The scene the particle system is part of
-     * @param ps The particle system
-     */
-    constructor(scene, ps) {
-        super(scene);
-        this._useTrueRenderingForDiffuseTexture = true;
-        this._particleSystem = ps;
-        this._originalRender = ps.render.bind(ps);
-        this._blendMode = ps.blendMode;
-        this._onBeforeDrawParticleObserver = null;
-        this._updateInAnimate = this._particleSystem.updateInAnimate;
-        this._particleSystem.updateInAnimate = true;
-        this._particleSystem.render = () => 0;
-        this.particleSize = (ps.minSize + ps.maxSize) / 2;
-        this.useTrueRenderingForDiffuseTexture = false;
-    }
     /** Gets the particle system */
     get particleSystem() {
         return this._particleSystem;
     }
     /**
-     * Gets the name of the class
+     * @returns the name of the class
      */
     getClassName() {
         return "FluidRenderingObjectParticleSystem";
@@ -70,6 +53,36 @@ export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
         return this._particleSystem.indexBuffer;
     }
     /**
+     * Creates a new instance of the class
+     * @param scene The scene the particle system is part of
+     * @param ps The particle system
+     * @param shaderLanguage The shader language to use
+     */
+    constructor(scene, ps, shaderLanguage) {
+        super(scene, shaderLanguage);
+        this._useTrueRenderingForDiffuseTexture = true;
+        this._particleSystem = ps;
+        this._originalRender = ps.render.bind(ps);
+        this._blendMode = ps.blendMode;
+        this._onBeforeDrawParticleObserver = null;
+        this._updateInAnimate = this._particleSystem.updateInAnimate;
+        this._particleSystem.updateInAnimate = true;
+        this._particleSystem.render = () => 0;
+        this.particleSize = (ps.minSize + ps.maxSize) / 2;
+        this.useTrueRenderingForDiffuseTexture = false;
+    }
+    /**
+     * GPUParticleSystem's "size" buffer layout (baseSize, scaleX, scaleY) is incompatible with this feature.
+     * @returns true if the per-particle size attribute is supported
+     */
+    _supportsPerParticleSizeAttribute() {
+        if (this._particleSystem.getClassName() === "GPUParticleSystem") {
+            Logger.Warn("UsePerParticleSizeAttribute is not supported with GPUParticleSystem; falling back to uniform size.");
+            return false;
+        }
+        return true;
+    }
+    /**
      * Indicates if the object is ready to be rendered
      * @returns True if everything is ready for the object to be rendered, otherwise false
      */
@@ -90,7 +103,7 @@ export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
         this._originalRender();
     }
     /**
-     * Releases the ressources used by the class
+     * Releases the resources used by the class
      */
     dispose() {
         super.dispose();

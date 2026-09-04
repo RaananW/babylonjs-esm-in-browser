@@ -1,13 +1,6 @@
-import { GLTFLoaderExtension } from "./glTFLoader";
-import type { IGLTFRuntime } from "./glTFLoaderInterfaces";
-import { Material } from "@babylonjs/core/Materials/material.js";
 /**
- * @internal
- * @deprecated
+ * Re-exports the pure implementation and applies the runtime registration side effect.
+ * Import "./glTFMaterialsCommonExtension.pure" for tree-shakeable, side-effect-free usage.
  */
-export declare class GLTFMaterialsCommonExtension extends GLTFLoaderExtension {
-    constructor();
-    loadRuntimeExtensionsAsync(gltfRuntime: IGLTFRuntime): boolean;
-    loadMaterialAsync(gltfRuntime: IGLTFRuntime, id: string, onSuccess: (material: Material) => void, onError: (message: string) => void): boolean;
-    private _loadTexture;
-}
+export * from "./glTFMaterialsCommonExtension.pure.js";
+import "./glTFLoader.js";

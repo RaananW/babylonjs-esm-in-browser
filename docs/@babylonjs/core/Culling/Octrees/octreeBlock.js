@@ -1,4 +1,4 @@
-import { Vector3 } from "../../Maths/math.vector.js";
+import { Vector3 } from "../../Maths/math.vector.pure.js";
 import { BoundingBox } from "../../Culling/boundingBox.js";
 /**
  * Class used to store a cell in an octree
@@ -18,7 +18,7 @@ export class OctreeBlock {
         /**
          * Gets the content of the current block
          */
-        this.entries = new Array();
+        this.entries = [];
         this._boundingVectors = new Array();
         this._capacity = capacity;
         this._depth = depth;

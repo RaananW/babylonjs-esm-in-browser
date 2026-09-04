@@ -1,7 +1,8 @@
-import { VertexBuffer } from "../../Buffers/buffer.js";
-import type { Scene } from "../../scene.js";
-import type { FloatArray } from "../../types.js";
-import { FluidRenderingObject } from "./fluidRenderingObject";
+import { VertexBuffer } from "../../Buffers/buffer.pure.js";
+import { type Scene } from "../../scene.js";
+import { type FloatArray } from "../../types.js";
+import { FluidRenderingObject } from "./fluidRenderingObject.js";
+import { ShaderLanguage } from "../../Materials/shaderLanguage.js";
 /**
  * Defines a rendering object based on a list of custom buffers
  * The list must contain at least a "position" buffer!
@@ -11,7 +12,7 @@ export declare class FluidRenderingObjectCustomParticles extends FluidRenderingO
     private _diffuseEffectWrapper;
     private _vertexBuffers;
     /**
-     * Gets the name of the class
+     * @returns the name of the class
      */
     getClassName(): string;
     /**
@@ -25,10 +26,11 @@ export declare class FluidRenderingObjectCustomParticles extends FluidRenderingO
      * @param scene The scene the particles should be rendered into
      * @param buffers The list of buffers (must contain at least one "position" buffer!). Note that you don't have to pass all (or any!) buffers at once in the constructor, you can use the addBuffers method to add more later.
      * @param numParticles Number of vertices to take into account from the buffers
+     * @param shaderLanguage The shader language to use
      */
     constructor(scene: Scene, buffers: {
         [key: string]: FloatArray;
-    }, numParticles: number);
+    }, numParticles: number, shaderLanguage?: ShaderLanguage);
     /**
      * Add some new buffers
      * @param buffers List of buffers
@@ -36,6 +38,11 @@ export declare class FluidRenderingObjectCustomParticles extends FluidRenderingO
     addBuffers(buffers: {
         [key: string]: FloatArray;
     }): void;
+    /**
+     * Per-particle sizing needs an actual "size" buffer; custom buffers are optional.
+     * @returns true if a "size" buffer was supplied
+     */
+    protected _supportsPerParticleSizeAttribute(): boolean;
     protected _createEffects(): void;
     /**
      * Indicates if the object is ready to be rendered
@@ -57,7 +64,7 @@ export declare class FluidRenderingObjectCustomParticles extends FluidRenderingO
      */
     renderDiffuseTexture(): void;
     /**
-     * Releases the ressources used by the class
+     * Releases the resources used by the class
      */
     dispose(): void;
 }

@@ -1,7 +1,7 @@
-import type { Bone } from "./bone";
-import { Vector3 } from "../Maths/math.vector";
-import type { TransformNode } from "../Meshes/transformNode";
-import type { Nullable } from "../types";
+import { type Bone } from "./bone.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { type TransformNode } from "../Meshes/transformNode.js";
+import { type Nullable } from "../types.js";
 /**
  * Class used to apply inverse kinematics to bones
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/bonesSkeletons#boneikcontroller

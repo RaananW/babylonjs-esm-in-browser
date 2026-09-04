@@ -1,5 +1,5 @@
-import { Vector3, Vector2, TmpVectors } from "../Maths/math.vector.js";
-import { VertexBuffer } from "../Buffers/buffer.js";
+import { Matrix, Vector3, Vector2, TmpVectors } from "../Maths/math.vector.pure.js";
+import { VertexBuffer } from "../Buffers/buffer.pure.js";
 /**
  * Information about the result of picking within a scene
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/interactions/picking_collisions
@@ -65,16 +65,25 @@ export class PickingInfo {
         if (!this.pickedMesh || (useVerticesNormals && !this.pickedMesh.isVerticesDataPresent(VertexBuffer.NormalKind))) {
             return null;
         }
-        const indices = this.pickedMesh.getIndices();
-        if (!indices) {
-            return null;
+        let indices = this.pickedMesh.getIndices();
+        if (indices?.length === 0) {
+            indices = null;
         }
         let result;
+        const tmp0 = TmpVectors.Vector3[0];
+        const tmp1 = TmpVectors.Vector3[1];
+        const tmp2 = TmpVectors.Vector3[2];
         if (useVerticesNormals) {
             const normals = this.pickedMesh.getVerticesData(VertexBuffer.NormalKind);
-            let normal0 = Vector3.FromArray(normals, indices[this.faceId * 3] * 3);
-            let normal1 = Vector3.FromArray(normals, indices[this.faceId * 3 + 1] * 3);
-            let normal2 = Vector3.FromArray(normals, indices[this.faceId * 3 + 2] * 3);
+            let normal0 = indices
+                ? Vector3.FromArrayToRef(normals, indices[this.faceId * 3] * 3, tmp0)
+                : tmp0.copyFromFloats(normals[this.faceId * 3 * 3], normals[this.faceId * 3 * 3 + 1], normals[this.faceId * 3 * 3 + 2]);
+            let normal1 = indices
+                ? Vector3.FromArrayToRef(normals, indices[this.faceId * 3 + 1] * 3, tmp1)
+                : tmp1.copyFromFloats(normals[(this.faceId * 3 + 1) * 3], normals[(this.faceId * 3 + 1) * 3 + 1], normals[(this.faceId * 3 + 1) * 3 + 2]);
+            let normal2 = indices
+                ? Vector3.FromArrayToRef(normals, indices[this.faceId * 3 + 2] * 3, tmp2)
+                : tmp2.copyFromFloats(normals[(this.faceId * 3 + 2) * 3], normals[(this.faceId * 3 + 2) * 3 + 1], normals[(this.faceId * 3 + 2) * 3 + 2]);
             normal0 = normal0.scale(this.bu);
             normal1 = normal1.scale(this.bv);
             normal2 = normal2.scale(1.0 - this.bu - this.bv);
@@ -82,14 +91,29 @@ export class PickingInfo {
         }
         else {
             const positions = this.pickedMesh.getVerticesData(VertexBuffer.PositionKind);
-            const vertex1 = Vector3.FromArray(positions, indices[this.faceId * 3] * 3);
-            const vertex2 = Vector3.FromArray(positions, indices[this.faceId * 3 + 1] * 3);
-            const vertex3 = Vector3.FromArray(positions, indices[this.faceId * 3 + 2] * 3);
+            const vertex1 = indices
+                ? Vector3.FromArrayToRef(positions, indices[this.faceId * 3] * 3, tmp0)
+                : tmp0.copyFromFloats(positions[this.faceId * 3 * 3], positions[this.faceId * 3 * 3 + 1], positions[this.faceId * 3 * 3 + 2]);
+            const vertex2 = indices
+                ? Vector3.FromArrayToRef(positions, indices[this.faceId * 3 + 1] * 3, tmp1)
+                : tmp1.copyFromFloats(positions[(this.faceId * 3 + 1) * 3], positions[(this.faceId * 3 + 1) * 3 + 1], positions[(this.faceId * 3 + 1) * 3 + 2]);
+            const vertex3 = indices
+                ? Vector3.FromArrayToRef(positions, indices[this.faceId * 3 + 2] * 3, tmp2)
+                : tmp2.copyFromFloats(positions[(this.faceId * 3 + 2) * 3], positions[(this.faceId * 3 + 2) * 3 + 1], positions[(this.faceId * 3 + 2) * 3 + 2]);
             const p1p2 = vertex1.subtract(vertex2);
             const p3p2 = vertex3.subtract(vertex2);
             result = Vector3.Cross(p1p2, p3p2);
         }
         const transformNormalToWorld = (pickedMesh, n) => {
+            if (this.thinInstanceIndex !== -1) {
+                const thinMatrixData = pickedMesh._thinInstanceDataStorage.matrixData;
+                const index = this.thinInstanceIndex << 4;
+                if (thinMatrixData && thinMatrixData.length > index) {
+                    const tm = TmpVectors.Matrix[0];
+                    Matrix.FromArrayToRef(thinMatrixData, index, tm);
+                    Vector3.TransformNormalToRef(n, tm, n);
+                }
+            }
             let wm = pickedMesh.getWorldMatrix();
             if (pickedMesh.nonUniformScaling) {
                 TmpVectors.Matrix[0].copyFrom(wm);
@@ -120,17 +144,18 @@ export class PickingInfo {
     }
     /**
      * Gets the texture coordinates of where the pick occurred
+     * @param uvSet The UV set to use to calculate the texture coordinates (default: VertexBuffer.UVKind)
      * @returns The vector containing the coordinates of the texture
      */
-    getTextureCoordinates() {
-        if (!this.pickedMesh || !this.pickedMesh.isVerticesDataPresent(VertexBuffer.UVKind)) {
+    getTextureCoordinates(uvSet = VertexBuffer.UVKind) {
+        if (!this.pickedMesh || !this.pickedMesh.isVerticesDataPresent(uvSet)) {
             return null;
         }
         const indices = this.pickedMesh.getIndices();
         if (!indices) {
             return null;
         }
-        const uvs = this.pickedMesh.getVerticesData(VertexBuffer.UVKind);
+        const uvs = this.pickedMesh.getVerticesData(uvSet);
         if (!uvs) {
             return null;
         }

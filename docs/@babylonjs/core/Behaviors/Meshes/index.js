@@ -2,6 +2,7 @@ export * from "./attachToBoxBehavior.js";
 export * from "./fadeInOutBehavior.js";
 export * from "./multiPointerScaleBehavior.js";
 export * from "./pointerDragBehavior.js";
+export * from "./pointerDragEvents.js";
 export * from "./sixDofDragBehavior.js";
 export * from "./surfaceMagnetismBehavior.js";
 export * from "./baseSixDofDragBehavior.js";

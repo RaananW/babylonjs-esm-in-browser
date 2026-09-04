@@ -1,5 +1,5 @@
 import { WebXRLayerWrapper } from "./webXRLayerWrapper.js";
-import { WebXRLayerRenderTargetTextureProvider } from "./webXRRenderTargetTextureProvider.js";
+import { WebXRWebGLRenderTargetTextureProvider } from "./webXRWebGLRenderTargetTextureProvider.js";
 /**
  * Wraps xr webgl layers.
  * @internal
@@ -18,7 +18,7 @@ export class WebXRWebGLLayerWrapper extends WebXRLayerWrapper {
  * Provides render target textures and other important rendering information for a given XRWebGLLayer.
  * @internal
  */
-export class WebXRWebGLLayerRenderTargetTextureProvider extends WebXRLayerRenderTargetTextureProvider {
+export class WebXRWebGLLayerRenderTargetTextureProvider extends WebXRWebGLRenderTargetTextureProvider {
     constructor(scene, layerWrapper) {
         super(scene, layerWrapper);
         this.layerWrapper = layerWrapper;

@@ -1,8 +1,8 @@
-import type { AssetContainer } from "@babylonjs/core/assetContainer.js";
+import { type AssetContainer } from "@babylonjs/core/assetContainer.js";
 import { Mesh } from "@babylonjs/core/Meshes/mesh.js";
-import type { Scene } from "@babylonjs/core/scene.js";
-import type { Nullable } from "@babylonjs/core/types.js";
-import type { OBJLoadingOptions } from "./objLoadingOptions";
+import { type Scene } from "@babylonjs/core/scene.js";
+import { type Nullable } from "@babylonjs/core/types.js";
+import { type OBJLoadingOptions } from "./objLoadingOptions.js";
 /**
  * Class used to load mesh data from OBJ content
  */
@@ -33,11 +33,18 @@ export declare class SolidParser {
     static FacePattern4: RegExp;
     /** Pattern used to detect a fifth kind of face (f -vertex/-uvs/-normal -vertex/-uvs/-normal -vertex/-uvs/-normal) */
     static FacePattern5: RegExp;
+    /** Pattern used to detect a line(l vertex vertex) */
+    static LinePattern1: RegExp;
+    /** Pattern used to detect a second kind of line (l vertex/uvs vertex/uvs) */
+    static LinePattern2: RegExp;
+    /** Pattern used to detect a third kind of line (l vertex/uvs/normal vertex/uvs/normal) */
+    static LinePattern3: RegExp;
     private _loadingOptions;
     private _positions;
     private _normals;
     private _uvs;
     private _colors;
+    private _extColors;
     private _meshesFromObj;
     private _handledMesh;
     private _indicesForBabylon;
@@ -60,6 +67,9 @@ export declare class SolidParser {
     private _grayColor;
     private _materialToUse;
     private _babylonMeshesArray;
+    private _pushTriangle;
+    private _handednessSign;
+    private _hasLineData;
     /**
      * Creates a new SolidParser
      * @param materialToUse defines the array to fill with the list of materials to use (it will be filled by the parse function)
@@ -84,13 +94,14 @@ export declare class SolidParser {
      * If a tuple of (position, normal) is not set, add the data into the corresponding array
      * If the tuple already exist, add only their indice
      *
-     * @param indicePositionFromObj Integer The index in positions array
-     * @param indiceUvsFromObj Integer The index in uvs array
-     * @param indiceNormalFromObj Integer The index in normals array
-     * @param positionVectorFromOBJ Vector3 The value of position at index objIndice
-     * @param textureVectorFromOBJ Vector3 The value of uvs
-     * @param normalsVectorFromOBJ Vector3 The value of normals at index objNormale
-     * @param positionColorsFromOBJ
+     * @param data The vertex's data
+     * * indicesPositionFromObj: The index in positions array
+     * * indicesUvsFromObj: The index in uvs array
+     * * indicesNormalFromObj: The index in normals array
+     * * positionVectorFromOBJ: The value of position at index objIndice
+     * * textureVectorFromOBJ: The value of uvs
+     * * normalsVectorFromOBJ: The value of normals at index objNormale
+     * * positionColorsFromOBJ: The value of color at index objIndice
      */
     private _setData;
     /**
@@ -112,6 +123,12 @@ export declare class SolidParser {
      */
     private _getTriangles;
     /**
+     * To get color between color and extension color
+     * @param index Integer The index of the element in the array
+     * @returns value of target color
+     */
+    private _getColor;
+    /**
      * Create triangles and push the data for each polygon for the pattern 1
      * In this pattern we get vertice positions
      * @param face
@@ -120,7 +137,7 @@ export declare class SolidParser {
     private _setDataForCurrentFaceWithPattern1;
     /**
      * Create triangles and push the data for each polygon for the pattern 2
-     * In this pattern we get vertice positions and uvsu
+     * In this pattern we get vertice positions and uvs
      * @param face
      * @param v
      */
@@ -142,6 +159,10 @@ export declare class SolidParser {
     private _setDataForCurrentFaceWithPattern5;
     private _addPreviousObjMesh;
     private _optimizeNormals;
+    private static _IsLineElement;
+    private static _IsObjectElement;
+    private static _IsGroupElement;
+    private static _GetZbrushMRGB;
     /**
      * Function used to parse an OBJ string
      * @param meshesNames defines the list of meshes to load (all if not defined)

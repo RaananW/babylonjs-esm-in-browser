@@ -1,21 +1,20 @@
-import type { Behavior } from "../../Behaviors/behavior";
-import type { Mesh } from "../../Meshes/mesh";
-import { AbstractMesh } from "../../Meshes/abstractMesh";
-import { Scene } from "../../scene";
-import type { Nullable } from "../../types";
-import { Vector3, Quaternion } from "../../Maths/math.vector";
-import { Observable } from "../../Misc/observable";
-import type { TransformNode } from "../../Meshes/transformNode";
-import type { PickingInfo } from "../../Collisions/pickingInfo";
+import { type Behavior } from "../../Behaviors/behavior.js";
+import { type AbstractMesh } from "../../Meshes/abstractMesh.js";
+import { Scene } from "../../scene.pure.js";
+import { type Nullable } from "../../types.js";
+import { Vector3, Quaternion } from "../../Maths/math.vector.pure.js";
+import { Observable } from "../../Misc/observable.js";
+import { TransformNode } from "../../Meshes/transformNode.pure.js";
+import { type PickingInfo } from "../../Collisions/pickingInfo.js";
 /**
  * Data store to track virtual pointers movement
  */
-declare type VirtualMeshInfo = {
+type VirtualMeshInfo = {
     dragging: boolean;
     moving: boolean;
-    dragMesh: AbstractMesh;
-    originMesh: AbstractMesh;
-    pivotMesh: AbstractMesh;
+    dragMesh: TransformNode;
+    originMesh: TransformNode;
+    pivotMesh: TransformNode;
     startingPivotPosition: Vector3;
     startingPivotOrientation: Quaternion;
     startingPosition: Vector3;
@@ -28,8 +27,8 @@ declare type VirtualMeshInfo = {
  * Creates virtual meshes that are dragged around
  * And observables for position/rotation changes
  */
-export declare class BaseSixDofDragBehavior implements Behavior<Mesh> {
-    protected static _virtualScene: Scene;
+export declare class BaseSixDofDragBehavior implements Behavior<TransformNode> {
+    protected static _VirtualScene: Scene;
     private _pointerObserver;
     private _attachedToElement;
     protected _virtualMeshesInfo: {
@@ -93,7 +92,7 @@ export declare class BaseSixDofDragBehavior implements Behavior<Mesh> {
     /**
      *  Fires each time a drag ends (eg. mouse release after drag)
      */
-    onDragEndObservable: Observable<{}>;
+    onDragEndObservable: Observable<unknown>;
     /**
      * Should the behavior allow simultaneous pointers to interact with the owner node.
      */
@@ -106,6 +105,10 @@ export declare class BaseSixDofDragBehavior implements Behavior<Mesh> {
      *  Returns true if the attached mesh is currently moving with this behavior
      */
     get isMoving(): boolean;
+    /**
+     * Attached node of this behavior
+     */
+    get attachedNode(): Nullable<TransformNode>;
     /**
      *  Initializes the behavior
      */

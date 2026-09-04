@@ -1,4 +1,4 @@
-import { Color4 } from "../Maths/math.color.js";
+import { Color4 } from "../Maths/math.color.pure.js";
 /** Class used to store color4 gradient */
 export class ColorGradient {
     /**

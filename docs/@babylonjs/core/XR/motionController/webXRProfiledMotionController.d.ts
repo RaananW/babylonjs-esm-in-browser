@@ -1,7 +1,6 @@
-import type { AbstractMesh } from "../../Meshes/abstractMesh";
-import type { IMotionControllerProfile } from "./webXRAbstractMotionController";
-import { WebXRAbstractMotionController } from "./webXRAbstractMotionController";
-import type { Scene } from "../../scene";
+import { type AbstractMesh } from "../../Meshes/abstractMesh.js";
+import { type IMotionControllerProfile, WebXRAbstractMotionController } from "./webXRAbstractMotionController.js";
+import { type Scene } from "../../scene.js";
 /**
  * A profiled motion controller has its profile loaded from an online repository.
  * The class is responsible of loading the model, mapping the keys and enabling model-animations
@@ -15,11 +14,11 @@ export declare class WebXRProfiledMotionController extends WebXRAbstractMotionCo
      * The profile ID of this controller. Will be populated when the controller initializes.
      */
     profileId: string;
-    constructor(scene: Scene, xrInput: XRInputSource, _profile: IMotionControllerProfile, _repositoryUrl: string, controllerCache?: {
+    constructor(scene: Scene, xrInput: XRInputSource, _profile: IMotionControllerProfile, _repositoryUrl: string, controllerCache?: Array<{
         filename: string;
         path: string;
         meshes: AbstractMesh[];
-    }[] | undefined);
+    }> | undefined);
     dispose(): void;
     protected _getFilenameAndPath(): {
         filename: string;

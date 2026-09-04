@@ -155,10 +155,11 @@ export function RemoveComments(block) {
  * @param s the string to parse
  * @param index starting index in the string
  * @param c the character to find
+ * @param c2 an optional second character to find
  * @returns the index of the character if found, else -1
  */
-export function FindBackward(s, index, c) {
-    while (index >= 0 && s.charAt(index) !== c) {
+export function FindBackward(s, index, c, c2) {
+    while (index >= 0 && s.charAt(index) !== c && (!c2 || s.charAt(index) !== c2)) {
         index--;
     }
     return index;
@@ -170,5 +171,36 @@ export function FindBackward(s, index, c) {
  */
 export function EscapeRegExp(s) {
     return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+/**
+ * Injects code at the beginning and/or end of a function.
+ * The function is identified by "mainFuncDecl". The starting code is injected just after the first "\{" found after the mainFuncDecl.
+ * The ending code is injected just before the last "\}" of the whole block of code (so, it is assumed that the function is the last of the block of code).
+ * @param code code to inject into
+ * @param mainFuncDecl Function declaration to find in the code (for eg: "void main")
+ * @param startingCode The code to inject at the beginning of the function
+ * @param endingCode The code to inject at the end of the function
+ * @returns The code with the injected code
+ */
+export function InjectStartingAndEndingCode(code, mainFuncDecl, startingCode, endingCode) {
+    let idx = code.indexOf(mainFuncDecl);
+    if (idx < 0) {
+        return code;
+    }
+    if (startingCode) {
+        // eslint-disable-next-line no-empty
+        while (idx++ < code.length && code.charAt(idx) != "{") { }
+        if (idx < code.length) {
+            const part1 = code.substring(0, idx + 1);
+            const part2 = code.substring(idx + 1);
+            code = part1 + startingCode + part2;
+        }
+    }
+    if (endingCode) {
+        const lastClosingCurly = code.lastIndexOf("}");
+        code = code.substring(0, lastClosingCurly);
+        code += endingCode + "\n}";
+    }
+    return code;
 }
 //# sourceMappingURL=codeStringParsingTools.js.map

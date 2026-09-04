@@ -1,7 +1,6 @@
-import type { Nullable } from "../../../types";
-declare module "../../webgpuEngine" {
-    interface WebGPUEngine {
-        /** @internal */
-        _createComputePipelineStageDescriptor(computeShader: string, defines: Nullable<string>, entryPoint: string): GPUProgrammableStage;
-    }
-}
+export * from "./engine.computeShader.types.js";
+/**
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import engine.computeShader.pure for tree-shakeable, side-effect-free usage.
+ */
+export * from "./engine.computeShader.pure.js";

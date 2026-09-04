@@ -1,0 +1,8 @@
+/**
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import updateNoiseBlock.pure for tree-shakeable, side-effect-free usage.
+ */
+export * from "./updateNoiseBlock.pure.js";
+import { RegisterUpdateNoiseBlock } from "./updateNoiseBlock.pure.js";
+RegisterUpdateNoiseBlock();
+//# sourceMappingURL=updateNoiseBlock.js.map

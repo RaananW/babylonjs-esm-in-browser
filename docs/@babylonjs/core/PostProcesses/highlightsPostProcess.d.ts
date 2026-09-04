@@ -1,9 +1,7 @@
-import type { Nullable } from "../types";
-import type { Camera } from "../Cameras/camera";
-import type { PostProcessOptions } from "./postProcess";
-import { PostProcess } from "./postProcess";
-import type { Engine } from "../Engines/engine";
-import "../Shaders/highlights.fragment";
+import { type Nullable } from "../types.js";
+import { type Camera } from "../Cameras/camera.js";
+import { type PostProcessOptions, PostProcess } from "./postProcess.pure.js";
+import { type AbstractEngine } from "../Engines/abstractEngine.js";
 /**
  * Extracts highlights from the image
  * @see https://doc.babylonjs.com/features/featuresDeepDive/postProcesses/usePostProcesses
@@ -23,7 +21,8 @@ export declare class HighlightsPostProcess extends PostProcess {
      * @param samplingMode The sampling mode to be used when computing the pass. (default: 0)
      * @param engine The engine which the post process will be applied. (default: current engine)
      * @param reusable If the post process can be reused on the same frame. (default: false)
-     * @param textureType Type of texture for the post process (default: Engine.TEXTURETYPE_UNSIGNED_INT)
+     * @param textureType Type of texture for the post process (default: Engine.TEXTURETYPE_UNSIGNED_BYTE)
      */
-    constructor(name: string, options: number | PostProcessOptions, camera: Nullable<Camera>, samplingMode?: number, engine?: Engine, reusable?: boolean, textureType?: number);
+    constructor(name: string, options: number | PostProcessOptions, camera: Nullable<Camera>, samplingMode?: number, engine?: AbstractEngine, reusable?: boolean, textureType?: number);
+    protected _gatherImports(useWebGPU: boolean, list: Promise<any>[]): void;
 }

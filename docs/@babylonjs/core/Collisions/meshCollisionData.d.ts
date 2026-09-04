@@ -1,8 +1,8 @@
-import type { Collider } from "./collider";
-import { Vector3 } from "../Maths/math.vector";
-import type { Nullable } from "../types";
-import type { Observer } from "../Misc/observable";
-declare type AbstractMesh = import("../Meshes/abstractMesh").AbstractMesh;
+import { type Collider } from "./collider.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { type Nullable } from "../types.js";
+import { type Observer } from "../Misc/observable.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
 /**
  * @internal
  */
@@ -18,4 +18,3 @@ export declare class _MeshCollisionData {
     _onCollisionPositionChangeObserver: Nullable<Observer<Vector3>>;
     _collisionResponse: boolean;
 }
-export {};

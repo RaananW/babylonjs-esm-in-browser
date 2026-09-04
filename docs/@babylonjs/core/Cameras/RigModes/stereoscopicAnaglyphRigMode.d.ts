@@ -1,5 +1,5 @@
-import type { Camera } from "../camera";
+import { type Camera } from "../camera.js";
 /**
  * @internal
  */
-export declare function setStereoscopicAnaglyphRigMode(camera: Camera): void;
+export declare function _SetStereoscopicAnaglyphRigMode(camera: Camera): void;

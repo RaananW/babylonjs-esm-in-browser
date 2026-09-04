@@ -1,9 +1,9 @@
-import type { Vector3, Matrix } from "../../Maths/math.vector";
-import type { Particle } from "../../Particles/particle";
-import type { Nullable } from "../../types";
-import type { UniformBufferEffectCommonAccessor } from "../../Materials/uniformBufferEffectCommonAccessor";
-import type { UniformBuffer } from "../../Materials/uniformBuffer";
-declare type Scene = import("../../scene").Scene;
+import { type Vector3, type Matrix } from "../../Maths/math.vector.js";
+import { type Particle } from "../../Particles/particle.js";
+import { type Nullable } from "../../types.js";
+import { type UniformBufferEffectCommonAccessor } from "../../Materials/uniformBufferEffectCommonAccessor.js";
+import { type UniformBuffer } from "../../Materials/uniformBuffer.js";
+import { type Scene } from "../../scene.js";
 /**
  * Particle emitter represents a volume emitting particles.
  * This is the responsibility of the implementation to define the volume shape like cone/sphere/box.
@@ -63,4 +63,3 @@ export interface IParticleEmitterType {
      */
     parse(serializationObject: any, scene: Nullable<Scene>): void;
 }
-export {};

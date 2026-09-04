@@ -1,8 +1,8 @@
-import { Color4 } from "../Maths/math";
-import { Mesh } from "../Meshes/mesh";
-import type { Scene, IDisposable } from "../scene";
-import { CloudPoint } from "./cloudPoint";
-import type { Material } from "../Materials/material";
+import { Color4 } from "../Maths/math.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
+import { type Scene, type IDisposable } from "../scene.js";
+import { CloudPoint } from "./cloudPoint.js";
+import { type Material } from "../Materials/material.js";
 /** Defines the 4 color options */
 export declare enum PointColor {
     /** color value */
@@ -94,7 +94,6 @@ export declare class PointsCloudSystem implements IDisposable {
      * @param scene (Scene) is the scene in which the PCS is added
      * @param options defines the options of the PCS e.g.
      * * updatable (optional boolean, default true) : if the PCS must be updatable or immutable
-     * @param options.updatable
      */
     constructor(name: string, pointSize: number, scene: Scene, options?: {
         updatable?: boolean;
@@ -106,10 +105,7 @@ export declare class PointsCloudSystem implements IDisposable {
      * @returns a promise for the created mesh
      */
     buildMeshAsync(material?: Material): Promise<Mesh>;
-    /**
-     * @internal
-     */
-    private _buildMesh;
+    private _buildMeshAsync;
     private _addParticle;
     private _randomUnitVector;
     private _getColorIndicesForCoord;

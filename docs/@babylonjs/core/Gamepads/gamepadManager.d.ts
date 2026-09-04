@@ -1,7 +1,7 @@
-import { Observable } from "../Misc/observable";
-import type { Nullable } from "../types";
-import type { Scene } from "../scene";
-import { Gamepad } from "./gamepad";
+import { Observable } from "../Misc/observable.js";
+import { type Nullable } from "../types.js";
+import { type Scene } from "../scene.js";
+import { Gamepad } from "./gamepad.js";
 /**
  * Manager for handling gamepads
  */
@@ -23,6 +23,7 @@ export declare class GamepadManager {
     onGamepadDisconnectedObservable: Observable<Gamepad>;
     private _onGamepadConnectedEvent;
     private _onGamepadDisconnectedEvent;
+    private _hostWindow;
     /**
      * Initializes the gamepad manager
      * @param _scene BabylonJS scene

@@ -1,4 +1,4 @@
-import { Animation } from "../Animations/animation.js";
+import { Animation } from "../Animations/animation.pure.js";
 /**
  * Class used to override all child animations of a given target
  */

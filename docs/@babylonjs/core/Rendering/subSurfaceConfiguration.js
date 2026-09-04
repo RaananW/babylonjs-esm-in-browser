@@ -1,14 +1,33 @@
 import { Logger } from "../Misc/logger.js";
-import { Color3 } from "../Maths/math.color.js";
-import { SubSurfaceScatteringPostProcess } from "../PostProcesses/subSurfaceScatteringPostProcess.js";
+import { Color3, Color4 } from "../Maths/math.color.pure.js";
+import { SubSurfaceScatteringPostProcess } from "../PostProcesses/subSurfaceScatteringPostProcess.pure.js";
 import { SceneComponentConstants } from "../sceneComponent.js";
 import { _WarnImport } from "../Misc/devTools.js";
 
+import { RegisterSubSurfaceSceneComponent } from "./subSurfaceSceneComponent.pure.js";
 /**
  * Contains all parameters needed for the prepass to perform
  * screen space subsurface scattering
  */
 export class SubSurfaceConfiguration {
+    /**
+     * Diffusion profile color for subsurface scattering
+     */
+    get ssDiffusionS() {
+        return this._ssDiffusionS;
+    }
+    /**
+     * Diffusion profile max color channel value for subsurface scattering
+     */
+    get ssDiffusionD() {
+        return this._ssDiffusionD;
+    }
+    /**
+     * Diffusion profile filter radius for subsurface scattering
+     */
+    get ssFilterRadii() {
+        return this._ssFilterRadii;
+    }
     /**
      * Builds a subsurface configuration object
      * @param scene The scene
@@ -50,28 +69,16 @@ export class SubSurfaceConfiguration {
             4,
             0,
         ];
+        /**
+         * The clear color of the render targets.
+         * We need 1 for the alpha channel of the irradiance texture so that we early exit from the SSS post-process if the pixel should not be processed
+         */
+        this.clearColor = new Color4(0, 0, 0, 1);
         // Adding default diffusion profile
         this.addDiffusionProfile(new Color3(1, 1, 1));
         this._scene = scene;
+        RegisterSubSurfaceSceneComponent(SubSurfaceConfiguration);
         SubSurfaceConfiguration._SceneComponentInitialization(this._scene);
-    }
-    /**
-     * Diffusion profile color for subsurface scattering
-     */
-    get ssDiffusionS() {
-        return this._ssDiffusionS;
-    }
-    /**
-     * Diffusion profile max color channel value for subsurface scattering
-     */
-    get ssDiffusionD() {
-        return this._ssDiffusionD;
-    }
-    /**
-     * Diffusion profile filter radius for subsurface scattering
-     */
-    get ssFilterRadii() {
-        return this._ssFilterRadii;
     }
     /**
      * Adds a new diffusion profile.
@@ -91,7 +98,7 @@ export class SubSurfaceConfiguration {
                 return i;
             }
         }
-        this._ssDiffusionS.push(color.r, color.b, color.g);
+        this._ssDiffusionS.push(color.r, color.g, color.b);
         this._ssDiffusionD.push(Math.max(Math.max(color.r, color.b), color.g));
         this._ssFilterRadii.push(this.getDiffusionProfileParameters(color));
         this.ssDiffusionProfileColors.push(color);
@@ -102,7 +109,11 @@ export class SubSurfaceConfiguration {
      * @returns The created post process
      */
     createPostProcess() {
-        this.postProcess = new SubSurfaceScatteringPostProcess("subSurfaceScattering", this._scene, 1, null, undefined, this._scene.getEngine());
+        this.postProcess = new SubSurfaceScatteringPostProcess("subSurfaceScattering", this._scene, {
+            size: 1,
+            engine: this._scene.getEngine(),
+            shaderLanguage: this._scene.getEngine().isWebGPU ? 1 /* ShaderLanguage.WGSL */ : 0 /* ShaderLanguage.GLSL */,
+        });
         this.postProcess.autoClear = false;
         return this.postProcess;
     }
@@ -149,6 +160,7 @@ export class SubSurfaceConfiguration {
      * Returns the sampled radial distance, s.t. (u = 0 -> r = 0) and (u = 1 -> r = Inf).
      * @param u
      * @param rcpS
+     * @returns The sampled radial distance
      */
     _sampleBurleyDiffusionProfile(u, rcpS) {
         u = 1 - u; // Convert CDF to CCDF

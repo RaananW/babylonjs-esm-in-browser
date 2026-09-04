@@ -1,13 +1,37 @@
-import { Vector3 } from "../Maths/math.vector.js";
-import { StandardMaterial } from "../Materials/standardMaterial.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { StandardMaterial } from "../Materials/standardMaterial.pure.js";
 import { AxisDragGizmo } from "../Gizmos/axisDragGizmo.js";
-import { Color3 } from "../Maths/math.color.js";
+import { Color3 } from "../Maths/math.color.pure.js";
 import { EngineStore } from "../Engines/engineStore.js";
 /**
  * The Axes viewer will show 3 axes in a specific point in space
  * @see https://doc.babylonjs.com/toolsAndResources/utilities/World_Axes
  */
 export class AxesViewer {
+    /**
+     * Gets or sets a number used to scale line length
+     */
+    get scaleLines() {
+        return this._scaleLines;
+    }
+    set scaleLines(value) {
+        this._scaleLines = value;
+        this._xAxis.scaling.setAll(this._scaleLines * this._scaleLinesFactor);
+        this._yAxis.scaling.setAll(this._scaleLines * this._scaleLinesFactor);
+        this._zAxis.scaling.setAll(this._scaleLines * this._scaleLinesFactor);
+    }
+    /** Gets the node hierarchy used to render x-axis */
+    get xAxis() {
+        return this._xAxis;
+    }
+    /** Gets the node hierarchy used to render y-axis */
+    get yAxis() {
+        return this._yAxis;
+    }
+    /** Gets the node hierarchy used to render z-axis */
+    get zAxis() {
+        return this._zAxis;
+    }
     /**
      * Creates a new AxesViewer
      * @param scene defines the hosting scene
@@ -25,39 +49,33 @@ export class AxesViewer {
          * Gets the hosting scene
          */
         this.scene = null;
-        /**
-         * Gets or sets a number used to scale line length
-         */
-        this.scaleLines = 1;
+        this._scaleLines = 1;
         scene = scene || EngineStore.LastCreatedScene;
         if (!scene) {
             return;
         }
-        this.scaleLines = scaleLines;
         if (!xAxis) {
-            const redColoredMaterial = new StandardMaterial("", scene);
+            const redColoredMaterial = new StandardMaterial("xAxisMaterial", scene);
             redColoredMaterial.disableLighting = true;
             redColoredMaterial.emissiveColor = Color3.Red().scale(0.5);
             xAxis = AxisDragGizmo._CreateArrow(scene, redColoredMaterial, lineThickness);
         }
         if (!yAxis) {
-            const greenColoredMaterial = new StandardMaterial("", scene);
+            const greenColoredMaterial = new StandardMaterial("yAxisMaterial", scene);
             greenColoredMaterial.disableLighting = true;
             greenColoredMaterial.emissiveColor = Color3.Green().scale(0.5);
             yAxis = AxisDragGizmo._CreateArrow(scene, greenColoredMaterial, lineThickness);
         }
         if (!zAxis) {
-            const blueColoredMaterial = new StandardMaterial("", scene);
+            const blueColoredMaterial = new StandardMaterial("zAxisMaterial", scene);
             blueColoredMaterial.disableLighting = true;
             blueColoredMaterial.emissiveColor = Color3.Blue().scale(0.5);
             zAxis = AxisDragGizmo._CreateArrow(scene, blueColoredMaterial, lineThickness);
         }
         this._xAxis = xAxis;
-        this._xAxis.scaling.setAll(this.scaleLines * this._scaleLinesFactor);
         this._yAxis = yAxis;
-        this._yAxis.scaling.setAll(this.scaleLines * this._scaleLinesFactor);
         this._zAxis = zAxis;
-        this._zAxis.scaling.setAll(this.scaleLines * this._scaleLinesFactor);
+        this.scaleLines = scaleLines;
         if (renderingGroupId != null) {
             AxesViewer._SetRenderingGroupId(this._xAxis, renderingGroupId);
             AxesViewer._SetRenderingGroupId(this._yAxis, renderingGroupId);
@@ -65,18 +83,6 @@ export class AxesViewer {
         }
         this.scene = scene;
         this.update(new Vector3(), Vector3.Right(), Vector3.Up(), Vector3.Forward());
-    }
-    /** Gets the node hierarchy used to render x-axis */
-    get xAxis() {
-        return this._xAxis;
-    }
-    /** Gets the node hierarchy used to render y-axis */
-    get yAxis() {
-        return this._yAxis;
-    }
-    /** Gets the node hierarchy used to render z-axis */
-    get zAxis() {
-        return this._zAxis;
     }
     /**
      * Force the viewer to update
@@ -88,13 +94,10 @@ export class AxesViewer {
     update(position, xaxis, yaxis, zaxis) {
         this._xAxis.position.copyFrom(position);
         this._xAxis.setDirection(xaxis);
-        this._xAxis.scaling.setAll(this.scaleLines * this._scaleLinesFactor);
         this._yAxis.position.copyFrom(position);
         this._yAxis.setDirection(yaxis);
-        this._yAxis.scaling.setAll(this.scaleLines * this._scaleLinesFactor);
         this._zAxis.position.copyFrom(position);
         this._zAxis.setDirection(zaxis);
-        this._zAxis.scaling.setAll(this.scaleLines * this._scaleLinesFactor);
     }
     /**
      * Creates an instance of this axes viewer.
@@ -122,9 +125,10 @@ export class AxesViewer {
         this.scene = null;
     }
     static _SetRenderingGroupId(node, id) {
-        node.getChildMeshes().forEach((mesh) => {
+        const meshes = node.getChildMeshes();
+        for (const mesh of meshes) {
             mesh.renderingGroupId = id;
-        });
+        }
     }
 }
 //# sourceMappingURL=axesViewer.js.map

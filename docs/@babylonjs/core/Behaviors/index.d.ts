@@ -1,3 +1,3 @@
-export * from "./behavior";
-export * from "./Cameras/index";
-export * from "./Meshes/index";
+export * from "./behavior.js";
+export * from "./Cameras/index.js";
+export * from "./Meshes/index.js";

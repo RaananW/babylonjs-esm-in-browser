@@ -1,9 +1,9 @@
-import type { Nullable } from "../types";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import type { Scene } from "../scene";
-import type { IAction } from "./action";
-import type { IActionEvent } from "../Actions/actionEvent";
-import { AbstractActionManager } from "./abstractActionManager";
+import { type Nullable } from "../types.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { type Scene } from "../scene.js";
+import { type IAction } from "./action.pure.js";
+import { type IActionEvent } from "../Actions/actionEvent.js";
+import { AbstractActionManager } from "./abstractActionManager.js";
 /**
  * Action Manager manages all events to be triggered on a given mesh or the global scene.
  * A single scene can have many Action Managers to handle predefined actions on specific meshes.
@@ -151,7 +151,7 @@ export declare class ActionManager extends AbstractActionManager {
      * @param action defines the action to be unregistered
      * @returns a boolean indicating whether the action has been unregistered
      */
-    unregisterAction(action: IAction): Boolean;
+    unregisterAction(action: IAction): boolean;
     /**
      * Process a specific trigger
      * @param trigger defines the trigger to process

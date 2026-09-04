@@ -25,5 +25,9 @@ export var NodeMaterialSystemValues;
     NodeMaterialSystemValues[NodeMaterialSystemValues["CameraParameters"] = 10] = "CameraParameters";
     /** Material alpha */
     NodeMaterialSystemValues[NodeMaterialSystemValues["MaterialAlpha"] = 11] = "MaterialAlpha";
+    /** Projection */
+    NodeMaterialSystemValues[NodeMaterialSystemValues["ProjectionInverse"] = 12] = "ProjectionInverse";
+    /** CameraForward */
+    NodeMaterialSystemValues[NodeMaterialSystemValues["CameraForward"] = 13] = "CameraForward";
 })(NodeMaterialSystemValues || (NodeMaterialSystemValues = {}));
 //# sourceMappingURL=nodeMaterialSystemValues.js.map

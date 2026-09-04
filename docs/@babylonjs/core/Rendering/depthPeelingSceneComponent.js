@@ -1,72 +1,10 @@
-
-import { Scene } from "../scene.js";
-import { SceneComponentConstants } from "../sceneComponent.js";
-import { DepthPeelingRenderer } from "./depthPeelingRenderer.js";
-Object.defineProperty(Scene.prototype, "depthPeelingRenderer", {
-    get: function () {
-        if (!this._depthPeelingRenderer) {
-            let component = this._getComponent(SceneComponentConstants.NAME_DEPTHPEELINGRENDERER);
-            if (!component) {
-                component = new DepthPeelingSceneComponent(this);
-                this._addComponent(component);
-            }
-        }
-        return this._depthPeelingRenderer;
-    },
-    set: function (value) {
-        this._depthPeelingRenderer = value;
-    },
-    enumerable: true,
-    configurable: true,
-});
-Object.defineProperty(Scene.prototype, "useOrderIndependentTransparency", {
-    get: function () {
-        return this._useOrderIndependentTransparency;
-    },
-    set: function (value) {
-        var _a;
-        if (this._useOrderIndependentTransparency === value) {
-            return;
-        }
-        this._useOrderIndependentTransparency = value;
-        this.markAllMaterialsAsDirty(63);
-        (_a = this.prePassRenderer) === null || _a === void 0 ? void 0 : _a.markAsDirty();
-    },
-    enumerable: true,
-    configurable: true,
-});
+export * from "./depthPeelingSceneComponent.types.js";
 /**
- * Scene component to render order independent transparency with depth peeling
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import depthPeelingSceneComponent.pure for tree-shakeable, side-effect-free usage.
  */
-export class DepthPeelingSceneComponent {
-    /**
-     * Creates a new instance of the component for the given scene
-     * @param scene Defines the scene to register the component in
-     */
-    constructor(scene) {
-        /**
-         * The component name helpful to identify the component in the list of scene components.
-         */
-        this.name = SceneComponentConstants.NAME_DEPTHPEELINGRENDERER;
-        this.scene = scene;
-        scene.depthPeelingRenderer = new DepthPeelingRenderer(scene);
-    }
-    /**
-     * Registers the component in a given scene
-     */
-    register() { }
-    /**
-     * Rebuilds the elements related to this component in case of
-     * context lost for instance.
-     */
-    rebuild() { }
-    /**
-     * Disposes the component and the associated resources.
-     */
-    dispose() {
-        var _a;
-        (_a = this.scene.depthPeelingRenderer) === null || _a === void 0 ? void 0 : _a.dispose();
-        this.scene.depthPeelingRenderer = null;
-    }
-}
+export * from "./depthPeelingSceneComponent.pure.js";
+import { DepthPeelingRenderer } from "./depthPeelingRenderer.js";
+import { RegisterDepthPeelingSceneComponent } from "./depthPeelingSceneComponent.pure.js";
+RegisterDepthPeelingSceneComponent(DepthPeelingRenderer);
 //# sourceMappingURL=depthPeelingSceneComponent.js.map

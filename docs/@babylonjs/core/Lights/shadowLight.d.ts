@@ -1,8 +1,9 @@
-import type { Camera } from "../Cameras/camera";
-import type { Scene } from "../scene";
-import { Matrix, Vector3 } from "../Maths/math.vector";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import { Light } from "./light";
+import { type Camera } from "../Cameras/camera.js";
+import { type Scene } from "../scene.js";
+import { Matrix, Vector3 } from "../Maths/math.vector.pure.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { Light } from "./light.js";
+import { type Nullable } from "../types.js";
 /**
  * Interface describing all the common properties and methods a shadow light needs to implement.
  * This helps both the shadow generator and materials to generate the corresponding shadow maps
@@ -58,7 +59,7 @@ export interface IShadowLight extends Light {
     customProjectionMatrixBuilder: (viewMatrix: Matrix, renderList: Array<AbstractMesh>, result: Matrix) => void;
     /**
      * Sets the shadow projection matrix in parameter to the generated projection matrix.
-     * @param matrix The matrix to updated with the projection information
+     * @param matrix The matrix to update with the projection information
      * @param viewMatrix The transform matrix of the light
      * @param renderList The list of mesh to render in the map
      * @returns The current light
@@ -94,13 +95,13 @@ export interface IShadowLight extends Light {
      * @param activeCamera The camera we are returning the min for
      * @returns the depth min z
      */
-    getDepthMinZ(activeCamera: Camera): number;
+    getDepthMinZ(activeCamera: Nullable<Camera>): number;
     /**
      * Gets the maxZ used for shadow according to both the scene and the light.
      * @param activeCamera The camera we are returning the max for
      * @returns the depth max z
      */
-    getDepthMaxZ(activeCamera: Camera): number;
+    getDepthMaxZ(activeCamera: Nullable<Camera>): number;
 }
 /**
  * Base implementation IShadowLight
@@ -156,7 +157,7 @@ export declare abstract class ShadowLight extends Light implements IShadowLight 
      */
     customProjectionMatrixBuilder: (viewMatrix: Matrix, renderList: Array<AbstractMesh>, result: Matrix) => void;
     /**
-     * The transformed position. Position of the light in world space taking parenting in account.
+     * The transformed position. Position of the light in world space taking parenting in account. Needs to be computed by calling computeTransformedInformation.
      */
     transformedPosition: Vector3;
     /**
@@ -181,7 +182,7 @@ export declare abstract class ShadowLight extends Light implements IShadowLight 
      */
     getShadowDirection(faceIndex?: number): Vector3;
     /**
-     * Returns the ShadowLight absolute position in the World.
+     * If computeTransformedInformation has been called, returns the ShadowLight absolute position in the world. Otherwise, returns the local position.
      * @returns the position vector in world space
      */
     getAbsolutePosition(): Vector3;
@@ -225,13 +226,13 @@ export declare abstract class ShadowLight extends Light implements IShadowLight 
      * @param activeCamera The camera we are returning the min for
      * @returns the depth min z
      */
-    getDepthMinZ(activeCamera: Camera): number;
+    getDepthMinZ(activeCamera: Nullable<Camera>): number;
     /**
      * Gets the maxZ used for shadow according to both the scene and the light.
      * @param activeCamera The camera we are returning the max for
      * @returns the depth max z
      */
-    getDepthMaxZ(activeCamera: Camera): number;
+    getDepthMaxZ(activeCamera: Nullable<Camera>): number;
     /**
      * Sets the shadow projection matrix in parameter to the generated projection matrix.
      * @param matrix The matrix to updated with the projection information
@@ -242,4 +243,20 @@ export declare abstract class ShadowLight extends Light implements IShadowLight 
     setShadowProjectionMatrix(matrix: Matrix, viewMatrix: Matrix, renderList: Array<AbstractMesh>): IShadowLight;
     /** @internal */
     protected _syncParentEnabledState(): void;
+    protected _viewMatrix: Matrix;
+    protected _projectionMatrix: Matrix;
+    /**
+     * Returns the view matrix.
+     * @param faceIndex The index of the face for which we want to extract the view matrix. Only used for point light types.
+     * @returns The view matrix. Can be null, if a view matrix cannot be defined for the type of light considered (as for a hemispherical light, for example).
+     */
+    getViewMatrix(faceIndex?: number): Nullable<Matrix>;
+    /**
+     * Returns the projection matrix.
+     * Note that viewMatrix and renderList are optional and are only used by lights that calculate the projection matrix from a list of meshes (e.g. directional lights with automatic extents calculation).
+     * @param viewMatrix The view transform matrix of the light (optional).
+     * @param renderList The list of meshes to take into account when calculating the projection matrix (optional).
+     * @returns The projection matrix. Can be null, if a projection matrix cannot be defined for the type of light considered (as for a hemispherical light, for example).
+     */
+    getProjectionMatrix(viewMatrix?: Matrix, renderList?: Array<AbstractMesh>): Nullable<Matrix>;
 }

@@ -1,6 +1,6 @@
-import { Observable } from "../../Misc/observable";
-import type { Camera } from "../../Cameras/camera";
-import type { ICameraInput } from "../../Cameras/cameraInputsManager";
+import { Observable } from "../../Misc/observable.js";
+import { type Camera } from "../../Cameras/camera.js";
+import { type ICameraInput } from "../../Cameras/cameraInputsManager.js";
 /**
  * Base class for mouse wheel input..
  * See FollowCameraMouseWheelInput in src/Cameras/Inputs/freeCameraMouseWheelInput.ts

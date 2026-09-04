@@ -1,8 +1,8 @@
-import type { Nullable } from "../types";
-import { Observable } from "../Misc/observable";
-import type { IDisposable, Scene } from "../scene";
-import type { WebXRExperienceHelper } from "./webXRExperienceHelper";
-import type { WebXRRenderTarget } from "./webXRTypes";
+import { type Nullable } from "../types.js";
+import { Observable } from "../Misc/observable.js";
+import { type IDisposable, type Scene } from "../scene.js";
+import { type WebXRExperienceHelper } from "./webXRExperienceHelper.js";
+import { type WebXRRenderTarget } from "./webXRTypes.js";
 /**
  * Button which can be used to enter a different mode of XR
  */
@@ -122,7 +122,7 @@ export declare class WebXREnterExitUI implements IDisposable {
      * @returns the created ui
      */
     static CreateAsync(scene: Scene, helper: WebXRExperienceHelper, options: WebXREnterExitUIOptions): Promise<WebXREnterExitUI>;
-    private _enterXRWithButtonIndex;
+    private _enterXRWithButtonIndexAsync;
     /**
      * Disposes of the XR UI component
      */

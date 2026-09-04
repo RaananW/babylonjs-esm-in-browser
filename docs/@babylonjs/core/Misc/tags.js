@@ -87,9 +87,9 @@ export class Tags {
             return;
         }
         const tags = tagsString.split(" ");
-        tags.forEach(function (tag) {
+        for (const tag of tags) {
             Tags._AddTagTo(obj, tag);
-        });
+        }
     }
     /**
      * @internal

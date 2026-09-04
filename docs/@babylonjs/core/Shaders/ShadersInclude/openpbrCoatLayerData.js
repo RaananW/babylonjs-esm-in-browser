@@ -1,0 +1,63 @@
+// Do not edit.
+import { ShaderStore } from "../../Engines/shaderStore.js";
+const name = "openpbrCoatLayerData";
+const shader = `float coat_weight=0.0;vec3 coat_color=vec3(1.0);float coat_roughness=0.0;float coat_roughness_anisotropy=0.0;float coat_ior=1.6;float coat_darkening=1.0;vec2 geometry_coat_tangent=vec2(1.0,0.0);
+#ifdef COAT_WEIGHT
+vec4 coatWeightFromTexture=TEXRD(coatWeightSampler,vCoatWeightUV+uvOffset);
+#endif
+#ifdef COAT_COLOR
+vec4 coatColorFromTexture=TEXRD(coatColorSampler,vCoatColorUV+uvOffset);
+#endif
+#ifdef COAT_ROUGHNESS
+vec4 coatRoughnessFromTexture=TEXRD(coatRoughnessSampler,vCoatRoughnessUV+uvOffset);
+#endif
+#ifdef COAT_ROUGHNESS_ANISOTROPY
+float coatRoughnessAnisotropyFromTexture=TEXRD(coatRoughnessAnisotropySampler,vCoatRoughnessAnisotropyUV+uvOffset).r;
+#endif
+#ifdef COAT_DARKENING
+vec4 coatDarkeningFromTexture=TEXRD(coatDarkeningSampler,vCoatDarkeningUV+uvOffset);
+#endif
+#ifdef GEOMETRY_COAT_TANGENT
+vec3 geometryCoatTangentFromTexture=TEXRD(geometryCoatTangentSampler,vGeometryCoatTangentUV+uvOffset).rgb;
+#endif
+coat_color=vCoatColor.rgb;coat_weight=vCoatWeight;coat_roughness=vCoatRoughness;coat_roughness_anisotropy=vCoatRoughnessAnisotropy;coat_ior=vCoatIor;coat_darkening=vCoatDarkening;geometry_coat_tangent=vGeometryCoatTangent.rg;
+#ifdef COAT_WEIGHT
+coat_weight*=coatWeightFromTexture.r;
+#endif
+#ifdef COAT_COLOR
+#ifdef COAT_COLOR_GAMMA
+coat_color*=toLinearSpace(coatColorFromTexture.rgb);
+#else
+coat_color*=coatColorFromTexture.rgb;
+#endif
+coat_color*=vCoatColorInfos.y;
+#endif
+#ifdef COAT_ROUGHNESS
+#ifdef COAT_ROUGHNESS_FROM_GREEN_CHANNEL
+coat_roughness*=coatRoughnessFromTexture.g;
+#else
+coat_roughness*=coatRoughnessFromTexture.r;
+#endif
+#endif
+#if defined(GEOMETRY_COAT_TANGENT) && defined(COAT_ROUGHNESS_ANISOTROPY_FROM_TANGENT_TEXTURE)
+coat_roughness_anisotropy*=geometryCoatTangentFromTexture.b;
+#elif defined(COAT_ROUGHNESS_ANISOTROPY)
+coat_roughness_anisotropy*=coatRoughnessAnisotropyFromTexture;
+#endif
+#ifdef COAT_DARKENING
+coat_darkening*=coatDarkeningFromTexture.r;
+#endif
+#ifdef GEOMETRY_COAT_TANGENT
+{vec2 tangentFromTexture=normalize(geometryCoatTangentFromTexture.xy*2.0-1.0);float tangent_angle_texture=atan(tangentFromTexture.y,tangentFromTexture.x);float tangent_angle_uniform=atan(geometry_coat_tangent.y,geometry_coat_tangent.x);float tangent_angle=tangent_angle_texture+tangent_angle_uniform;geometry_coat_tangent=vec2(cos(tangent_angle),sin(tangent_angle));}
+#endif
+#ifdef USE_GLTF_STYLE_ANISOTROPY
+float coatAlpha=coat_roughness*coat_roughness;float coatRoughnessT=mix(coatAlpha,1.0,coat_roughness_anisotropy*coat_roughness_anisotropy);float coatRoughnessB=coatAlpha;coat_roughness_anisotropy=1.0-coatRoughnessB/max(coatRoughnessT,0.00001);coat_roughness=sqrt(coatRoughnessT/sqrt(2.0/(1.0+(1.0-coat_roughness_anisotropy)*(1.0-coat_roughness_anisotropy))));
+#endif
+`;
+// Sideeffect
+if (!ShaderStore.IncludesShadersStore[name]) {
+    ShaderStore.IncludesShadersStore[name] = shader;
+}
+/** @internal */
+export const openpbrCoatLayerData = { name, shader };
+//# sourceMappingURL=openpbrCoatLayerData.js.map

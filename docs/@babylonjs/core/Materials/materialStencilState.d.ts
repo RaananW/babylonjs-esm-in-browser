@@ -1,5 +1,5 @@
-import type { IStencilState } from "../States/IStencilState";
-declare type Scene = import("../scene").Scene;
+import { type IStencilState } from "../States/IStencilState.js";
+import { type Scene } from "../scene.js";
 /**
  * Class that holds the different stencil states of a material
  * Usage example: https://playground.babylonjs.com/#CW5PRI#10
@@ -19,6 +19,12 @@ export declare class MaterialStencilState implements IStencilState {
      */
     get func(): number;
     set func(value: number);
+    private _backFunc;
+    /**
+     * Gets or sets the stencil back function
+     */
+    get backFunc(): number;
+    set backFunc(value: number);
     private _funcRef;
     /**
      * Gets or sets the stencil function reference
@@ -49,6 +55,24 @@ export declare class MaterialStencilState implements IStencilState {
      */
     get opStencilDepthPass(): number;
     set opStencilDepthPass(value: number);
+    private _backOpStencilFail;
+    /**
+     * Gets or sets the operation when the back stencil test fails
+     */
+    get backOpStencilFail(): number;
+    set backOpStencilFail(value: number);
+    private _backOpDepthFail;
+    /**
+     * Gets or sets the operation when the back depth test fails
+     */
+    get backOpDepthFail(): number;
+    set backOpDepthFail(value: number);
+    private _backOpStencilDepthPass;
+    /**
+     * Gets or sets the operation when the back stencil+depth test succeeds
+     */
+    get backOpStencilDepthPass(): number;
+    set backOpStencilDepthPass(value: number);
     private _mask;
     /**
      * Gets or sets the stencil mask
@@ -84,4 +108,3 @@ export declare class MaterialStencilState implements IStencilState {
      */
     parse(source: any, scene: Scene, rootUrl: string): void;
 }
-export {};

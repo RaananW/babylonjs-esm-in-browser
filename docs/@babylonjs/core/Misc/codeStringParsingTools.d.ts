@@ -31,12 +31,24 @@ export declare function RemoveComments(block: string): string;
  * @param s the string to parse
  * @param index starting index in the string
  * @param c the character to find
+ * @param c2 an optional second character to find
  * @returns the index of the character if found, else -1
  */
-export declare function FindBackward(s: string, index: number, c: string): number;
+export declare function FindBackward(s: string, index: number, c: string, c2?: string): number;
 /**
  * Escapes a string so that it is usable as a regular expression
  * @param s string to escape
  * @returns escaped string
  */
 export declare function EscapeRegExp(s: string): string;
+/**
+ * Injects code at the beginning and/or end of a function.
+ * The function is identified by "mainFuncDecl". The starting code is injected just after the first "\{" found after the mainFuncDecl.
+ * The ending code is injected just before the last "\}" of the whole block of code (so, it is assumed that the function is the last of the block of code).
+ * @param code code to inject into
+ * @param mainFuncDecl Function declaration to find in the code (for eg: "void main")
+ * @param startingCode The code to inject at the beginning of the function
+ * @param endingCode The code to inject at the end of the function
+ * @returns The code with the injected code
+ */
+export declare function InjectStartingAndEndingCode(code: string, mainFuncDecl: string, startingCode?: string, endingCode?: string): string;

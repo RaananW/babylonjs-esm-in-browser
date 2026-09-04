@@ -1,2 +1,2 @@
-export * from "./shaderDefineExpression";
-export * from "./Operators/index";
+export * from "./shaderDefineExpression.js";
+export * from "./Operators/index.js";

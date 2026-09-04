@@ -1,9 +1,11 @@
-import type { Nullable } from "../types";
-import type { Engine } from "../Engines/engine";
+import { type Nullable } from "../types.js";
+import { type AbstractEngine } from "../Engines/abstractEngine.js";
 /**
  * This represents the different options available for the video capture.
  */
 export interface VideoRecorderOptions {
+    /** The canvas you want to record */
+    canvas?: HTMLCanvasElement;
     /** Defines the mime type of the video. */
     mimeType: string;
     /** Defines the FPS the video should be recorded at. */
@@ -24,9 +26,10 @@ export declare class VideoRecorder {
     /**
      * Returns whether or not the VideoRecorder is available in your browser.
      * @param engine Defines the Babylon Engine.
+     * @param canvas Defines the canvas to record. If not provided, the engine canvas will be used.
      * @returns true if supported otherwise false.
      */
-    static IsSupported(engine: Engine): boolean;
+    static IsSupported(engine: AbstractEngine, canvas?: HTMLCanvasElement): boolean;
     private readonly _options;
     private _canvas;
     private _mediaRecorder;
@@ -34,6 +37,7 @@ export declare class VideoRecorder {
     private _fileName;
     private _resolve;
     private _reject;
+    private _isRecording;
     /**
      * True when a recording is already in progress.
      */
@@ -43,7 +47,7 @@ export declare class VideoRecorder {
      * @param engine Defines the BabylonJS Engine you wish to record.
      * @param options Defines options that can be used to customize the capture.
      */
-    constructor(engine: Engine, options?: Partial<VideoRecorderOptions>);
+    constructor(engine: AbstractEngine, options?: Partial<VideoRecorderOptions>);
     /**
      * Stops the current recording before the default capture timeout passed in the startRecording function.
      */

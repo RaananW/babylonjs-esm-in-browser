@@ -1,51 +1,8 @@
-import { NodeMaterialBlock } from "../nodeMaterialBlock.js";
-import { NodeMaterialBlockConnectionPointTypes } from "../Enums/nodeMaterialBlockConnectionPointTypes.js";
-import { NodeMaterialBlockTargets } from "../Enums/nodeMaterialBlockTargets.js";
-import { RegisterClass } from "../../../Misc/typeStore.js";
 /**
- * Block used to get the reciprocal (1 / x) of a value
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import reciprocalBlock.pure for tree-shakeable, side-effect-free usage.
  */
-export class ReciprocalBlock extends NodeMaterialBlock {
-    /**
-     * Creates a new ReciprocalBlock
-     * @param name defines the block name
-     */
-    constructor(name) {
-        super(name, NodeMaterialBlockTargets.Neutral);
-        this.registerInput("input", NodeMaterialBlockConnectionPointTypes.AutoDetect);
-        this.registerOutput("output", NodeMaterialBlockConnectionPointTypes.BasedOnInput);
-        this._outputs[0]._typeConnectionSource = this._inputs[0];
-    }
-    /**
-     * Gets the current class name
-     * @returns the class name
-     */
-    getClassName() {
-        return "ReciprocalBlock";
-    }
-    /**
-     * Gets the input component
-     */
-    get input() {
-        return this._inputs[0];
-    }
-    /**
-     * Gets the output component
-     */
-    get output() {
-        return this._outputs[0];
-    }
-    _buildBlock(state) {
-        super._buildBlock(state);
-        const output = this._outputs[0];
-        if (this.input.type === NodeMaterialBlockConnectionPointTypes.Matrix) {
-            state.compilationString += this._declareOutput(output, state) + ` = inverse(${this.input.associatedVariableName});\r\n`;
-        }
-        else {
-            state.compilationString += this._declareOutput(output, state) + ` = 1. / ${this.input.associatedVariableName};\r\n`;
-        }
-        return this;
-    }
-}
-RegisterClass("BABYLON.ReciprocalBlock", ReciprocalBlock);
+export * from "./reciprocalBlock.pure.js";
+import { RegisterReciprocalBlock } from "./reciprocalBlock.pure.js";
+RegisterReciprocalBlock();
 //# sourceMappingURL=reciprocalBlock.js.map

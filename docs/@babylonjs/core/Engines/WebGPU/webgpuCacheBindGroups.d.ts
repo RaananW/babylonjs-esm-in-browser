@@ -1,8 +1,8 @@
-import type { WebGPUCacheSampler } from "./webgpuCacheSampler";
-import type { WebGPUMaterialContext } from "./webgpuMaterialContext";
-import type { WebGPUPipelineContext } from "./webgpuPipelineContext";
-import type { WebGPUEngine } from "../webgpuEngine";
-import type { WebGPUDrawContext } from "./webgpuDrawContext";
+import { type WebGPUCacheSampler } from "./webgpuCacheSampler.js";
+import { type WebGPUMaterialContext } from "./webgpuMaterialContext.js";
+import { type WebGPUPipelineContext } from "./webgpuPipelineContext.js";
+import { type WebGPUEngine } from "../webgpuEngine.js";
+import { type WebGPUDrawContext } from "./webgpuDrawContext.js";
 /** @internal */
 export declare class WebGPUCacheBindGroups {
     static NumBindGroupsCreatedTotal: number;
@@ -23,6 +23,7 @@ export declare class WebGPUCacheBindGroups {
         lookupLastFrame: number;
         noLookupLastFrame: number;
     };
+    static ResetCache(): void;
     constructor(device: GPUDevice, cacheSampler: WebGPUCacheSampler, engine: WebGPUEngine);
     endFrame(): void;
     /**
@@ -32,6 +33,7 @@ export declare class WebGPUCacheBindGroups {
      * @param webgpuPipelineContext
      * @param drawContext
      * @param materialContext
+     * @returns a bind group array
      */
     getBindGroups(webgpuPipelineContext: WebGPUPipelineContext, drawContext: WebGPUDrawContext, materialContext: WebGPUMaterialContext): GPUBindGroup[];
 }

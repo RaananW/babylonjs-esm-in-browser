@@ -6,45 +6,6 @@ import { Size } from "../../Maths/math.size.js";
  */
 export class ThinTexture {
     /**
-     * Instantiates a new ThinTexture.
-     * Base class of all the textures in babylon.
-     * This can be used as an internal texture wrapper in ThinEngine to benefit from the cache
-     * @param internalTexture Define the internalTexture to wrap
-     */
-    constructor(internalTexture) {
-        this._wrapU = 1;
-        this._wrapV = 1;
-        /**
-         * | Value | Type               | Description |
-         * | ----- | ------------------ | ----------- |
-         * | 0     | CLAMP_ADDRESSMODE  |             |
-         * | 1     | WRAP_ADDRESSMODE   |             |
-         * | 2     | MIRROR_ADDRESSMODE |             |
-         */
-        this.wrapR = 1;
-        /**
-         * With compliant hardware and browser (supporting anisotropic filtering)
-         * this defines the level of anisotropic filtering in the texture.
-         * The higher the better but the slower. This defaults to 4 as it seems to be the best tradeoff.
-         */
-        this.anisotropicFilteringLevel = 4;
-        /**
-         * Define the current state of the loading sequence when in delayed load mode.
-         */
-        this.delayLoadState = 0;
-        /** @internal */
-        this._texture = null;
-        this._engine = null;
-        this._cachedSize = Size.Zero();
-        this._cachedBaseSize = Size.Zero();
-        /** @internal */
-        this._initialSamplingMode = 2;
-        this._texture = internalTexture;
-        if (this._texture) {
-            this._engine = this._texture.getEngine();
-        }
-    }
-    /**
      * | Value | Type               | Description |
      * | ----- | ------------------ | ----------- |
      * | 0     | CLAMP_ADDRESSMODE  |             |
@@ -86,6 +47,7 @@ export class ThinTexture {
         }
         return this._texture.isCube;
     }
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     set isCube(value) {
         if (!this._texture) {
             return;
@@ -101,6 +63,7 @@ export class ThinTexture {
         }
         return this._texture.is3D;
     }
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     set is3D(value) {
         if (!this._texture) {
             return;
@@ -116,6 +79,7 @@ export class ThinTexture {
         }
         return this._texture.is2DArray;
     }
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     set is2DArray(value) {
         if (!this._texture) {
             return;
@@ -128,6 +92,51 @@ export class ThinTexture {
      */
     getClassName() {
         return "ThinTexture";
+    }
+    static _IsRenderTargetWrapper(texture) {
+        return texture?.shareDepth !== undefined;
+    }
+    /**
+     * Instantiates a new ThinTexture.
+     * Base class of all the textures in babylon.
+     * This can be used as an internal texture wrapper in AbstractEngine to benefit from the cache
+     * @param internalTexture Define the internalTexture to wrap. You can also pass a RenderTargetWrapper, in which case the texture will be the render target's texture
+     */
+    constructor(internalTexture) {
+        this._wrapU = 1;
+        this._wrapV = 1;
+        /**
+         * | Value | Type               | Description |
+         * | ----- | ------------------ | ----------- |
+         * | 0     | CLAMP_ADDRESSMODE  |             |
+         * | 1     | WRAP_ADDRESSMODE   |             |
+         * | 2     | MIRROR_ADDRESSMODE |             |
+         */
+        this.wrapR = 1;
+        /**
+         * With compliant hardware and browser (supporting anisotropic filtering)
+         * this defines the level of anisotropic filtering in the texture.
+         * The higher the better but the slower. This defaults to 4 as it seems to be the best tradeoff.
+         */
+        this.anisotropicFilteringLevel = 4;
+        /**
+         * Define the current state of the loading sequence when in delayed load mode.
+         */
+        this.delayLoadState = 0;
+        /** @internal */
+        this._texture = null;
+        this._engine = null;
+        this._cachedSize = Size.Zero();
+        this._cachedBaseSize = Size.Zero();
+        /** @internal */
+        this._initialSamplingMode = 2;
+        this._texture = ThinTexture._IsRenderTargetWrapper(internalTexture) ? internalTexture.texture : internalTexture;
+        if (this._texture) {
+            this._engine = this._texture.getEngine();
+            this.wrapU = this._texture._cachedWrapU ?? this.wrapU;
+            this.wrapV = this._texture._cachedWrapV ?? this.wrapV;
+            this.wrapR = this._texture._cachedWrapR ?? this.wrapR;
+        }
     }
     /**
      * Get if the texture is ready to be used (downloaded, converted, mip mapped...).
@@ -225,10 +234,11 @@ export class ThinTexture {
      *    > _min_: minification filter (far from the viewer)
      *    > _mip_: filter used between mip map levels
      *@param samplingMode Define the new sampling mode of the texture
+     *@param generateMipMaps Define if the texture should generate mip maps or not. Default is false.
      */
-    updateSamplingMode(samplingMode) {
+    updateSamplingMode(samplingMode, generateMipMaps = false) {
         if (this._texture && this._engine) {
-            this._engine.updateTextureSamplingMode(samplingMode, this._texture);
+            this._engine.updateTextureSamplingMode(samplingMode, this._texture, this._texture.generateMipMaps && generateMipMaps);
         }
     }
     /**

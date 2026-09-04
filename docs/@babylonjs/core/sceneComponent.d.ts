@@ -1,15 +1,15 @@
-import type { Scene } from "./scene";
-import type { SmartArrayNoDuplicate } from "./Misc/smartArray";
-import type { Nullable } from "./types";
-import type { PickingInfo } from "./Collisions/pickingInfo";
-import type { AbstractScene } from "./abstractScene";
-import type { IPointerEvent } from "./Events/deviceInputEvents";
-declare type Mesh = import("./Meshes/mesh").Mesh;
-declare type Effect = import("./Materials/effect").Effect;
-declare type Camera = import("./Cameras/camera").Camera;
-declare type AbstractMesh = import("./Meshes/abstractMesh").AbstractMesh;
-declare type SubMesh = import("./Meshes/subMesh").SubMesh;
-declare type RenderTargetTexture = import("./Materials/Textures/renderTargetTexture").RenderTargetTexture;
+import { type Scene } from "./scene.js";
+import { type SmartArrayNoDuplicate } from "./Misc/smartArray.js";
+import { type Nullable } from "./types.js";
+import { type PickingInfo } from "./Collisions/pickingInfo.js";
+import { type IPointerEvent } from "./Events/deviceInputEvents.js";
+import { type Mesh } from "./Meshes/mesh.js";
+import { type Effect } from "./Materials/effect.js";
+import { type Camera } from "./Cameras/camera.js";
+import { type AbstractMesh } from "./Meshes/abstractMesh.js";
+import { type SubMesh } from "./Meshes/subMesh.js";
+import { type RenderTargetTexture } from "./Materials/Textures/renderTargetTexture.js";
+import { type IAssetContainer } from "./IAssetContainer.js";
 /**
  * Groups all the scene component constants in one place to ease maintenance.
  * @internal
@@ -36,7 +36,10 @@ export declare class SceneComponentConstants {
     static readonly NAME_PHYSICSENGINE = "PhysicsEngine";
     static readonly NAME_AUDIO = "Audio";
     static readonly NAME_FLUIDRENDERER = "FluidRenderer";
+    static readonly NAME_IBLCDFGENERATOR = "iblCDFGenerator";
+    static readonly NAME_CLUSTEREDLIGHTING = "ClusteredLighting";
     static readonly STEP_ISREADYFORMESH_EFFECTLAYER = 0;
+    static readonly STEP_ISREADYFORMESH_DEPTHRENDERER = 1;
     static readonly STEP_BEFOREEVALUATEACTIVEMESH_BOUNDINGBOXRENDERER = 0;
     static readonly STEP_EVALUATESUBMESH_BOUNDINGBOXRENDERER = 0;
     static readonly STEP_PREACTIVEMESH_BOUNDINGBOXRENDERER = 0;
@@ -53,7 +56,6 @@ export declare class SceneComponentConstants {
     static readonly STEP_AFTERRENDERINGGROUPDRAW_EFFECTLAYER_DRAW = 0;
     static readonly STEP_AFTERRENDERINGGROUPDRAW_BOUNDINGBOXRENDERER = 1;
     static readonly STEP_BEFORECAMERAUPDATE_SIMPLIFICATIONQUEUE = 0;
-    static readonly STEP_BEFORECAMERAUPDATE_GAMEPAD = 1;
     static readonly STEP_BEFORECLEAR_PROCEDURALTEXTURE = 0;
     static readonly STEP_BEFORECLEAR_PREPASS = 1;
     static readonly STEP_BEFORERENDERTARGETCLEAR_PREPASS = 0;
@@ -74,6 +76,7 @@ export declare class SceneComponentConstants {
     static readonly STEP_GATHERRENDERTARGETS_POSTPROCESSRENDERPIPELINEMANAGER = 3;
     static readonly STEP_GATHERACTIVECAMERARENDERTARGETS_DEPTHRENDERER = 0;
     static readonly STEP_GATHERACTIVECAMERARENDERTARGETS_FLUIDRENDERER = 1;
+    static readonly STEP_GATHERACTIVECAMERARENDERTARGETS_CLUSTEREDLIGHTING = 2;
     static readonly STEP_POINTERMOVE_SPRITE = 0;
     static readonly STEP_POINTERDOWN_SPRITE = 0;
     static readonly STEP_POINTERUP_SPRITE = 0;
@@ -103,7 +106,7 @@ export interface ISceneComponent {
      */
     rebuild(): void;
     /**
-     * Disposes the component and the associated ressources.
+     * Disposes the component and the associated resources.
      */
     dispose(): void;
 }
@@ -117,13 +120,13 @@ export interface ISceneSerializableComponent extends ISceneComponent {
      * Adds all the elements from the container to the scene
      * @param container the container holding the elements
      */
-    addFromContainer(container: AbstractScene): void;
+    addFromContainer(container: IAssetContainer): void;
     /**
      * Removes all the elements in the container from the scene
      * @param container contains the elements to remove
      * @param dispose if the removed element should be disposed (default: false)
      */
-    removeFromContainer(container: AbstractScene, dispose?: boolean): void;
+    removeFromContainer(container: IAssetContainer, dispose?: boolean): void;
     /**
      * Serializes the component data to the specified json object
      * @param serializationObject The object to serialize to
@@ -133,51 +136,51 @@ export interface ISceneSerializableComponent extends ISceneComponent {
 /**
  * Strong typing of a Mesh related stage step action
  */
-export declare type MeshStageAction = (mesh: AbstractMesh, hardwareInstancedRendering: boolean) => boolean;
+export type MeshStageAction = (mesh: AbstractMesh, hardwareInstancedRendering: boolean) => boolean;
 /**
  * Strong typing of a Evaluate Sub Mesh related stage step action
  */
-export declare type EvaluateSubMeshStageAction = (mesh: AbstractMesh, subMesh: SubMesh) => void;
+export type EvaluateSubMeshStageAction = (mesh: AbstractMesh, subMesh: SubMesh) => void;
 /**
  * Strong typing of a pre active Mesh related stage step action
  */
-export declare type PreActiveMeshStageAction = (mesh: AbstractMesh) => void;
+export type PreActiveMeshStageAction = (mesh: AbstractMesh) => void;
 /**
  * Strong typing of a Camera related stage step action
  */
-export declare type CameraStageAction = (camera: Camera) => void;
+export type CameraStageAction = (camera: Camera) => void;
 /**
  * Strong typing of a Camera Frame buffer related stage step action
  */
-export declare type CameraStageFrameBufferAction = (camera: Camera) => boolean;
+export type CameraStageFrameBufferAction = (camera: Camera) => boolean;
 /**
  * Strong typing of a Render Target related stage step action
  */
-export declare type RenderTargetStageAction = (renderTarget: RenderTargetTexture, faceIndex?: number, layer?: number) => void;
+export type RenderTargetStageAction = (renderTarget: RenderTargetTexture, faceIndex?: number, layer?: number) => void;
 /**
  * Strong typing of a RenderingGroup related stage step action
  */
-export declare type RenderingGroupStageAction = (renderingGroupId: number) => void;
+export type RenderingGroupStageAction = (renderingGroupId: number) => void;
 /**
  * Strong typing of a Mesh Render related stage step action
  */
-export declare type RenderingMeshStageAction = (mesh: Mesh, subMesh: SubMesh, batch: any, effect: Nullable<Effect>) => void;
+export type RenderingMeshStageAction = (mesh: Mesh, subMesh: SubMesh, batch: any, effect: Nullable<Effect>) => void;
 /**
  * Strong typing of a simple stage step action
  */
-export declare type SimpleStageAction = () => void;
+export type SimpleStageAction = () => void;
 /**
  * Strong typing of a render target action.
  */
-export declare type RenderTargetsStageAction = (renderTargets: SmartArrayNoDuplicate<RenderTargetTexture>) => void;
+export type RenderTargetsStageAction = (renderTargets: SmartArrayNoDuplicate<RenderTargetTexture>) => void;
 /**
  * Strong typing of a pointer move action.
  */
-export declare type PointerMoveStageAction = (unTranslatedPointerX: number, unTranslatedPointerY: number, pickResult: Nullable<PickingInfo>, isMeshPicked: boolean, element: Nullable<HTMLElement>) => Nullable<PickingInfo>;
+export type PointerMoveStageAction = (unTranslatedPointerX: number, unTranslatedPointerY: number, pickResult: Nullable<PickingInfo>, isMeshPicked: boolean, element: Nullable<HTMLElement>) => Nullable<PickingInfo>;
 /**
  * Strong typing of a pointer up/down action.
  */
-export declare type PointerUpDownStageAction = (unTranslatedPointerX: number, unTranslatedPointerY: number, pickResult: Nullable<PickingInfo>, evt: IPointerEvent, doubleClick: boolean) => Nullable<PickingInfo>;
+export type PointerUpDownStageAction = (unTranslatedPointerX: number, unTranslatedPointerY: number, pickResult: Nullable<PickingInfo>, evt: IPointerEvent, doubleClick: boolean) => Nullable<PickingInfo>;
 /**
  * Representation of a stage in the scene (Basically a list of ordered steps)
  * @internal
@@ -209,4 +212,3 @@ export declare class Stage<T extends Function> extends Array<{
      */
     clear(): void;
 }
-export {};

@@ -1,7 +1,7 @@
-import type { Nullable } from "../../types";
-import type { FollowCamera } from "../../Cameras/followCamera";
-import { BaseCameraPointersInput } from "../../Cameras/Inputs/BaseCameraPointersInput";
-import type { PointerTouch } from "../../Events/pointerEvents";
+import { type Nullable } from "../../types.js";
+import { type FollowCamera } from "../../Cameras/followCamera.js";
+import { BaseCameraPointersInput } from "../../Cameras/Inputs/BaseCameraPointersInput.js";
+import { type PointerTouch } from "../../Events/pointerEvents.js";
 /**
  * Manage the pointers inputs to control an follow camera.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs
@@ -80,7 +80,22 @@ export declare class FollowCameraPointersInput extends BaseCameraPointersInput {
      * Log error messages if basic misconfiguration has occurred.
      */
     warningEnable: boolean;
+    /**
+     * Called on pointer POINTERMOVE event if only a single touch is active.
+     * @param pointA The current position of the pointer
+     * @param offsetX The offsetX of the pointer when the event occurred
+     * @param offsetY The offsetY of the pointer when the event occurred
+     */
     onTouch(pointA: Nullable<PointerTouch>, offsetX: number, offsetY: number): void;
+    /**
+     * Called on pointer POINTERMOVE event if multiple touches are active.
+     * @param pointA First point in the pair
+     * @param pointB Second point in the pair
+     * @param previousPinchSquaredDistance Sqr Distance between the points the last time this event was fired (by this input)
+     * @param pinchSquaredDistance Sqr Distance between the points this time
+     * @param previousMultiTouchPanPosition Previous center point between the points
+     * @param multiTouchPanPosition Current center point between the points
+     */
     onMultiTouch(pointA: Nullable<PointerTouch>, pointB: Nullable<PointerTouch>, previousPinchSquaredDistance: number, pinchSquaredDistance: number, previousMultiTouchPanPosition: Nullable<PointerTouch>, multiTouchPanPosition: Nullable<PointerTouch>): void;
     private _warningCounter;
     private _warning;

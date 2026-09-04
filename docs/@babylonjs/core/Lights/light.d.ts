@@ -1,14 +1,14 @@
-import type { Nullable } from "../types";
-import type { Scene } from "../scene";
-import { Vector3 } from "../Maths/math.vector";
-import { Color3 } from "../Maths/math.color";
-import { Node } from "../node";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import type { Effect } from "../Materials/effect";
-import { UniformBuffer } from "../Materials/uniformBuffer";
-import type { IShadowGenerator } from "./Shadows/shadowGenerator";
-import type { ISortableLight } from "./lightConstants";
-import type { Camera } from "../Cameras/camera";
+import { type Nullable } from "../types.js";
+import { type Scene } from "../scene.js";
+import { type Matrix, Vector3 } from "../Maths/math.vector.pure.js";
+import { Color3 } from "../Maths/math.color.pure.js";
+import { Node } from "../node.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { type Effect } from "../Materials/effect.js";
+import { UniformBuffer } from "../Materials/uniformBuffer.js";
+import { type IShadowGenerator } from "./Shadows/shadowGenerator.js";
+import { type ISortableLight } from "./lightConstants.js";
+import { type Camera } from "../Cameras/camera.js";
 /**
  * Base class of all the lights in Babylon. It groups all the generic information about lights.
  * Lights are used, as you would expect, to affect how meshes are seen, in terms of both illumination and colour.
@@ -92,6 +92,10 @@ export declare abstract class Light extends Node implements ISortableLight {
      */
     static readonly LIGHTTYPEID_HEMISPHERICLIGHT = 3;
     /**
+     * Light type const id of the area light.
+     */
+    static readonly LIGHTTYPEID_RECT_AREALIGHT = 4;
+    /**
      * Diffuse gives the basic color to an object.
      */
     diffuse: Color3;
@@ -116,7 +120,8 @@ export declare abstract class Light extends Node implements ISortableLight {
      */
     intensity: number;
     private _range;
-    protected _inverseSquaredRange: number;
+    /** @internal */
+    _inverseSquaredRange: number;
     /**
      * Defines how far from the source the light is impacting in scene units.
      * Note: Unused in PBR material as the distance light falloff is defined following the inverse squared falloff.
@@ -157,7 +162,7 @@ export declare abstract class Light extends Node implements ISortableLight {
      * Defines the rendering priority of the lights. It can help in case of fallback or number of lights
      * exceeding the number allowed of the materials.
      */
-    renderPriority: number;
+    accessor renderPriority: number;
     private _shadowEnabled;
     /**
      * Gets whether or not the shadows are enabled for this light. This can help turning off/on shadow without detaching
@@ -219,6 +224,20 @@ export declare abstract class Light extends Node implements ISortableLight {
      */
     set lightmapMode(value: number);
     /**
+     * Returns the view matrix.
+     * @param _faceIndex The index of the face for which we want to extract the view matrix. Only used for point light types.
+     * @returns The view matrix. Can be null, if a view matrix cannot be defined for the type of light considered (as for a hemispherical light, for example).
+     */
+    getViewMatrix(_faceIndex?: number): Nullable<Matrix>;
+    /**
+     * Returns the projection matrix.
+     * Note that viewMatrix and renderList are optional and are only used by lights that calculate the projection matrix from a list of meshes (e.g. directional lights with automatic extents calculation).
+     * @param _viewMatrix The view transform matrix of the light (optional).
+     * @param _renderList The list of meshes to take into account when calculating the projection matrix (optional).
+     * @returns The projection matrix. Can be null, if a projection matrix cannot be defined for the type of light considered (as for a hemispherical light, for example).
+     */
+    getProjectionMatrix(_viewMatrix?: Matrix, _renderList?: Array<AbstractMesh>): Nullable<Matrix>;
+    /**
      * Shadow generators associated to the light.
      * @internal Internal use only.
      */
@@ -240,12 +259,23 @@ export declare abstract class Light extends Node implements ISortableLight {
     _renderId: number;
     private _lastUseSpecular;
     /**
+     * Used internally by ClusteredLight to sort lights
+     * @internal
+     */
+    _currentViewDepth: number;
+    /**
+     * Used internally by ClusteredLightContainer to keep child lights out of mesh light source lists.
+     * @internal
+     */
+    _clusteredContainer: Nullable<Light>;
+    /**
      * Creates a Light object in the scene.
      * Documentation : https://doc.babylonjs.com/features/featuresDeepDive/lights/lights_introduction
      * @param name The friendly name of the light
      * @param scene The scene the light belongs too
+     * @param dontAddToScene True to not add the light to the scene
      */
-    constructor(name: string, scene: Scene);
+    constructor(name: string, scene?: Scene, dontAddToScene?: boolean);
     protected abstract _buildUniformLayout(): void;
     /**
      * Sets the passed Effect "effect" with the Light information.
@@ -360,9 +390,18 @@ export declare abstract class Light extends Node implements ISortableLight {
      * Parses the passed "parsedLight" and returns a new instanced Light from this parsing.
      * @param parsedLight The JSON representation of the light
      * @param scene The scene to create the parsed light in
+     * @param rootUrl The root url to use to load assets referenced by the light (e.g. textures)
      * @returns the created light after parsing
      */
-    static Parse(parsedLight: any, scene: Scene): Nullable<Light>;
+    static Parse(parsedLight: any, scene: Scene, rootUrl?: string): Nullable<Light>;
+    /**
+     * Called after the light has been fully parsed and all base properties have been set.
+     * Override in subclasses to handle custom serialized data.
+     * @param _parsedLight The JSON representation of the light
+     * @param _scene The scene the light belongs to
+     * @param _rootUrl The root url to use to load assets referenced by the light (e.g. textures)
+     */
+    protected _onParsed(_parsedLight: any, _scene: Scene, _rootUrl?: string): void;
     private _hookArrayForExcluded;
     private _hookArrayForIncludedOnly;
     private _resyncMeshes;
@@ -376,7 +415,7 @@ export declare abstract class Light extends Node implements ISortableLight {
      */
     private _computePhotometricScale;
     /**
-     * Returns the Photometric Scale according to the light type and intensity mode.
+     * @returns the Photometric Scale according to the light type and intensity mode.
      */
     private _getPhotometricScale;
     /**
@@ -385,9 +424,19 @@ export declare abstract class Light extends Node implements ISortableLight {
      */
     _reorderLightsInScene(): void;
     /**
+     * Returns true when all texture resources used by this light are ready (e.g. projection textures).
+     * Override in subclasses that use texture resources.
+     * @returns true if all light textures are ready
+     */
+    areLightTexturesReady(): boolean;
+    /**
      * Prepares the list of defines specific to the light type.
      * @param defines the list of defines
      * @param lightIndex defines the index of the light for the effect
      */
     abstract prepareLightSpecificDefines(defines: any, lightIndex: number): void;
+    /**
+     * @internal
+     */
+    _isReady(): boolean;
 }

@@ -1,9 +1,8 @@
-import { Observable } from "../Misc/observable";
-import type { IDisposable } from "../scene";
-import type { IWebXRControllerOptions } from "./webXRInputSource";
-import { WebXRInputSource } from "./webXRInputSource";
-import type { WebXRSessionManager } from "./webXRSessionManager";
-import type { WebXRCamera } from "./webXRCamera";
+import { Observable } from "../Misc/observable.js";
+import { type IDisposable } from "../scene.js";
+import { type IWebXRControllerOptions, WebXRInputSource } from "./webXRInputSource.js";
+import { type WebXRSessionManager } from "./webXRSessionManager.js";
+import { type WebXRCamera } from "./webXRCamera.js";
 /**
  * The schema for initialization options of the XR Input class
  */
@@ -57,6 +56,7 @@ export declare class WebXRInput implements IDisposable {
     private _frameObserver;
     private _sessionEndedObserver;
     private _sessionInitObserver;
+    private _currentXRSession;
     /**
      * Event when a controller has been connected/added
      */

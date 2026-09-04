@@ -1,5 +1,5 @@
 import { Plane } from "../../Maths/math.plane.js";
-import { RenderTargetTexture } from "../../Materials/Textures/renderTargetTexture.js";
+import { RenderTargetTexture } from "../../Materials/Textures/renderTargetTexture.pure.js";
 /**
  * Creates a refraction texture used by refraction channel of the standard material.
  * It is like a mirror but to see through a material.

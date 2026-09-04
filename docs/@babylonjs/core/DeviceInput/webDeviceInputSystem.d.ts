@@ -1,7 +1,7 @@
-import type { Engine } from "../Engines/engine";
-import type { IUIEvent } from "../Events/deviceInputEvents";
-import { DeviceType } from "./InputDevices/deviceEnums";
-import type { IDeviceInputSystem } from "./inputInterfaces";
+import { type AbstractEngine } from "../Engines/abstractEngine.js";
+import { type IUIEvent } from "../Events/deviceInputEvents.js";
+import { DeviceType } from "./InputDevices/deviceEnums.js";
+import { type IDeviceInputSystem } from "./inputInterfaces.js";
 /** @internal */
 export declare class WebDeviceInputSystem implements IDeviceInputSystem {
     private _inputs;
@@ -12,7 +12,7 @@ export declare class WebDeviceInputSystem implements IDeviceInputSystem {
     private _metaKeys;
     private readonly _engine;
     private readonly _usingSafari;
-    private readonly _usingMacOS;
+    private readonly _usingMacOs;
     private _onDeviceConnected;
     private _onDeviceDisconnected;
     private _onInputChanged;
@@ -23,19 +23,30 @@ export declare class WebDeviceInputSystem implements IDeviceInputSystem {
     private _pointerDownEvent;
     private _pointerUpEvent;
     private _pointerCancelEvent;
+    private _pointerCancelTouch;
+    private _pointerLeaveEvent;
     private _pointerWheelEvent;
     private _pointerBlurEvent;
+    private _pointerMacOsChromeOutEvent;
     private _wheelEventName;
     private _eventsAttached;
     private _mouseId;
     private readonly _isUsingFirefox;
+    private readonly _isUsingChromium;
     private _activeTouchIds;
     private _maxTouchPoints;
     private _pointerInputClearObserver;
     private _gamepadConnectedEvent;
     private _gamepadDisconnectedEvent;
     private _eventPrefix;
-    constructor(engine: Engine, onDeviceConnected: (deviceType: DeviceType, deviceSlot: number) => void, onDeviceDisconnected: (deviceType: DeviceType, deviceSlot: number) => void, onInputChanged: (deviceType: DeviceType, deviceSlot: number, eventData: IUIEvent) => void);
+    /**
+     * Constructor for the WebDeviceInputSystem
+     * @param engine Engine to reference
+     * @param onDeviceConnected Callback to execute when device is connected
+     * @param onDeviceDisconnected Callback to execute when device is disconnected
+     * @param onInputChanged Callback to execute when input changes on device
+     */
+    constructor(engine: AbstractEngine, onDeviceConnected: (deviceType: DeviceType, deviceSlot: number) => void, onDeviceDisconnected: (deviceType: DeviceType, deviceSlot: number) => void, onInputChanged: (deviceType: DeviceType, deviceSlot: number, eventData: IUIEvent) => void);
     /**
      * Checks for current device input value, given an id and input index. Throws exception if requested device not initialized.
      * @param deviceType Enum specifying device type

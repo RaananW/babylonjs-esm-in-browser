@@ -65,12 +65,54 @@ export var InternalTextureSource;
      * Texture content is a depth texture
      */
     InternalTextureSource[InternalTextureSource["Depth"] = 14] = "Depth";
+    /**
+     * Texture wraps an externally created graphics resource (WebGL handle, GPUTexture,
+     * native handle, etc.) supplied via wrap{WebGL,Native,WebGPU}Texture. On dispose,
+     * the wrapped resource is released along with the InternalTexture just like any
+     * other source. Consumers can repoint the wrapper at a fresh external handle
+     * (e.g., after context-loss / device-loss restore) via
+     * updateWrapped{WebGL,Native,WebGPU}Texture without losing references held by
+     * materials, render-target wrappers, particle systems, etc.
+     */
+    InternalTextureSource[InternalTextureSource["External"] = 15] = "External";
 })(InternalTextureSource || (InternalTextureSource = {}));
 /**
  * Class used to store data associated with WebGL texture data for the engine
  * This class should not be used directly
  */
 export class InternalTexture extends TextureSampler {
+    /**
+     * Indicates to use the mip maps (if available on the texture).
+     * Thanks to this flag, you can instruct the sampler to not sample the mipmaps even if they exist (and if the sampling mode is set to a value that normally samples the mipmaps!)
+     * If useMipMaps is null, the value of generateMipMaps is returned by the getter (for backward compatibility)
+     */
+    get useMipMaps() {
+        return this._useMipMaps === null ? this.generateMipMaps : this._useMipMaps;
+    }
+    set useMipMaps(value) {
+        this._useMipMaps = value;
+    }
+    /** Gets the unique id of the internal texture */
+    get uniqueId() {
+        return this._uniqueId;
+    }
+    /** @internal */
+    _setUniqueId(id) {
+        this._uniqueId = id;
+    }
+    /**
+     * Gets the Engine the texture belongs to.
+     * @returns The babylon engine
+     */
+    getEngine() {
+        return this._engine;
+    }
+    /**
+     * Gets the data source type of the texture
+     */
+    get source() {
+        return this._source;
+    }
     /**
      * Creates a new InternalTexture
      * @param engine defines the engine to use
@@ -107,6 +149,13 @@ export class InternalTexture extends TextureSampler {
          * Gets a boolean indicating if the texture needs mipmaps generation
          */
         this.generateMipMaps = false;
+        this._useMipMaps = null;
+        /**
+         * Gets the number of mip levels for this texture.
+         * Note: This property has the correct value only if the texture was created through
+         * `createRawTexture` or `createRawTexture2DArray`.
+         */
+        this.mipLevelCount = 1;
         /**
          * Gets the number of samples used by the texture (WebGL2+ only)
          */
@@ -165,7 +214,7 @@ export class InternalTexture extends TextureSampler {
         /** @internal */
         this._associatedChannel = -1;
         /** @internal */
-        this._source = InternalTextureSource.Unknown;
+        this._source = 0 /* InternalTextureSource.Unknown */;
         /** @internal */
         this._buffer = null;
         /** @internal */
@@ -202,6 +251,8 @@ export class InternalTexture extends TextureSampler {
         this._lodGenerationOffset = 0;
         /** @internal */
         this._useSRGBBuffer = false;
+        /** @internal */
+        this._creationFlags = 0;
         // The following three fields helps sharing generated fixed LODs for texture filtering
         // In environment not supporting the textureLOD extension like EDGE. They are for internal use only.
         // They are at the level of the gl texture to benefit from the cache.
@@ -225,43 +276,18 @@ export class InternalTexture extends TextureSampler {
         this._references = 1;
         /** @internal */
         this._gammaSpace = null;
+        /** @internal */
+        this._premulAlpha = false;
+        /** @internal */
+        this._dynamicTextureSource = null;
+        /** @internal */
+        this._autoMSAAManagement = false;
         this._engine = engine;
         this._source = source;
         this._uniqueId = InternalTexture._Counter++;
         if (!delayAllocation) {
             this._hardwareTexture = engine._createHardwareTexture();
         }
-    }
-    /**
-     * Gets a boolean indicating if the texture uses mipmaps
-     * TODO implements useMipMaps as a separate setting from generateMipMaps
-     */
-    get useMipMaps() {
-        return this.generateMipMaps;
-    }
-    set useMipMaps(value) {
-        this.generateMipMaps = value;
-    }
-    /** Gets the unique id of the internal texture */
-    get uniqueId() {
-        return this._uniqueId;
-    }
-    /** @internal */
-    _setUniqueId(id) {
-        this._uniqueId = id;
-    }
-    /**
-     * Gets the Engine the texture belongs to.
-     * @returns The babylon engine
-     */
-    getEngine() {
-        return this._engine;
-    }
-    /**
-     * Gets the data source type of the texture
-     */
-    get source() {
-        return this._source;
     }
     /**
      * Increments the number of references (ie. the number of Texture that point to it)
@@ -287,7 +313,6 @@ export class InternalTexture extends TextureSampler {
     }
     /** @internal */
     _rebuild() {
-        var _a;
         this.isReady = false;
         this._cachedCoordinatesMode = null;
         this._cachedWrapU = null;
@@ -301,6 +326,7 @@ export class InternalTexture extends TextureSampler {
                 this.isReady = data.isReady;
             };
             if (data.isAsync) {
+                // eslint-disable-next-line @typescript-eslint/no-floating-promises, github/no-then
                 data.proxy.then(swapAndSetIsReady);
             }
             else {
@@ -310,10 +336,10 @@ export class InternalTexture extends TextureSampler {
         }
         let proxy;
         switch (this.source) {
-            case InternalTextureSource.Temp:
+            case 2 /* InternalTextureSource.Temp */:
                 break;
-            case InternalTextureSource.Url:
-                proxy = this._engine.createTexture((_a = this._originalUrl) !== null && _a !== void 0 ? _a : this.url, !this.generateMipMaps, this.invertY, null, this.samplingMode, 
+            case 1 /* InternalTextureSource.Url */:
+                proxy = this._engine.createTexture(this._originalUrl ?? this.url, !this.generateMipMaps, this.invertY, null, this.samplingMode, 
                 // Do not use Proxy here as it could be fully synchronous
                 // and proxy would be undefined.
                 (temp) => {
@@ -321,43 +347,61 @@ export class InternalTexture extends TextureSampler {
                     this.isReady = true;
                 }, null, this._buffer, undefined, this.format, this._extension, undefined, undefined, undefined, this._useSRGBBuffer);
                 return;
-            case InternalTextureSource.Raw:
-                proxy = this._engine.createRawTexture(this._bufferView, this.baseWidth, this.baseHeight, this.format, this.generateMipMaps, this.invertY, this.samplingMode, this._compression, this.type, undefined, this._useSRGBBuffer);
+            case 3 /* InternalTextureSource.Raw */:
+                proxy = this._engine.createRawTexture(this._bufferView, this.baseWidth, this.baseHeight, this.format, this.generateMipMaps, this.invertY, this.samplingMode, this._compression, this.type, this._creationFlags, this._useSRGBBuffer, this.mipLevelCount);
                 proxy._swapAndDie(this, false);
+                if (this._bufferViewArray) {
+                    for (let mipLevel = 0; mipLevel < this._bufferViewArray.length; mipLevel++) {
+                        const mipData = this._bufferViewArray[mipLevel];
+                        if (mipData) {
+                            this._engine.updateRawTexture(this, mipData, this.format, this.invertY, this._compression, this.type, this._useSRGBBuffer, mipLevel);
+                        }
+                    }
+                }
                 this.isReady = true;
                 break;
-            case InternalTextureSource.Raw3D:
+            case 10 /* InternalTextureSource.Raw3D */:
                 proxy = this._engine.createRawTexture3D(this._bufferView, this.baseWidth, this.baseHeight, this.baseDepth, this.format, this.generateMipMaps, this.invertY, this.samplingMode, this._compression, this.type);
                 proxy._swapAndDie(this, false);
                 this.isReady = true;
                 break;
-            case InternalTextureSource.Raw2DArray:
-                proxy = this._engine.createRawTexture2DArray(this._bufferView, this.baseWidth, this.baseHeight, this.baseDepth, this.format, this.generateMipMaps, this.invertY, this.samplingMode, this._compression, this.type);
+            case 11 /* InternalTextureSource.Raw2DArray */:
+                proxy = this._engine.createRawTexture2DArray(this._bufferView, this.baseWidth, this.baseHeight, this.baseDepth, this.format, this.generateMipMaps, this.invertY, this.samplingMode, this._compression, this.type, this._creationFlags, this.mipLevelCount);
                 proxy._swapAndDie(this, false);
+                if (this._bufferViewArray) {
+                    for (let mipLevel = 0; mipLevel < this._bufferViewArray.length; mipLevel++) {
+                        const mipData = this._bufferViewArray[mipLevel];
+                        if (mipData) {
+                            this._engine.updateRawTexture2DArray(this, mipData, this.format, this.invertY, this._compression, this.type, mipLevel);
+                        }
+                    }
+                }
                 this.isReady = true;
                 break;
-            case InternalTextureSource.Dynamic:
+            case 4 /* InternalTextureSource.Dynamic */:
                 proxy = this._engine.createDynamicTexture(this.baseWidth, this.baseHeight, this.generateMipMaps, this.samplingMode);
                 proxy._swapAndDie(this, false);
-                this._engine.updateDynamicTexture(this, this._engine.getRenderingCanvas(), this.invertY, undefined, undefined, true);
+                if (this._dynamicTextureSource) {
+                    this._engine.updateDynamicTexture(this, this._dynamicTextureSource, this.invertY, this._premulAlpha, this.format, true);
+                }
                 // The engine will make sure to update content so no need to flag it as isReady = true
                 break;
-            case InternalTextureSource.Cube:
+            case 7 /* InternalTextureSource.Cube */:
                 proxy = this._engine.createCubeTexture(this.url, null, this._files, !this.generateMipMaps, () => {
                     proxy._swapAndDie(this, false);
                     this.isReady = true;
-                }, null, this.format, this._extension, false, 0, 0, null, undefined, this._useSRGBBuffer);
+                }, null, this.format, this._extension, false, 0, 0, null, undefined, this._useSRGBBuffer, ArrayBuffer.isView(this._buffer) ? this._buffer : null);
                 return;
-            case InternalTextureSource.CubeRaw:
-                proxy = this._engine.createRawCubeTexture(this._bufferViewArray, this.width, this.format, this.type, this.generateMipMaps, this.invertY, this.samplingMode, this._compression);
+            case 8 /* InternalTextureSource.CubeRaw */:
+                proxy = this._engine.createRawCubeTexture(this._bufferViewArray, this.width, this._originalFormat ?? this.format, this.type, this.generateMipMaps, this.invertY, this.samplingMode, this._compression);
                 proxy._swapAndDie(this, false);
                 this.isReady = true;
                 break;
-            case InternalTextureSource.CubeRawRGBD:
+            case 13 /* InternalTextureSource.CubeRawRGBD */:
                 // This case is being handeled by the environment texture tools and is not a part of the rebuild process.
                 // To use CubeRawRGBD use updateRGBDAsync on the cube texture.
                 return;
-            case InternalTextureSource.CubePrefiltered:
+            case 9 /* InternalTextureSource.CubePrefiltered */:
                 proxy = this._engine.createPrefilteredCubeTexture(this.url, null, this._lodGenerationScale, this._lodGenerationOffset, (proxy) => {
                     if (proxy) {
                         proxy._swapAndDie(this, false);
@@ -366,6 +410,17 @@ export class InternalTexture extends TextureSampler {
                 }, null, this.format, this._extension);
                 proxy._sphericalPolynomial = this._sphericalPolynomial;
                 return;
+            case 12 /* InternalTextureSource.DepthStencil */:
+            case 14 /* InternalTextureSource.Depth */: {
+                // Will be handled at the RenderTargetWrapper level
+                break;
+            }
+            case 15 /* InternalTextureSource.External */: {
+                // The underlying resource is owned by the host application; Babylon cannot rebuild it.
+                // The host re-supplies a fresh handle via updateWrappedWebGLTexture / updateWrappedNativeTexture /
+                // updateWrappedWebGPUTexture from its onContextRestoredObservable handler.
+                break;
+            }
         }
     }
     /**
@@ -373,9 +428,15 @@ export class InternalTexture extends TextureSampler {
      */
     _swapAndDie(target, swapAll = true) {
         // TODO what about refcount on target?
-        var _a;
-        (_a = this._hardwareTexture) === null || _a === void 0 ? void 0 : _a.setUsage(target._source, this.generateMipMaps, this.isCube, this.width, this.height);
+        this._hardwareTexture?.setUsage(target._source, this.generateMipMaps, this.is2DArray, this.isCube, this.is3D, this.width, this.height, this.depth);
         target._hardwareTexture = this._hardwareTexture;
+        // Refresh the target's uniqueId so that caches keyed by uniqueId (e.g. the
+        // WebGPU global bind-group cache) see the hardware texture as a new resource
+        // and rebuild GPU bind groups referencing it. Without this, callers that swap
+        // a raw GPU texture for a prefiltered one (e.g. HDR/PMREM prefiltering) would
+        // continue to receive stale GPUBindGroups that hold views over the now-destroyed
+        // source GPU texture, causing "Destroyed texture used in a submit" errors.
+        target._setUniqueId(InternalTexture._Counter++);
         if (swapAll) {
             target._isRGBD = this._isRGBD;
         }
@@ -418,11 +479,12 @@ export class InternalTexture extends TextureSampler {
      */
     dispose() {
         this._references--;
-        this.onLoadedObservable.clear();
-        this.onErrorObservable.clear();
         if (this._references === 0) {
+            this.onLoadedObservable.clear();
+            this.onErrorObservable.clear();
             this._engine._releaseTexture(this);
             this._hardwareTexture = null;
+            this._dynamicTextureSource = null;
         }
     }
 }

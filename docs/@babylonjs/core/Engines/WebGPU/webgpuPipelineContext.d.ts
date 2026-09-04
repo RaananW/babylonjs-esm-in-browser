@@ -1,10 +1,11 @@
-import type { IPipelineContext } from "../IPipelineContext";
-import type { Nullable } from "../../types";
-import type { WebGPUEngine } from "../webgpuEngine";
-import type { Effect } from "../../Materials/effect";
-import type { WebGPUShaderProcessingContext } from "./webgpuShaderProcessingContext";
-import { UniformBuffer } from "../../Materials/uniformBuffer";
-import type { IMatrixLike, IVector2Like, IVector3Like, IVector4Like, IColor3Like, IColor4Like, IQuaternionLike } from "../../Maths/math.like";
+import { type IPipelineContext } from "../IPipelineContext.js";
+import { type Nullable } from "../../types.js";
+import { type WebGPUEngine } from "../webgpuEngine.js";
+import { type Effect } from "../../Materials/effect.js";
+import { type WebGPUShaderProcessingContext } from "./webgpuShaderProcessingContext.js";
+import { UniformBuffer } from "../../Materials/uniformBuffer.js";
+import { type IMatrixLike, type IVector2Like, type IVector3Like, type IVector4Like, type IColor3Like, type IColor4Like, type IQuaternionLike } from "../../Maths/math.like.js";
+import { type AbstractEngine } from "../abstractEngine.js";
 /** @internal */
 export interface IWebGPURenderPipelineStageDescriptor {
     vertexStage: GPUProgrammableStage;
@@ -17,6 +18,9 @@ export declare class WebGPUPipelineContext implements IPipelineContext {
     protected _leftOverUniformsByName: {
         [name: string]: string;
     };
+    vertexBufferKindToType: {
+        [kind: string]: number;
+    };
     sources: {
         vertex: string;
         fragment: string;
@@ -24,7 +28,9 @@ export declare class WebGPUPipelineContext implements IPipelineContext {
         rawFragment: string;
     };
     stages: Nullable<IWebGPURenderPipelineStageDescriptor>;
-    bindGroupLayouts: GPUBindGroupLayout[];
+    bindGroupLayouts: {
+        [textureState: number]: GPUBindGroupLayout[];
+    };
     /**
      * Stores the left-over uniform buffer
      */
@@ -48,6 +54,7 @@ export declare class WebGPUPipelineContext implements IPipelineContext {
      * Build the uniform buffer used in the material.
      */
     buildUniformLayout(): void;
+    setEngine(engine: AbstractEngine): void;
     /**
      * Release all associated resources.
      **/
@@ -107,6 +114,60 @@ export declare class WebGPUPipelineContext implements IPipelineContext {
      */
     setIntArray4(uniformName: string, array: Int32Array): void;
     /**
+     * Sets an unsigned integer value on a uniform variable.
+     * @param uniformName Name of the variable.
+     * @param value Value to be set.
+     */
+    setUInt(uniformName: string, value: number): void;
+    /**
+     * Sets an unsigned int2 value on a uniform variable.
+     * @param uniformName Name of the variable.
+     * @param x First unsigned int in uint2.
+     * @param y Second unsigned int in uint2.
+     */
+    setUInt2(uniformName: string, x: number, y: number): void;
+    /**
+     * Sets an unsigned int3 value on a uniform variable.
+     * @param uniformName Name of the variable.
+     * @param x First unsigned int in uint3.
+     * @param y Second unsigned int in uint3.
+     * @param z Third unsigned int in uint3.
+     */
+    setUInt3(uniformName: string, x: number, y: number, z: number): void;
+    /**
+     * Sets an unsigned int4 value on a uniform variable.
+     * @param uniformName Name of the variable.
+     * @param x First unsigned int in uint4.
+     * @param y Second unsigned int in uint4.
+     * @param z Third unsigned int in uint4.
+     * @param w Fourth unsigned int in uint4.
+     */
+    setUInt4(uniformName: string, x: number, y: number, z: number, w: number): void;
+    /**
+     * Sets an unsigned int array on a uniform variable.
+     * @param uniformName Name of the variable.
+     * @param array array to be set.
+     */
+    setUIntArray(uniformName: string, array: Uint32Array): void;
+    /**
+     * Sets an unsigned int array 2 on a uniform variable. (Array is specified as single array eg. [1,2,3,4] will result in [[1,2],[3,4]] in the shader)
+     * @param uniformName Name of the variable.
+     * @param array array to be set.
+     */
+    setUIntArray2(uniformName: string, array: Uint32Array): void;
+    /**
+     * Sets an unsigned int array 3 on a uniform variable. (Array is specified as single array eg. [1,2,3,4,5,6] will result in [[1,2,3],[4,5,6]] in the shader)
+     * @param uniformName Name of the variable.
+     * @param array array to be set.
+     */
+    setUIntArray3(uniformName: string, array: Uint32Array): void;
+    /**
+     * Sets an unsigned int array 4 on a uniform variable. (Array is specified as single array eg. [1,2,3,4,5,6,7,8] will result in [[1,2,3,4],[5,6,7,8]] in the shader)
+     * @param uniformName Name of the variable.
+     * @param array array to be set.
+     */
+    setUIntArray4(uniformName: string, array: Uint32Array): void;
+    /**
      * Sets an array on a uniform variable.
      * @param uniformName Name of the variable.
      * @param array array to be set.
@@ -122,7 +183,6 @@ export declare class WebGPUPipelineContext implements IPipelineContext {
      * Sets an array 3 on a uniform variable. (Array is specified as single array eg. [1,2,3,4,5,6] will result in [[1,2,3],[4,5,6]] in the shader)
      * @param uniformName Name of the variable.
      * @param array array to be set.
-     * @returns this effect.
      */
     setArray3(uniformName: string, array: number[]): void;
     /**
@@ -159,7 +219,6 @@ export declare class WebGPUPipelineContext implements IPipelineContext {
      * Sets a float on a uniform variable.
      * @param uniformName Name of the variable.
      * @param value value to be set.
-     * @returns this effect.
      */
     setFloat(uniformName: string, value: number): void;
     /**
@@ -208,7 +267,6 @@ export declare class WebGPUPipelineContext implements IPipelineContext {
      * @param y Second float in float4.
      * @param z Third float in float4.
      * @param w Fourth float in float4.
-     * @returns this effect.
      */
     setFloat4(uniformName: string, x: number, y: number, z: number, w: number): void;
     /**

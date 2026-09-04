@@ -1,8 +1,7 @@
-import { Texture } from "./texture";
-import "../../Engines/Extensions/engine.rawTexture";
-import type { Nullable } from "../../types";
-import type { ThinEngine } from "../../Engines/thinEngine";
-declare type Scene = import("../../scene").Scene;
+import { Texture } from "./texture.pure.js";
+import { type Nullable } from "../../types.js";
+import { type AbstractEngine } from "../../Engines/abstractEngine.js";
+import { type Scene } from "../../scene.js";
 /**
  * Raw texture can help creating a texture directly from an array of data.
  * This can be super useful if you either get the data from an uncompressed source or
@@ -13,6 +12,7 @@ export declare class RawTexture extends Texture {
      * Define the format of the data (RGB, RGBA... Engine.TEXTUREFORMAT_xxx)
      */
     format: number;
+    private _waitingForData;
     /**
      * Instantiates a new RawTexture.
      * Raw texture can help creating a texture directly from an array of data.
@@ -29,17 +29,31 @@ export declare class RawTexture extends Texture {
      * @param type define the format of the data (int, float... Engine.TEXTURETYPE_xxx)
      * @param creationFlags specific flags to use when creating the texture (Constants.TEXTURE_CREATIONFLAG_STORAGE for storage textures, for eg)
      * @param useSRGBBuffer defines if the texture must be loaded in a sRGB GPU buffer (if supported by the GPU).
+     * @param waitDataToBeReady If set to true Rawtexture will wait data to be set in order to be flaged as ready.
+     * @param mipLevelCount defines the number of mip levels to allocate for the texture
      */
     constructor(data: Nullable<ArrayBufferView>, width: number, height: number, 
     /**
      * Define the format of the data (RGB, RGBA... Engine.TEXTUREFORMAT_xxx)
      */
-    format: number, sceneOrEngine: Nullable<Scene | ThinEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number, type?: number, creationFlags?: number, useSRGBBuffer?: boolean);
+    format: number, sceneOrEngine: Nullable<Scene | AbstractEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number, type?: number, creationFlags?: number, useSRGBBuffer?: boolean, waitDataToBeReady?: boolean, mipLevelCount?: number);
     /**
      * Updates the texture underlying data.
      * @param data Define the new data of the texture
      */
     update(data: ArrayBufferView): void;
+    /**
+     * Updates a specific mip level of the texture.
+     * @param data The new data for the mip level
+     * @param mipLevel The mip level to update (0 is the base level)
+     */
+    updateMipLevel(data: ArrayBufferView, mipLevel: number): void;
+    /**
+     * Clones the texture.
+     * @returns the cloned texture
+     */
+    clone(): Texture;
+    isReady(): boolean;
     /**
      * Creates a luminance texture from some data.
      * @param data Define the texture data
@@ -51,7 +65,7 @@ export declare class RawTexture extends Texture {
      * @param samplingMode define the texture sampling mode (Texture.xxx_SAMPLINGMODE)
      * @returns the luminance texture
      */
-    static CreateLuminanceTexture(data: Nullable<ArrayBufferView>, width: number, height: number, sceneOrEngine: Nullable<Scene | ThinEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number): RawTexture;
+    static CreateLuminanceTexture(data: Nullable<ArrayBufferView>, width: number, height: number, sceneOrEngine: Nullable<Scene | AbstractEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number): RawTexture;
     /**
      * Creates a luminance alpha texture from some data.
      * @param data Define the texture data
@@ -63,7 +77,7 @@ export declare class RawTexture extends Texture {
      * @param samplingMode define the texture sampling mode (Texture.xxx_SAMPLINGMODE)
      * @returns the luminance alpha texture
      */
-    static CreateLuminanceAlphaTexture(data: Nullable<ArrayBufferView>, width: number, height: number, sceneOrEngine: Nullable<Scene | ThinEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number): RawTexture;
+    static CreateLuminanceAlphaTexture(data: Nullable<ArrayBufferView>, width: number, height: number, sceneOrEngine: Nullable<Scene | AbstractEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number): RawTexture;
     /**
      * Creates an alpha texture from some data.
      * @param data Define the texture data
@@ -75,7 +89,7 @@ export declare class RawTexture extends Texture {
      * @param samplingMode define the texture sampling mode (Texture.xxx_SAMPLINGMODE)
      * @returns the alpha texture
      */
-    static CreateAlphaTexture(data: Nullable<ArrayBufferView>, width: number, height: number, sceneOrEngine: Nullable<Scene | ThinEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number): RawTexture;
+    static CreateAlphaTexture(data: Nullable<ArrayBufferView>, width: number, height: number, sceneOrEngine: Nullable<Scene | AbstractEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number): RawTexture;
     /**
      * Creates a RGB texture from some data.
      * @param data Define the texture data
@@ -90,7 +104,7 @@ export declare class RawTexture extends Texture {
      * @param useSRGBBuffer defines if the texture must be loaded in a sRGB GPU buffer (if supported by the GPU).
      * @returns the RGB alpha texture
      */
-    static CreateRGBTexture(data: Nullable<ArrayBufferView>, width: number, height: number, sceneOrEngine: Nullable<Scene | ThinEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number, type?: number, creationFlags?: number, useSRGBBuffer?: boolean): RawTexture;
+    static CreateRGBTexture(data: Nullable<ArrayBufferView>, width: number, height: number, sceneOrEngine: Nullable<Scene | AbstractEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number, type?: number, creationFlags?: number, useSRGBBuffer?: boolean): RawTexture;
     /**
      * Creates a RGBA texture from some data.
      * @param data Define the texture data
@@ -103,9 +117,10 @@ export declare class RawTexture extends Texture {
      * @param type define the format of the data (int, float... Engine.TEXTURETYPE_xxx)
      * @param creationFlags specific flags to use when creating the texture (Constants.TEXTURE_CREATIONFLAG_STORAGE for storage textures, for eg)
      * @param useSRGBBuffer defines if the texture must be loaded in a sRGB GPU buffer (if supported by the GPU).
+     * @param waitDataToBeReady if set to true this will force texture to wait for data to be set before it is considered ready.
      * @returns the RGBA texture
      */
-    static CreateRGBATexture(data: Nullable<ArrayBufferView>, width: number, height: number, sceneOrEngine: Nullable<Scene | ThinEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number, type?: number, creationFlags?: number, useSRGBBuffer?: boolean): RawTexture;
+    static CreateRGBATexture(data: Nullable<ArrayBufferView>, width: number, height: number, sceneOrEngine: Nullable<Scene | AbstractEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number, type?: number, creationFlags?: number, useSRGBBuffer?: boolean, waitDataToBeReady?: boolean): RawTexture;
     /**
      * Creates a RGBA storage texture from some data.
      * @param data Define the texture data
@@ -119,7 +134,7 @@ export declare class RawTexture extends Texture {
      * @param useSRGBBuffer defines if the texture must be loaded in a sRGB GPU buffer (if supported by the GPU).
      * @returns the RGBA texture
      */
-    static CreateRGBAStorageTexture(data: Nullable<ArrayBufferView>, width: number, height: number, sceneOrEngine: Nullable<Scene | ThinEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number, type?: number, useSRGBBuffer?: boolean): RawTexture;
+    static CreateRGBAStorageTexture(data: Nullable<ArrayBufferView>, width: number, height: number, sceneOrEngine: Nullable<Scene | AbstractEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number, type?: number, useSRGBBuffer?: boolean): RawTexture;
     /**
      * Creates a R texture from some data.
      * @param data Define the texture data
@@ -132,7 +147,7 @@ export declare class RawTexture extends Texture {
      * @param type define the format of the data (int, float... Engine.TEXTURETYPE_xxx)
      * @returns the R texture
      */
-    static CreateRTexture(data: Nullable<ArrayBufferView>, width: number, height: number, sceneOrEngine: Nullable<Scene | ThinEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number, type?: number): RawTexture;
+    static CreateRTexture(data: Nullable<ArrayBufferView>, width: number, height: number, sceneOrEngine: Nullable<Scene | AbstractEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number, type?: number): RawTexture;
     /**
      * Creates a R storage texture from some data.
      * @param data Define the texture data
@@ -145,6 +160,5 @@ export declare class RawTexture extends Texture {
      * @param type define the format of the data (int, float... Engine.TEXTURETYPE_xxx)
      * @returns the R texture
      */
-    static CreateRStorageTexture(data: Nullable<ArrayBufferView>, width: number, height: number, sceneOrEngine: Nullable<Scene | ThinEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number, type?: number): RawTexture;
+    static CreateRStorageTexture(data: Nullable<ArrayBufferView>, width: number, height: number, sceneOrEngine: Nullable<Scene | AbstractEngine>, generateMipMaps?: boolean, invertY?: boolean, samplingMode?: number, type?: number): RawTexture;
 }
-export {};

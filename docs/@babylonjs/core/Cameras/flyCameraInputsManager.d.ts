@@ -1,5 +1,5 @@
-import type { FlyCamera } from "./flyCamera";
-import { CameraInputsManager } from "./cameraInputsManager";
+import { type FlyCamera } from "./flyCamera.js";
+import { CameraInputsManager } from "./cameraInputsManager.js";
 /**
  * Default Inputs manager for the FlyCamera.
  * It groups all the default supported inputs for ease of use.

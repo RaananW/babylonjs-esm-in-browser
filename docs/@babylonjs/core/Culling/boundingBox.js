@@ -1,5 +1,5 @@
-import { ArrayTools } from "../Misc/arrayTools.js";
-import { Matrix, Vector3 } from "../Maths/math.vector.js";
+import { BuildArray } from "../Misc/arrayTools.js";
+import { Matrix, Vector3 } from "../Maths/math.vector.pure.js";
 import { Epsilon } from "../Maths/math.constants.js";
 /**
  * Class used to store bounding box information
@@ -15,7 +15,7 @@ export class BoundingBox {
         /**
          * Gets the 8 vectors representing the bounding box in local space
          */
-        this.vectors = ArrayTools.BuildArray(8, Vector3.Zero);
+        this.vectors = BuildArray(8, Vector3.Zero);
         /**
          * Gets the center of the bounding box in local space
          */
@@ -25,21 +25,21 @@ export class BoundingBox {
          */
         this.centerWorld = Vector3.Zero();
         /**
-         * Gets the extend size in local space
+         * Gets half the size of the extent in local space. Multiply by 2 to obtain the full size of the box!
          */
         this.extendSize = Vector3.Zero();
         /**
-         * Gets the extend size in world space
+         * Gets half the size of the extent in world space. Multiply by 2 to obtain the full size of the box!
          */
         this.extendSizeWorld = Vector3.Zero();
         /**
          * Gets the OBB (object bounding box) directions
          */
-        this.directions = ArrayTools.BuildArray(3, Vector3.Zero);
+        this.directions = BuildArray(3, Vector3.Zero);
         /**
          * Gets the 8 vectors representing the bounding box in world space
          */
-        this.vectorsWorld = ArrayTools.BuildArray(8, Vector3.Zero);
+        this.vectorsWorld = BuildArray(8, Vector3.Zero);
         /**
          * Gets the minimum vector in world space
          */
@@ -221,9 +221,8 @@ export class BoundingBox {
      * Disposes the resources of the class
      */
     dispose() {
-        var _a, _b;
-        (_a = this._drawWrapperFront) === null || _a === void 0 ? void 0 : _a.dispose();
-        (_b = this._drawWrapperBack) === null || _b === void 0 ? void 0 : _b.dispose();
+        this._drawWrapperFront?.dispose();
+        this._drawWrapperBack?.dispose();
     }
     // Statics
     /**
@@ -289,5 +288,5 @@ export class BoundingBox {
         return true;
     }
 }
-BoundingBox._TmpVector3 = ArrayTools.BuildArray(3, Vector3.Zero);
+BoundingBox._TmpVector3 = BuildArray(3, Vector3.Zero);
 //# sourceMappingURL=boundingBox.js.map

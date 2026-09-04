@@ -1,9 +1,9 @@
-import type { IWebXRFeature } from "../webXRFeaturesManager";
-import type { WebXRSessionManager } from "../webXRSessionManager";
-import { Observable } from "../../Misc/observable";
-import { Matrix } from "../../Maths/math.vector";
-import type { TransformNode } from "../../Meshes/transformNode";
-import { WebXRAbstractFeature } from "./WebXRAbstractFeature";
+import { type IWebXRFeature } from "../webXRFeaturesManager.js";
+import { type WebXRSessionManager } from "../webXRSessionManager.js";
+import { Observable } from "../../Misc/observable.js";
+import { Matrix } from "../../Maths/math.vector.pure.js";
+import { type TransformNode } from "../../Meshes/transformNode.js";
+import { WebXRAbstractFeature } from "./WebXRAbstractFeature.js";
 /**
  * An interface for all Hit test features
  */
@@ -46,7 +46,7 @@ export interface IWebXRLegacyHitResult {
  */
 export declare class WebXRHitTestLegacy extends WebXRAbstractFeature implements IWebXRHitTestFeature<IWebXRLegacyHitResult> {
     /**
-     * options to use when constructing this feature
+     * [Empty Object] options to use when constructing this feature
      */
     readonly options: IWebXRLegacyHitTestOptions;
     private _direction;
@@ -56,7 +56,7 @@ export declare class WebXRHitTestLegacy extends WebXRAbstractFeature implements 
     /**
      * The module's name
      */
-    static readonly Name = "xr-hit-test";
+    static readonly Name: "xr-hit-test";
     /**
      * The (Babylon) version of this module.
      * This is an integer representing the implementation version.
@@ -78,7 +78,7 @@ export declare class WebXRHitTestLegacy extends WebXRAbstractFeature implements 
      */
     constructor(_xrSessionManager: WebXRSessionManager, 
     /**
-     * options to use when constructing this feature
+     * [Empty Object] options to use when constructing this feature
      */
     options?: IWebXRLegacyHitTestOptions);
     /**

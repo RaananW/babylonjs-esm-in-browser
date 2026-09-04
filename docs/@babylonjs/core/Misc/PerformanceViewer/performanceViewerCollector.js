@@ -1,6 +1,6 @@
 import { EventState, Observable } from "../observable.js";
 import { PrecisionDate } from "../precisionDate.js";
-import { Tools } from "../tools.js";
+import { Tools } from "../tools.pure.js";
 import { DynamicFloat32Array } from "./dynamicFloat32Array.js";
 // the initial size of our array, should be a multiple of two!
 const InitialArraySize = 1800;
@@ -21,6 +21,18 @@ const ExportedDataSeparator = "@";
  * The collector also handles notifying any observers of any updates.
  */
 export class PerformanceViewerCollector {
+    /**
+     * The offset for when actual data values start appearing inside a slice.
+     */
+    static get SliceDataOffset() {
+        return 2;
+    }
+    /**
+     * The offset for the value of the number of points inside a slice.
+     */
+    static get NumberOfPointsOffset() {
+        return 1;
+    }
     /**
      * Handles the creation of a performance viewer collector.
      * @param _scene the scene to collect on.
@@ -48,13 +60,13 @@ export class PerformanceViewerCollector {
             this.datasets.data.push(timestamp);
             this.datasets.data.push(numPoints);
             // add the values inside the slice.
-            this.datasets.ids.forEach((id) => {
+            for (const id of this.datasets.ids) {
                 const strategy = this._strategies.get(id);
                 if (!strategy) {
                     return;
                 }
                 this.datasets.data.push(strategy.getData());
-            });
+            }
             if (this.datasetObservable.hasObservers()) {
                 const slice = [timestamp, numPoints];
                 for (let i = 0; i < numPoints; i++) {
@@ -79,18 +91,6 @@ export class PerformanceViewerCollector {
         }
     }
     /**
-     * The offset for when actual data values start appearing inside a slice.
-     */
-    static get SliceDataOffset() {
-        return 2;
-    }
-    /**
-     * The offset for the value of the number of points inside a slice.
-     */
-    static get NumberOfPointsOffset() {
-        return 1;
-    }
-    /**
      * Registers a custom string event which will be callable via sendEvent. This method returns an event object which will contain the id of the event.
      * The user can set a value optionally, which will be used in the sendEvent method. If the value is set, we will record this value at the end of each frame,
      * if not we will increment our counter and record the value of the counter at the end of each frame. The value recorded is 0 if no sendEvent method is called, within a frame.
@@ -100,12 +100,11 @@ export class PerformanceViewerCollector {
      * @returns The event registered, used in sendEvent
      */
     registerEvent(name, forceUpdate, category) {
-        var _a;
         if (this._strategies.has(name) && !forceUpdate) {
             return;
         }
         if (this._strategies.has(name) && forceUpdate) {
-            (_a = this._strategies.get(name)) === null || _a === void 0 ? void 0 : _a.dispose();
+            this._strategies.get(name)?.dispose();
             this._strategies.delete(name);
         }
         const strategy = (scene) => {
@@ -200,7 +199,8 @@ export class PerformanceViewerCollector {
         let hex = "#";
         for (let i = 0; i < NumberOfBitsInHexcode; i += 8) {
             const octet = (hash >> i) & 0xff;
-            hex += (HexPadding + octet.toString(16)).substr(-2);
+            const toStr = HexPadding + octet.toString(16);
+            hex += toStr.substring(toStr.length - 2);
         }
         return hex;
     }
@@ -214,7 +214,7 @@ export class PerformanceViewerCollector {
         const numPoints = this.datasets.ids.length;
         const slice = [timestamp, numPoints];
         // add the values inside the slice.
-        this.datasets.ids.forEach((id) => {
+        for (const id of this.datasets.ids) {
             const strategy = this._strategies.get(id);
             if (!strategy) {
                 return;
@@ -222,7 +222,7 @@ export class PerformanceViewerCollector {
             if (this.datasetObservable.hasObservers()) {
                 slice.push(strategy.getData());
             }
-        });
+        }
         if (this.datasetObservable.hasObservers()) {
             this.datasetObservable.notifyObservers(slice);
         }
@@ -356,7 +356,7 @@ export class PerformanceViewerCollector {
             csvContent += `,${this.datasets.ids[i]}`;
             if (this._datasetMeta) {
                 const meta = this._datasetMeta.get(this.datasets.ids[i]);
-                if (meta === null || meta === void 0 ? void 0 : meta.category) {
+                if (meta?.category) {
                     csvContent += `${ExportedDataSeparator}${meta.category}`;
                 }
             }

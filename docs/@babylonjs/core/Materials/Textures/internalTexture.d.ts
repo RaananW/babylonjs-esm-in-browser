@@ -1,11 +1,11 @@
-import { Observable } from "../../Misc/observable";
-import type { Nullable, int } from "../../types";
-import type { ICanvas, ICanvasRenderingContext } from "../../Engines/ICanvas";
-import type { HardwareTextureWrapper } from "./hardwareTextureWrapper";
-import { TextureSampler } from "./textureSampler";
-declare type ThinEngine = import("../../Engines/thinEngine").ThinEngine;
-declare type BaseTexture = import("../../Materials/Textures/baseTexture").BaseTexture;
-declare type SphericalPolynomial = import("../../Maths/sphericalPolynomial").SphericalPolynomial;
+import { Observable } from "../../Misc/observable.js";
+import { type ImageSource, type Nullable, type int } from "../../types.js";
+import { type ICanvas, type ICanvasRenderingContext } from "../../Engines/ICanvas.js";
+import { type IHardwareTextureWrapper } from "./hardwareTextureWrapper.js";
+import { TextureSampler } from "./textureSampler.js";
+import { type AbstractEngine } from "../../Engines/abstractEngine.js";
+import { type BaseTexture } from "../../Materials/Textures/baseTexture.js";
+import { type SphericalPolynomial } from "../../Maths/sphericalPolynomial.js";
 /**
  * Defines the source of the internal texture
  */
@@ -69,7 +69,17 @@ export declare enum InternalTextureSource {
     /**
      * Texture content is a depth texture
      */
-    Depth = 14
+    Depth = 14,
+    /**
+     * Texture wraps an externally created graphics resource (WebGL handle, GPUTexture,
+     * native handle, etc.) supplied via wrap{WebGL,Native,WebGPU}Texture. On dispose,
+     * the wrapped resource is released along with the InternalTexture just like any
+     * other source. Consumers can repoint the wrapper at a fresh external handle
+     * (e.g., after context-loss / device-loss restore) via
+     * updateWrapped{WebGL,Native,WebGPU}Texture without losing references held by
+     * materials, render-target wrappers, particle systems, etc.
+     */
+    External = 15
 }
 /**
  * Class used to store data associated with WebGL texture data for the engine
@@ -106,12 +116,20 @@ export declare class InternalTexture extends TextureSampler {
      * Gets a boolean indicating if the texture needs mipmaps generation
      */
     generateMipMaps: boolean;
+    protected _useMipMaps: Nullable<boolean>;
     /**
-     * Gets a boolean indicating if the texture uses mipmaps
-     * TODO implements useMipMaps as a separate setting from generateMipMaps
+     * Indicates to use the mip maps (if available on the texture).
+     * Thanks to this flag, you can instruct the sampler to not sample the mipmaps even if they exist (and if the sampling mode is set to a value that normally samples the mipmaps!)
+     * If useMipMaps is null, the value of generateMipMaps is returned by the getter (for backward compatibility)
      */
-    get useMipMaps(): boolean;
-    set useMipMaps(value: boolean);
+    get useMipMaps(): Nullable<boolean>;
+    set useMipMaps(value: Nullable<boolean>);
+    /**
+     * Gets the number of mip levels for this texture.
+     * Note: This property has the correct value only if the texture was created through
+     * `createRawTexture` or `createRawTexture2DArray`.
+     */
+    mipLevelCount: number;
     /**
      * Gets the number of samples used by the texture (WebGL2+ only)
      */
@@ -214,6 +232,10 @@ export declare class InternalTexture extends TextureSampler {
     /** @internal */
     _useSRGBBuffer: boolean;
     /** @internal */
+    _creationFlags: number;
+    /** @internal */
+    _originalFormat?: number;
+    /** @internal */
     _lodTextureHigh: Nullable<BaseTexture>;
     /** @internal */
     _lodTextureMid: Nullable<BaseTexture>;
@@ -226,13 +248,19 @@ export declare class InternalTexture extends TextureSampler {
     /** @internal */
     _irradianceTexture: Nullable<BaseTexture>;
     /** @internal */
-    _hardwareTexture: Nullable<HardwareTextureWrapper>;
+    _hardwareTexture: Nullable<IHardwareTextureWrapper>;
     /** @internal */
     _maxLodLevel: Nullable<number>;
     /** @internal */
     _references: number;
     /** @internal */
     _gammaSpace: Nullable<boolean>;
+    /** @internal */
+    _premulAlpha: boolean;
+    /** @internal */
+    _dynamicTextureSource: Nullable<ImageSource>;
+    /** @internal */
+    _autoMSAAManagement: boolean;
     private _engine;
     private _uniqueId;
     /** @internal */
@@ -245,7 +273,7 @@ export declare class InternalTexture extends TextureSampler {
      * Gets the Engine the texture belongs to.
      * @returns The babylon engine
      */
-    getEngine(): ThinEngine;
+    getEngine(): AbstractEngine;
     /**
      * Gets the data source type of the texture
      */
@@ -256,7 +284,7 @@ export declare class InternalTexture extends TextureSampler {
      * @param source defines the type of data that will be used
      * @param delayAllocation if the texture allocation should be delayed (default: false)
      */
-    constructor(engine: ThinEngine, source: InternalTextureSource, delayAllocation?: boolean);
+    constructor(engine: AbstractEngine, source: InternalTextureSource, delayAllocation?: boolean);
     /**
      * Increments the number of references (ie. the number of Texture that point to it)
      */
@@ -279,4 +307,3 @@ export declare class InternalTexture extends TextureSampler {
      */
     dispose(): void;
 }
-export {};

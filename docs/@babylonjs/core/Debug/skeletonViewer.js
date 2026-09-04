@@ -1,101 +1,22 @@
-import { Vector3, Matrix, TmpVectors } from "../Maths/math.vector.js";
-import { Color3, Color4 } from "../Maths/math.color.js";
-import { Mesh } from "../Meshes/mesh.js";
-import { CreateLineSystem } from "../Meshes/Builders/linesBuilder.js";
+import { Vector3, Matrix, TmpVectors } from "../Maths/math.vector.pure.js";
+import { Color3, Color4 } from "../Maths/math.color.pure.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
+import { CreateLineSystem } from "../Meshes/Builders/linesBuilder.pure.js";
 import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer.js";
 import { Material } from "../Materials/material.js";
-import { ShaderMaterial } from "../Materials/shaderMaterial.js";
-import { DynamicTexture } from "../Materials/Textures/dynamicTexture.js";
-import { VertexBuffer } from "../Buffers/buffer.js";
+import { ShaderMaterial } from "../Materials/shaderMaterial.pure.js";
+import { DynamicTexture } from "../Materials/Textures/dynamicTexture.pure.js";
+import { VertexBuffer } from "../Buffers/buffer.pure.js";
 import { Effect } from "../Materials/effect.js";
-import { CreateSphere } from "../Meshes/Builders/sphereBuilder.js";
-import { ExtrudeShapeCustom } from "../Meshes/Builders/shapeBuilder.js";
+import { CreateSphere } from "../Meshes/Builders/sphereBuilder.pure.js";
+import { ExtrudeShapeCustom } from "../Meshes/Builders/shapeBuilder.pure.js";
+import { TransformNode } from "../Meshes/transformNode.pure.js";
+import { Logger } from "../Misc/logger.js";
 /**
  * Class used to render a debug view of a given skeleton
  * @see http://www.babylonjs-playground.com/#1BZJVJ#8
  */
 export class SkeletonViewer {
-    /**
-     * Creates a new SkeletonViewer
-     * @param skeleton defines the skeleton to render
-     * @param mesh defines the mesh attached to the skeleton
-     * @param scene defines the hosting scene
-     * @param autoUpdateBonesMatrices defines a boolean indicating if bones matrices must be forced to update before rendering (true by default)
-     * @param renderingGroupId defines the rendering group id to use with the viewer
-     * @param options All of the extra constructor options for the SkeletonViewer
-     */
-    constructor(
-    /** defines the skeleton to render */
-    skeleton, 
-    /** defines the mesh attached to the skeleton */
-    mesh, 
-    /** The Scene scope*/
-    scene, 
-    /** defines a boolean indicating if bones matrices must be forced to update before rendering (true by default)  */
-    autoUpdateBonesMatrices = true, 
-    /** defines the rendering group id to use with the viewer */
-    renderingGroupId = 3, 
-    /** is the options for the viewer */
-    options = {}) {
-        var _a, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
-        this.skeleton = skeleton;
-        this.mesh = mesh;
-        this.autoUpdateBonesMatrices = autoUpdateBonesMatrices;
-        this.renderingGroupId = renderingGroupId;
-        this.options = options;
-        /** Gets or sets the color used to render the skeleton */
-        this.color = Color3.White();
-        /** Array of the points of the skeleton fo the line view. */
-        this._debugLines = new Array();
-        /** The local axes Meshes. */
-        this._localAxes = null;
-        /** If SkeletonViewer is enabled. */
-        this._isEnabled = true;
-        /** SkeletonViewer render observable. */
-        this._obs = null;
-        this._scene = scene;
-        this._ready = false;
-        //Defaults
-        options.pauseAnimations = (_a = options.pauseAnimations) !== null && _a !== void 0 ? _a : true;
-        options.returnToRest = (_c = options.returnToRest) !== null && _c !== void 0 ? _c : false;
-        options.displayMode = (_d = options.displayMode) !== null && _d !== void 0 ? _d : SkeletonViewer.DISPLAY_LINES;
-        options.displayOptions = (_e = options.displayOptions) !== null && _e !== void 0 ? _e : {};
-        options.displayOptions.midStep = (_f = options.displayOptions.midStep) !== null && _f !== void 0 ? _f : 0.235;
-        options.displayOptions.midStepFactor = (_g = options.displayOptions.midStepFactor) !== null && _g !== void 0 ? _g : 0.155;
-        options.displayOptions.sphereBaseSize = (_h = options.displayOptions.sphereBaseSize) !== null && _h !== void 0 ? _h : 0.15;
-        options.displayOptions.sphereScaleUnit = (_j = options.displayOptions.sphereScaleUnit) !== null && _j !== void 0 ? _j : 2;
-        options.displayOptions.sphereFactor = (_k = options.displayOptions.sphereFactor) !== null && _k !== void 0 ? _k : 0.865;
-        options.displayOptions.spurFollowsChild = (_l = options.displayOptions.spurFollowsChild) !== null && _l !== void 0 ? _l : false;
-        options.displayOptions.showLocalAxes = (_m = options.displayOptions.showLocalAxes) !== null && _m !== void 0 ? _m : false;
-        options.displayOptions.localAxesSize = (_o = options.displayOptions.localAxesSize) !== null && _o !== void 0 ? _o : 0.075;
-        options.computeBonesUsingShaders = (_p = options.computeBonesUsingShaders) !== null && _p !== void 0 ? _p : true;
-        options.useAllBones = (_q = options.useAllBones) !== null && _q !== void 0 ? _q : true;
-        const initialMeshBoneIndices = mesh.getVerticesData(VertexBuffer.MatricesIndicesKind);
-        const initialMeshBoneWeights = mesh.getVerticesData(VertexBuffer.MatricesWeightsKind);
-        this._boneIndices = new Set();
-        if (!options.useAllBones) {
-            if (initialMeshBoneIndices && initialMeshBoneWeights) {
-                for (let i = 0; i < initialMeshBoneIndices.length; ++i) {
-                    const index = initialMeshBoneIndices[i], weight = initialMeshBoneWeights[i];
-                    if (weight !== 0) {
-                        this._boneIndices.add(index);
-                    }
-                }
-            }
-        }
-        /* Create Utility Layer */
-        this._utilityLayer = new UtilityLayerRenderer(this._scene, false);
-        this._utilityLayer.pickUtilitySceneFirst = false;
-        this._utilityLayer.utilityLayerScene.autoClearDepthAndStencil = true;
-        let displayMode = this.options.displayMode || 0;
-        if (displayMode > SkeletonViewer.DISPLAY_SPHERE_AND_SPURS) {
-            displayMode = SkeletonViewer.DISPLAY_LINES;
-        }
-        this.displayMode = displayMode;
-        //Prep the Systems
-        this.update();
-        this._bindObs();
-    }
     /** public static method to create a BoneWeight Shader
      * @param options The constructor options
      * @param scene The scene that the shader is scoped to
@@ -103,14 +24,13 @@ export class SkeletonViewer {
      * @see http://www.babylonjs-playground.com/#1BZJVJ#395
      */
     static CreateBoneWeightShader(options, scene) {
-        var _a, _c, _d, _e, _f, _g;
         const skeleton = options.skeleton;
-        const colorBase = (_a = options.colorBase) !== null && _a !== void 0 ? _a : Color3.Black();
-        const colorZero = (_c = options.colorZero) !== null && _c !== void 0 ? _c : Color3.Blue();
-        const colorQuarter = (_d = options.colorQuarter) !== null && _d !== void 0 ? _d : Color3.Green();
-        const colorHalf = (_e = options.colorHalf) !== null && _e !== void 0 ? _e : Color3.Yellow();
-        const colorFull = (_f = options.colorFull) !== null && _f !== void 0 ? _f : Color3.Red();
-        const targetBoneIndex = (_g = options.targetBoneIndex) !== null && _g !== void 0 ? _g : 0;
+        const colorBase = options.colorBase ?? Color3.Black();
+        const colorZero = options.colorZero ?? Color3.Blue();
+        const colorQuarter = options.colorQuarter ?? Color3.Green();
+        const colorHalf = options.colorHalf ?? Color3.Yellow();
+        const colorFull = options.colorFull ?? Color3.Red();
+        const targetBoneIndex = options.targetBoneIndex ?? 0;
         Effect.ShadersStore["boneWeights:" + skeleton.name + "VertexShader"] = `precision highp float;
 
         attribute vec3 position;
@@ -220,9 +140,8 @@ export class SkeletonViewer {
      * @returns The created ShaderMaterial
      */
     static CreateSkeletonMapShader(options, scene) {
-        var _a;
         const skeleton = options.skeleton;
-        const colorMap = (_a = options.colorMap) !== null && _a !== void 0 ? _a : [
+        const colorMap = options.colorMap ?? [
             {
                 color: new Color3(1, 0.38, 0.18),
                 location: 0,
@@ -335,9 +254,9 @@ export class SkeletonViewer {
         const tempGrad = new DynamicTexture("temp", { width: size, height: 1 }, scene, false);
         const ctx = tempGrad.getContext();
         const grad = ctx.createLinearGradient(0, 0, size, 0);
-        colorMap.forEach((stop) => {
+        for (const stop of colorMap) {
             grad.addColorStop(stop.location, stop.color.toHexString());
-        });
+        }
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, size, 1);
         tempGrad.update();
@@ -374,6 +293,10 @@ export class SkeletonViewer {
     set debugMesh(value) {
         this._debugMesh = value;
     }
+    /** Gets the local axes mesh */
+    get debugLocalAxesMesh() {
+        return this._localAxes;
+    }
     /** Gets the displayMode */
     get displayMode() {
         return this.options.displayMode || SkeletonViewer.DISPLAY_LINES;
@@ -384,6 +307,86 @@ export class SkeletonViewer {
             value = SkeletonViewer.DISPLAY_LINES;
         }
         this.options.displayMode = value;
+    }
+    /**
+     * Creates a new SkeletonViewer
+     * @param skeleton defines the skeleton to render
+     * @param mesh defines the mesh attached to the skeleton
+     * @param scene defines the hosting scene
+     * @param autoUpdateBonesMatrices defines a boolean indicating if bones matrices must be forced to update before rendering (true by default)
+     * @param renderingGroupId defines the rendering group id to use with the viewer
+     * @param options All of the extra constructor options for the SkeletonViewer
+     */
+    constructor(
+    /** defines the skeleton to render */
+    skeleton, 
+    /** defines the mesh attached to the skeleton */
+    mesh, 
+    /** The Scene scope*/
+    scene, 
+    /** [true] defines a boolean indicating if bones matrices must be forced to update before rendering (true by default)  */
+    autoUpdateBonesMatrices = true, 
+    /** [2] defines the rendering group id to use with the viewer */
+    renderingGroupId = 2, 
+    /** [Object] is the options for the viewer */
+    options = {}) {
+        this.skeleton = skeleton;
+        this.mesh = mesh;
+        this.autoUpdateBonesMatrices = autoUpdateBonesMatrices;
+        this.renderingGroupId = renderingGroupId;
+        this.options = options;
+        /** Gets or sets the color used to render the skeleton */
+        this.color = Color3.White();
+        /** Array of the points of the skeleton fo the line view. */
+        this._debugLines = new Array();
+        /** The local axes Meshes. */
+        this._localAxes = null;
+        /** If SkeletonViewer is enabled. */
+        this._isEnabled = true;
+        /** SkeletonViewer render observable. */
+        this._obs = null;
+        this._scene = scene;
+        this._ready = false;
+        //Defaults
+        options.pauseAnimations = options.pauseAnimations ?? true;
+        options.returnToRest = options.returnToRest ?? false;
+        options.displayMode = options.displayMode ?? SkeletonViewer.DISPLAY_LINES;
+        options.displayOptions = options.displayOptions ?? {};
+        options.displayOptions.midStep = options.displayOptions.midStep ?? 0.235;
+        options.displayOptions.midStepFactor = options.displayOptions.midStepFactor ?? 0.155;
+        options.displayOptions.sphereBaseSize = options.displayOptions.sphereBaseSize ?? 0.15;
+        options.displayOptions.sphereScaleUnit = options.displayOptions.sphereScaleUnit ?? 2;
+        options.displayOptions.sphereFactor = options.displayOptions.sphereFactor ?? 0.865;
+        options.displayOptions.spurFollowsChild = options.displayOptions.spurFollowsChild ?? false;
+        options.displayOptions.showLocalAxes = options.displayOptions.showLocalAxes ?? false;
+        options.displayOptions.localAxesSize = options.displayOptions.localAxesSize ?? 0.075;
+        options.computeBonesUsingShaders = options.computeBonesUsingShaders ?? true;
+        options.useAllBones = options.useAllBones ?? true;
+        this._boneIndices = new Set();
+        if (!options.useAllBones) {
+            const initialMeshBoneIndices = mesh?.getVerticesData(VertexBuffer.MatricesIndicesKind);
+            const initialMeshBoneWeights = mesh?.getVerticesData(VertexBuffer.MatricesWeightsKind);
+            if (initialMeshBoneIndices && initialMeshBoneWeights) {
+                for (let i = 0; i < initialMeshBoneIndices.length; ++i) {
+                    const index = initialMeshBoneIndices[i], weight = initialMeshBoneWeights[i];
+                    if (weight !== 0) {
+                        this._boneIndices.add(index);
+                    }
+                }
+            }
+        }
+        /* Create Utility Layer */
+        this._utilityLayer = new UtilityLayerRenderer(this._scene, false);
+        this._utilityLayer.pickUtilitySceneFirst = false;
+        this._utilityLayer.utilityLayerScene.autoClearDepthAndStencil = true;
+        let displayMode = this.options.displayMode || 0;
+        if (displayMode > SkeletonViewer.DISPLAY_SPHERE_AND_SPURS) {
+            displayMode = SkeletonViewer.DISPLAY_LINES;
+        }
+        this.displayMode = displayMode;
+        //Prep the Systems
+        this.update();
+        this._bindObs();
     }
     /** The Dynamic bindings for the update functions */
     _bindObs() {
@@ -423,6 +426,7 @@ export class SkeletonViewer {
         if (this.debugMesh) {
             this.debugMesh.setEnabled(value);
         }
+        this._localAxes?.setEnabled(value);
         if (value && !this._obs) {
             this._bindObs();
         }
@@ -445,17 +449,25 @@ export class SkeletonViewer {
             tmat2.multiplyToRef(tmat, tmat);
         }
         if (parentBone) {
-            tmat.multiplyToRef(parentBone.getAbsoluteTransform(), tmat);
+            tmat.multiplyToRef(parentBone.getAbsoluteMatrix(), tmat);
         }
         tmat.multiplyToRef(meshMat, tmat);
         position.x = tmat.m[12];
         position.y = tmat.m[13];
         position.z = tmat.m[14];
     }
-    _getLinesForBonesWithLength(bones, meshMat) {
+    _getLinesForBonesWithLength(bones, mesh) {
         const len = bones.length;
-        const mesh = this.mesh;
-        const meshPos = mesh.position;
+        let matrix;
+        let meshPos;
+        if (mesh) {
+            matrix = mesh.getWorldMatrix();
+            meshPos = mesh.position;
+        }
+        else {
+            matrix = new Matrix();
+            meshPos = bones[0].position;
+        }
         let idx = 0;
         for (let i = 0; i < len; i++) {
             const bone = bones[i];
@@ -467,8 +479,8 @@ export class SkeletonViewer {
                 points = [Vector3.Zero(), Vector3.Zero()];
                 this._debugLines[idx] = points;
             }
-            this._getBonePosition(points[0], bone, meshMat);
-            this._getBonePosition(points[1], bone, meshMat, 0, bone.length, 0);
+            this._getBonePosition(points[0], bone, matrix);
+            this._getBonePosition(points[1], bone, matrix, 0, bone.length, 0);
             points[0].subtractInPlace(meshPos);
             points[1].subtractInPlace(meshPos);
             idx++;
@@ -478,7 +490,16 @@ export class SkeletonViewer {
         const len = bones.length;
         let boneNum = 0;
         const mesh = this.mesh;
-        const meshPos = mesh.position;
+        let transformNode;
+        let meshPos;
+        if (mesh) {
+            transformNode = mesh;
+            meshPos = mesh.position;
+        }
+        else {
+            transformNode = new TransformNode("");
+            meshPos = bones[0].position;
+        }
         for (let i = len - 1; i >= 0; i--) {
             const childBone = bones[i];
             const parentBone = childBone.getParent();
@@ -490,11 +511,14 @@ export class SkeletonViewer {
                 points = [Vector3.Zero(), Vector3.Zero()];
                 this._debugLines[boneNum] = points;
             }
-            childBone.getAbsolutePositionToRef(mesh, points[0]);
-            parentBone.getAbsolutePositionToRef(mesh, points[1]);
+            childBone.getAbsolutePositionToRef(transformNode, points[0]);
+            parentBone.getAbsolutePositionToRef(transformNode, points[1]);
             points[0].subtractInPlace(meshPos);
             points[1].subtractInPlace(meshPos);
             boneNum++;
+        }
+        if (!mesh) {
+            transformNode.dispose();
         }
     }
     /**
@@ -507,33 +531,95 @@ export class SkeletonViewer {
             this.utilityLayer.utilityLayerScene.animationsEnabled = animationState;
         }
     }
-    /**
-     * function to get the absolute bind pose of a bone by accumulating transformations up the bone hierarchy.
-     * @param bone
-     * @param matrix
-     */
-    _getAbsoluteBindPoseToRef(bone, matrix) {
-        if (bone === null || bone._index === -1) {
-            matrix.copyFrom(Matrix.Identity());
-            return;
+    _createSpur(anchorPoint, bone, childPoint, childBone, displayOptions, utilityLayerScene) {
+        const dir = childPoint.subtract(anchorPoint);
+        const h = dir.length();
+        const up = dir.normalize().scale(h);
+        const midStep = displayOptions.midStep || 0.165;
+        const midStepFactor = displayOptions.midStepFactor || 0.215;
+        const up0 = up.scale(midStep);
+        const spur = ExtrudeShapeCustom("skeletonViewer", {
+            shape: [new Vector3(1, -1, 0), new Vector3(1, 1, 0), new Vector3(-1, 1, 0), new Vector3(-1, -1, 0), new Vector3(1, -1, 0)],
+            path: [Vector3.Zero(), up0, up],
+            scaleFunction: (i) => {
+                switch (i) {
+                    case 0:
+                    case 2:
+                        return 0;
+                    case 1:
+                        return h * midStepFactor;
+                }
+                return 0;
+            },
+            sideOrientation: Mesh.DEFAULTSIDE,
+            updatable: false,
+        }, utilityLayerScene);
+        const numVertices = spur.getTotalVertices();
+        const mwk = [], mik = [];
+        for (let i = 0; i < numVertices; i++) {
+            mwk.push(1, 0, 0, 0);
+            // Select verts at end of spur (ie vert 10 to 14) and bind to child
+            // bone if spurFollowsChild is enabled.
+            if (childBone && displayOptions.spurFollowsChild && i > 9) {
+                mik.push(childBone.getIndex(), 0, 0, 0);
+            }
+            else {
+                mik.push(bone.getIndex(), 0, 0, 0);
+            }
         }
-        this._getAbsoluteBindPoseToRef(bone.getParent(), matrix);
-        bone.getBaseMatrix().multiplyToRef(matrix, matrix);
-        return;
+        spur.position = anchorPoint.clone();
+        spur.setVerticesData(VertexBuffer.MatricesWeightsKind, mwk, false);
+        spur.setVerticesData(VertexBuffer.MatricesIndicesKind, mik, false);
+        spur.convertToFlatShadedMesh();
+        return spur;
+    }
+    _getBoundingSphereForBone(boneIndex) {
+        if (!this.mesh) {
+            return null;
+        }
+        const positions = this.mesh.getVerticesData(VertexBuffer.PositionKind);
+        const indices = this.mesh.getIndices();
+        const boneWeights = this.mesh.getVerticesData(VertexBuffer.MatricesWeightsKind);
+        const boneIndices = this.mesh.getVerticesData(VertexBuffer.MatricesIndicesKind);
+        if (!positions || !indices || !boneWeights || !boneIndices) {
+            return null;
+        }
+        const min = new Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+        const max = new Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+        let found = 0;
+        for (let i = 0; i < indices.length; ++i) {
+            const vertexIndex = indices[i];
+            for (let b = 0; b < 4; ++b) {
+                const bIndex = boneIndices[vertexIndex * 4 + b];
+                const bWeight = boneWeights[vertexIndex * 4 + b];
+                if (bIndex === boneIndex && bWeight > 1e-5) {
+                    Vector3.FromArrayToRef(positions, vertexIndex * 3, TmpVectors.Vector3[0]);
+                    min.minimizeInPlace(TmpVectors.Vector3[0]);
+                    max.maximizeInPlace(TmpVectors.Vector3[0]);
+                    found++;
+                    break;
+                }
+            }
+        }
+        return found > 1
+            ? {
+                center: Vector3.Center(min, max),
+                radius: Vector3.Distance(min, max) / 2,
+            }
+            : null;
     }
     /**
      * function to build and bind sphere joint points and spur bone representations.
      * @param spheresOnly
      */
     _buildSpheresAndSpurs(spheresOnly = true) {
-        var _a, _c;
         if (this._debugMesh) {
             this._debugMesh.dispose();
             this._debugMesh = null;
             this.ready = false;
         }
         this._ready = false;
-        const utilityLayerScene = (_a = this.utilityLayer) === null || _a === void 0 ? void 0 : _a.utilityLayerScene;
+        const utilityLayerScene = this.utilityLayer?.utilityLayerScene;
         const bones = this.skeleton.bones;
         const spheres = [];
         const spurs = [];
@@ -547,7 +633,7 @@ export class SkeletonViewer {
                 this.skeleton.returnToRest();
             }
             if (this.autoUpdateBonesMatrices) {
-                this.skeleton.computeAbsoluteTransforms();
+                this.skeleton.computeAbsoluteMatrices();
             }
             let longestBoneLength = Number.NEGATIVE_INFINITY;
             const displayOptions = this.options.displayOptions || {};
@@ -557,62 +643,45 @@ export class SkeletonViewer {
                     continue;
                 }
                 const boneAbsoluteBindPoseTransform = new Matrix();
-                this._getAbsoluteBindPoseToRef(bone, boneAbsoluteBindPoseTransform);
+                bone.getAbsoluteInverseBindMatrix().invertToRef(boneAbsoluteBindPoseTransform);
                 const anchorPoint = new Vector3();
                 boneAbsoluteBindPoseTransform.decompose(undefined, undefined, anchorPoint);
-                bone.children.forEach((bc) => {
-                    const childAbsoluteBindPoseTransform = new Matrix();
-                    bc.getBaseMatrix().multiplyToRef(boneAbsoluteBindPoseTransform, childAbsoluteBindPoseTransform);
-                    const childPoint = new Vector3();
-                    childAbsoluteBindPoseTransform.decompose(undefined, undefined, childPoint);
-                    const distanceFromParent = Vector3.Distance(anchorPoint, childPoint);
-                    if (distanceFromParent > longestBoneLength) {
-                        longestBoneLength = distanceFromParent;
+                if (bone.children.length > 0) {
+                    for (const bc of bone.children) {
+                        const childAbsoluteBindPoseTransform = new Matrix();
+                        bc.getLocalMatrix().multiplyToRef(boneAbsoluteBindPoseTransform, childAbsoluteBindPoseTransform);
+                        const childPoint = new Vector3();
+                        childAbsoluteBindPoseTransform.decompose(undefined, undefined, childPoint);
+                        const distanceFromParent = Vector3.Distance(anchorPoint, childPoint);
+                        if (distanceFromParent > longestBoneLength) {
+                            longestBoneLength = distanceFromParent;
+                        }
+                        if (!spheresOnly) {
+                            spurs.push(this._createSpur(anchorPoint, bone, childPoint, bc, displayOptions, utilityLayerScene));
+                        }
                     }
-                    if (spheresOnly) {
-                        return;
-                    }
-                    const dir = childPoint.clone().subtract(anchorPoint.clone());
-                    const h = dir.length();
-                    const up = dir.normalize().scale(h);
-                    const midStep = displayOptions.midStep || 0.165;
-                    const midStepFactor = displayOptions.midStepFactor || 0.215;
-                    const up0 = up.scale(midStep);
-                    const spur = ExtrudeShapeCustom("skeletonViewer", {
-                        shape: [new Vector3(1, -1, 0), new Vector3(1, 1, 0), new Vector3(-1, 1, 0), new Vector3(-1, -1, 0), new Vector3(1, -1, 0)],
-                        path: [Vector3.Zero(), up0, up],
-                        scaleFunction: (i) => {
-                            switch (i) {
-                                case 0:
-                                case 2:
-                                    return 0;
-                                case 1:
-                                    return h * midStepFactor;
+                }
+                else {
+                    const boundingSphere = this._getBoundingSphereForBone(bone.getIndex());
+                    if (boundingSphere) {
+                        if (boundingSphere.radius > longestBoneLength) {
+                            longestBoneLength = boundingSphere.radius;
+                        }
+                        if (!spheresOnly) {
+                            let childPoint;
+                            const parentBone = bone.getParent();
+                            if (parentBone) {
+                                parentBone.getAbsoluteInverseBindMatrix().invertToRef(boneAbsoluteBindPoseTransform);
+                                boneAbsoluteBindPoseTransform.decompose(undefined, undefined, TmpVectors.Vector3[0]);
+                                childPoint = anchorPoint.subtract(TmpVectors.Vector3[0]).normalize().scale(boundingSphere.radius).add(anchorPoint);
                             }
-                            return 0;
-                        },
-                        sideOrientation: Mesh.DEFAULTSIDE,
-                        updatable: false,
-                    }, utilityLayerScene);
-                    const numVertices = spur.getTotalVertices();
-                    const mwk = [], mik = [];
-                    for (let i = 0; i < numVertices; i++) {
-                        mwk.push(1, 0, 0, 0);
-                        // Select verts at end of spur (ie vert 10 to 14) and bind to child
-                        // bone if spurFollowsChild is enabled.
-                        if (displayOptions.spurFollowsChild && i > 9) {
-                            mik.push(bc.getIndex(), 0, 0, 0);
-                        }
-                        else {
-                            mik.push(bone.getIndex(), 0, 0, 0);
+                            else {
+                                childPoint = boundingSphere.center.subtract(anchorPoint).normalize().scale(boundingSphere.radius).add(anchorPoint);
+                            }
+                            spurs.push(this._createSpur(anchorPoint, bone, childPoint, null, displayOptions, utilityLayerScene));
                         }
                     }
-                    spur.position = anchorPoint.clone();
-                    spur.setVerticesData(VertexBuffer.MatricesWeightsKind, mwk, false);
-                    spur.setVerticesData(VertexBuffer.MatricesIndicesKind, mik, false);
-                    spur.convertToFlatShadedMesh();
-                    spurs.push(spur);
-                });
+                }
                 const sphereBaseSize = displayOptions.sphereBaseSize || 0.2;
                 const sphere = CreateSphere("skeletonViewer", {
                     segments: 6,
@@ -650,7 +719,7 @@ export class SkeletonViewer {
                 this.debugMesh.renderingGroupId = this.renderingGroupId;
                 this.debugMesh.skeleton = this.skeleton;
                 this.debugMesh.parent = this.mesh;
-                this.debugMesh.computeBonesUsingShaders = (_c = this.options.computeBonesUsingShaders) !== null && _c !== void 0 ? _c : true;
+                this.debugMesh.computeBonesUsingShaders = this.options.computeBonesUsingShaders ?? true;
                 this.debugMesh.alwaysSelectAsActiveMesh = true;
             }
             const light = this.utilityLayer._getSharedGizmoLight();
@@ -659,13 +728,12 @@ export class SkeletonViewer {
             this.ready = true;
         }
         catch (err) {
-            console.error(err);
+            Logger.Error(err);
             this._revert(animationState);
             this.dispose();
         }
     }
     _buildLocalAxes() {
-        var _a;
         if (this._localAxes) {
             this._localAxes.dispose();
         }
@@ -691,7 +759,7 @@ export class SkeletonViewer {
             }
             const boneAbsoluteBindPoseTransform = new Matrix();
             const boneOrigin = new Vector3();
-            this._getAbsoluteBindPoseToRef(bone, boneAbsoluteBindPoseTransform);
+            bone.getAbsoluteInverseBindMatrix().invertToRef(boneAbsoluteBindPoseTransform);
             boneAbsoluteBindPoseTransform.decompose(undefined, TmpVectors.Quaternion[0], boneOrigin);
             const m = new Matrix();
             TmpVectors.Quaternion[0].toRotationMatrix(m);
@@ -720,7 +788,7 @@ export class SkeletonViewer {
         this._localAxes.skeleton = this.skeleton;
         this._localAxes.renderingGroupId = this.renderingGroupId + 1;
         this._localAxes.parent = this.mesh;
-        this._localAxes.computeBonesUsingShaders = (_a = this.options.computeBonesUsingShaders) !== null && _a !== void 0 ? _a : true;
+        this._localAxes.computeBonesUsingShaders = this.options.computeBonesUsingShaders ?? true;
     }
     /** Update the viewer to sync with current skeleton state, only used for the line display. */
     _displayLinesUpdate() {
@@ -728,13 +796,13 @@ export class SkeletonViewer {
             return;
         }
         if (this.autoUpdateBonesMatrices) {
-            this.skeleton.computeAbsoluteTransforms();
+            this.skeleton.computeAbsoluteMatrices();
         }
         if (this.skeleton.bones[0].length === undefined) {
             this._getLinesForBonesNoLength(this.skeleton.bones);
         }
         else {
-            this._getLinesForBonesWithLength(this.skeleton.bones, this.mesh.getWorldMatrix());
+            this._getLinesForBonesWithLength(this.skeleton.bones, this.mesh);
         }
         const targetScene = this._utilityLayer.utilityLayerScene;
         if (targetScene) {
@@ -745,7 +813,12 @@ export class SkeletonViewer {
             else {
                 CreateLineSystem("", { lines: this._debugLines, updatable: true, instance: this._debugMesh }, targetScene);
             }
-            this._debugMesh.position.copyFrom(this.mesh.position);
+            if (this.mesh) {
+                this._debugMesh.position.copyFrom(this.mesh.position);
+            }
+            else {
+                this._debugMesh.position.copyFrom(this.skeleton.bones[0].position);
+            }
             this._debugMesh.color = this.color;
         }
     }
@@ -793,6 +866,7 @@ export class SkeletonViewer {
         }
         this.update();
         this._bindObs();
+        this._isEnabled = undefined; // force the isEnabled setter to reapply (next line)
         this.isEnabled = wasEnabled;
     }
     /** Release associated resources */

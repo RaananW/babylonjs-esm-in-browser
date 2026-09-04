@@ -1,5 +1,5 @@
-import "./sceneVertexDeclaration";
-import "./meshVertexDeclaration";
+import "./sceneVertexDeclaration.js";
+import "./meshVertexDeclaration.js";
 /** @internal */
 export declare const shadowMapVertexDeclaration: {
     name: string;

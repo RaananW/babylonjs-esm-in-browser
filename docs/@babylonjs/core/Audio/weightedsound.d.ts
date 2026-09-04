@@ -1,4 +1,4 @@
-import type { Sound } from "../Audio/sound";
+import { type Sound } from "../Audio/sound.js";
 /**
  * Wraps one or more Sound objects and selects one with random weight for playback.
  */

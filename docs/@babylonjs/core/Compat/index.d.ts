@@ -1,1 +1,1 @@
-export * from "./compatibilityOptions";
+export * from "./compatibilityOptions.js";

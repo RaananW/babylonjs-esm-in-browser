@@ -1,15 +1,22 @@
-import type { IDisposable, Scene } from "../scene";
-import type { Nullable } from "../types";
-import { Observable } from "../Misc/observable";
-import { Sprite } from "./sprite";
-import { PickingInfo } from "../Collisions/pickingInfo";
-import type { Camera } from "../Cameras/camera";
-import { Texture } from "../Materials/Textures/texture";
-declare type Ray = import("../Culling/ray").Ray;
+import { type IDisposable, type Scene } from "../scene.js";
+import { type Nullable } from "../types.js";
+import { Observable } from "../Misc/observable.js";
+import { Sprite } from "./sprite.js";
+import { type InternalSpriteAugmentedScene } from "./spriteSceneComponent.pure.js";
+import { PickingInfo } from "../Collisions/pickingInfo.js";
+import { type Camera } from "../Cameras/camera.js";
+import { Texture } from "../Materials/Textures/texture.pure.js";
+import { type SpriteRendererOptions, SpriteRenderer } from "./spriteRenderer.js";
+import { type Ray } from "../Culling/ray.js";
+import { type IAssetContainer } from "../IAssetContainer.js";
 /**
  * Defines the minimum interface to fulfill in order to be a sprite manager.
  */
 export interface ISpriteManager extends IDisposable {
+    /**
+     * Gets or sets the unique id of the sprite manager
+     */
+    uniqueId: number;
     /**
      * Gets manager's name
      */
@@ -47,6 +54,10 @@ export interface ISpriteManager extends IDisposable {
     /** @internal */
     _wasDispatched: boolean;
     /**
+     * Specifies if the sprite manager should be serialized
+     */
+    doNotSerialize?: boolean;
+    /**
      * Tests the intersection of a sprite with a specific ray.
      * @param ray The ray we are sending to test the collision
      * @param camera The camera space we are sending rays in
@@ -71,6 +82,18 @@ export interface ISpriteManager extends IDisposable {
      * Rebuilds the manager (after a context lost, for eg)
      */
     rebuild(): void;
+    /**
+     * Serializes the sprite manager to a JSON object
+     * @param serializeTexture defines whether the texture must be serialized as well (false by default)
+     */
+    serialize(serializeTexture?: boolean): any;
+}
+/**
+ * Options for the SpriteManager
+ */
+export interface SpriteManagerOptions {
+    /** Options for the sprite renderer */
+    spriteRendererOptions: SpriteRendererOptions;
 }
 /**
  * Class used to manage multiple sprites on the same spritesheet
@@ -79,6 +102,8 @@ export interface ISpriteManager extends IDisposable {
 export declare class SpriteManager implements ISpriteManager {
     /** defines the manager's name */
     name: string;
+    /** @internal */
+    _parentContainer: Nullable<IAssetContainer>;
     /** Define the Url to load snippets */
     static SnippetUrl: string;
     /** Snippet ID if the manager was created from the snippet server */
@@ -110,13 +135,17 @@ export declare class SpriteManager implements ISpriteManager {
      */
     uniqueId: number;
     /**
+     * Specifies if the sprite manager should be serialized
+     */
+    doNotSerialize: boolean;
+    /**
      * Gets the array of sprites
      */
     get children(): Sprite[];
     /**
      * Gets the hosting scene
      */
-    get scene(): Scene;
+    get scene(): InternalSpriteAugmentedScene;
     /**
      * Gets the capacity of the manager
      */
@@ -135,6 +164,9 @@ export declare class SpriteManager implements ISpriteManager {
     /** Gets or sets a boolean indicating if the manager must consider scene fog when rendering */
     get fogEnabled(): boolean;
     set fogEnabled(value: boolean);
+    /** Gets or sets a boolean indicating if the manager must use logarithmic depth when rendering */
+    get useLogarithmicDepth(): boolean;
+    set useLogarithmicDepth(value: boolean);
     /**
      * Blend mode use to render the particle, it can be any of
      * the static Constants.ALPHA_x properties provided in this class.
@@ -149,6 +181,17 @@ export declare class SpriteManager implements ISpriteManager {
      */
     get disableDepthWrite(): boolean;
     set disableDepthWrite(value: boolean);
+    /**
+     * Gets or sets a boolean indicating if the renderer must render sprites with pixel perfect rendering
+     * In this mode, sprites are rendered as "pixel art", which means that they appear as pixelated but remain stable when moving or when rotated or scaled.
+     * Note that for this mode to work as expected, the sprite texture must use the BILINEAR sampling mode, not NEAREST!
+     */
+    get pixelPerfect(): boolean;
+    set pixelPerfect(value: boolean);
+    /**
+     * Gets the sprite renderer associated with this manager
+     */
+    get spriteRenderer(): SpriteRenderer;
     private _spriteRenderer;
     /** Associative array from JSON sprite data file */
     private _cellData;
@@ -171,10 +214,11 @@ export declare class SpriteManager implements ISpriteManager {
      * @param samplingMode defines the sampling mode to use with spritesheet
      * @param fromPacked set to false; do not alter
      * @param spriteJSON null otherwise a JSON object defining sprite sheet data; do not alter
+     * @param options options used to create the SpriteManager instance
      */
     constructor(
     /** defines the manager's name */
-    name: string, imgUrl: string, capacity: number, cellSize: any, scene: Scene, epsilon?: number, samplingMode?: number, fromPacked?: boolean, spriteJSON?: any | null);
+    name: string, imgUrl: string, capacity: number, cellSize: any, scene: Scene, epsilon?: number, samplingMode?: number, fromPacked?: boolean, spriteJSON?: null | string, options?: SpriteManagerOptions);
     /**
      * Returns the string "SpriteManager"
      * @returns "SpriteManager"
@@ -253,4 +297,3 @@ export declare class SpriteManager implements ISpriteManager {
      */
     static CreateFromSnippetAsync: typeof SpriteManager.ParseFromSnippetAsync;
 }
-export {};

@@ -1,7 +1,8 @@
-import type { Nullable } from "../../types";
-import type { InternalTexture } from "../../Materials/Textures/internalTexture";
-import type { ISize } from "../../Maths/math.size";
-import type { ThinEngine } from "../../Engines/thinEngine";
+import { type Nullable } from "../../types.js";
+import { type InternalTexture } from "../../Materials/Textures/internalTexture.js";
+import { type ISize } from "../../Maths/math.size.js";
+import { type AbstractEngine } from "../../Engines/abstractEngine.js";
+import { type RenderTargetWrapper } from "../../Engines/renderTargetWrapper.js";
 /**
  * Base class of all the textures in babylon.
  * It groups all the common properties required to work with Thin Engine.
@@ -72,16 +73,17 @@ export declare class ThinTexture {
     getClassName(): string;
     /** @internal */
     _texture: Nullable<InternalTexture>;
-    protected _engine: Nullable<ThinEngine>;
+    protected _engine: Nullable<AbstractEngine>;
     private _cachedSize;
     private _cachedBaseSize;
+    private static _IsRenderTargetWrapper;
     /**
      * Instantiates a new ThinTexture.
      * Base class of all the textures in babylon.
-     * This can be used as an internal texture wrapper in ThinEngine to benefit from the cache
-     * @param internalTexture Define the internalTexture to wrap
+     * This can be used as an internal texture wrapper in AbstractEngine to benefit from the cache
+     * @param internalTexture Define the internalTexture to wrap. You can also pass a RenderTargetWrapper, in which case the texture will be the render target's texture
      */
-    constructor(internalTexture: Nullable<InternalTexture>);
+    constructor(internalTexture: Nullable<InternalTexture | RenderTargetWrapper>);
     /**
      * Get if the texture is ready to be used (downloaded, converted, mip mapped...).
      * @returns true if fully ready
@@ -136,8 +138,9 @@ export declare class ThinTexture {
      *    > _min_: minification filter (far from the viewer)
      *    > _mip_: filter used between mip map levels
      *@param samplingMode Define the new sampling mode of the texture
+     *@param generateMipMaps Define if the texture should generate mip maps or not. Default is false.
      */
-    updateSamplingMode(samplingMode: number): void;
+    updateSamplingMode(samplingMode: number, generateMipMaps?: boolean): void;
     /**
      * Release and destroy the underlying lower level texture aka internalTexture.
      */

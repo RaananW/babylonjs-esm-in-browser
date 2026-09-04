@@ -1,17 +1,24 @@
-import type { VertexBuffer } from "../../Buffers/buffer.js";
-import type { DataBuffer } from "../../Buffers/dataBuffer.js";
-import type { Engine } from "../../Engines/engine.js";
-import { EffectWrapper } from "../../Materials/effectRenderer.js";
+import { type VertexBuffer } from "../../Buffers/buffer.js";
+import { type DataBuffer } from "../../Buffers/dataBuffer.js";
+import { type AbstractEngine } from "../../Engines/abstractEngine.js";
+import { EffectWrapper } from "../../Materials/effectRenderer.pure.js";
 import { Observable } from "../../Misc/observable.js";
-import type { Scene } from "../../scene.js";
-import type { Nullable } from "../../types.js";
+import { type Scene } from "../../scene.js";
+import { type Nullable } from "../../types.js";
+import { ShaderLanguage } from "../../Materials/shaderLanguage.js";
 /**
  * Defines the base object used for fluid rendering.
  * It is based on a list of vertices (particles)
  */
 export declare abstract class FluidRenderingObject {
+    /**
+     * Uses each particle's own "size" vertex attribute instead
+     * of a single uniform size for all particles (default: false, opt-in).
+     */
+    static UsePerParticleSizeAttribute: boolean;
+    protected _usesPerParticleSizeAttribute: boolean;
     protected _scene: Scene;
-    protected _engine: Engine;
+    protected _engine: AbstractEngine;
     protected _effectsAreDirty: boolean;
     protected _depthEffectWrapper: Nullable<EffectWrapper>;
     protected _thicknessEffectWrapper: Nullable<EffectWrapper>;
@@ -43,14 +50,26 @@ export declare abstract class FluidRenderingObject {
      */
     get indexBuffer(): Nullable<DataBuffer>;
     /**
-     * Gets the name of the class
+     * @returns the name of the class
      */
     getClassName(): string;
+    /** Shader language used by the object */
+    protected _shaderLanguage: ShaderLanguage;
+    /**
+     * Gets the shader language used in this object
+     */
+    get shaderLanguage(): ShaderLanguage;
     /**
      * Instantiates a fluid rendering object
      * @param scene The scene the object is part of
+     * @param shaderLanguage The shader language to use
      */
-    constructor(scene: Scene);
+    constructor(scene: Scene, shaderLanguage?: ShaderLanguage);
+    /**
+     * Override to return false if this object's buffers have an incompatible "size" layout.
+     * @returns true if the per-particle size attribute is supported
+     */
+    protected _supportsPerParticleSizeAttribute(): boolean;
     protected _createEffects(): void;
     /**
      * Indicates if the object is ready to be rendered
@@ -75,7 +94,7 @@ export declare abstract class FluidRenderingObject {
      */
     renderDiffuseTexture(): void;
     /**
-     * Releases the ressources used by the class
+     * Releases the resources used by the class
      */
     dispose(): void;
 }

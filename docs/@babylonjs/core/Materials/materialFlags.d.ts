@@ -8,12 +8,30 @@ export declare class MaterialFlags {
      */
     static get DiffuseTextureEnabled(): boolean;
     static set DiffuseTextureEnabled(value: boolean);
+    private static _BaseWeightTextureEnabled;
+    /**
+     * Is the OpenPBR Base Weight texture enabled in the application.
+     */
+    static get BaseWeightTextureEnabled(): boolean;
+    static set BaseWeightTextureEnabled(value: boolean);
+    private static _BaseDiffuseRoughnessTextureEnabled;
+    /**
+     * Is the OpenPBR Base Diffuse Roughness texture enabled in the application.
+     */
+    static get BaseDiffuseRoughnessTextureEnabled(): boolean;
+    static set BaseDiffuseRoughnessTextureEnabled(value: boolean);
     private static _DetailTextureEnabled;
     /**
      * Are detail textures enabled in the application.
      */
     static get DetailTextureEnabled(): boolean;
     static set DetailTextureEnabled(value: boolean);
+    private static _DecalMapEnabled;
+    /**
+     * Are decal maps enabled in the application.
+     */
+    static get DecalMapEnabled(): boolean;
+    static set DecalMapEnabled(value: boolean);
     private static _AmbientTextureEnabled;
     /**
      * Are ambient textures enabled in the application.
@@ -122,6 +140,12 @@ export declare class MaterialFlags {
      */
     static get TranslucencyIntensityTextureEnabled(): boolean;
     static set TranslucencyIntensityTextureEnabled(value: boolean);
+    private static _TranslucencyColorTextureEnabled;
+    /**
+     * Are translucency tint textures enabled in the application.
+     */
+    static get TranslucencyColorTextureEnabled(): boolean;
+    static set TranslucencyColorTextureEnabled(value: boolean);
     private static _IridescenceTextureEnabled;
     /**
      * Are translucency intensity textures enabled in the application.

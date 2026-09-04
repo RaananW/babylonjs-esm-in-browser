@@ -1,0 +1,1 @@
+{"version":3,"file":"lightingVolume.js","sourceRoot":"","sources":["../../../../dev/core/src/Lights/lightingVolume.ts"],"names":[],"mappings":"AAAA,cAAc,uBAAuB,CAAC;AAEtC,OAAO,yCAAyC,CAAC","sourcesContent":["export * from \"./lightingVolume.pure\";\n\nimport \"core/ShadersWGSL/lightingVolume.compute\";\n"]}

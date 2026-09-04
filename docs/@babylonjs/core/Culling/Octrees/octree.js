@@ -13,13 +13,13 @@ export class Octree {
      * @param maxDepth defines the maximum depth (sub-levels) for your octree. Default value is 2, which means 8 8 8 = 512 blocks :) (This parameter takes precedence over capacity.)
      */
     constructor(creationFunc, maxBlockCapacity, 
-    /** Defines the maximum depth (sub-levels) for your octree. Default value is 2, which means 8 8 8 = 512 blocks :) (This parameter takes precedence over capacity.) */
+    /** [2] Defines the maximum depth (sub-levels) for your octree. Default value is 2, which means 8 8 8 = 512 blocks :) (This parameter takes precedence over capacity.) */
     maxDepth = 2) {
         this.maxDepth = maxDepth;
         /**
          * Content stored in the octree
          */
-        this.dynamicContent = new Array();
+        this.dynamicContent = [];
         this._maxBlockCapacity = maxBlockCapacity || 64;
         this._selectionContent = new SmartArrayNoDuplicate(1024);
         this._creationFunc = creationFunc;
@@ -112,8 +112,8 @@ export class Octree {
 }
 /**
  * Adds a mesh into the octree block if it intersects the block
- * @param entry
- * @param block
+ * @param entry defines the mesh to try to add to the block
+ * @param block defines the block where the mesh should be added
  */
 Octree.CreationFuncForMeshes = (entry, block) => {
     const boundingInfo = entry.getBoundingInfo();
@@ -123,8 +123,8 @@ Octree.CreationFuncForMeshes = (entry, block) => {
 };
 /**
  * Adds a submesh into the octree block if it intersects the block
- * @param entry
- * @param block
+ * @param entry defines the submesh to try to add to the block
+ * @param block defines the block where the submesh should be added
  */
 Octree.CreationFuncForSubMeshes = (entry, block) => {
     const boundingInfo = entry.getBoundingInfo();

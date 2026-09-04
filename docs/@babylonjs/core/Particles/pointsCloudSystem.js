@@ -1,15 +1,15 @@
 import { Color4, Color3 } from "../Maths/math.js";
-import { Vector2, Vector3, Vector4, TmpVectors, Matrix } from "../Maths/math.vector.js";
+import { Vector2, Vector3, Vector4, TmpVectors, Matrix } from "../Maths/math.vector.pure.js";
 import { Logger } from "../Misc/logger.js";
-import { VertexBuffer } from "../Buffers/buffer.js";
+import { VertexBuffer } from "../Buffers/buffer.pure.js";
 import { VertexData } from "../Meshes/mesh.vertexData.js";
-import { Mesh } from "../Meshes/mesh.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
 import { EngineStore } from "../Engines/engineStore.js";
 import { CloudPoint, PointsGroup } from "./cloudPoint.js";
-import { Ray } from "../Culling/ray.js";
-import { StandardMaterial } from "../Materials/standardMaterial.js";
-import { BaseTexture } from "./../Materials/Textures/baseTexture.js";
-import { Scalar } from "../Maths/math.scalar.js";
+import { Ray } from "../Culling/ray.pure.js";
+import { StandardMaterial } from "../Materials/standardMaterial.pure.js";
+import { BaseTexture } from "./../Materials/Textures/baseTexture.pure.js";
+import { RandomRange } from "../Maths/math.scalar.functions.js";
 /** Defines the 4 color options */
 export var PointColor;
 (function (PointColor) {
@@ -33,13 +33,30 @@ export var PointColor;
  */
 export class PointsCloudSystem {
     /**
+     * Gets the particle positions computed by the Point Cloud System
+     */
+    get positions() {
+        return this._positions32;
+    }
+    /**
+     * Gets the particle colors computed by the Point Cloud System
+     */
+    get colors() {
+        return this._colors32;
+    }
+    /**
+     * Gets the particle uvs computed by the Point Cloud System
+     */
+    get uvs() {
+        return this._uvs32;
+    }
+    /**
      * Creates a PCS (Points Cloud System) object
      * @param name (String) is the PCS name, this will be the underlying mesh name
      * @param pointSize (number) is the size for each point. Has no effect on a WebGPU engine.
      * @param scene (Scene) is the scene in which the PCS is added
      * @param options defines the options of the PCS e.g.
      * * updatable (optional boolean, default true) : if the PCS must be updatable or immutable
-     * @param options.updatable
      */
     constructor(name, pointSize, scene, options) {
         /**
@@ -87,39 +104,17 @@ export class PointsCloudSystem {
         }
     }
     /**
-     * Gets the particle positions computed by the Point Cloud System
-     */
-    get positions() {
-        return this._positions32;
-    }
-    /**
-     * Gets the particle colors computed by the Point Cloud System
-     */
-    get colors() {
-        return this._colors32;
-    }
-    /**
-     * Gets the particle uvs computed by the Point Cloud System
-     */
-    get uvs() {
-        return this._uvs32;
-    }
-    /**
      * Builds the PCS underlying mesh. Returns a standard Mesh.
      * If no points were added to the PCS, the returned mesh is just a single point.
      * @param material The material to use to render the mesh. If not provided, will create a default one
      * @returns a promise for the created mesh
      */
-    buildMeshAsync(material) {
-        return Promise.all(this._promises).then(() => {
-            this._isReady = true;
-            return this._buildMesh(material);
-        });
+    async buildMeshAsync(material) {
+        await Promise.all(this._promises);
+        this._isReady = true;
+        return await this._buildMeshAsync(material);
     }
-    /**
-     * @internal
-     */
-    _buildMesh(material) {
+    async _buildMeshAsync(material) {
         if (this.nbParticles === 0) {
             this.addPoints(1);
         }
@@ -155,7 +150,7 @@ export class PointsCloudSystem {
             mat.pointSize = this._size;
         }
         mesh.material = mat;
-        return new Promise((resolve) => resolve(mesh));
+        return mesh;
     }
     // adds a new particle object in the particles array
     _addParticle(idx, group, groupId, idxInGroup) {
@@ -181,7 +176,8 @@ export class PointsCloudSystem {
         const alphaForCoord = imageData[alphaIndex];
         return new Color4(redForCoord / 255, greenForCoord / 255, blueForCoord / 255, alphaForCoord);
     }
-    _setPointsColorOrUV(mesh, pointsGroup, isVolume, colorFromTexture, hasTexture, color, range) {
+    _setPointsColorOrUV(mesh, pointsGroup, isVolume, colorFromTexture, hasTexture, color, range, uvSetIndex) {
+        uvSetIndex = uvSetIndex ?? 0;
         if (isVolume) {
             mesh.updateFacetData();
         }
@@ -189,7 +185,7 @@ export class PointsCloudSystem {
         const diameter = 2 * boundInfo.boundingSphere.radius;
         let meshPos = mesh.getVerticesData(VertexBuffer.PositionKind);
         const meshInd = mesh.getIndices();
-        const meshUV = mesh.getVerticesData(VertexBuffer.UVKind);
+        const meshUV = mesh.getVerticesData(VertexBuffer.UVKind + (uvSetIndex ? uvSetIndex + 1 : ""));
         const meshCol = mesh.getVerticesData(VertexBuffer.ColorKind);
         const place = Vector3.Zero();
         mesh.computeWorldMatrix();
@@ -203,68 +199,68 @@ export class PointsCloudSystem {
                 meshPos[3 * p + 2] = place.z;
             }
         }
-        let idxPoints = 0;
-        let id0 = 0;
-        let id1 = 0;
-        let id2 = 0;
-        let v0X = 0;
-        let v0Y = 0;
-        let v0Z = 0;
-        let v1X = 0;
-        let v1Y = 0;
-        let v1Z = 0;
-        let v2X = 0;
-        let v2Y = 0;
-        let v2Z = 0;
+        let idxPoints;
+        let id0;
+        let id1;
+        let id2;
+        let v0X;
+        let v0Y;
+        let v0Z;
+        let v1X;
+        let v1Y;
+        let v1Z;
+        let v2X;
+        let v2Y;
+        let v2Z;
         const vertex0 = Vector3.Zero();
         const vertex1 = Vector3.Zero();
         const vertex2 = Vector3.Zero();
         const vec0 = Vector3.Zero();
         const vec1 = Vector3.Zero();
-        let uv0X = 0;
-        let uv0Y = 0;
-        let uv1X = 0;
-        let uv1Y = 0;
-        let uv2X = 0;
-        let uv2Y = 0;
+        let uv0X;
+        let uv0Y;
+        let uv1X;
+        let uv1Y;
+        let uv2X;
+        let uv2Y;
         const uv0 = Vector2.Zero();
         const uv1 = Vector2.Zero();
         const uv2 = Vector2.Zero();
         const uvec0 = Vector2.Zero();
         const uvec1 = Vector2.Zero();
-        let col0X = 0;
-        let col0Y = 0;
-        let col0Z = 0;
-        let col0A = 0;
-        let col1X = 0;
-        let col1Y = 0;
-        let col1Z = 0;
-        let col1A = 0;
-        let col2X = 0;
-        let col2Y = 0;
-        let col2Z = 0;
-        let col2A = 0;
+        let col0X;
+        let col0Y;
+        let col0Z;
+        let col0A;
+        let col1X;
+        let col1Y;
+        let col1Z;
+        let col1A;
+        let col2X;
+        let col2Y;
+        let col2Z;
+        let col2A;
         const col0 = Vector4.Zero();
         const col1 = Vector4.Zero();
         const col2 = Vector4.Zero();
         const colvec0 = Vector4.Zero();
         const colvec1 = Vector4.Zero();
-        let lamda = 0;
-        let mu = 0;
+        let lamda;
+        let mu;
         range = range ? range : 0;
         let facetPoint;
         let uvPoint;
-        let colPoint = new Vector4(0, 0, 0, 0);
-        let norm = Vector3.Zero();
-        let tang = Vector3.Zero();
-        let biNorm = Vector3.Zero();
-        let angle = 0;
-        let facetPlaneVec = Vector3.Zero();
-        let gap = 0;
-        let distance = 0;
+        let colPoint = new Vector4(0, 0, 0, 1);
+        let norm;
+        let tang;
+        let biNorm;
+        let angle;
+        let facetPlaneVec;
+        let gap;
+        let distance;
         const ray = new Ray(Vector3.Zero(), new Vector3(1, 0, 0));
         let pickInfo;
-        let direction = Vector3.Zero();
+        let direction;
         for (let index = 0; index < meshInd.length / 3; index++) {
             id0 = meshInd[3 * index];
             id1 = meshInd[3 * index + 1];
@@ -332,16 +328,16 @@ export class PointsCloudSystem {
                 this._addParticle(idxPoints, pointsGroup, this._groupCounter, index + i);
                 particle = this.particles[idxPoints];
                 //form a point inside the facet v0, v1, v2;
-                lamda = Scalar.RandomRange(0, 1);
-                mu = Scalar.RandomRange(0, 1);
+                lamda = Math.sqrt(RandomRange(0, 1));
+                mu = RandomRange(0, 1);
                 facetPoint = vertex0.add(vec0.scale(lamda)).add(vec1.scale(lamda * mu));
                 if (isVolume) {
                     norm = mesh.getFacetNormal(index).normalize().scale(-1);
                     tang = vec0.clone().normalize();
                     biNorm = Vector3.Cross(norm, tang);
-                    angle = Scalar.RandomRange(0, 2 * Math.PI);
+                    angle = RandomRange(0, 2 * Math.PI);
                     facetPlaneVec = tang.scale(Math.cos(angle)).add(biNorm.scale(Math.sin(angle)));
-                    angle = Scalar.RandomRange(0.1, Math.PI / 2);
+                    angle = RandomRange(0.1, Math.PI / 2);
                     direction = facetPlaneVec.scale(Math.cos(angle)).add(norm.scale(Math.sin(angle)));
                     ray.origin = facetPoint.add(direction.scale(0.00001));
                     ray.direction = direction;
@@ -349,7 +345,7 @@ export class PointsCloudSystem {
                     pickInfo = ray.intersectsMesh(mesh);
                     if (pickInfo.hit) {
                         distance = pickInfo.pickedPoint.subtract(facetPoint).length();
-                        gap = Scalar.RandomRange(0, 1) * distance;
+                        gap = RandomRange(0, 1) * distance;
                         facetPoint.addInPlace(direction.scale(gap));
                     }
                 }
@@ -391,8 +387,8 @@ export class PointsCloudSystem {
                 else {
                     if (color) {
                         statedColor.set(color.r, color.g, color.b);
-                        deltaS = Scalar.RandomRange(-range, range);
-                        deltaV = Scalar.RandomRange(-range, range);
+                        deltaS = RandomRange(-range, range);
+                        deltaV = RandomRange(-range, range);
                         hsvCol = statedColor.toHSV();
                         h = hsvCol.r;
                         s = hsvCol.g + deltaS;
@@ -452,7 +448,7 @@ export class PointsCloudSystem {
                 const finalize = () => {
                     pointsGroup._groupImgWidth = textureList[n].getSize().width;
                     pointsGroup._groupImgHeight = textureList[n].getSize().height;
-                    this._setPointsColorOrUV(clone, pointsGroup, isVolume, true, true);
+                    this._setPointsColorOrUV(clone, pointsGroup, isVolume, true, true, undefined, undefined, textureList[n].coordinatesIndex);
                     clone.dispose();
                     resolve();
                 };
@@ -462,6 +458,7 @@ export class PointsCloudSystem {
                     finalize();
                 }
                 else {
+                    // eslint-disable-next-line @typescript-eslint/no-floating-promises, github/no-then
                     dataPromise.then((data) => {
                         pointsGroup._groupImageData = data;
                         finalize();
@@ -472,7 +469,6 @@ export class PointsCloudSystem {
     }
     // calculates the point density per facet of a mesh for surface points
     _calculateDensity(nbPoints, positions, indices) {
-        let density = new Array();
         let id0;
         let id1;
         let id2;
@@ -490,13 +486,9 @@ export class PointsCloudSystem {
         const vertex2 = Vector3.Zero();
         const vec0 = Vector3.Zero();
         const vec1 = Vector3.Zero();
-        const vec2 = Vector3.Zero();
-        let a; //length of side of triangle
-        let b; //length of side of triangle
-        let c; //length of side of triangle
-        let p; //perimeter of triangle
+        const normal = Vector3.Zero();
         let area;
-        const areas = new Array();
+        const cumulativeAreas = [];
         let surfaceArea = 0;
         const nbFacets = indices.length / 3;
         //surface area
@@ -518,29 +510,31 @@ export class PointsCloudSystem {
             vertex2.set(v2X, v2Y, v2Z);
             vertex1.subtractToRef(vertex0, vec0);
             vertex2.subtractToRef(vertex1, vec1);
-            vertex2.subtractToRef(vertex0, vec2);
-            a = vec0.length();
-            b = vec1.length();
-            c = vec2.length();
-            p = (a + b + c) / 2;
-            area = Math.sqrt(p * (p - a) * (p - b) * (p - c));
+            Vector3.CrossToRef(vec0, vec1, normal);
+            area = 0.5 * normal.length();
             surfaceArea += area;
-            areas[index] = area;
+            cumulativeAreas[index] = surfaceArea;
         }
-        let pointCount = 0;
-        for (let index = 0; index < nbFacets; index++) {
-            density[index] = Math.floor((nbPoints * areas[index]) / surfaceArea);
-            pointCount += density[index];
+        const density = new Array(nbFacets);
+        let remainingPoints = nbPoints;
+        for (let index = nbFacets - 1; index > 0; index--) {
+            const cumulativeArea = cumulativeAreas[index];
+            if (cumulativeArea === 0) {
+                // avoiding division by 0 upon degenerate triangles
+                density[index] = 0;
+            }
+            else {
+                const area = cumulativeArea - cumulativeAreas[index - 1];
+                const facetPointsWithFraction = (area / cumulativeArea) * remainingPoints;
+                const floored = Math.floor(facetPointsWithFraction);
+                const fraction = facetPointsWithFraction - floored;
+                const extraPoint = Number(Math.random() < fraction);
+                const facetPoints = floored + extraPoint;
+                density[index] = facetPoints;
+                remainingPoints -= facetPoints;
+            }
         }
-        const diff = nbPoints - pointCount;
-        const pointsPerFacet = Math.floor(diff / nbFacets);
-        const extraPoints = diff % nbFacets;
-        if (pointsPerFacet > 0) {
-            density = density.map((x) => x + pointsPerFacet);
-        }
-        for (let index = 0; index < extraPoints; index++) {
-            density[index] += 1;
-        }
+        density[0] = remainingPoints;
         return density;
     }
     /**
@@ -582,32 +576,32 @@ export class PointsCloudSystem {
      * @returns the number of groups in the system
      */
     addSurfacePoints(mesh, nb, colorWith, color, range) {
-        let colored = colorWith ? colorWith : PointColor.Random;
+        let colored = colorWith ? colorWith : 0 /* PointColor.Random */;
         if (isNaN(colored) || colored < 0 || colored > 3) {
-            colored = PointColor.Random;
+            colored = 0 /* PointColor.Random */;
         }
         const meshPos = mesh.getVerticesData(VertexBuffer.PositionKind);
         const meshInd = mesh.getIndices();
         this._groups.push(this._groupCounter);
         const pointsGroup = new PointsGroup(this._groupCounter, null);
         pointsGroup._groupDensity = this._calculateDensity(nb, meshPos, meshInd);
-        if (colored === PointColor.Color) {
+        if (colored === 2 /* PointColor.Color */) {
             pointsGroup._textureNb = color ? color : 0;
         }
         else {
             color = color ? color : new Color4(1, 1, 1, 1);
         }
         switch (colored) {
-            case PointColor.Color:
+            case 2 /* PointColor.Color */:
                 this._colorFromTexture(mesh, pointsGroup, false);
                 break;
-            case PointColor.UV:
+            case 1 /* PointColor.UV */:
                 this._setPointsColorOrUV(mesh, pointsGroup, false, false, false);
                 break;
-            case PointColor.Random:
+            case 0 /* PointColor.Random */:
                 this._setPointsColorOrUV(mesh, pointsGroup, false);
                 break;
-            case PointColor.Stated:
+            case 3 /* PointColor.Stated */:
                 this._setPointsColorOrUV(mesh, pointsGroup, false, undefined, undefined, color, range);
                 break;
         }
@@ -625,32 +619,32 @@ export class PointsCloudSystem {
      * @returns the number of groups in the system
      */
     addVolumePoints(mesh, nb, colorWith, color, range) {
-        let colored = colorWith ? colorWith : PointColor.Random;
+        let colored = colorWith ? colorWith : 0 /* PointColor.Random */;
         if (isNaN(colored) || colored < 0 || colored > 3) {
-            colored = PointColor.Random;
+            colored = 0 /* PointColor.Random */;
         }
         const meshPos = mesh.getVerticesData(VertexBuffer.PositionKind);
         const meshInd = mesh.getIndices();
         this._groups.push(this._groupCounter);
         const pointsGroup = new PointsGroup(this._groupCounter, null);
         pointsGroup._groupDensity = this._calculateDensity(nb, meshPos, meshInd);
-        if (colored === PointColor.Color) {
+        if (colored === 2 /* PointColor.Color */) {
             pointsGroup._textureNb = color ? color : 0;
         }
         else {
             color = color ? color : new Color4(1, 1, 1, 1);
         }
         switch (colored) {
-            case PointColor.Color:
+            case 2 /* PointColor.Color */:
                 this._colorFromTexture(mesh, pointsGroup, true);
                 break;
-            case PointColor.UV:
+            case 1 /* PointColor.UV */:
                 this._setPointsColorOrUV(mesh, pointsGroup, true, false, false);
                 break;
-            case PointColor.Random:
+            case 0 /* PointColor.Random */:
                 this._setPointsColorOrUV(mesh, pointsGroup, true);
                 break;
-            case PointColor.Stated:
+            case 3 /* PointColor.Stated */:
                 this._setPointsColorOrUV(mesh, pointsGroup, true, undefined, undefined, color, range);
                 break;
         }
@@ -668,7 +662,6 @@ export class PointsCloudSystem {
      * @returns the PCS.
      */
     setParticles(start = 0, end = this.nbParticles - 1, update = true) {
-        var _a, _b;
         if (!this._updatable || !this._isReady) {
             return this;
         }
@@ -686,25 +679,24 @@ export class PointsCloudSystem {
         const minimum = tempVectors[8].setAll(Number.MAX_VALUE);
         const maximum = tempVectors[9].setAll(-Number.MAX_VALUE);
         Matrix.IdentityToRef(rotMatrix);
-        let idx = 0; // current index of the particle
-        if ((_a = this.mesh) === null || _a === void 0 ? void 0 : _a.isFacetDataEnabled) {
+        let idx; // current index of the particle
+        if (this.mesh?.isFacetDataEnabled) {
             this._computeBoundingBox = true;
         }
         end = end >= this.nbParticles ? this.nbParticles - 1 : end;
         if (this._computeBoundingBox) {
             if (start != 0 || end != this.nbParticles - 1) {
                 // only some particles are updated, then use the current existing BBox basis. Note : it can only increase.
-                const boundingInfo = (_b = this.mesh) === null || _b === void 0 ? void 0 : _b.getBoundingInfo();
+                const boundingInfo = this.mesh?.getBoundingInfo();
                 if (boundingInfo) {
                     minimum.copyFrom(boundingInfo.minimum);
                     maximum.copyFrom(boundingInfo.maximum);
                 }
             }
         }
-        idx = 0; // particle index
-        let pindex = 0; //index in positions array
-        let cindex = 0; //index in color array
-        let uindex = 0; //index in uv array
+        let pindex; //index in positions array
+        let cindex; //index in color array
+        let uindex; //index in uv array
         // particle loop
         for (let p = start; p <= end; p++) {
             const particle = this.particles[p];
@@ -838,8 +830,7 @@ export class PointsCloudSystem {
      * Disposes the PCS.
      */
     dispose() {
-        var _a;
-        (_a = this.mesh) === null || _a === void 0 ? void 0 : _a.dispose();
+        this.mesh?.dispose();
         this.vars = null;
         // drop references to internal big arrays for the GC
         this._positions = null;
@@ -858,9 +849,8 @@ export class PointsCloudSystem {
      * @returns the PCS.
      */
     refreshVisibleSize() {
-        var _a;
         if (!this._isVisibilityBoxLocked) {
-            (_a = this.mesh) === null || _a === void 0 ? void 0 : _a.refreshBoundingInfo();
+            this.mesh?.refreshBoundingInfo();
         }
         return this;
     }

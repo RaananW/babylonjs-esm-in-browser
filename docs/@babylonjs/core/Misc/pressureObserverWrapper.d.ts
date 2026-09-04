@@ -1,4 +1,4 @@
-import { Observable } from "./observable";
+import { Observable } from "./observable.js";
 /**
  * A wrapper for the experimental pressure api which allows a callback to be called whenever certain thresholds are met.
  */

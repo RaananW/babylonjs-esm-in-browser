@@ -1,3 +1,3 @@
-export * from "./cannonJSPlugin";
-export * from "./ammoJSPlugin";
-export * from "./oimoJSPlugin";
+export * from "./cannonJSPlugin.js";
+export * from "./ammoJSPlugin.js";
+export * from "./oimoJSPlugin.js";

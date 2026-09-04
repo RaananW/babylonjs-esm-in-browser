@@ -1,5 +1,5 @@
-import { Vector3 } from "../Maths/math.vector.js";
-import { CreateLines } from "../Meshes/Builders/linesBuilder.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { CreateLines } from "../Meshes/Builders/linesBuilder.pure.js";
 /**
  * As raycast might be hard to debug, the RayHelper can help rendering the different rays
  * in order to better appreciate the issue one might have.
@@ -7,18 +7,8 @@ import { CreateLines } from "../Meshes/Builders/linesBuilder.js";
  */
 export class RayHelper {
     /**
-     * Instantiate a new ray helper.
-     * As raycast might be hard to debug, the RayHelper can help rendering the different rays
-     * in order to better appreciate the issue one might have.
-     * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/interactions/picking_collisions#debugging
-     * @param ray Defines the ray we are currently tryin to visualize
-     */
-    constructor(ray) {
-        this.ray = ray;
-    }
-    /**
      * Helper function to create a colored helper in a scene in one line.
-     * @param ray Defines the ray we are currently tryin to visualize
+     * @param ray Defines the ray we are currently trying to visualize
      * @param scene Defines the scene the ray is used in
      * @param color Defines the color we want to see the ray in
      * @returns The newly created ray helper.
@@ -29,6 +19,16 @@ export class RayHelper {
         return helper;
     }
     /**
+     * Instantiate a new ray helper.
+     * As raycast might be hard to debug, the RayHelper can help rendering the different rays
+     * in order to better appreciate the issue one might have.
+     * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/interactions/picking_collisions#debugging
+     * @param ray Defines the ray we are currently trying to visualize
+     */
+    constructor(ray) {
+        this.ray = ray;
+    }
+    /**
      * Shows the ray we are willing to debug.
      * @param scene Defines the scene the ray needs to be rendered in
      * @param color Defines the color the ray needs to be rendered in
@@ -36,7 +36,7 @@ export class RayHelper {
     show(scene, color) {
         if (!this._renderFunction && this.ray) {
             const ray = this.ray;
-            this._renderFunction = this._render.bind(this);
+            this._renderFunction = () => this._render();
             this._scene = scene;
             this._renderPoints = [ray.origin, ray.origin.add(ray.direction.scale(ray.length))];
             this._renderLine = CreateLines("ray", { points: this._renderPoints, updatable: true }, scene);
@@ -65,7 +65,6 @@ export class RayHelper {
         }
     }
     _render() {
-        var _a;
         const ray = this.ray;
         if (!ray) {
             return;
@@ -77,7 +76,7 @@ export class RayHelper {
         point.addInPlace(ray.origin);
         this._renderPoints[0].copyFrom(ray.origin);
         CreateLines("ray", { points: this._renderPoints, updatable: true, instance: this._renderLine }, this._scene);
-        (_a = this._renderLine) === null || _a === void 0 ? void 0 : _a.refreshBoundingInfo();
+        this._renderLine?.refreshBoundingInfo();
     }
     /**
      * Attach a ray helper to a mesh so that we can easily see its orientation for instance or information like its normals.

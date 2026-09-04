@@ -1,4 +1,6 @@
-import { Tools } from "../../Misc/tools.js";
+import { Tools } from "../../Misc/tools.pure.js";
+let NumberOfWorkers = 0;
+let WorkerTimeout = null;
 /**
  * Meshopt compression (https://github.com/zeux/meshoptimizer)
  *
@@ -23,16 +25,6 @@ import { Tools } from "../../Misc/tools.js";
  */
 export class MeshoptCompression {
     /**
-     * Constructor
-     */
-    constructor() {
-        const decoder = MeshoptCompression.Configuration.decoder;
-        this._decoderModulePromise = Tools.LoadScriptAsync(Tools.GetAbsoluteUrl(decoder.url)).then(() => {
-            // Wait for WebAssembly compilation before resolving promise
-            return MeshoptDecoder.ready;
-        });
-    }
-    /**
      * Default instance for the meshoptimizer object.
      */
     static get Default() {
@@ -40,6 +32,17 @@ export class MeshoptCompression {
             MeshoptCompression._Default = new MeshoptCompression();
         }
         return MeshoptCompression._Default;
+    }
+    /**
+     * Constructor
+     */
+    constructor() {
+        const decoder = MeshoptCompression.Configuration.decoder;
+        // eslint-disable-next-line github/no-then
+        this._decoderModulePromise = Tools.LoadBabylonScriptAsync(decoder.url).then(() => {
+            // Wait for WebAssembly compilation before resolving promise
+            return MeshoptDecoder.ready;
+        });
     }
     /**
      * Stop all async operations and release resources.
@@ -57,25 +60,36 @@ export class MeshoptCompression {
      * @param filter The compression filter.
      * @returns a Promise<Uint8Array> that resolves to the decoded data
      */
-    decodeGltfBufferAsync(source, count, stride, mode, filter) {
-        return this._decoderModulePromise.then(() => {
-            const result = new Uint8Array(count * stride);
-            MeshoptDecoder.decodeGltfBuffer(result, count, stride, source, mode, filter);
-            return result;
-        });
+    async decodeGltfBufferAsync(source, count, stride, mode, filter) {
+        await this._decoderModulePromise;
+        if (NumberOfWorkers === 0) {
+            MeshoptDecoder.useWorkers(1);
+            NumberOfWorkers = 1;
+        }
+        const result = await MeshoptDecoder.decodeGltfBufferAsync(count, stride, source, mode, filter);
+        // a simple debounce to avoid switching back and forth between workers and no workers while decoding
+        if (WorkerTimeout !== null) {
+            clearTimeout(WorkerTimeout);
+        }
+        WorkerTimeout = setTimeout(() => {
+            MeshoptDecoder.useWorkers(0);
+            NumberOfWorkers = 0;
+            WorkerTimeout = null;
+        }, 1000);
+        return result;
     }
 }
 /**
  * The configuration. Defaults to the following:
  * ```javascript
  * decoder: {
- *   url: "https://preview.babylonjs.com/meshopt_decoder.js"
+ *   url: "https://cdn.babylonjs.com/meshopt_decoder.js"
  * }
  * ```
  */
 MeshoptCompression.Configuration = {
     decoder: {
-        url: "https://preview.babylonjs.com/meshopt_decoder.js",
+        url: `${Tools._DefaultCdnUrl}/meshopt_decoder.js`,
     },
 };
 MeshoptCompression._Default = null;

@@ -1,10 +1,10 @@
-import type { Scene } from "../scene";
-import { TransformNode } from "../Meshes/transformNode";
-import { Mesh } from "../Meshes/mesh";
-import { Texture } from "../Materials/Textures/texture";
-import { BackgroundMaterial } from "../Materials/Background/backgroundMaterial";
-import type { Nullable } from "../types";
-import { Observable } from "../Misc/observable";
+import { type Scene } from "../scene.js";
+import { TransformNode } from "../Meshes/transformNode.pure.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
+import { Texture } from "../Materials/Textures/texture.pure.js";
+import { BackgroundMaterial } from "../Materials/Background/backgroundMaterial.pure.js";
+import { type Nullable } from "../types.js";
+import { Observable } from "../Misc/observable.js";
 /**
  * Display a 360/180 degree texture on an approximately spherical surface, useful for VR applications or skyboxes.
  * As a subclass of TransformNode, this allow parenting to the camera or multiple textures with different locations in the scene.

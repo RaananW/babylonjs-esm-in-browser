@@ -8,16 +8,18 @@ export class StorageBuffer {
      * @param engine The engine the buffer will be created inside
      * @param size The size of the buffer in bytes
      * @param creationFlags flags to use when creating the buffer (see undefined). The BUFFER_CREATIONFLAG_STORAGE flag will be automatically added.
+     * @param label defines the label of the buffer (for debug purpose)
      */
-    constructor(engine, size, creationFlags = 3) {
+    constructor(engine, size, creationFlags = 3, label) {
         this._engine = engine;
+        this._label = label;
         this._engine._storageBuffers.push(this);
         this._create(size, creationFlags);
     }
     _create(size, creationFlags) {
         this._bufferSize = size;
         this._creationFlags = creationFlags;
-        this._buffer = this._engine.createStorageBuffer(size, creationFlags);
+        this._buffer = this._engine.createStorageBuffer(size, creationFlags, this._label);
     }
     /** @internal */
     _rebuild() {
@@ -29,6 +31,14 @@ export class StorageBuffer {
      */
     getBuffer() {
         return this._buffer;
+    }
+    /**
+     * Clears the storage buffer to zeros
+     * @param byteOffset the byte offset to start clearing (optional)
+     * @param byteLength the byte length to clear (optional)
+     */
+    clear(byteOffset, byteLength) {
+        this._engine.clearStorageBuffer(this._buffer, byteOffset, byteLength);
     }
     /**
      * Updates the storage buffer
@@ -47,10 +57,12 @@ export class StorageBuffer {
      * @param offset The offset in the storage buffer to start reading from (default: 0)
      * @param size  The number of bytes to read from the storage buffer (default: capacity of the buffer)
      * @param buffer The buffer to write the data we have read from the storage buffer to (optional)
+     * @param noDelay If true, a call to flushFramebuffer will be issued so that the data can be read back immediately. This can speed up data retrieval, at the cost of a small perf penalty (default: false).
      * @returns If not undefined, returns the (promise) buffer (as provided by the 4th parameter) filled with the data, else it returns a (promise) Uint8Array with the data read from the storage buffer
      */
-    read(offset, size, buffer) {
-        return this._engine.readFromStorageBuffer(this._buffer, offset, size, buffer);
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    async read(offset, size, buffer, noDelay) {
+        return await this._engine.readFromStorageBuffer(this._buffer, offset, size, buffer, noDelay);
     }
     /**
      * Disposes the storage buffer

@@ -25,7 +25,10 @@ SceneComponentConstants.NAME_OCTREE = "Octree";
 SceneComponentConstants.NAME_PHYSICSENGINE = "PhysicsEngine";
 SceneComponentConstants.NAME_AUDIO = "Audio";
 SceneComponentConstants.NAME_FLUIDRENDERER = "FluidRenderer";
+SceneComponentConstants.NAME_IBLCDFGENERATOR = "iblCDFGenerator";
+SceneComponentConstants.NAME_CLUSTEREDLIGHTING = "ClusteredLighting";
 SceneComponentConstants.STEP_ISREADYFORMESH_EFFECTLAYER = 0;
+SceneComponentConstants.STEP_ISREADYFORMESH_DEPTHRENDERER = 1;
 SceneComponentConstants.STEP_BEFOREEVALUATEACTIVEMESH_BOUNDINGBOXRENDERER = 0;
 SceneComponentConstants.STEP_EVALUATESUBMESH_BOUNDINGBOXRENDERER = 0;
 SceneComponentConstants.STEP_PREACTIVEMESH_BOUNDINGBOXRENDERER = 0;
@@ -42,7 +45,6 @@ SceneComponentConstants.STEP_AFTERRENDERINGMESH_OUTLINE = 1;
 SceneComponentConstants.STEP_AFTERRENDERINGGROUPDRAW_EFFECTLAYER_DRAW = 0;
 SceneComponentConstants.STEP_AFTERRENDERINGGROUPDRAW_BOUNDINGBOXRENDERER = 1;
 SceneComponentConstants.STEP_BEFORECAMERAUPDATE_SIMPLIFICATIONQUEUE = 0;
-SceneComponentConstants.STEP_BEFORECAMERAUPDATE_GAMEPAD = 1;
 SceneComponentConstants.STEP_BEFORECLEAR_PROCEDURALTEXTURE = 0;
 SceneComponentConstants.STEP_BEFORECLEAR_PREPASS = 1;
 SceneComponentConstants.STEP_BEFORERENDERTARGETCLEAR_PREPASS = 0;
@@ -63,6 +65,7 @@ SceneComponentConstants.STEP_GATHERRENDERTARGETS_SHADOWGENERATOR = 2;
 SceneComponentConstants.STEP_GATHERRENDERTARGETS_POSTPROCESSRENDERPIPELINEMANAGER = 3;
 SceneComponentConstants.STEP_GATHERACTIVECAMERARENDERTARGETS_DEPTHRENDERER = 0;
 SceneComponentConstants.STEP_GATHERACTIVECAMERARENDERTARGETS_FLUIDRENDERER = 1;
+SceneComponentConstants.STEP_GATHERACTIVECAMERARENDERTARGETS_CLUSTEREDLIGHTING = 2;
 SceneComponentConstants.STEP_POINTERMOVE_SPRITE = 0;
 SceneComponentConstants.STEP_POINTERDOWN_SPRITE = 0;
 SceneComponentConstants.STEP_POINTERUP_SPRITE = 0;
@@ -93,7 +96,7 @@ export class Stage extends Array {
      */
     registerStep(index, component, action) {
         let i = 0;
-        let maxIndex = Number.MAX_VALUE;
+        let maxIndex;
         for (; i < this.length; i++) {
             const step = this[i];
             maxIndex = step.index;

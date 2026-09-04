@@ -1,11 +1,11 @@
-import { Vector3 } from "../../Maths/math.vector.js";
-import { Color4 } from "../../Maths/math.color.js";
-import { Mesh } from "../../Meshes/mesh.js";
+import { Vector3 } from "../../Maths/math.vector.pure.js";
+import { Color4 } from "../../Maths/math.color.pure.js";
+import { Mesh } from "../../Meshes/mesh.pure.js";
 import { VertexData } from "../mesh.vertexData.js";
 import { Logger } from "../../Misc/logger.js";
 import { _PrimaryIsoTriangle, GeodesicData } from "../geodesicMesh.js";
-import { GoldbergMesh } from "../goldbergMesh.js";
-import { CompatibilityOptions } from "../../Compat/compatibilityOptions.js";
+import { GoldbergMesh } from "../goldbergMesh.pure.js";
+import { useOpenGLOrientationForUV } from "../../Compat/compatibilityOptions.js";
 /**
  * Creates the Mesh for a Goldberg Polyhedron
  * @param options an object used to set the following optional parameters for the polyhedron, required but can be empty
@@ -18,10 +18,10 @@ export function CreateGoldbergVertexData(options, goldbergData) {
     const sizeY = options.sizeY || size || 1;
     const sizeZ = options.sizeZ || size || 1;
     const sideOrientation = options.sideOrientation === 0 ? 0 : options.sideOrientation || VertexData.DEFAULTSIDE;
-    const positions = new Array();
-    const indices = new Array();
-    const normals = new Array();
-    const uvs = new Array();
+    const positions = [];
+    const indices = [];
+    const normals = [];
+    const uvs = [];
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
@@ -46,7 +46,7 @@ export function CreateGoldbergVertexData(options, goldbergData) {
             const pdata = goldbergData.vertex[verts[v]];
             positions.push(pdata[0] * sizeX, pdata[1] * sizeY, pdata[2] * sizeZ);
             const vCoord = (pdata[1] * sizeY - minY) / (maxY - minY);
-            uvs.push((pdata[0] * sizeX - minX) / (maxX - minX), CompatibilityOptions.UseOpenGLOrientationForUV ? 1 - vCoord : vCoord);
+            uvs.push((pdata[0] * sizeX - minX) / (maxX - minX), useOpenGLOrientationForUV ? 1 - vCoord : vCoord);
         }
         for (let v = 0; v < verts.length - 2; v++) {
             indices.push(index, index + v + 2, index + v + 1);
@@ -77,12 +77,12 @@ export function CreateGoldberg(name, options, scene = null) {
     const sizeZ = options.sizeZ || size || 1;
     let m = options.m || 1;
     if (m !== Math.floor(m)) {
-        m === Math.floor(m);
+        m = Math.floor(m);
         Logger.Warn("m not an integer only floor(m) used");
     }
     let n = options.n || 0;
     if (n !== Math.floor(n)) {
-        n === Math.floor(n);
+        n = Math.floor(n);
         Logger.Warn("n not an integer only floor(n) used");
     }
     if (n > m) {
@@ -127,5 +127,4 @@ export function CreateGoldberg(name, options, scene = null) {
     }
     return goldberg;
 }
-Mesh.CreateGoldberg = CreateGoldberg;
 //# sourceMappingURL=goldbergBuilder.js.map

@@ -1,4 +1,4 @@
-/* eslint-disable import/no-internal-modules */
+/* eslint-disable @typescript-eslint/no-restricted-imports */
 export * from "./andOrNotEvaluator.js";
 export * from "./assetsManager.js";
 export * from "./basis.js";
@@ -15,10 +15,16 @@ export * from "./observable.extensions.js";
 export * from "./performanceMonitor.js";
 export * from "./sceneOptimizer.js";
 export * from "./sceneSerializer.js";
+export * from "./shaderImportLoader.js";
 export * from "./smartArray.js";
 export * from "./stringDictionary.js";
 export * from "./tags.js";
 export * from "./textureTools.js";
+// loaded from texture tools
+export * from "../Shaders/lodCube.fragment.js";
+export * from "../Shaders/lod.fragment.js";
+export * from "../ShadersWGSL/lodCube.fragment.js";
+export * from "../ShadersWGSL/lod.fragment.js";
 export * from "./tga.js";
 export * from "./tools.js";
 export * from "./videoRecorder.js";
@@ -28,6 +34,7 @@ export * from "./logger.js";
 export * from "./typeStore.js";
 export * from "./filesInputStore.js";
 export * from "./deepCopier.js";
+export * from "./deepMerger.js";
 export * from "./pivotTools.js";
 export * from "./precisionDate.js";
 export * from "./screenshotTools.js";
@@ -60,8 +67,31 @@ export * from "./PerformanceViewer/index.js";
 export * from "./coroutine.js";
 export * from "./guid.js";
 export * from "./error.js";
+export * from "./snapshotRenderingHelper.js";
 // eslint-disable-next-line import/export
 export * from "./observableCoroutine.js";
 export * from "./copyTextureToTexture.js";
-export * from "./dumpTools.js";
+export * from "./areaLightsTextureTools.js";
+export { DumpTools, EncodeImageAsync } from "./dumpTools.js";
+export * from "./greasedLineTools.js";
+export * from "./equirectangularCapture.js";
+export * from "./decorators.serialization.js";
+export * from "./asyncLock.js";
+export * from "./bitArray.js";
+export * from "./urlTools.js";
+export * from "./lazy.js";
+export * from "./uniqueIdGenerator.js";
+export { workerFunction as KTX2WorkerFunction, initializeWebWorker as KTX2InitializeWebWorker } from "./khronosTextureContainer2Worker.js";
+// RGBDTextureTools
+export * from "../Shaders/rgbdDecode.fragment.js";
+export * from "../Shaders/rgbdEncode.fragment.js";
+export * from "../ShadersWGSL/rgbdDecode.fragment.js";
+export * from "../ShadersWGSL/rgbdEncode.fragment.js";
+// CopyTextureToTexture
+export * from "../Shaders/copyTextureToTexture.fragment.js";
+export * from "../ShadersWGSL/copyTextureToTexture.fragment.js";
+// Area Light Texture
+export * from "../Shaders/areaLightTextureProcessing.fragment.js";
+export * from "../ShadersWGSL/areaLightTextureProcessing.fragment.js";
+export * from "./tools.internals.js";
 //# sourceMappingURL=index.js.map

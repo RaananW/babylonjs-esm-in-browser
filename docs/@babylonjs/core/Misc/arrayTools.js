@@ -1,30 +1,25 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 /**
- * Class containing a set of static utilities functions for arrays.
+ * Returns an array of the given size filled with elements built from the given constructor and the parameters.
+ * @param size the number of element to construct and put in the array.
+ * @param itemBuilder a callback responsible for creating new instance of item. Called once per array entry.
+ * @returns a new array filled with new objects.
  */
-export class ArrayTools {
-    /**
-     * Returns an array of the given size filled with elements built from the given constructor and the parameters.
-     * @param size the number of element to construct and put in the array.
-     * @param itemBuilder a callback responsible for creating new instance of item. Called once per array entry.
-     * @returns a new array filled with new objects.
-     */
-    static BuildArray(size, itemBuilder) {
-        const a = [];
-        for (let i = 0; i < size; ++i) {
-            a.push(itemBuilder());
-        }
-        return a;
+export function BuildArray(size, itemBuilder) {
+    const a = [];
+    for (let i = 0; i < size; ++i) {
+        a.push(itemBuilder());
     }
-    /**
-     * Returns a tuple of the given size filled with elements built from the given constructor and the parameters.
-     * @param size he number of element to construct and put in the tuple.
-     * @param itemBuilder a callback responsible for creating new instance of item. Called once per tuple entry.
-     * @returns a new tuple filled with new objects.
-     */
-    static BuildTuple(size, itemBuilder) {
-        return ArrayTools.BuildArray(size, itemBuilder);
-    }
+    return a;
+}
+/**
+ * Returns a tuple of the given size filled with elements built from the given constructor and the parameters.
+ * @param size he number of element to construct and put in the tuple.
+ * @param itemBuilder a callback responsible for creating new instance of item. Called once per tuple entry.
+ * @returns a new tuple filled with new objects.
+ */
+export function BuildTuple(size, itemBuilder) {
+    return BuildArray(size, itemBuilder);
 }
 /**
  * Observes a function and calls the given callback when it is called.
@@ -33,7 +28,7 @@ export class ArrayTools {
  * @param callback Defines the callback to call when the function is called.
  * @returns A function to call to stop observing
  */
-function _observeArrayfunction(object, functionName, callback) {
+function ObserveArrayFunction(object, functionName, callback) {
     // Finds the function to observe
     const oldFunction = object[functionName];
     if (typeof oldFunction !== "function") {
@@ -44,6 +39,7 @@ function _observeArrayfunction(object, functionName, callback) {
         const previousLength = object.length;
         const returnValue = newFunction.previous.apply(object, arguments);
         callback(functionName, previousLength);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return returnValue;
     };
     // Doublishly links the new function and the old function
@@ -91,13 +87,13 @@ const observedArrayFunctions = ["push", "splice", "pop", "shift", "unshift"];
 export function _ObserveArray(array, callback) {
     // Observes all the required array functions and stores the unhook functions
     const unObserveFunctions = observedArrayFunctions.map((name) => {
-        return _observeArrayfunction(array, name, callback);
+        return ObserveArrayFunction(array, name, callback);
     });
     // Returns a function that unhook all the observed functions
     return () => {
-        unObserveFunctions.forEach((unObserveFunction) => {
-            unObserveFunction === null || unObserveFunction === void 0 ? void 0 : unObserveFunction();
-        });
+        for (const unObserveFunction of unObserveFunctions) {
+            unObserveFunction?.();
+        }
     };
 }
 //# sourceMappingURL=arrayTools.js.map

@@ -1,21 +1,22 @@
-import type { Mesh } from "../../Meshes/mesh";
-import type { TransformNode } from "../../Meshes/transformNode";
-import type { Behavior } from "../../Behaviors/behavior";
+import { type Mesh } from "../../Meshes/mesh.js";
+import { type TransformNode } from "../../Meshes/transformNode.js";
+import { type Nullable } from "../../types.js";
+import { type Behavior } from "../../Behaviors/behavior.js";
 /**
  * A behavior that when attached to a mesh will will place a specified node on the meshes face pointing towards the camera
  */
 export declare class AttachToBoxBehavior implements Behavior<Mesh> {
     private _ui;
     /**
-     *  The name of the behavior
+     *  ["AttachToBoxBehavior"] The name of the behavior
      */
     name: string;
     /**
-     * The distance away from the face of the mesh that the UI should be attached to (default: 0.15)
+     * [0.15] The distance away from the face of the mesh that the UI should be attached to (default: 0.15)
      */
     distanceAwayFromFace: number;
     /**
-     * The distance from the bottom of the face that the UI should be attached to (default: 0.15)
+     * [0.15] The distance from the bottom of the face that the UI should be attached to (default: 0.15)
      */
     distanceAwayFromBottomOfFace: number;
     private _faceVectors;
@@ -24,6 +25,10 @@ export declare class AttachToBoxBehavior implements Behavior<Mesh> {
     private _onRenderObserver;
     private _tmpMatrix;
     private _tmpVector;
+    /**
+     * Attached node of this behavior
+     */
+    get attachedNode(): Nullable<Mesh>;
     /**
      * Creates the AttachToBoxBehavior, used to attach UI to the closest face of the box to a camera
      * @param _ui The transform node that should be attached to the mesh

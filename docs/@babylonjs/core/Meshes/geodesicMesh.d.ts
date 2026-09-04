@@ -1,33 +1,52 @@
-import { Vector3 } from "../Maths/math.vector";
-import { _IsoVector } from "../Maths/math.isovector";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { _IsoVector } from "../Maths/math.isovector.js";
 /**
  * Class representing data for one face OAB of an equilateral icosahedron
  * When O is the isovector (0, 0), A is isovector (m, n)
  * @internal
  */
 export declare class _PrimaryIsoTriangle {
+    /** @internal */
     m: number;
+    /** @internal */
     n: number;
+    /** @internal */
     cartesian: Vector3[];
+    /** @internal */
     vertices: _IsoVector[];
+    /** @internal */
     max: number[];
+    /** @internal */
     min: number[];
+    /** @internal */
     vecToidx: {
         [key: string]: number;
     };
+    /** @internal */
     vertByDist: {
         [key: string]: number[];
     };
+    /** @internal */
     closestTo: number[][];
+    /** @internal */
     innerFacets: string[][];
+    /** @internal */
     isoVecsABOB: _IsoVector[][];
+    /** @internal */
     isoVecsOBOA: _IsoVector[][];
+    /** @internal */
     isoVecsBAOA: _IsoVector[][];
+    /** @internal */
     vertexTypes: number[][];
+    /** @internal */
     coau: number;
+    /** @internal */
     cobu: number;
+    /** @internal */
     coav: number;
+    /** @internal */
     cobv: number;
+    /** @internal */
     IDATA: PolyhedronData;
     /**
      * Creates the PrimaryIsoTriangle Triangle OAB
@@ -35,11 +54,17 @@ export declare class _PrimaryIsoTriangle {
      * @param n an integer
      */
     setIndices(): void;
+    /** @internal */
     calcCoeffs(): void;
+    /** @internal */
     createInnerFacets(): void;
+    /** @internal */
     edgeVecsABOB(): void;
+    /** @internal */
     mapABOBtoOBOA(): void;
+    /** @internal */
     mapABOBtoBAOA(): void;
+    /** @internal */
     MapToFace(faceNb: number, geodesicData: PolyhedronData): void;
     /**Creates a primary triangle
      * @internal
@@ -50,12 +75,44 @@ export declare class _PrimaryIsoTriangle {
  * @internal
  */
 export declare class PolyhedronData {
+    /**
+     * The name of the polyhedron
+     */
     name: string;
+    /**
+     * The category of the polyhedron
+     */
     category: string;
+    /**
+     * vertex data
+     */
     vertex: number[][];
+    /**
+     * face data
+     */
     face: number[][];
+    /**
+     * @internal
+     */
     edgematch: (number | string)[][];
-    constructor(name: string, category: string, vertex: number[][], face: number[][]);
+    /** @internal */
+    constructor(
+    /**
+     * The name of the polyhedron
+     */
+    name: string, 
+    /**
+     * The category of the polyhedron
+     */
+    category: string, 
+    /**
+     * vertex data
+     */
+    vertex: number[][], 
+    /**
+     * face data
+     */
+    face: number[][]);
 }
 /**
  * This class Extends the PolyhedronData Class to provide measures for a Geodesic Polyhedron

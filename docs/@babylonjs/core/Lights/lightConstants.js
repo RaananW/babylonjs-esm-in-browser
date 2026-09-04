@@ -94,4 +94,12 @@ LightConstants.LIGHTTYPEID_SPOTLIGHT = 2;
  * Light type const id of the hemispheric light.
  */
 LightConstants.LIGHTTYPEID_HEMISPHERICLIGHT = 3;
+/**
+ * Light type const id of the area light.
+ */
+LightConstants.LIGHTTYPEID_RECT_AREALIGHT = 4;
+/**
+ * Light type const id of the clustered light.
+ */
+LightConstants.LIGHTTYPEID_CLUSTERED_CONTAINER = 5;
 //# sourceMappingURL=lightConstants.js.map

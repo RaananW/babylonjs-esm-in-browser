@@ -1,4 +1,4 @@
-import { InternalTexture } from "./internalTexture";
+import { InternalTexture } from "./internalTexture.js";
 /**
  * Class used to store an external texture (like GPUExternalTexture in WebGPU)
  */
@@ -27,6 +27,10 @@ export declare class ExternalTexture {
      * The type of the underlying texture is implementation dependent, so return "UNDEFINED" for the type
      */
     readonly type = 16;
+    /**
+     * The format of the underlying texture is implementation dependent, so return "UNDEFINED" for the format
+     */
+    readonly format = 4294967295;
     /**
      * Gets the unique id of this texture
      */

@@ -1,15 +1,16 @@
-import type { Nullable } from "../types";
-import { Color3 } from "../Maths/math.color";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import type { IParticleSystem } from "./IParticleSystem";
-import type { Scene, IDisposable } from "../scene";
-import type { Vector3 } from "../Maths/math.vector";
+import { type Nullable } from "../types.js";
+import { Color3 } from "../Maths/math.color.pure.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { type IParticleSystem } from "./IParticleSystem.js";
+import { type Scene, type IDisposable } from "../scene.js";
+import { type Vector3 } from "../Maths/math.vector.js";
 /**
  * Represents a set of particle systems working together to create a specific effect
  */
 export declare class ParticleSystemSet implements IDisposable {
     /**
      * Gets or sets base Assets URL
+     * Only used when parsing particle systems from JSON, not part of the core assets
      */
     static BaseAssetsUrl: string;
     private _emitterCreationOptions;

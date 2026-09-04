@@ -1,4 +1,4 @@
-/* eslint-disable import/no-internal-modules */
+/* eslint-disable @typescript-eslint/no-restricted-imports */
 export * from "./loadingScreen.js";
 export * from "./Plugins/index.js";
 export * from "./sceneLoader.js";

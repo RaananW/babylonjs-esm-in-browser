@@ -1,15 +1,16 @@
-import { NodeMaterialBlockConnectionPointTypes } from "./Enums/nodeMaterialBlockConnectionPointTypes";
-import type { NodeMaterialBuildState } from "./nodeMaterialBuildState";
-import type { Nullable } from "../../types";
-import { NodeMaterialConnectionPoint } from "./nodeMaterialBlockConnectionPoint";
-import { NodeMaterialBlockTargets } from "./Enums/nodeMaterialBlockTargets";
-import type { Effect } from "../effect";
-import type { AbstractMesh } from "../../Meshes/abstractMesh";
-import type { Mesh } from "../../Meshes/mesh";
-import type { SubMesh } from "../../Meshes/subMesh";
-import type { NodeMaterial, NodeMaterialDefines } from "./nodeMaterial";
-import type { Scene } from "../../scene";
-import type { EffectFallbacks } from "../effectFallbacks";
+import { NodeMaterialBlockConnectionPointTypes } from "./Enums/nodeMaterialBlockConnectionPointTypes.js";
+import { type NodeMaterialBuildState } from "./nodeMaterialBuildState.js";
+import { type Nullable } from "../../types.js";
+import { NodeMaterialConnectionPoint } from "./nodeMaterialBlockConnectionPoint.js";
+import { NodeMaterialBlockTargets } from "./Enums/nodeMaterialBlockTargets.js";
+import { type Effect } from "../effect.js";
+import { type AbstractMesh } from "../../Meshes/abstractMesh.js";
+import { type Mesh } from "../../Meshes/mesh.js";
+import { type SubMesh } from "../../Meshes/subMesh.js";
+import { type NodeMaterial, type NodeMaterialDefines } from "./nodeMaterial.js";
+import { type Scene } from "../../scene.js";
+import { type EffectFallbacks } from "../effectFallbacks.js";
+import { Observable } from "../../Misc/observable.js";
 /**
  * Defines a block that can be used inside a node based material
  */
@@ -19,8 +20,22 @@ export declare class NodeMaterialBlock {
     protected _target: NodeMaterialBlockTargets;
     private _isFinalMerger;
     private _isInput;
+    private _isLoop;
+    private _isTeleportOut;
+    private _isTeleportIn;
     private _name;
     protected _isUnique: boolean;
+    protected _codeIsReady: boolean;
+    /** @internal */
+    _isFinalOutput: boolean;
+    /** @internal */
+    get _isFinalOutputAndActive(): boolean;
+    /** @internal */
+    get _hasPrecedence(): boolean;
+    /**
+     * Observable raised when the block code is ready (if the code loading is async)
+     */
+    onCodeIsReadyObservable: Observable<NodeMaterialBlock>;
     /** Gets or sets a boolean indicating that only one input can be connected at a time */
     inputsAreExclusive: boolean;
     /** @internal */
@@ -37,6 +52,10 @@ export declare class NodeMaterialBlock {
      * Gets the name of the block
      */
     get name(): string;
+    /**
+     * Gets a boolean indicating that this block has is code ready to be used
+     */
+    get codeIsReady(): boolean;
     /**
      * Sets the name of the block. Will check if the name is valid.
      */
@@ -61,6 +80,18 @@ export declare class NodeMaterialBlock {
      * Gets a boolean indicating that this block is an input (e.g. it sends data to the shader)
      */
     get isInput(): boolean;
+    /**
+     * Gets a boolean indicating if this block is a teleport out
+     */
+    get isTeleportOut(): boolean;
+    /**
+     * Gets a boolean indicating if this block is a teleport in
+     */
+    get isTeleportIn(): boolean;
+    /**
+     * Gets a boolean indicating if this block is a loop
+     */
+    get isLoop(): boolean;
     /**
      * Gets or sets the build Id
      */
@@ -98,9 +129,9 @@ export declare class NodeMaterialBlock {
      * @param name defines the block name
      * @param target defines the target of that block (Vertex by default)
      * @param isFinalMerger defines a boolean indicating that this block is an end block (e.g. it is generating a system value). Default is false
-     * @param isInput defines a boolean indicating that this block is an input (e.g. it sends data to the shader). Default is false
+     * @param isFinalOutput defines a boolean indicating that this block is generating a final output and no other block should be generated after
      */
-    constructor(name: string, target?: NodeMaterialBlockTargets, isFinalMerger?: boolean, isInput?: boolean);
+    constructor(name: string, target?: NodeMaterialBlockTargets, isFinalMerger?: boolean, isFinalOutput?: boolean);
     /** @internal */
     _setInitialTarget(target: NodeMaterialBlockTargets): void;
     /**
@@ -116,7 +147,6 @@ export declare class NodeMaterialBlock {
      * @param subMesh defines the submesh that will be rendered
      */
     bind(effect: Effect, nodeMaterial: NodeMaterial, mesh?: Mesh, subMesh?: SubMesh): void;
-    protected _declareOutput(output: NodeMaterialConnectionPoint, state: NodeMaterialBuildState): string;
     protected _writeVariable(currentPoint: NodeMaterialConnectionPoint): string;
     protected _writeFloat(value: number): string;
     /**
@@ -124,6 +154,10 @@ export declare class NodeMaterialBlock {
      * @returns the class name
      */
     getClassName(): string;
+    /** Gets a boolean indicating that this connection will be used in the fragment shader
+     * @returns true if connected in fragment shader
+     */
+    isConnectedInFragmentShader(): boolean;
     /**
      * Register a new input. Must be called inside a block constructor
      * @param name defines the connection point name
@@ -171,9 +205,6 @@ export declare class NodeMaterialBlock {
      * Connect current block with another block
      * @param other defines the block to connect with
      * @param options define the various options to help pick the right connections
-     * @param options.input
-     * @param options.output
-     * @param options.outputSwizzle
      * @returns the current block
      */
     connectTo(other: NodeMaterialBlock, options?: {
@@ -182,6 +213,7 @@ export declare class NodeMaterialBlock {
         outputSwizzle?: string;
     }): this | undefined;
     protected _buildBlock(state: NodeMaterialBuildState): void;
+    protected _postBuildBlock(state: NodeMaterialBuildState): void;
     /**
      * Add uniforms, samplers and uniform buffers at compilation time
      * @param state defines the state to update
@@ -192,40 +224,37 @@ export declare class NodeMaterialBlock {
     updateUniformsAndSamples(state: NodeMaterialBuildState, nodeMaterial: NodeMaterial, defines: NodeMaterialDefines, uniformBuffers: string[]): void;
     /**
      * Add potential fallbacks if shader compilation fails
-     * @param mesh defines the mesh to be rendered
      * @param fallbacks defines the current prioritized list of fallbacks
+     * @param mesh defines the mesh to be rendered
      */
-    provideFallbacks(mesh: AbstractMesh, fallbacks: EffectFallbacks): void;
+    provideFallbacks(fallbacks: EffectFallbacks, mesh?: AbstractMesh): void;
     /**
      * Initialize defines for shader compilation
-     * @param mesh defines the mesh to be rendered
-     * @param nodeMaterial defines the node material requesting the update
      * @param defines defines the material defines to update
-     * @param useInstances specifies that instances should be used
      */
-    initializeDefines(mesh: AbstractMesh, nodeMaterial: NodeMaterial, defines: NodeMaterialDefines, useInstances?: boolean): void;
+    initializeDefines(defines: NodeMaterialDefines): void;
     /**
      * Update defines for shader compilation
-     * @param mesh defines the mesh to be rendered
-     * @param nodeMaterial defines the node material requesting the update
      * @param defines defines the material defines to update
+     * @param nodeMaterial defines the node material requesting the update
+     * @param mesh defines the mesh to be rendered
      * @param useInstances specifies that instances should be used
      * @param subMesh defines which submesh to render
      */
-    prepareDefines(mesh: AbstractMesh, nodeMaterial: NodeMaterial, defines: NodeMaterialDefines, useInstances?: boolean, subMesh?: SubMesh): void;
+    prepareDefines(defines: NodeMaterialDefines, nodeMaterial: NodeMaterial, mesh?: AbstractMesh, useInstances?: boolean, subMesh?: SubMesh): void;
     /**
      * Lets the block try to connect some inputs automatically
      * @param material defines the hosting NodeMaterial
+     * @param additionalFilteringInfo optional additional filtering condition when looking for compatible blocks
      */
-    autoConfigure(material: NodeMaterial): void;
+    autoConfigure(material: NodeMaterial, additionalFilteringInfo?: (node: NodeMaterialBlock) => boolean): void;
     /**
      * Function called when a block is declared as repeatable content generator
      * @param vertexShaderState defines the current compilation state for the vertex shader
-     * @param fragmentShaderState defines the current compilation state for the fragment shader
-     * @param mesh defines the mesh to be rendered
      * @param defines defines the material defines to update
+     * @param mesh defines the mesh to be rendered
      */
-    replaceRepeatableContent(vertexShaderState: NodeMaterialBuildState, fragmentShaderState: NodeMaterialBuildState, mesh: AbstractMesh, defines: NodeMaterialDefines): void;
+    replaceRepeatableContent(vertexShaderState: NodeMaterialBuildState, defines: NodeMaterialDefines, mesh?: AbstractMesh): void;
     /** Gets a boolean indicating that the code of this block will be promoted to vertex shader even if connected to fragment output */
     get willBeGeneratedIntoVertexShaderFromFragmentShader(): boolean;
     /**
@@ -245,6 +274,7 @@ export declare class NodeMaterialBlock {
      * @returns false if the name is a reserve word, else true.
      */
     validateBlockName(newName: string): boolean;
+    protected _customBuildStep(state: NodeMaterialBuildState, activeBlocks: NodeMaterialBlock[]): void;
     /**
      * Compile the current node and generate the shader code
      * @param state defines the current compilation state (uniforms, samplers, current string)
@@ -278,7 +308,7 @@ export declare class NodeMaterialBlock {
     /**
      * @internal
      */
-    _deserialize(serializationObject: any, scene: Scene, rootUrl: string): void;
+    _deserialize(serializationObject: any, scene: Scene, rootUrl: string, urlRewriter?: (url: string) => string): void;
     private _deserializePortDisplayNamesAndExposedOnFrame;
     /**
      * Release resources

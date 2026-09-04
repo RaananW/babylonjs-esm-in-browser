@@ -2,17 +2,23 @@
 import { ShaderStore } from "../../Engines/shaderStore.js";
 const name = "vertexColorMixing";
 const shader = `#if defined(VERTEXCOLOR) || defined(INSTANCESCOLOR) && defined(INSTANCES)
-vColor=vec4(1.0);#ifdef VERTEXCOLOR
+vColor=vec4(1.0);
+#ifdef VERTEXCOLOR
 #ifdef VERTEXALPHA
-vColor*=color;#else
-vColor.rgb*=color.rgb;#endif
+vColor*=colorUpdated;
+#else
+vColor.rgb*=colorUpdated.rgb;
+#endif
 #endif
 #ifdef INSTANCESCOLOR
-vColor*=instanceColor;#endif
+vColor*=instanceColor;
+#endif
 #endif
 `;
 // Sideeffect
-ShaderStore.IncludesShadersStore[name] = shader;
+if (!ShaderStore.IncludesShadersStore[name]) {
+    ShaderStore.IncludesShadersStore[name] = shader;
+}
 /** @internal */
 export const vertexColorMixing = { name, shader };
 //# sourceMappingURL=vertexColorMixing.js.map

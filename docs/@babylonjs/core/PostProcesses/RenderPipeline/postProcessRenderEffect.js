@@ -1,4 +1,4 @@
-import { Tools } from "../../Misc/tools.js";
+import { Tools } from "../../Misc/tools.pure.js";
 /**
  * This represents a set of one or more post processes in Babylon.
  * A post process can be used to apply a shader to a texture after it is rendered.
@@ -13,9 +13,9 @@ export class PostProcessRenderEffect {
      * @param getPostProcesses A function that returns a set of post processes which the effect will run in order to be run.
      * @param singleInstance False if this post process can be run on multiple cameras. (default: true)
      */
-    constructor(engine, name, getPostProcesses, singleInstance) {
+    constructor(engine, name, getPostProcesses, singleInstance = true) {
         this._name = name;
-        this._singleInstance = singleInstance || true;
+        this._singleInstance = singleInstance;
         this._getPostProcesses = getPostProcesses;
         this._cameras = {};
         this._indicesForCamera = {};
@@ -74,10 +74,11 @@ export class PostProcessRenderEffect {
             if (!this._indicesForCamera[cameraName]) {
                 this._indicesForCamera[cameraName] = [];
             }
-            this._postProcesses[cameraKey].forEach((postProcess) => {
+            const pps = this._postProcesses[cameraKey];
+            for (const postProcess of pps) {
                 const index = camera.attachPostProcess(postProcess);
                 this._indicesForCamera[cameraName].push(index);
-            });
+            }
             if (!this._cameras[cameraName]) {
                 this._cameras[cameraName] = camera;
             }
@@ -98,13 +99,14 @@ export class PostProcessRenderEffect {
             const cameraName = camera.name;
             const postProcesses = this._postProcesses[this._singleInstance ? 0 : cameraName];
             if (postProcesses) {
-                postProcesses.forEach((postProcess) => {
+                for (const postProcess of postProcesses) {
                     camera.detachPostProcess(postProcess);
-                });
+                }
             }
             if (this._cameras[cameraName]) {
                 this._cameras[cameraName] = null;
             }
+            delete this._indicesForCamera[cameraName];
         }
     }
     /**
@@ -120,11 +122,12 @@ export class PostProcessRenderEffect {
         for (let i = 0; i < cams.length; i++) {
             const camera = cams[i];
             const cameraName = camera.name;
+            const cameraKey = this._singleInstance ? 0 : cameraName;
             for (let j = 0; j < this._indicesForCamera[cameraName].length; j++) {
-                if (camera._postProcesses[this._indicesForCamera[cameraName][j]] === undefined || camera._postProcesses[this._indicesForCamera[cameraName][j]] === null) {
-                    this._postProcesses[this._singleInstance ? 0 : cameraName].forEach((postProcess) => {
-                        cams[i].attachPostProcess(postProcess, this._indicesForCamera[cameraName][j]);
-                    });
+                const index = this._indicesForCamera[cameraName][j];
+                const postProcess = camera._postProcesses[index];
+                if (postProcess === undefined || postProcess === null) {
+                    cams[i].attachPostProcess(this._postProcesses[cameraKey][j], index);
                 }
             }
         }
@@ -142,9 +145,10 @@ export class PostProcessRenderEffect {
         for (let i = 0; i < cams.length; i++) {
             const camera = cams[i];
             const cameraName = camera.name;
-            this._postProcesses[this._singleInstance ? 0 : cameraName].forEach((postProcess) => {
+            const pps = this._postProcesses[this._singleInstance ? 0 : cameraName];
+            for (const postProcess of pps) {
                 camera.detachPostProcess(postProcess);
-            });
+            }
         }
     }
     /**

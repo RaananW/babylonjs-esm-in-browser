@@ -1,6 +1,5 @@
 import { Logger } from "../Misc/logger.js";
-import { Tools } from "../Misc/tools.js";
-import "../Engines/Extensions/engine.uniformBuffer.js";
+import { Tools } from "../Misc/tools.pure.js";
 /**
  * Uniform buffer objects.
  *
@@ -26,25 +25,30 @@ export class UniformBuffer {
      * @param dynamic Define if the buffer is updatable
      * @param name to assign to the buffer (debugging purpose)
      * @param forceNoUniformBuffer define that this object must not rely on UBO objects
+     * @param trackUBOsInFrame define if the UBOs should be tracked in the frame (default: undefined - will use the value from Engine._features.trackUbosInFrame)
      */
-    constructor(engine, data, dynamic, name, forceNoUniformBuffer = false) {
+    constructor(engine, data, dynamic = false, name, forceNoUniformBuffer = false, trackUBOsInFrame) {
+        this._uniformNames = [];
         // Matrix cache
         this._valueCache = {};
         this._engine = engine;
         this._noUBO = !engine.supportsUniformBuffers || forceNoUniformBuffer;
         this._dynamic = dynamic;
-        this._name = name !== null && name !== void 0 ? name : "no-name";
+        this._name = name ?? "no-name";
         this._data = data || [];
         this._uniformLocations = {};
         this._uniformSizes = {};
         this._uniformArraySizes = {};
         this._uniformLocationPointer = 0;
         this._needSync = false;
-        if (this._engine._features.trackUbosInFrame) {
+        this._trackUBOsInFrame = false;
+        if ((trackUBOsInFrame === undefined && this._engine._features.trackUbosInFrame) || trackUBOsInFrame === true) {
             this._buffers = [];
             this._bufferIndex = -1;
+            this._bufferUpdatedLastFrame = false;
             this._createBufferOnWrite = false;
             this._currentFrameId = 0;
+            this._trackUBOsInFrame = true;
         }
         if (this._noUBO) {
             this.updateMatrix3x3 = this._updateMatrix3x3ForEffect;
@@ -56,6 +60,7 @@ export class UniformBuffer {
             this.updateFloatArray = this._updateFloatArrayForEffect;
             this.updateArray = this._updateArrayForEffect;
             this.updateIntArray = this._updateIntArrayForEffect;
+            this.updateUIntArray = this._updateUIntArrayForEffect;
             this.updateMatrix = this._updateMatrixForEffect;
             this.updateMatrices = this._updateMatricesForEffect;
             this.updateVector3 = this._updateVector3ForEffect;
@@ -67,6 +72,10 @@ export class UniformBuffer {
             this.updateInt2 = this._updateInt2ForEffect;
             this.updateInt3 = this._updateInt3ForEffect;
             this.updateInt4 = this._updateInt4ForEffect;
+            this.updateUInt = this._updateUIntForEffect;
+            this.updateUInt2 = this._updateUInt2ForEffect;
+            this.updateUInt3 = this._updateUInt3ForEffect;
+            this.updateUInt4 = this._updateUInt4ForEffect;
         }
         else {
             this._engine._uniformBuffers.push(this);
@@ -79,6 +88,7 @@ export class UniformBuffer {
             this.updateFloatArray = this._updateFloatArrayForUniform;
             this.updateArray = this._updateArrayForUniform;
             this.updateIntArray = this._updateIntArrayForUniform;
+            this.updateUIntArray = this._updateUIntArrayForUniform;
             this.updateMatrix = this._updateMatrixForUniform;
             this.updateMatrices = this._updateMatricesForUniform;
             this.updateVector3 = this._updateVector3ForUniform;
@@ -90,6 +100,10 @@ export class UniformBuffer {
             this.updateInt2 = this._updateInt2ForUniform;
             this.updateInt3 = this._updateInt3ForUniform;
             this.updateInt4 = this._updateInt4ForUniform;
+            this.updateUInt = this._updateUIntForUniform;
+            this.updateUInt2 = this._updateUInt2ForUniform;
+            this.updateUInt3 = this._updateUInt3ForUniform;
+            this.updateUInt4 = this._updateUInt4ForUniform;
         }
     }
     /**
@@ -113,7 +127,7 @@ export class UniformBuffer {
      * @returns if Dynamic, otherwise false
      */
     isDynamic() {
-        return this._dynamic !== undefined;
+        return this._dynamic;
     }
     /**
      * The data cache on JS side.
@@ -128,6 +142,13 @@ export class UniformBuffer {
      */
     getBuffer() {
         return this._buffer;
+    }
+    /**
+     * The names of the uniforms in the buffer.
+     * @returns an array of uniform names
+     */
+    getUniformNames() {
+        return this._uniformNames;
     }
     /**
      * std140 layout specifies how to align data within an UBO structure.
@@ -165,11 +186,16 @@ export class UniformBuffer {
      * @param arraySize The number of elements in the array, 0 if not an array.
      */
     addUniform(name, size, arraySize = 0) {
-        if (this._noUBO) {
-            return;
+        if (arraySize > 0 && typeof size === "number") {
+            // Keep track of stride for `updateFloatArray`
+            this._uniformArraySizes[name] = { strideSize: size, arraySize };
         }
         if (this._uniformLocations[name] !== undefined) {
             // Already existing uniform
+            return;
+        }
+        this._uniformNames.push(name);
+        if (this._noUBO) {
             return;
         }
         // This function must be called in the order of the shader layout !
@@ -178,10 +204,10 @@ export class UniformBuffer {
         // std140 FTW...
         if (arraySize > 0) {
             if (size instanceof Array) {
+                // eslint-disable-next-line no-throw-literal
                 throw "addUniform should not be use with Array in UBO: " + name;
             }
             this._fillAlignment(4);
-            this._uniformArraySizes[name] = { strideSize: size, arraySize };
             if (size == 16) {
                 size = size * arraySize;
             }
@@ -202,7 +228,6 @@ export class UniformBuffer {
                 size = data.length;
             }
             else {
-                size = size;
                 data = [];
                 // Fill with zeros
                 for (let i = 0; i < size; i++) {
@@ -225,7 +250,7 @@ export class UniformBuffer {
      * @param mat A 4x4 matrix.
      */
     addMatrix(name, mat) {
-        this.addUniform(name, Array.prototype.slice.call(mat.toArray()));
+        this.addUniform(name, Array.prototype.slice.call(mat.asArray()));
     }
     /**
      * Adds a vec2 to the uniform buffer.
@@ -306,22 +331,45 @@ export class UniformBuffer {
         this._rebuild();
         this._needSync = true;
     }
+    // The result of this method is used for debugging purpose, as part of the buffer name
+    // It is meant to more easily know what this buffer is about when debugging
+    // Some buffers can have a lot of uniforms (several dozens), so the method only returns the first 10 of them
+    // (should be enough to understand what the buffer is for)
+    _getNamesDebug() {
+        const names = [];
+        let i = 0;
+        for (const name in this._uniformLocations) {
+            names.push(name);
+            if (++i === 10) {
+                break;
+            }
+        }
+        return names.join(",");
+    }
     /** @internal */
     _rebuild() {
         if (this._noUBO || !this._bufferData) {
             return;
         }
         if (this._dynamic) {
-            this._buffer = this._engine.createDynamicUniformBuffer(this._bufferData);
+            this._buffer = this._engine.createDynamicUniformBuffer(this._bufferData, this._name + "_UniformList:" + this._getNamesDebug());
         }
         else {
-            this._buffer = this._engine.createUniformBuffer(this._bufferData);
+            this._buffer = this._engine.createUniformBuffer(this._bufferData, this._name + "_UniformList:" + this._getNamesDebug());
         }
-        if (this._engine._features.trackUbosInFrame) {
+        if (this._trackUBOsInFrame) {
             this._buffers.push([this._buffer, this._engine._features.checkUbosContentBeforeUpload ? this._bufferData.slice() : undefined]);
             this._bufferIndex = this._buffers.length - 1;
             this._createBufferOnWrite = false;
         }
+    }
+    /** @internal */
+    _rebuildAfterContextLost() {
+        if (this._trackUBOsInFrame) {
+            this._buffers = [];
+            this._currentFrameId = 0;
+        }
+        this._rebuild();
     }
     /** @internal */
     get _numBuffers() {
@@ -331,9 +379,16 @@ export class UniformBuffer {
     get _indexBuffer() {
         return this._bufferIndex;
     }
-    /** Gets the name of this buffer */
+    /** Gets or sets the name of this buffer */
     get name() {
         return this._name;
+    }
+    set name(value) {
+        this._name = value;
+    }
+    /** Gets the current effect */
+    get currentEffect() {
+        return this._currentEffect;
     }
     _buffersEqual(buf1, buf2) {
         for (let i = 0; i < buf1.length; ++i) {
@@ -363,28 +418,23 @@ export class UniformBuffer {
             return;
         }
         if (!this._dynamic && !this._needSync) {
-            this._createBufferOnWrite = this._engine._features.trackUbosInFrame;
+            this._createBufferOnWrite = this._trackUBOsInFrame;
             return;
         }
         if (this._buffers && this._buffers.length > 1 && this._buffers[this._bufferIndex][1]) {
             if (this._buffersEqual(this._bufferData, this._buffers[this._bufferIndex][1])) {
                 this._needSync = false;
-                this._createBufferOnWrite = this._engine._features.trackUbosInFrame;
+                this._createBufferOnWrite = this._trackUBOsInFrame;
                 return;
             }
             else {
                 this._copyBuffer(this._bufferData, this._buffers[this._bufferIndex][1]);
             }
         }
+        this._bufferUpdatedLastFrame = true;
         this._engine.updateUniformBuffer(this._buffer, this._bufferData);
-        if (this._engine._features._collectUbosUpdatedInFrame) {
-            if (!UniformBuffer._UpdatedUbosInFrame[this._name]) {
-                UniformBuffer._UpdatedUbosInFrame[this._name] = 0;
-            }
-            UniformBuffer._UpdatedUbosInFrame[this._name]++;
-        }
         this._needSync = false;
-        this._createBufferOnWrite = this._engine._features.trackUbosInFrame;
+        this._createBufferOnWrite = this._trackUBOsInFrame;
     }
     _createNewBuffer() {
         if (this._bufferIndex + 1 < this._buffers.length) {
@@ -398,11 +448,16 @@ export class UniformBuffer {
         }
     }
     _checkNewFrame() {
-        if (this._engine._features.trackUbosInFrame && this._currentFrameId !== this._engine.frameId) {
+        if (this._trackUBOsInFrame && this._currentFrameId !== this._engine.frameId) {
             this._currentFrameId = this._engine.frameId;
             this._createBufferOnWrite = false;
             if (this._buffers && this._buffers.length > 0) {
-                this._needSync = this._bufferIndex !== 0;
+                if (this._buffers.length === 1) {
+                    this._needSync = !this._bufferUpdatedLastFrame;
+                }
+                else {
+                    this._needSync = this._bufferIndex !== 0;
+                }
                 this._bufferIndex = 0;
                 this._buffer = this._buffers[this._bufferIndex][0];
             }
@@ -423,7 +478,7 @@ export class UniformBuffer {
         if (location === undefined) {
             if (this._buffer) {
                 // Cannot add an uniform if the buffer is already created
-                Logger.Error("Cannot add an uniform after UBO has been created.");
+                Logger.Error("Cannot add an uniform after UBO has been created. uniformName=" + uniformName);
                 return;
             }
             this.addUniform(uniformName, size);
@@ -438,7 +493,7 @@ export class UniformBuffer {
             for (let i = 0; i < size; i++) {
                 // We are checking the matrix cache before calling updateUniform so we do not need to check it here
                 // Hence the test for size === 16 to simply commit the matrix values
-                if ((size === 16 && !this._engine._features.uniformBufferHardCheckMatrix) || this._bufferData[location + i] !== Tools.FloatRound(data[i])) {
+                if ((size === 16 && !this._engine._features.uniformBufferHardCheckMatrix) || this._bufferData[location + i] !== Math.fround(data[i])) {
                     changed = true;
                     if (this._createBufferOnWrite) {
                         this._createNewBuffer();
@@ -540,8 +595,8 @@ export class UniformBuffer {
         }
         this.updateUniform(name, UniformBuffer._TempBuffer, 8);
     }
-    _updateFloatForEffect(name, x) {
-        this._currentEffect.setFloat(name, x);
+    _updateFloatForEffect(name, x, suffix = "") {
+        this._currentEffect.setFloat(name + suffix, x);
     }
     _updateFloatForUniform(name, x) {
         UniformBuffer._TempBuffer[0] = x;
@@ -574,8 +629,21 @@ export class UniformBuffer {
         UniformBuffer._TempBuffer[3] = w;
         this.updateUniform(name, UniformBuffer._TempBuffer, 4);
     }
-    _updateFloatArrayForEffect(name, array) {
-        this._currentEffect.setFloatArray(name, array);
+    _updateFloatArrayForEffect(name, array, suffix = "") {
+        switch (this._uniformArraySizes[name]?.strideSize) {
+            case 2:
+                this._currentEffect.setFloatArray2(name + suffix, array);
+                break;
+            case 3:
+                this._currentEffect.setFloatArray3(name + suffix, array);
+                break;
+            case 4:
+                this._currentEffect.setFloatArray4(name + suffix, array);
+                break;
+            default:
+                this._currentEffect.setFloatArray(name + suffix, array);
+                break;
+        }
     }
     _updateFloatArrayForUniform(name, array) {
         this.updateUniformArray(name, array, array.length);
@@ -593,12 +661,19 @@ export class UniformBuffer {
         UniformBuffer._TempBufferInt32View.set(array);
         this.updateUniformArray(name, UniformBuffer._TempBuffer, array.length);
     }
+    _updateUIntArrayForEffect(name, array) {
+        this._currentEffect.setUIntArray(name, array);
+    }
+    _updateUIntArrayForUniform(name, array) {
+        UniformBuffer._TempBufferUInt32View.set(array);
+        this.updateUniformArray(name, UniformBuffer._TempBuffer, array.length);
+    }
     _updateMatrixForEffect(name, mat) {
         this._currentEffect.setMatrix(name, mat);
     }
     _updateMatrixForUniform(name, mat) {
         if (this._cacheMatrix(name, mat)) {
-            this.updateUniform(name, mat.toArray(), 16);
+            this.updateUniform(name, mat.asArray(), 16);
         }
     }
     _updateMatricesForEffect(name, mat) {
@@ -689,6 +764,40 @@ export class UniformBuffer {
         UniformBuffer._TempBufferInt32View[3] = w;
         this.updateUniform(name, UniformBuffer._TempBuffer, 4);
     }
+    _updateUIntForEffect(name, x, suffix = "") {
+        this._currentEffect.setUInt(name + suffix, x);
+    }
+    _updateUIntForUniform(name, x) {
+        UniformBuffer._TempBufferUInt32View[0] = x;
+        this.updateUniform(name, UniformBuffer._TempBuffer, 1);
+    }
+    _updateUInt2ForEffect(name, x, y, suffix = "") {
+        this._currentEffect.setUInt2(name + suffix, x, y);
+    }
+    _updateUInt2ForUniform(name, x, y) {
+        UniformBuffer._TempBufferUInt32View[0] = x;
+        UniformBuffer._TempBufferUInt32View[1] = y;
+        this.updateUniform(name, UniformBuffer._TempBuffer, 2);
+    }
+    _updateUInt3ForEffect(name, x, y, z, suffix = "") {
+        this._currentEffect.setUInt3(name + suffix, x, y, z);
+    }
+    _updateUInt3ForUniform(name, x, y, z) {
+        UniformBuffer._TempBufferUInt32View[0] = x;
+        UniformBuffer._TempBufferUInt32View[1] = y;
+        UniformBuffer._TempBufferUInt32View[2] = z;
+        this.updateUniform(name, UniformBuffer._TempBuffer, 3);
+    }
+    _updateUInt4ForEffect(name, x, y, z, w, suffix = "") {
+        this._currentEffect.setUInt4(name + suffix, x, y, z, w);
+    }
+    _updateUInt4ForUniform(name, x, y, z, w) {
+        UniformBuffer._TempBufferUInt32View[0] = x;
+        UniformBuffer._TempBufferUInt32View[1] = y;
+        UniformBuffer._TempBufferUInt32View[2] = z;
+        UniformBuffer._TempBufferUInt32View[3] = w;
+        this.updateUniform(name, UniformBuffer._TempBuffer, 4);
+    }
     /**
      * Sets a sampler uniform on the effect.
      * @param name Define the name of the sampler.
@@ -696,6 +805,22 @@ export class UniformBuffer {
      */
     setTexture(name, texture) {
         this._currentEffect.setTexture(name, texture);
+    }
+    /**
+     * Sets an array of sampler uniforms on the effect.
+     * @param name Define the name of uniform.
+     * @param textures Define the textures to set in the array of samplers
+     */
+    setTextureArray(name, textures) {
+        this._currentEffect.setTextureArray(name, textures);
+    }
+    /**
+     * Sets a sampler uniform on the effect.
+     * @param name Define the name of the sampler.
+     * @param texture Define the (internal) texture to set in the sampler
+     */
+    bindTexture(name, texture) {
+        this._currentEffect._bindTexture(name, texture);
     }
     /**
      * Directly updates the value of the uniform in the cache AND on the GPU.
@@ -747,10 +872,26 @@ export class UniformBuffer {
                 this._buffer = dataBuffer;
                 this._createBufferOnWrite = false;
                 this._currentEffect = undefined;
+                // Note that if _buffers.length == 1, we don't copy _bufferData into _buffers[_bufferIndex][1] (see the update() method), and _bufferData already contains the right data
+                if (this._buffers.length > 1 && this._buffers[b][1]) {
+                    this._bufferData.set(this._buffers[b][1]);
+                }
+                this._valueCache = {};
+                // The following line prevents the current buffer (_buffer / _bufferIndex) from being updated during subsequent calls to updateXXX() due to a call to _checkNewFrame()
+                // If we called setDataBuffer, it means that we want to update the buffer we just defined and not another one (_checkNewFrame() can modify the current buffer).
+                this._currentFrameId = this._engine.frameId;
                 return true;
             }
         }
         return false;
+    }
+    /**
+     * Checks if the uniform buffer has a uniform with the given name.
+     * @param name Name of the uniform to check
+     * @returns True if the uniform exists, false otherwise.
+     */
+    has(name) {
+        return this._uniformLocations[name] !== undefined;
     }
     /**
      * Disposes the uniform buffer.
@@ -765,7 +906,7 @@ export class UniformBuffer {
             uniformBuffers[index] = uniformBuffers[uniformBuffers.length - 1];
             uniformBuffers.pop();
         }
-        if (this._engine._features.trackUbosInFrame && this._buffers) {
+        if (this._trackUBOsInFrame && this._buffers) {
             for (let i = 0; i < this._buffers.length; ++i) {
                 const buffer = this._buffers[i][0];
                 this._engine._releaseBuffer(buffer);
@@ -776,10 +917,9 @@ export class UniformBuffer {
         }
     }
 }
-/** @internal */
-UniformBuffer._UpdatedUbosInFrame = {};
 // Pool for avoiding memory leaks
 UniformBuffer._MAX_UNIFORM_SIZE = 256;
 UniformBuffer._TempBuffer = new Float32Array(UniformBuffer._MAX_UNIFORM_SIZE);
-UniformBuffer._TempBufferInt32View = new Uint32Array(UniformBuffer._TempBuffer.buffer);
+UniformBuffer._TempBufferInt32View = new Int32Array(UniformBuffer._TempBuffer.buffer);
+UniformBuffer._TempBufferUInt32View = new Uint32Array(UniformBuffer._TempBuffer.buffer);
 //# sourceMappingURL=uniformBuffer.js.map

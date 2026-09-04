@@ -1,11 +1,17 @@
-import { Vector2 } from "../Maths/math.vector.js";
-import { Texture } from "../Materials/Textures/texture.js";
-import { PostProcess } from "./postProcess.js";
-import "../Shaders/vrDistortionCorrection.fragment.js";
+import { Vector2 } from "../Maths/math.vector.pure.js";
+import { Texture } from "../Materials/Textures/texture.pure.js";
+import { PostProcess } from "./postProcess.pure.js";
 /**
  * VRDistortionCorrectionPostProcess used for mobile VR
  */
 export class VRDistortionCorrectionPostProcess extends PostProcess {
+    /**
+     * Gets a string identifying the name of the class
+     * @returns "VRDistortionCorrectionPostProcess" string
+     */
+    getClassName() {
+        return "VRDistortionCorrectionPostProcess";
+    }
     /**
      * Initializes the VRDistortionCorrectionPostProcess
      * @param name The name of the effect.
@@ -32,12 +38,15 @@ export class VRDistortionCorrectionPostProcess extends PostProcess {
             effect.setFloat4("HmdWarpParam", this._distortionFactors[0], this._distortionFactors[1], this._distortionFactors[2], this._distortionFactors[3]);
         });
     }
-    /**
-     * Gets a string identifying the name of the class
-     * @returns "VRDistortionCorrectionPostProcess" string
-     */
-    getClassName() {
-        return "VRDistortionCorrectionPostProcess";
+    _gatherImports(useWebGPU, list) {
+        if (useWebGPU) {
+            this._webGPUReady = true;
+            list.push(import("../ShadersWGSL/vrDistortionCorrection.fragment.js"));
+        }
+        else {
+            list.push(import("../Shaders/vrDistortionCorrection.fragment.js"));
+        }
+        super._gatherImports(useWebGPU, list);
     }
 }
 //# sourceMappingURL=vrDistortionCorrectionPostProcess.js.map

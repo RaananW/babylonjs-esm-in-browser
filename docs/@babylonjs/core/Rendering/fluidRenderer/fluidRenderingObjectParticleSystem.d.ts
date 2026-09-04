@@ -1,9 +1,10 @@
-import type { VertexBuffer } from "../../Buffers/buffer.js";
-import type { DataBuffer } from "../../Buffers/dataBuffer.js";
-import type { IParticleSystem } from "../../Particles/IParticleSystem.js";
-import type { Scene } from "../../scene.js";
-import type { Nullable } from "../../types.js";
-import { FluidRenderingObject } from "./fluidRenderingObject";
+import { type VertexBuffer } from "../../Buffers/buffer.js";
+import { type DataBuffer } from "../../Buffers/dataBuffer.js";
+import { type IParticleSystem } from "../../Particles/IParticleSystem.js";
+import { type Scene } from "../../scene.js";
+import { type Nullable } from "../../types.js";
+import { FluidRenderingObject } from "./fluidRenderingObject.js";
+import { type ShaderLanguage } from "../../Materials/shaderLanguage.js";
 /**
  * Defines a rendering object based on a particle system
  */
@@ -16,7 +17,7 @@ export declare class FluidRenderingObjectParticleSystem extends FluidRenderingOb
     /** Gets the particle system */
     get particleSystem(): IParticleSystem;
     /**
-     * Gets the name of the class
+     * @returns the name of the class
      */
     getClassName(): string;
     private _useTrueRenderingForDiffuseTexture;
@@ -41,8 +42,14 @@ export declare class FluidRenderingObjectParticleSystem extends FluidRenderingOb
      * Creates a new instance of the class
      * @param scene The scene the particle system is part of
      * @param ps The particle system
+     * @param shaderLanguage The shader language to use
      */
-    constructor(scene: Scene, ps: IParticleSystem);
+    constructor(scene: Scene, ps: IParticleSystem, shaderLanguage?: ShaderLanguage);
+    /**
+     * GPUParticleSystem's "size" buffer layout (baseSize, scaleX, scaleY) is incompatible with this feature.
+     * @returns true if the per-particle size attribute is supported
+     */
+    protected _supportsPerParticleSizeAttribute(): boolean;
     /**
      * Indicates if the object is ready to be rendered
      * @returns True if everything is ready for the object to be rendered, otherwise false
@@ -58,7 +65,7 @@ export declare class FluidRenderingObjectParticleSystem extends FluidRenderingOb
      */
     renderDiffuseTexture(): void;
     /**
-     * Releases the ressources used by the class
+     * Releases the resources used by the class
      */
     dispose(): void;
 }

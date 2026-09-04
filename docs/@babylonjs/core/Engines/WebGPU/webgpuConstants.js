@@ -1,9 +1,4 @@
-/** @internal */
-// eslint-disable-next-line import/export
-export var PredefinedColorSpace;
-(function (PredefinedColorSpace) {
-    PredefinedColorSpace["SRGB"] = "srgb";
-})(PredefinedColorSpace || (PredefinedColorSpace = {}));
+/* eslint-disable @typescript-eslint/naming-convention */
 /** @internal */
 // eslint-disable-next-line import/export
 export var PowerPreference;
@@ -14,17 +9,36 @@ export var PowerPreference;
 /** @internal */
 export var FeatureName;
 (function (FeatureName) {
+    FeatureName["CoreFeaturesAndLimits"] = "core-features-and-limits";
     FeatureName["DepthClipControl"] = "depth-clip-control";
-    FeatureName["Depth24UnormStencil8"] = "depth24unorm-stencil8";
     FeatureName["Depth32FloatStencil8"] = "depth32float-stencil8";
     FeatureName["TextureCompressionBC"] = "texture-compression-bc";
+    FeatureName["TextureCompressionBCSliced3D"] = "texture-compression-bc-sliced-3d";
     FeatureName["TextureCompressionETC2"] = "texture-compression-etc2";
     FeatureName["TextureCompressionASTC"] = "texture-compression-astc";
+    FeatureName["TextureCompressionASTCSliced3D"] = "texture-compression-astc-sliced-3d";
     FeatureName["TimestampQuery"] = "timestamp-query";
     FeatureName["IndirectFirstInstance"] = "indirect-first-instance";
     FeatureName["ShaderF16"] = "shader-f16";
+    FeatureName["RG11B10UFloatRenderable"] = "rg11b10ufloat-renderable";
     FeatureName["BGRA8UnormStorage"] = "bgra8unorm-storage";
+    FeatureName["Float32Filterable"] = "float32-filterable";
+    FeatureName["Float32Blendable"] = "float32-blendable";
+    FeatureName["ClipDistances"] = "clip-distances";
+    FeatureName["DualSourceBlending"] = "dual-source-blending";
+    FeatureName["Subgroups"] = "subgroups";
+    FeatureName["TextureFormatsTier1"] = "texture-formats-tier1";
+    FeatureName["TextureFormatsTier2"] = "texture-formats-tier2";
+    FeatureName["PrimitiveIndex"] = "primitive-index";
+    FeatureName["TextureComponentSwizzle"] = "texture-component-swizzle";
 })(FeatureName || (FeatureName = {}));
+/** @internal */
+export var BufferMapState;
+(function (BufferMapState) {
+    BufferMapState["Unmapped"] = "unmapped";
+    BufferMapState["Pending"] = "pending";
+    BufferMapState["Mapped"] = "mapped";
+})(BufferMapState || (BufferMapState = {}));
 /** @internal */
 export var BufferUsage;
 (function (BufferUsage) {
@@ -60,6 +74,7 @@ export var TextureUsage;
     TextureUsage[TextureUsage["TextureBinding"] = 4] = "TextureBinding";
     TextureUsage[TextureUsage["StorageBinding"] = 8] = "StorageBinding";
     TextureUsage[TextureUsage["RenderAttachment"] = 16] = "RenderAttachment";
+    TextureUsage[TextureUsage["TransientAttachment"] = 32] = "TransientAttachment";
 })(TextureUsage || (TextureUsage = {}));
 /** @internal */
 export var TextureViewDimension;
@@ -97,6 +112,8 @@ export var TextureFormat;
     TextureFormat["RG8Snorm"] = "rg8snorm";
     TextureFormat["RG8Uint"] = "rg8uint";
     TextureFormat["RG8Sint"] = "rg8sint";
+    TextureFormat["R16Unorm"] = "r16unorm";
+    TextureFormat["R16Snorm"] = "r16snorm";
     // 32-bit formats
     TextureFormat["R32Uint"] = "r32uint";
     TextureFormat["R32Sint"] = "r32sint";
@@ -111,8 +128,11 @@ export var TextureFormat;
     TextureFormat["RGBA8Sint"] = "rgba8sint";
     TextureFormat["BGRA8Unorm"] = "bgra8unorm";
     TextureFormat["BGRA8UnormSRGB"] = "bgra8unorm-srgb";
+    TextureFormat["RG16Unorm"] = "rg16unorm";
+    TextureFormat["RG16Snorm"] = "rg16snorm";
     // Packed 32-bit formats
     TextureFormat["RGB9E5UFloat"] = "rgb9e5ufloat";
+    TextureFormat["RGB10A2UINT"] = "rgb10a2uint";
     TextureFormat["RGB10A2Unorm"] = "rgb10a2unorm";
     TextureFormat["RG11B10UFloat"] = "rg11b10ufloat";
     // 64-bit formats
@@ -122,6 +142,8 @@ export var TextureFormat;
     TextureFormat["RGBA16Uint"] = "rgba16uint";
     TextureFormat["RGBA16Sint"] = "rgba16sint";
     TextureFormat["RGBA16Float"] = "rgba16float";
+    TextureFormat["RGBA16Unorm"] = "rgba16unorm";
+    TextureFormat["RGBA16Snorm"] = "rgba16snorm";
     // 128-bit formats
     TextureFormat["RGBA32Uint"] = "rgba32uint";
     TextureFormat["RGBA32Sint"] = "rgba32sint";
@@ -190,8 +212,6 @@ export var TextureFormat;
     TextureFormat["ASTC12x10UnormSRGB"] = "astc-12x10-unorm-srgb";
     TextureFormat["ASTC12x12Unorm"] = "astc-12x12-unorm";
     TextureFormat["ASTC12x12UnormSRGB"] = "astc-12x12-unorm-srgb";
-    // "depth24unorm-stencil8" feature
-    TextureFormat["Depth24UnormStencil8"] = "depth24unorm-stencil8";
     // "depth32float-stencil8" feature
     TextureFormat["Depth32FloatStencil8"] = "depth32float-stencil8";
 })(TextureFormat || (TextureFormat = {}));
@@ -208,6 +228,12 @@ export var FilterMode;
     FilterMode["Nearest"] = "nearest";
     FilterMode["Linear"] = "linear";
 })(FilterMode || (FilterMode = {}));
+/** @internal */
+export var MipmapFilterMode;
+(function (MipmapFilterMode) {
+    MipmapFilterMode["Nearest"] = "nearest";
+    MipmapFilterMode["Linear"] = "linear";
+})(MipmapFilterMode || (MipmapFilterMode = {}));
 /** @internal */
 export var CompareFunction;
 (function (CompareFunction) {
@@ -254,6 +280,8 @@ export var TextureSampleType;
 export var StorageTextureAccess;
 (function (StorageTextureAccess) {
     StorageTextureAccess["WriteOnly"] = "write-only";
+    StorageTextureAccess["ReadOnly"] = "read-only";
+    StorageTextureAccess["ReadWrite"] = "read-write";
 })(StorageTextureAccess || (StorageTextureAccess = {}));
 /** @internal */
 export var CompilationMessageType;
@@ -262,6 +290,12 @@ export var CompilationMessageType;
     CompilationMessageType["Warning"] = "warning";
     CompilationMessageType["Info"] = "info";
 })(CompilationMessageType || (CompilationMessageType = {}));
+/** @internal */
+export var PipelineErrorReason;
+(function (PipelineErrorReason) {
+    PipelineErrorReason["Validation"] = "validation";
+    PipelineErrorReason["Internal"] = "internal";
+})(PipelineErrorReason || (PipelineErrorReason = {}));
 /** @internal */
 export var AutoLayoutMode;
 (function (AutoLayoutMode) {
@@ -290,14 +324,14 @@ export var CullMode;
     CullMode["Back"] = "back";
 })(CullMode || (CullMode = {}));
 /** @internal */
-export var ColorWriteFlags;
-(function (ColorWriteFlags) {
-    ColorWriteFlags[ColorWriteFlags["Red"] = 1] = "Red";
-    ColorWriteFlags[ColorWriteFlags["Green"] = 2] = "Green";
-    ColorWriteFlags[ColorWriteFlags["Blue"] = 4] = "Blue";
-    ColorWriteFlags[ColorWriteFlags["Alpha"] = 8] = "Alpha";
-    ColorWriteFlags[ColorWriteFlags["All"] = 15] = "All";
-})(ColorWriteFlags || (ColorWriteFlags = {}));
+export var ColorWrite;
+(function (ColorWrite) {
+    ColorWrite[ColorWrite["Red"] = 1] = "Red";
+    ColorWrite[ColorWrite["Green"] = 2] = "Green";
+    ColorWrite[ColorWrite["Blue"] = 4] = "Blue";
+    ColorWrite[ColorWrite["Alpha"] = 8] = "Alpha";
+    ColorWrite[ColorWrite["All"] = 15] = "All";
+})(ColorWrite || (ColorWrite = {}));
 /** @internal */
 export var BlendFactor;
 (function (BlendFactor) {
@@ -314,6 +348,10 @@ export var BlendFactor;
     BlendFactor["SrcAlphaSaturated"] = "src-alpha-saturated";
     BlendFactor["Constant"] = "constant";
     BlendFactor["OneMinusConstant"] = "one-minus-constant";
+    BlendFactor["Src1"] = "src1";
+    BlendFactor["OneMinusSrc1"] = "one-minus-src1";
+    BlendFactor["Src1Alpha"] = "src1-alpha";
+    BlendFactor["OneMinusSrc1Alpha"] = "one-minus-src1-alpha";
 })(BlendFactor || (BlendFactor = {}));
 /** @internal */
 export var BlendOperation;
@@ -345,22 +383,31 @@ export var IndexFormat;
 /** @internal */
 export var VertexFormat;
 (function (VertexFormat) {
+    VertexFormat["Uint8"] = "uint8";
     VertexFormat["Uint8x2"] = "uint8x2";
     VertexFormat["Uint8x4"] = "uint8x4";
+    VertexFormat["Sint8"] = "sint8";
     VertexFormat["Sint8x2"] = "sint8x2";
     VertexFormat["Sint8x4"] = "sint8x4";
+    VertexFormat["Unorm8"] = "unorm8";
     VertexFormat["Unorm8x2"] = "unorm8x2";
     VertexFormat["Unorm8x4"] = "unorm8x4";
+    VertexFormat["Snorm8"] = "snorm8";
     VertexFormat["Snorm8x2"] = "snorm8x2";
     VertexFormat["Snorm8x4"] = "snorm8x4";
+    VertexFormat["Uint16"] = "uint16";
     VertexFormat["Uint16x2"] = "uint16x2";
     VertexFormat["Uint16x4"] = "uint16x4";
+    VertexFormat["Sint16"] = "sint16";
     VertexFormat["Sint16x2"] = "sint16x2";
     VertexFormat["Sint16x4"] = "sint16x4";
+    VertexFormat["Unorm16"] = "unorm16";
     VertexFormat["Unorm16x2"] = "unorm16x2";
     VertexFormat["Unorm16x4"] = "unorm16x4";
+    VertexFormat["Snorm16"] = "snorm16";
     VertexFormat["Snorm16x2"] = "snorm16x2";
     VertexFormat["Snorm16x4"] = "snorm16x4";
+    VertexFormat["Float16"] = "float16";
     VertexFormat["Float16x2"] = "float16x2";
     VertexFormat["Float16x4"] = "float16x4";
     VertexFormat["Float32"] = "float32";
@@ -375,13 +422,15 @@ export var VertexFormat;
     VertexFormat["Sint32x2"] = "sint32x2";
     VertexFormat["Sint32x3"] = "sint32x3";
     VertexFormat["Sint32x4"] = "sint32x4";
+    VertexFormat["UNORM10x10x10x2"] = "unorm10-10-10-2";
+    VertexFormat["UNORM8x4BGRA"] = "unorm8x4-bgra";
 })(VertexFormat || (VertexFormat = {}));
 /** @internal */
-export var InputStepMode;
-(function (InputStepMode) {
-    InputStepMode["Vertex"] = "vertex";
-    InputStepMode["Instance"] = "instance";
-})(InputStepMode || (InputStepMode = {}));
+export var VertexStepMode;
+(function (VertexStepMode) {
+    VertexStepMode["Vertex"] = "vertex";
+    VertexStepMode["Instance"] = "instance";
+})(VertexStepMode || (VertexStepMode = {}));
 /** @internal */
 export var ComputePassTimestampLocation;
 (function (ComputePassTimestampLocation) {
@@ -419,14 +468,22 @@ export var CanvasAlphaMode;
     CanvasAlphaMode["Premultiplied"] = "premultiplied";
 })(CanvasAlphaMode || (CanvasAlphaMode = {}));
 /** @internal */
+export var CanvasToneMappingMode;
+(function (CanvasToneMappingMode) {
+    CanvasToneMappingMode["Standard"] = "standard";
+    CanvasToneMappingMode["Extended"] = "extended";
+})(CanvasToneMappingMode || (CanvasToneMappingMode = {}));
+/** @internal */
 export var DeviceLostReason;
 (function (DeviceLostReason) {
+    DeviceLostReason["Unknown"] = "unknown";
     DeviceLostReason["Destroyed"] = "destroyed";
 })(DeviceLostReason || (DeviceLostReason = {}));
 /** @internal */
 export var ErrorFilter;
 (function (ErrorFilter) {
-    ErrorFilter["OutOfMemory"] = "out-of-memory";
     ErrorFilter["Validation"] = "validation";
+    ErrorFilter["OutOfMemory"] = "out-of-memory";
+    ErrorFilter["Internal"] = "internal";
 })(ErrorFilter || (ErrorFilter = {}));
 //# sourceMappingURL=webgpuConstants.js.map

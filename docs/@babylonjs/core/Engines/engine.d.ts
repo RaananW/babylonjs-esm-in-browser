@@ -1,2339 +1,197 @@
 
-import { Observable } from "../Misc/observable";
-import type { Nullable } from "../types";
-import type { Scene } from "../scene";
-import { InternalTexture } from "../Materials/Textures/internalTexture";
-import type { IOfflineProvider } from "../Offline/IOfflineProvider";
-import type { ILoadingScreen } from "../Loading/loadingScreen";
-import type { WebGLPipelineContext } from "./WebGL/webGLPipelineContext";
-import type { IPipelineContext } from "./IPipelineContext";
-import type { ICustomAnimationFrameRequester } from "../Misc/customAnimationFrameRequester";
-import type { EngineOptions } from "./thinEngine";
-import { ThinEngine } from "./thinEngine";
-import type { IViewportLike, IColor4Like } from "../Maths/math.like";
-import type { RenderTargetTexture } from "../Materials/Textures/renderTargetTexture";
-import { PerformanceMonitor } from "../Misc/performanceMonitor";
-import type { DataBuffer } from "../Buffers/dataBuffer";
-import { PerfCounter } from "../Misc/perfCounter";
-import type { RenderTargetWrapper } from "./renderTargetWrapper";
-import "./Extensions/engine.alpha";
-import "./Extensions/engine.readTexture";
-import "./Extensions/engine.dynamicBuffer";
-import type { IAudioEngine } from "../Audio/Interfaces/IAudioEngine";
-declare type Material = import("../Materials/material").Material;
-declare type PostProcess = import("../PostProcesses/postProcess").PostProcess;
-/**
- * Defines the interface used by display changed events
- */
-export interface IDisplayChangedEventArgs {
-    /** Gets the vrDisplay object (if any) */
-    vrDisplay: Nullable<any>;
-    /** Gets a boolean indicating if webVR is supported */
-    vrSupported: boolean;
-}
-/**
- * Defines the interface used by objects containing a viewport (like a camera)
- */
-interface IViewportOwnerLike {
-    /**
-     * Gets or sets the viewport
-     */
-    viewport: IViewportLike;
-}
-/**
- * The engine class is responsible for interfacing with all lower-level APIs such as WebGL and Audio
- */
-export declare class Engine extends ThinEngine {
-    /** Defines that alpha blending is disabled */
-    static readonly ALPHA_DISABLE = 0;
-    /** Defines that alpha blending to SRC ALPHA * SRC + DEST */
-    static readonly ALPHA_ADD = 1;
-    /** Defines that alpha blending to SRC ALPHA * SRC + (1 - SRC ALPHA) * DEST */
-    static readonly ALPHA_COMBINE = 2;
-    /** Defines that alpha blending to DEST - SRC * DEST */
-    static readonly ALPHA_SUBTRACT = 3;
-    /** Defines that alpha blending to SRC * DEST */
-    static readonly ALPHA_MULTIPLY = 4;
-    /** Defines that alpha blending to SRC ALPHA * SRC + (1 - SRC) * DEST */
-    static readonly ALPHA_MAXIMIZED = 5;
-    /** Defines that alpha blending to SRC + DEST */
-    static readonly ALPHA_ONEONE = 6;
-    /** Defines that alpha blending to SRC + (1 - SRC ALPHA) * DEST */
-    static readonly ALPHA_PREMULTIPLIED = 7;
-    /**
-     * Defines that alpha blending to SRC + (1 - SRC ALPHA) * DEST
-     * Alpha will be set to (1 - SRC ALPHA) * DEST ALPHA
-     */
-    static readonly ALPHA_PREMULTIPLIED_PORTERDUFF = 8;
-    /** Defines that alpha blending to CST * SRC + (1 - CST) * DEST */
-    static readonly ALPHA_INTERPOLATE = 9;
-    /**
-     * Defines that alpha blending to SRC + (1 - SRC) * DEST
-     * Alpha will be set to SRC ALPHA + (1 - SRC ALPHA) * DEST ALPHA
-     */
-    static readonly ALPHA_SCREENMODE = 10;
-    /** Defines that the resource is not delayed*/
-    static readonly DELAYLOADSTATE_NONE = 0;
-    /** Defines that the resource was successfully delay loaded */
-    static readonly DELAYLOADSTATE_LOADED = 1;
-    /** Defines that the resource is currently delay loading */
-    static readonly DELAYLOADSTATE_LOADING = 2;
-    /** Defines that the resource is delayed and has not started loading */
-    static readonly DELAYLOADSTATE_NOTLOADED = 4;
-    /** Passed to depthFunction or stencilFunction to specify depth or stencil tests will never pass. i.e. Nothing will be drawn */
-    static readonly NEVER = 512;
-    /** Passed to depthFunction or stencilFunction to specify depth or stencil tests will always pass. i.e. Pixels will be drawn in the order they are drawn */
-    static readonly ALWAYS = 519;
-    /** Passed to depthFunction or stencilFunction to specify depth or stencil tests will pass if the new depth value is less than the stored value */
-    static readonly LESS = 513;
-    /** Passed to depthFunction or stencilFunction to specify depth or stencil tests will pass if the new depth value is equals to the stored value */
-    static readonly EQUAL = 514;
-    /** Passed to depthFunction or stencilFunction to specify depth or stencil tests will pass if the new depth value is less than or equal to the stored value */
-    static readonly LEQUAL = 515;
-    /** Passed to depthFunction or stencilFunction to specify depth or stencil tests will pass if the new depth value is greater than the stored value */
-    static readonly GREATER = 516;
-    /** Passed to depthFunction or stencilFunction to specify depth or stencil tests will pass if the new depth value is greater than or equal to the stored value */
-    static readonly GEQUAL = 518;
-    /** Passed to depthFunction or stencilFunction to specify depth or stencil tests will pass if the new depth value is not equal to the stored value */
-    static readonly NOTEQUAL = 517;
-    /** Passed to stencilOperation to specify that stencil value must be kept */
-    static readonly KEEP = 7680;
-    /** Passed to stencilOperation to specify that stencil value must be replaced */
-    static readonly REPLACE = 7681;
-    /** Passed to stencilOperation to specify that stencil value must be incremented */
-    static readonly INCR = 7682;
-    /** Passed to stencilOperation to specify that stencil value must be decremented */
-    static readonly DECR = 7683;
-    /** Passed to stencilOperation to specify that stencil value must be inverted */
-    static readonly INVERT = 5386;
-    /** Passed to stencilOperation to specify that stencil value must be incremented with wrapping */
-    static readonly INCR_WRAP = 34055;
-    /** Passed to stencilOperation to specify that stencil value must be decremented with wrapping */
-    static readonly DECR_WRAP = 34056;
-    /** Texture is not repeating outside of 0..1 UVs */
-    static readonly TEXTURE_CLAMP_ADDRESSMODE = 0;
-    /** Texture is repeating outside of 0..1 UVs */
-    static readonly TEXTURE_WRAP_ADDRESSMODE = 1;
-    /** Texture is repeating and mirrored */
-    static readonly TEXTURE_MIRROR_ADDRESSMODE = 2;
-    /** ALPHA */
-    static readonly TEXTUREFORMAT_ALPHA = 0;
-    /** LUMINANCE */
-    static readonly TEXTUREFORMAT_LUMINANCE = 1;
-    /** LUMINANCE_ALPHA */
-    static readonly TEXTUREFORMAT_LUMINANCE_ALPHA = 2;
-    /** RGB */
-    static readonly TEXTUREFORMAT_RGB = 4;
-    /** RGBA */
-    static readonly TEXTUREFORMAT_RGBA = 5;
-    /** RED */
-    static readonly TEXTUREFORMAT_RED = 6;
-    /** RED (2nd reference) */
-    static readonly TEXTUREFORMAT_R = 6;
-    /** RG */
-    static readonly TEXTUREFORMAT_RG = 7;
-    /** RED_INTEGER */
-    static readonly TEXTUREFORMAT_RED_INTEGER = 8;
-    /** RED_INTEGER (2nd reference) */
-    static readonly TEXTUREFORMAT_R_INTEGER = 8;
-    /** RG_INTEGER */
-    static readonly TEXTUREFORMAT_RG_INTEGER = 9;
-    /** RGB_INTEGER */
-    static readonly TEXTUREFORMAT_RGB_INTEGER = 10;
-    /** RGBA_INTEGER */
-    static readonly TEXTUREFORMAT_RGBA_INTEGER = 11;
-    /** UNSIGNED_BYTE */
-    static readonly TEXTURETYPE_UNSIGNED_BYTE = 0;
-    /** UNSIGNED_BYTE (2nd reference) */
-    static readonly TEXTURETYPE_UNSIGNED_INT = 0;
-    /** FLOAT */
-    static readonly TEXTURETYPE_FLOAT = 1;
-    /** HALF_FLOAT */
-    static readonly TEXTURETYPE_HALF_FLOAT = 2;
-    /** BYTE */
-    static readonly TEXTURETYPE_BYTE = 3;
-    /** SHORT */
-    static readonly TEXTURETYPE_SHORT = 4;
-    /** UNSIGNED_SHORT */
-    static readonly TEXTURETYPE_UNSIGNED_SHORT = 5;
-    /** INT */
-    static readonly TEXTURETYPE_INT = 6;
-    /** UNSIGNED_INT */
-    static readonly TEXTURETYPE_UNSIGNED_INTEGER = 7;
-    /** UNSIGNED_SHORT_4_4_4_4 */
-    static readonly TEXTURETYPE_UNSIGNED_SHORT_4_4_4_4 = 8;
-    /** UNSIGNED_SHORT_5_5_5_1 */
-    static readonly TEXTURETYPE_UNSIGNED_SHORT_5_5_5_1 = 9;
-    /** UNSIGNED_SHORT_5_6_5 */
-    static readonly TEXTURETYPE_UNSIGNED_SHORT_5_6_5 = 10;
-    /** UNSIGNED_INT_2_10_10_10_REV */
-    static readonly TEXTURETYPE_UNSIGNED_INT_2_10_10_10_REV = 11;
-    /** UNSIGNED_INT_24_8 */
-    static readonly TEXTURETYPE_UNSIGNED_INT_24_8 = 12;
-    /** UNSIGNED_INT_10F_11F_11F_REV */
-    static readonly TEXTURETYPE_UNSIGNED_INT_10F_11F_11F_REV = 13;
-    /** UNSIGNED_INT_5_9_9_9_REV */
-    static readonly TEXTURETYPE_UNSIGNED_INT_5_9_9_9_REV = 14;
-    /** FLOAT_32_UNSIGNED_INT_24_8_REV */
-    static readonly TEXTURETYPE_FLOAT_32_UNSIGNED_INT_24_8_REV = 15;
-    /** nearest is mag = nearest and min = nearest and mip = none */
-    static readonly TEXTURE_NEAREST_SAMPLINGMODE = 1;
-    /** Bilinear is mag = linear and min = linear and mip = nearest */
-    static readonly TEXTURE_BILINEAR_SAMPLINGMODE = 2;
-    /** Trilinear is mag = linear and min = linear and mip = linear */
-    static readonly TEXTURE_TRILINEAR_SAMPLINGMODE = 3;
-    /** nearest is mag = nearest and min = nearest and mip = linear */
-    static readonly TEXTURE_NEAREST_NEAREST_MIPLINEAR = 8;
-    /** Bilinear is mag = linear and min = linear and mip = nearest */
-    static readonly TEXTURE_LINEAR_LINEAR_MIPNEAREST = 11;
-    /** Trilinear is mag = linear and min = linear and mip = linear */
-    static readonly TEXTURE_LINEAR_LINEAR_MIPLINEAR = 3;
-    /** mag = nearest and min = nearest and mip = nearest */
-    static readonly TEXTURE_NEAREST_NEAREST_MIPNEAREST = 4;
-    /** mag = nearest and min = linear and mip = nearest */
-    static readonly TEXTURE_NEAREST_LINEAR_MIPNEAREST = 5;
-    /** mag = nearest and min = linear and mip = linear */
-    static readonly TEXTURE_NEAREST_LINEAR_MIPLINEAR = 6;
-    /** mag = nearest and min = linear and mip = none */
-    static readonly TEXTURE_NEAREST_LINEAR = 7;
-    /** mag = nearest and min = nearest and mip = none */
-    static readonly TEXTURE_NEAREST_NEAREST = 1;
-    /** mag = linear and min = nearest and mip = nearest */
-    static readonly TEXTURE_LINEAR_NEAREST_MIPNEAREST = 9;
-    /** mag = linear and min = nearest and mip = linear */
-    static readonly TEXTURE_LINEAR_NEAREST_MIPLINEAR = 10;
-    /** mag = linear and min = linear and mip = none */
-    static readonly TEXTURE_LINEAR_LINEAR = 2;
-    /** mag = linear and min = nearest and mip = none */
-    static readonly TEXTURE_LINEAR_NEAREST = 12;
-    /** Explicit coordinates mode */
-    static readonly TEXTURE_EXPLICIT_MODE = 0;
-    /** Spherical coordinates mode */
-    static readonly TEXTURE_SPHERICAL_MODE = 1;
-    /** Planar coordinates mode */
-    static readonly TEXTURE_PLANAR_MODE = 2;
-    /** Cubic coordinates mode */
-    static readonly TEXTURE_CUBIC_MODE = 3;
-    /** Projection coordinates mode */
-    static readonly TEXTURE_PROJECTION_MODE = 4;
-    /** Skybox coordinates mode */
-    static readonly TEXTURE_SKYBOX_MODE = 5;
-    /** Inverse Cubic coordinates mode */
-    static readonly TEXTURE_INVCUBIC_MODE = 6;
-    /** Equirectangular coordinates mode */
-    static readonly TEXTURE_EQUIRECTANGULAR_MODE = 7;
-    /** Equirectangular Fixed coordinates mode */
-    static readonly TEXTURE_FIXED_EQUIRECTANGULAR_MODE = 8;
-    /** Equirectangular Fixed Mirrored coordinates mode */
-    static readonly TEXTURE_FIXED_EQUIRECTANGULAR_MIRRORED_MODE = 9;
-    /** Defines that texture rescaling will use a floor to find the closer power of 2 size */
-    static readonly SCALEMODE_FLOOR = 1;
-    /** Defines that texture rescaling will look for the nearest power of 2 size */
-    static readonly SCALEMODE_NEAREST = 2;
-    /** Defines that texture rescaling will use a ceil to find the closer power of 2 size */
-    static readonly SCALEMODE_CEILING = 3;
-    /**
-     * Returns the current npm package of the sdk
-     */
-    static get NpmPackage(): string;
-    /**
-     * Returns the current version of the framework
-     */
-    static get Version(): string;
-    /** Gets the list of created engines */
-    static get Instances(): Engine[];
-    /**
-     * Gets the latest created engine
-     */
-    static get LastCreatedEngine(): Nullable<Engine>;
-    /**
-     * Gets the latest created scene
-     */
-    static get LastCreatedScene(): Nullable<Scene>;
-    /** @internal */
-    /**
-     * Engine abstraction for loading and creating an image bitmap from a given source string.
-     * @param imageSource source to load the image from.
-     * @param options An object that sets options for the image's extraction.
-     * @returns ImageBitmap.
-     */
-    _createImageBitmapFromSource(imageSource: string, options?: ImageBitmapOptions): Promise<ImageBitmap>;
-    /**
-     * Engine abstraction for createImageBitmap
-     * @param image source for image
-     * @param options An object that sets options for the image's extraction.
-     * @returns ImageBitmap
-     */
-    createImageBitmap(image: ImageBitmapSource, options?: ImageBitmapOptions): Promise<ImageBitmap>;
-    /**
-     * Resize an image and returns the image data as an uint8array
-     * @param image image to resize
-     * @param bufferWidth destination buffer width
-     * @param bufferHeight destination buffer height
-     * @returns an uint8array containing RGBA values of bufferWidth * bufferHeight size
-     */
-    resizeImageBitmap(image: HTMLImageElement | ImageBitmap, bufferWidth: number, bufferHeight: number): Uint8Array;
-    /**
-     * Will flag all materials in all scenes in all engines as dirty to trigger new shader compilation
-     * @param flag defines which part of the materials must be marked as dirty
-     * @param predicate defines a predicate used to filter which materials should be affected
-     */
-    static MarkAllMaterialsAsDirty(flag: number, predicate?: (mat: Material) => boolean): void;
-    /**
-     * Method called to create the default loading screen.
-     * This can be overridden in your own app.
-     * @param canvas The rendering canvas element
-     * @returns The loading screen
-     */
-    static DefaultLoadingScreenFactory(canvas: HTMLCanvasElement): ILoadingScreen;
-    /**
-     * Method called to create the default rescale post process on each engine.
-     */
-    static _RescalePostProcessFactory: Nullable<(engine: Engine) => PostProcess>;
-    /**
-     * Gets or sets a boolean to enable/disable IndexedDB support and avoid XHR on .manifest
-     **/
-    enableOfflineSupport: boolean;
-    /**
-     * Gets or sets a boolean to enable/disable checking manifest if IndexedDB support is enabled (js will always consider the database is up to date)
-     **/
-    disableManifestCheck: boolean;
-    /**
-     * Gets or sets a boolean to enable/disable the context menu (right-click) from appearing on the main canvas
-     */
-    disableContextMenu: boolean;
-    /**
-     * Gets the list of created scenes
-     */
-    scenes: Scene[];
-    /** @internal */
-    _virtualScenes: Scene[];
-    /**
-     * Event raised when a new scene is created
-     */
-    onNewSceneAddedObservable: Observable<Scene>;
-    /**
-     * Gets the list of created postprocesses
-     */
-    postProcesses: import("../PostProcesses/postProcess").PostProcess[];
-    /**
-     * Gets a boolean indicating if the pointer is currently locked
-     */
-    isPointerLock: boolean;
-    /**
-     * Observable event triggered each time the rendering canvas is resized
-     */
-    onResizeObservable: Observable<Engine>;
-    /**
-     * Observable event triggered each time the canvas loses focus
-     */
-    onCanvasBlurObservable: Observable<Engine>;
-    /**
-     * Observable event triggered each time the canvas gains focus
-     */
-    onCanvasFocusObservable: Observable<Engine>;
-    /**
-     * Observable event triggered each time the canvas receives pointerout event
-     */
-    onCanvasPointerOutObservable: Observable<PointerEvent>;
-    /**
-     * Observable raised when the engine begins a new frame
-     */
-    onBeginFrameObservable: Observable<Engine>;
-    /**
-     * If set, will be used to request the next animation frame for the render loop
-     */
-    customAnimationFrameRequester: Nullable<ICustomAnimationFrameRequester>;
-    /**
-     * Observable raised when the engine ends the current frame
-     */
-    onEndFrameObservable: Observable<Engine>;
-    /**
-     * Observable raised when the engine is about to compile a shader
-     */
-    onBeforeShaderCompilationObservable: Observable<Engine>;
-    /**
-     * Observable raised when the engine has just compiled a shader
-     */
-    onAfterShaderCompilationObservable: Observable<Engine>;
-    /**
-     * Gets the audio engine
-     * @see https://doc.babylonjs.com/features/featuresDeepDive/audio/playingSoundsMusic
-     * @ignorenaming
-     */
-    static audioEngine: Nullable<IAudioEngine>;
-    /**
-     * Default AudioEngine factory responsible of creating the Audio Engine.
-     * By default, this will create a BabylonJS Audio Engine if the workload has been embedded.
-     */
-    static AudioEngineFactory: (hostElement: Nullable<HTMLElement>, audioContext: Nullable<AudioContext>, audioDestination: Nullable<AudioDestinationNode | MediaStreamAudioDestinationNode>) => IAudioEngine;
-    /**
-     * Default offline support factory responsible of creating a tool used to store data locally.
-     * By default, this will create a Database object if the workload has been embedded.
-     */
-    static OfflineProviderFactory: (urlToScene: string, callbackManifestChecked: (checked: boolean) => any, disableManifestCheck: boolean) => IOfflineProvider;
-    private _loadingScreen;
-    private _pointerLockRequested;
-    private _rescalePostProcess;
-    protected _deterministicLockstep: boolean;
-    protected _lockstepMaxSteps: number;
-    protected _timeStep: number;
-    protected get _supportsHardwareTextureRescaling(): boolean;
-    private _fps;
-    private _deltaTime;
-    /** @internal */
-    _drawCalls: PerfCounter;
-    /** Gets or sets the tab index to set to the rendering canvas. 1 is the minimum value to set to be able to capture keyboard events */
-    canvasTabIndex: number;
-    /**
-     * Turn this value on if you want to pause FPS computation when in background
-     */
-    disablePerformanceMonitorInBackground: boolean;
-    private _performanceMonitor;
-    /**
-     * Gets the performance monitor attached to this engine
-     * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/optimize_your_scene#engineinstrumentation
-     */
-    get performanceMonitor(): PerformanceMonitor;
-    private _onFocus;
-    private _onBlur;
-    private _onCanvasPointerOut;
-    private _onCanvasBlur;
-    private _onCanvasFocus;
-    private _onCanvasContextMenu;
-    private _onFullscreenChange;
-    private _onPointerLockChange;
-    protected _compatibilityMode: boolean;
-    /**
-     * (WebGPU only) True (default) to be in compatibility mode, meaning rendering all existing scenes without artifacts (same rendering than WebGL).
-     * Setting the property to false will improve performances but may not work in some scenes if some precautions are not taken.
-     * See https://doc.babylonjs.com/setup/support/webGPU/webGPUOptimization/webGPUNonCompatibilityMode for more details
-     */
-    get compatibilityMode(): boolean;
-    set compatibilityMode(mode: boolean);
-    /**
-     * Gets the HTML element used to attach event listeners
-     * @returns a HTML element
-     */
-    getInputElement(): Nullable<HTMLElement>;
-    /**
-     * Creates a new engine
-     * @param canvasOrContext defines the canvas or WebGL context to use for rendering. If you provide a WebGL context, Babylon.js will not hook events on the canvas (like pointers, keyboards, etc...) so no event observables will be available. This is mostly used when Babylon.js is used as a plugin on a system which already used the WebGL context
-     * @param antialias defines enable antialiasing (default: false)
-     * @param options defines further options to be sent to the getContext() function
-     * @param adaptToDeviceRatio defines whether to adapt to the device's viewport characteristics (default: false)
-     */
-    constructor(canvasOrContext: Nullable<HTMLCanvasElement | OffscreenCanvas | WebGLRenderingContext | WebGL2RenderingContext>, antialias?: boolean, options?: EngineOptions, adaptToDeviceRatio?: boolean);
-    protected _initGLContext(): void;
-    /**
-     * Shared initialization across engines types.
-     * @param canvas The canvas associated with this instance of the engine.
-     * @param doNotHandleTouchAction Defines that engine should ignore modifying touch action attribute and style
-     * @param audioEngine Defines if an audio engine should be created by default
-     */
-    protected _sharedInit(canvas: HTMLCanvasElement, doNotHandleTouchAction: boolean, audioEngine: boolean): void;
-    /**
-     * Gets current aspect ratio
-     * @param viewportOwner defines the camera to use to get the aspect ratio
-     * @param useScreen defines if screen size must be used (or the current render target if any)
-     * @returns a number defining the aspect ratio
-     */
-    getAspectRatio(viewportOwner: IViewportOwnerLike, useScreen?: boolean): number;
-    /**
-     * Gets current screen aspect ratio
-     * @returns a number defining the aspect ratio
-     */
-    getScreenAspectRatio(): number;
-    /**
-     * Gets the client rect of the HTML canvas attached with the current webGL context
-     * @returns a client rectangle
-     */
-    getRenderingCanvasClientRect(): Nullable<ClientRect>;
-    /**
-     * Gets the client rect of the HTML element used for events
-     * @returns a client rectangle
-     */
-    getInputElementClientRect(): Nullable<ClientRect>;
-    /**
-     * Gets a boolean indicating that the engine is running in deterministic lock step mode
-     * @see https://doc.babylonjs.com/features/featuresDeepDive/animation/advanced_animations#deterministic-lockstep
-     * @returns true if engine is in deterministic lock step mode
-     */
-    isDeterministicLockStep(): boolean;
-    /**
-     * Gets the max steps when engine is running in deterministic lock step
-     * @see https://doc.babylonjs.com/features/featuresDeepDive/animation/advanced_animations#deterministic-lockstep
-     * @returns the max steps
-     */
-    getLockstepMaxSteps(): number;
-    /**
-     * Returns the time in ms between steps when using deterministic lock step.
-     * @returns time step in (ms)
-     */
-    getTimeStep(): number;
-    /**
-     * Force the mipmap generation for the given render target texture
-     * @param texture defines the render target texture to use
-     * @param unbind defines whether or not to unbind the texture after generation. Defaults to true.
-     */
-    generateMipMapsForCubemap(texture: InternalTexture, unbind?: boolean): void;
-    /** States */
-    /**
-     * Gets a boolean indicating if depth writing is enabled
-     * @returns the current depth writing state
-     */
-    getDepthWrite(): boolean;
-    /**
-     * Enable or disable depth writing
-     * @param enable defines the state to set
-     */
-    setDepthWrite(enable: boolean): void;
-    /**
-     * Gets a boolean indicating if stencil buffer is enabled
-     * @returns the current stencil buffer state
-     */
-    getStencilBuffer(): boolean;
-    /**
-     * Enable or disable the stencil buffer
-     * @param enable defines if the stencil buffer must be enabled or disabled
-     */
-    setStencilBuffer(enable: boolean): void;
-    /**
-     * Gets the current stencil mask
-     * @returns a number defining the new stencil mask to use
-     */
-    getStencilMask(): number;
-    /**
-     * Sets the current stencil mask
-     * @param mask defines the new stencil mask to use
-     */
-    setStencilMask(mask: number): void;
-    /**
-     * Gets the current stencil function
-     * @returns a number defining the stencil function to use
-     */
-    getStencilFunction(): number;
-    /**
-     * Gets the current stencil reference value
-     * @returns a number defining the stencil reference value to use
-     */
-    getStencilFunctionReference(): number;
-    /**
-     * Gets the current stencil mask
-     * @returns a number defining the stencil mask to use
-     */
-    getStencilFunctionMask(): number;
-    /**
-     * Sets the current stencil function
-     * @param stencilFunc defines the new stencil function to use
-     */
-    setStencilFunction(stencilFunc: number): void;
-    /**
-     * Sets the current stencil reference
-     * @param reference defines the new stencil reference to use
-     */
-    setStencilFunctionReference(reference: number): void;
-    /**
-     * Sets the current stencil mask
-     * @param mask defines the new stencil mask to use
-     */
-    setStencilFunctionMask(mask: number): void;
-    /**
-     * Gets the current stencil operation when stencil fails
-     * @returns a number defining stencil operation to use when stencil fails
-     */
-    getStencilOperationFail(): number;
-    /**
-     * Gets the current stencil operation when depth fails
-     * @returns a number defining stencil operation to use when depth fails
-     */
-    getStencilOperationDepthFail(): number;
-    /**
-     * Gets the current stencil operation when stencil passes
-     * @returns a number defining stencil operation to use when stencil passes
-     */
-    getStencilOperationPass(): number;
-    /**
-     * Sets the stencil operation to use when stencil fails
-     * @param operation defines the stencil operation to use when stencil fails
-     */
-    setStencilOperationFail(operation: number): void;
-    /**
-     * Sets the stencil operation to use when depth fails
-     * @param operation defines the stencil operation to use when depth fails
-     */
-    setStencilOperationDepthFail(operation: number): void;
-    /**
-     * Sets the stencil operation to use when stencil passes
-     * @param operation defines the stencil operation to use when stencil passes
-     */
-    setStencilOperationPass(operation: number): void;
-    /**
-     * Sets a boolean indicating if the dithering state is enabled or disabled
-     * @param value defines the dithering state
-     */
-    setDitheringState(value: boolean): void;
-    /**
-     * Sets a boolean indicating if the rasterizer state is enabled or disabled
-     * @param value defines the rasterizer state
-     */
-    setRasterizerState(value: boolean): void;
-    /**
-     * Gets the current depth function
-     * @returns a number defining the depth function
-     */
-    getDepthFunction(): Nullable<number>;
-    /**
-     * Sets the current depth function
-     * @param depthFunc defines the function to use
-     */
-    setDepthFunction(depthFunc: number): void;
-    /**
-     * Sets the current depth function to GREATER
-     */
-    setDepthFunctionToGreater(): void;
-    /**
-     * Sets the current depth function to GEQUAL
-     */
-    setDepthFunctionToGreaterOrEqual(): void;
-    /**
-     * Sets the current depth function to LESS
-     */
-    setDepthFunctionToLess(): void;
-    /**
-     * Sets the current depth function to LEQUAL
-     */
-    setDepthFunctionToLessOrEqual(): void;
-    private _cachedStencilBuffer;
-    private _cachedStencilFunction;
-    private _cachedStencilMask;
-    private _cachedStencilOperationPass;
-    private _cachedStencilOperationFail;
-    private _cachedStencilOperationDepthFail;
-    private _cachedStencilReference;
-    /**
-     * Caches the the state of the stencil buffer
-     */
-    cacheStencilState(): void;
-    /**
-     * Restores the state of the stencil buffer
-     */
-    restoreStencilState(): void;
-    /**
-     * Directly set the WebGL Viewport
-     * @param x defines the x coordinate of the viewport (in screen space)
-     * @param y defines the y coordinate of the viewport (in screen space)
-     * @param width defines the width of the viewport (in screen space)
-     * @param height defines the height of the viewport (in screen space)
-     * @returns the current viewport Object (if any) that is being replaced by this call. You can restore this viewport later on to go back to the original state
-     */
-    setDirectViewport(x: number, y: number, width: number, height: number): Nullable<IViewportLike>;
-    /**
-     * Executes a scissor clear (ie. a clear on a specific portion of the screen)
-     * @param x defines the x-coordinate of the bottom left corner of the clear rectangle
-     * @param y defines the y-coordinate of the corner of the clear rectangle
-     * @param width defines the width of the clear rectangle
-     * @param height defines the height of the clear rectangle
-     * @param clearColor defines the clear color
-     */
-    scissorClear(x: number, y: number, width: number, height: number, clearColor: IColor4Like): void;
-    /**
-     * Enable scissor test on a specific rectangle (ie. render will only be executed on a specific portion of the screen)
-     * @param x defines the x-coordinate of the bottom left corner of the clear rectangle
-     * @param y defines the y-coordinate of the corner of the clear rectangle
-     * @param width defines the width of the clear rectangle
-     * @param height defines the height of the clear rectangle
-     */
-    enableScissor(x: number, y: number, width: number, height: number): void;
-    /**
-     * Disable previously set scissor test rectangle
-     */
-    disableScissor(): void;
-    /**
-     * @internal
-     */
-    _reportDrawCall(numDrawCalls?: number): void;
-    /**
-     * Initializes a webVR display and starts listening to display change events
-     * The onVRDisplayChangedObservable will be notified upon these changes
-     * @returns The onVRDisplayChangedObservable
-     */
-    initWebVR(): Observable<IDisplayChangedEventArgs>;
-    /** @internal */
-    _prepareVRComponent(): void;
-    /**
-     * @internal
-     */
-    _connectVREvents(canvas?: HTMLCanvasElement, document?: any): void;
-    /** @internal */
-    _submitVRFrame(): void;
-    /**
-     * Call this function to leave webVR mode
-     * Will do nothing if webVR is not supported or if there is no webVR device
-     * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/webVRCamera
-     */
-    disableVR(): void;
-    /**
-     * Gets a boolean indicating that the system is in VR mode and is presenting
-     * @returns true if VR mode is engaged
-     */
-    isVRPresenting(): boolean;
-    /** @internal */
-    _requestVRFrame(): void;
-    /**
-     * @internal
-     */
-    _loadFileAsync(url: string, offlineProvider?: IOfflineProvider, useArrayBuffer?: boolean): Promise<string | ArrayBuffer>;
-    /**
-     * Gets the source code of the vertex shader associated with a specific webGL program
-     * @param program defines the program to use
-     * @returns a string containing the source code of the vertex shader associated with the program
-     */
-    getVertexShaderSource(program: WebGLProgram): Nullable<string>;
-    /**
-     * Gets the source code of the fragment shader associated with a specific webGL program
-     * @param program defines the program to use
-     * @returns a string containing the source code of the fragment shader associated with the program
-     */
-    getFragmentShaderSource(program: WebGLProgram): Nullable<string>;
-    /**
-     * Sets a depth stencil texture from a render target to the according uniform.
-     * @param channel The texture channel
-     * @param uniform The uniform to set
-     * @param texture The render target texture containing the depth stencil texture to apply
-     * @param name The texture name
-     */
-    setDepthStencilTexture(channel: number, uniform: Nullable<WebGLUniformLocation>, texture: Nullable<RenderTargetTexture>, name?: string): void;
-    /**
-     * Sets a texture to the webGL context from a postprocess
-     * @param channel defines the channel to use
-     * @param postProcess defines the source postprocess
-     * @param name name of the channel
-     */
-    setTextureFromPostProcess(channel: number, postProcess: Nullable<PostProcess>, name: string): void;
-    /**
-     * Binds the output of the passed in post process to the texture channel specified
-     * @param channel The channel the texture should be bound to
-     * @param postProcess The post process which's output should be bound
-     * @param name name of the channel
-     */
-    setTextureFromPostProcessOutput(channel: number, postProcess: Nullable<PostProcess>, name: string): void;
-    protected _rebuildBuffers(): void;
-    /** @internal */
-    _renderFrame(): void;
-    _renderLoop(): void;
-    /** @internal */
-    _renderViews(): boolean;
-    /**
-     * Toggle full screen mode
-     * @param requestPointerLock defines if a pointer lock should be requested from the user
-     */
-    switchFullscreen(requestPointerLock: boolean): void;
-    /**
-     * Enters full screen mode
-     * @param requestPointerLock defines if a pointer lock should be requested from the user
-     */
-    enterFullscreen(requestPointerLock: boolean): void;
-    /**
-     * Exits full screen mode
-     */
-    exitFullscreen(): void;
-    /**
-     * Enters Pointerlock mode
-     */
-    enterPointerlock(): void;
-    /**
-     * Exits Pointerlock mode
-     */
-    exitPointerlock(): void;
-    /**
-     * Begin a new frame
-     */
-    beginFrame(): void;
-    /**
-     * End the current frame
-     */
-    endFrame(): void;
-    /**
-     * Resize the view according to the canvas' size
-     * @param forceSetSize true to force setting the sizes of the underlying canvas
-     */
-    resize(forceSetSize?: boolean): void;
-    /**
-     * Force a specific size of the canvas
-     * @param width defines the new canvas' width
-     * @param height defines the new canvas' height
-     * @param forceSetSize true to force setting the sizes of the underlying canvas
-     * @returns true if the size was changed
-     */
-    setSize(width: number, height: number, forceSetSize?: boolean): boolean;
-    _deletePipelineContext(pipelineContext: IPipelineContext): void;
-    createShaderProgram(pipelineContext: IPipelineContext, vertexCode: string, fragmentCode: string, defines: Nullable<string>, context?: WebGLRenderingContext, transformFeedbackVaryings?: Nullable<string[]>): WebGLProgram;
-    protected _createShaderProgram(pipelineContext: WebGLPipelineContext, vertexShader: WebGLShader, fragmentShader: WebGLShader, context: WebGLRenderingContext, transformFeedbackVaryings?: Nullable<string[]>): WebGLProgram;
-    /**
-     * @internal
-     */
-    _releaseTexture(texture: InternalTexture): void;
-    /**
-     * @internal
-     */
-    _releaseRenderTargetWrapper(rtWrapper: RenderTargetWrapper): void;
-    protected static _RenderPassIdCounter: number;
-    /**
-     * Gets or sets the current render pass id
-     */
-    currentRenderPassId: number;
-    private _renderPassNames;
-    /**
-     * Gets the names of the render passes that are currently created
-     * @returns list of the render pass names
-     */
-    getRenderPassNames(): string[];
-    /**
-     * Gets the name of the current render pass
-     * @returns name of the current render pass
-     */
-    getCurrentRenderPassName(): string;
-    /**
-     * Creates a render pass id
-     * @param name Name of the render pass (for debug purpose only)
-     * @returns the id of the new render pass
-     */
-    createRenderPassId(name?: string): number;
-    /**
-     * Releases a render pass id
-     * @param id id of the render pass to release
-     */
-    releaseRenderPassId(id: number): void;
-    /**
-     * @internal
-     * Rescales a texture
-     * @param source input texture
-     * @param destination destination texture
-     * @param scene scene to use to render the resize
-     * @param internalFormat format to use when resizing
-     * @param onComplete callback to be called when resize has completed
-     */
-    _rescaleTexture(source: InternalTexture, destination: InternalTexture, scene: Nullable<any>, internalFormat: number, onComplete: () => void): void;
-    /**
-     * Gets the current framerate
-     * @returns a number representing the framerate
-     */
-    getFps(): number;
-    /**
-     * Gets the time spent between current and previous frame
-     * @returns a number representing the delta time in ms
-     */
-    getDeltaTime(): number;
-    private _measureFps;
-    /**
-     * Wraps an external web gl texture in a Babylon texture.
-     * @param texture defines the external texture
-     * @returns the babylon internal texture
-     */
-    wrapWebGLTexture(texture: WebGLTexture): InternalTexture;
-    /**
-     * @internal
-     */
-    _uploadImageToTexture(texture: InternalTexture, image: HTMLImageElement | ImageBitmap, faceIndex?: number, lod?: number): void;
-    /**
-     * Updates a depth texture Comparison Mode and Function.
-     * If the comparison Function is equal to 0, the mode will be set to none.
-     * Otherwise, this only works in webgl 2 and requires a shadow sampler in the shader.
-     * @param texture The texture to set the comparison function for
-     * @param comparisonFunction The comparison function to set, 0 if no comparison required
-     */
-    updateTextureComparisonFunction(texture: InternalTexture, comparisonFunction: number): void;
-    /**
-     * Creates a webGL buffer to use with instantiation
-     * @param capacity defines the size of the buffer
-     * @returns the webGL buffer
-     */
-    createInstancesBuffer(capacity: number): DataBuffer;
-    /**
-     * Delete a webGL buffer used with instantiation
-     * @param buffer defines the webGL buffer to delete
-     */
-    deleteInstancesBuffer(buffer: WebGLBuffer): void;
-    private _clientWaitAsync;
-    /**
-     * @internal
-     */
-    _readPixelsAsync(x: number, y: number, w: number, h: number, format: number, type: number, outputBuffer: ArrayBufferView): Promise<ArrayBufferView> | null;
-    dispose(): void;
-    private _disableTouchAction;
-    /**
-     * Display the loading screen
-     * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/customLoadingScreen
-     */
-    displayLoadingUI(): void;
-    /**
-     * Hide the loading screen
-     * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/customLoadingScreen
-     */
-    hideLoadingUI(): void;
-    /**
-     * Gets the current loading screen object
-     * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/customLoadingScreen
-     */
-    get loadingScreen(): ILoadingScreen;
-    /**
-     * Sets the current loading screen object
-     * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/customLoadingScreen
-     */
-    set loadingScreen(loadingScreen: ILoadingScreen);
-    /**
-     * Sets the current loading screen text
-     * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/customLoadingScreen
-     */
-    set loadingUIText(text: string);
-    /**
-     * Sets the current loading screen background color
-     * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/customLoadingScreen
-     */
-    set loadingUIBackgroundColor(color: string);
-    /**
-     * creates and returns a new video element
-     * @param constraints video constraints
-     * @returns video element
-     */
-    createVideoElement(constraints: MediaTrackConstraints): any;
-    /** Pointerlock and fullscreen */
-    /**
-     * Ask the browser to promote the current element to pointerlock mode
-     * @param element defines the DOM element to promote
-     */
-    static _RequestPointerlock(element: HTMLElement): void;
-    /**
-     * Asks the browser to exit pointerlock mode
-     */
-    static _ExitPointerlock(): void;
-    /**
-     * Ask the browser to promote the current element to fullscreen rendering mode
-     * @param element defines the DOM element to promote
-     */
-    static _RequestFullscreen(element: HTMLElement): void;
-    /**
-     * Asks the browser to exit fullscreen mode
-     */
-    static _ExitFullscreen(): void;
-    /**
-     * Get Font size information
-     * @param font font name
-     * @returns an object containing ascent, height and descent
-     */
-    getFontOffset(font: string): {
-        ascent: number;
-        height: number;
-        descent: number;
-    };
-}
-export {};
+export * from "./engine.pure.js";
+import "./Extensions/engine.alpha.js";
+import "./Extensions/engine.alphaToCoverage.js";
+import "./Extensions/engine.rawTexture.js";
+import "./Extensions/engine.readTexture.js";
+import "./Extensions/engine.dynamicBuffer.js";
+import "./Extensions/engine.cubeTexture.js";
+import "./Extensions/engine.renderTarget.js";
+import "./Extensions/engine.renderTargetTexture.js";
+import "./Extensions/engine.renderTargetCube.js";
+import "./Extensions/engine.prefilteredCubeTexture.js";
+import "./Extensions/engine.uniformBuffer.js";
+import "./AbstractEngine/abstractEngine.loadingScreen.js";
+import "./AbstractEngine/abstractEngine.dom.js";
+import "./AbstractEngine/abstractEngine.states.js";
+import "./AbstractEngine/abstractEngine.stencil.js";
+import "./AbstractEngine/abstractEngine.renderPass.js";
+import "./AbstractEngine/abstractEngine.texture.js";
+import "./AbstractEngine/abstractEngine.loadFile.js";
+import "./AbstractEngine/abstractEngine.textureLoaders.js";
+import "./thinEngine.scissor.js";
 
 // Mixins
 declare global{
-/* eslint-disable no-var */
+/* eslint-disable babylonjs/available */
 /* eslint-disable @typescript-eslint/naming-convention */
-// Mixins
-interface Window {
-    mozIndexedDB: IDBFactory;
-    webkitIndexedDB: IDBFactory;
-    msIndexedDB: IDBFactory;
-    webkitURL: typeof URL;
-    mozRequestAnimationFrame(callback: FrameRequestCallback): number;
-    oRequestAnimationFrame(callback: FrameRequestCallback): number;
-    WebGLRenderingContext: WebGLRenderingContext;
-    CANNON: any;
-    AudioContext: AudioContext;
-    webkitAudioContext: AudioContext;
-    PointerEvent: any;
-    Math: Math;
-    Uint8Array: Uint8ArrayConstructor;
-    Float32Array: Float32ArrayConstructor;
-    mozURL: typeof URL;
-    msURL: typeof URL;
-    DracoDecoderModule: any;
-    setImmediate(handler: (...args: any[]) => void): number;
-}
-
-interface WorkerGlobalScope {
-    importScripts: (...args: string[]) => void;
-}
-
-type WorkerSelf = WindowOrWorkerGlobalScope & WorkerGlobalScope;
-
-interface HTMLCanvasElement {
-    requestPointerLock(): void;
-    msRequestPointerLock?(): void;
-    mozRequestPointerLock?(): void;
-    webkitRequestPointerLock?(): void;
-
-    /** Track whether a record is in progress */
-    isRecording: boolean;
-    /** Capture Stream method defined by some browsers */
-    captureStream(fps?: number): MediaStream;
-}
-
-interface CanvasRenderingContext2D {
-    msImageSmoothingEnabled: boolean;
-}
-
-// Babylon Extension to enable UIEvents to work with our IUIEvents
-interface UIEvent {
-    inputIndex: number;
-}
-
-interface MouseEvent {
-    mozMovementX: number;
-    mozMovementY: number;
-    webkitMovementX: number;
-    webkitMovementY: number;
-    msMovementX: number;
-    msMovementY: number;
-}
-
-interface Navigator {
-    mozGetVRDevices: (any: any) => any;
-    webkitGetUserMedia(constraints: MediaStreamConstraints, successCallback: any, errorCallback: any): void;
-    mozGetUserMedia(constraints: MediaStreamConstraints, successCallback: any, errorCallback: any): void;
-    msGetUserMedia(constraints: MediaStreamConstraints, successCallback: any, errorCallback: any): void;
-
-    webkitGetGamepads(): Gamepad[];
-    msGetGamepads(): Gamepad[];
-    webkitGamepads(): Gamepad[];
-}
-
-interface HTMLVideoElement {
-    mozSrcObject: any;
-}
-
-interface Math {
-    fround(x: number): number;
-    imul(a: number, b: number): number;
-    log2(x: number): number;
-}
-
-interface OffscreenCanvas extends EventTarget {
-    width: number;
-    height: number;
-}
-
-var OffscreenCanvas: {
-    prototype: OffscreenCanvas;
-    new (width: number, height: number): OffscreenCanvas;
-};
-
-// Experimental Pressure API https://wicg.github.io/compute-pressure/
-type PressureSource = "cpu";
-
-type PressureState = "nominal" | "fair" | "serious" | "critical";
-
-type PressureFactor = "thermal" | "power-supply";
-
-interface PressureRecord {
-    source: PressureSource;
-    state: PressureState;
-    factors: ReadonlyArray<PressureFactor>;
-    time: number;
-}
-
-interface PressureObserver {
-    observe(source: PressureSource): void;
-    unobserve(source: PressureSource): void;
-    disconnect(): void;
-    takeRecords(): Array<PressureRecord>;
-}
-
-interface PressureObserverOptions {
-    sampleRate?: number;
-}
-
-type PressureUpdateCallback = (changes: Array<PressureRecord>, observer: PressureObserver) => void;
-
-const PressureObserver: {
-    prototype: PressureObserver;
-    new (callback: PressureUpdateCallback, options?: PressureObserverOptions): PressureObserver;
-
-    supportedSources: ReadonlyArray<PressureSource>;
-};
-
-/* eslint-disable no-var */
-/* eslint-disable @typescript-eslint/naming-convention */
-// Type definitions for WebGL 2 extended with Babylon specific types
-
-interface WebGL2RenderingContext extends WebGL2RenderingContextBase {
-    HALF_FLOAT_OES: number;
-    RGBA16F: number;
-    RGBA32F: number;
-    DEPTH24_STENCIL8: number;
-    COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR: number;
-    COMPRESSED_SRGB_S3TC_DXT1_EXT: number;
-    COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT: number;
-    COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT: number;
-    COMPRESSED_SRGB_ALPHA_BPTC_UNORM_EXT: number;
-    COMPRESSED_SRGB8_ETC2: number;
-    COMPRESSED_SRGB8_ALPHA8_ETC2_EAC: number;
-    DRAW_FRAMEBUFFER: number;
-    UNSIGNED_INT_24_8: number;
-    MAX: number;
-    MIN: number;
-    SRGB: number;
-    SRGB8: number;
-    SRGB8_ALPHA8: number;
-}
-
-interface EXT_disjoint_timer_query {
-    QUERY_COUNTER_BITS_EXT: number;
-    TIME_ELAPSED_EXT: number;
-    TIMESTAMP_EXT: number;
-    GPU_DISJOINT_EXT: number;
-    QUERY_RESULT_EXT: number;
-    QUERY_RESULT_AVAILABLE_EXT: number;
-    queryCounterEXT(query: WebGLQuery, target: number): void;
-    createQueryEXT(): WebGLQuery;
-    beginQueryEXT(target: number, query: WebGLQuery): void;
-    endQueryEXT(target: number): void;
-    getQueryObjectEXT(query: WebGLQuery, target: number): any;
-    deleteQueryEXT(query: WebGLQuery): void;
-}
-
-interface WebGLProgram {
-    __SPECTOR_rebuildProgram?:
-        | ((vertexSourceCode: string, fragmentSourceCode: string, onCompiled: (program: WebGLProgram) => void, onError: (message: string) => void) => void)
-        | null;
-}
-
-interface WebGLUniformLocation {
-    _currentState: any;
-}
-
-/* eslint-disable @typescript-eslint/naming-convention */
-interface GPUObjectBase {
-    label: string | undefined;
-}
-
-interface GPUObjectDescriptorBase {
-    label?: string;
-}
-
-interface GPUSupportedLimits {
-    readonly maxTextureDimension1D: GPUSize32;
-    readonly maxTextureDimension2D: GPUSize32;
-    readonly maxTextureDimension3D: GPUSize32;
-    readonly maxTextureArrayLayers: GPUSize32;
-    readonly maxBindGroups: GPUSize32;
-    readonly maxDynamicUniformBuffersPerPipelineLayout: GPUSize32;
-    readonly maxDynamicStorageBuffersPerPipelineLayout: GPUSize32;
-    readonly maxSampledTexturesPerShaderStage: GPUSize32;
-    readonly maxSamplersPerShaderStage: GPUSize32;
-    readonly maxStorageBuffersPerShaderStage: GPUSize32;
-    readonly maxStorageTexturesPerShaderStage: GPUSize32;
-    readonly maxUniformBuffersPerShaderStage: GPUSize32;
-    readonly maxUniformBufferBindingSize: GPUSize64;
-    readonly maxStorageBufferBindingSize: GPUSize64;
-    readonly minUniformBufferOffsetAlignment: GPUSize32;
-    readonly minStorageBufferOffsetAlignment: GPUSize32;
-    readonly maxVertexBuffers: GPUSize32;
-    readonly maxVertexAttributes: GPUSize32;
-    readonly maxVertexBufferArrayStride: GPUSize32;
-    readonly maxInterStageShaderComponents: GPUSize32;
-    readonly maxComputeWorkgroupStorageSize: GPUSize32;
-    readonly maxComputeInvocationsPerWorkgroup: GPUSize32;
-    readonly maxComputeWorkgroupSizeX: GPUSize32;
-    readonly maxComputeWorkgroupSizeY: GPUSize32;
-    readonly maxComputeWorkgroupSizeZ: GPUSize32;
-    readonly maxComputeWorkgroupsPerDimension: GPUSize32;
-}
-
-type GPUSupportedFeatures = ReadonlySet<string>;
-
-type GPUPredefinedColorSpace = "srgb";
-
-interface Navigator {
-    readonly gpu: GPU | undefined;
-}
-
-interface WorkerNavigator {
-    readonly gpu: GPU | undefined;
-}
-
-class GPU {
-    requestAdapter(options?: GPURequestAdapterOptions): Promise<GPUAdapter | null>;
-    getPreferredCanvasFormat(): GPUTextureFormat;
-}
-
-interface GPURequestAdapterOptions {
-    powerPreference?: GPUPowerPreference;
-    forceFallbackAdapter?: boolean /* default=false */;
-}
-
-type GPUPowerPreference = "low-power" | "high-performance";
-
-class GPUAdapter {
-    // https://michalzalecki.com/nominal-typing-in-typescript/#approach-1-class-with-a-private-property
-    readonly name: string;
-    readonly features: GPUSupportedFeatures;
-    readonly limits: GPUSupportedLimits;
-    readonly isFallbackAdapter: boolean;
-
-    requestDevice(descriptor?: GPUDeviceDescriptor): Promise<GPUDevice>;
-}
-
-interface GPUDeviceDescriptor extends GPUObjectDescriptorBase {
-    requiredFeatures?: GPUFeatureName[] /* default=[] */;
-    requiredLimits?: { [name: string]: GPUSize64 } /* default={} */;
-    defaultQueue?: GPUQueueDescriptor /* default={} */;
-}
-
-type GPUFeatureName =
-    | "depth-clip-control"
-    | "depth24unorm-stencil8"
-    | "depth32float-stencil8"
-    | "texture-compression-bc"
-    | "texture-compression-etc2"
-    | "texture-compression-astc"
-    | "timestamp-query"
-    | "indirect-first-instance"
-    | "shader-f16"
-    | "bgra8unorm-storage";
-
-class GPUDevice extends EventTarget implements GPUObjectBase {
-    label: string | undefined;
-
-    readonly features: GPUSupportedFeatures;
-    readonly limits: GPUSupportedLimits;
-
-    readonly queue: GPUQueue;
-
-    destroy(): void;
-
-    createBuffer(descriptor: GPUBufferDescriptor): GPUBuffer;
-    createTexture(descriptor: GPUTextureDescriptor): GPUTexture;
-    createSampler(descriptor?: GPUSamplerDescriptor): GPUSampler;
-    importExternalTexture(descriptor: GPUExternalTextureDescriptor): GPUExternalTexture;
-
-    createBindGroupLayout(descriptor: GPUBindGroupLayoutDescriptor): GPUBindGroupLayout;
-    createPipelineLayout(descriptor: GPUPipelineLayoutDescriptor): GPUPipelineLayout;
-    createBindGroup(descriptor: GPUBindGroupDescriptor): GPUBindGroup;
-
-    createShaderModule(descriptor: GPUShaderModuleDescriptor): GPUShaderModule;
-
-    createComputePipeline(descriptor: GPUComputePipelineDescriptor): GPUComputePipeline;
-    createRenderPipeline(descriptor: GPURenderPipelineDescriptor): GPURenderPipeline;
-    createComputePipelineAsync(descriptor: GPUComputePipelineDescriptor): Promise<GPUComputePipeline>;
-    createRenderPipelineAsync(descriptor: GPURenderPipelineDescriptor): Promise<GPURenderPipeline>;
-
-    createCommandEncoder(descriptor?: GPUCommandEncoderDescriptor): GPUCommandEncoder;
-    createRenderBundleEncoder(descriptor: GPURenderBundleEncoderDescriptor): GPURenderBundleEncoder;
-
-    createQuerySet(descriptor: GPUQuerySetDescriptor): GPUQuerySet;
-
-    readonly lost: Promise<GPUDeviceLostInfo>;
-    pushErrorScope(filter: GPUErrorFilter): void;
-    popErrorScope(): Promise<GPUError | undefined>;
-    onuncapturederror: Event | undefined;
-}
-
-class GPUBuffer implements GPUObjectBase {
-    label: string | undefined;
-
-    mapAsync(mode: GPUMapModeFlags, offset?: GPUSize64 /*default=0*/, size?: GPUSize64): Promise<void>;
-    getMappedRange(offset?: GPUSize64 /*default=0*/, size?: GPUSize64): ArrayBuffer;
-    unmap(): void;
-
-    destroy(): void;
-}
-
-interface GPUBufferDescriptor extends GPUObjectDescriptorBase {
-    size: GPUSize64;
-    usage: GPUBufferUsageFlags;
-    mappedAtCreation: boolean /* default=false */;
-}
-
-type GPUBufferUsageFlags = number;
-
-type GPUMapModeFlags = number;
-
-class GPUTexture implements GPUObjectBase {
-    label: string | undefined;
-
-    createView(descriptor?: GPUTextureViewDescriptor): GPUTextureView;
-    destroy(): void;
-}
-
-interface GPUTextureDescriptor extends GPUObjectDescriptorBase {
-    size: GPUExtent3D;
-    mipLevelCount?: GPUIntegerCoordinate /* default=1 */;
-    sampleCount?: GPUSize32 /* default=1 */;
-    dimension?: GPUTextureDimension /* default="2d" */;
-    format: GPUTextureFormat;
-    usage: GPUTextureUsageFlags;
-    viewFormats?: GPUTextureFormat[] /* default=[] */;
-}
-
-type GPUTextureDimension = "1d" | "2d" | "3d";
-
-type GPUTextureUsageFlags = number;
-
-class GPUTextureView implements GPUObjectBase {
-    label: string | undefined;
-}
-
-interface GPUTextureViewDescriptor extends GPUObjectDescriptorBase {
-    format: GPUTextureFormat;
-    dimension: GPUTextureViewDimension;
-    aspect?: GPUTextureAspect /* default="all" */;
-    baseMipLevel?: GPUIntegerCoordinate /* default=0 */;
-    mipLevelCount: GPUIntegerCoordinate;
-    baseArrayLayer?: GPUIntegerCoordinate /* default=0*/;
-    arrayLayerCount: GPUIntegerCoordinate;
-}
-
-type GPUTextureViewDimension = "1d" | "2d" | "2d-array" | "cube" | "cube-array" | "3d";
-
-type GPUTextureAspect = "all" | "stencil-only" | "depth-only";
-
-type GPUTextureFormat =
-    // 8-bit formats
-    | "r8unorm"
-    | "r8snorm"
-    | "r8uint"
-    | "r8sint"
-
-    // 16-bit formats
-    | "r16uint"
-    | "r16sint"
-    | "r16float"
-    | "rg8unorm"
-    | "rg8snorm"
-    | "rg8uint"
-    | "rg8sint"
-
-    // 32-bit formats
-    | "r32uint"
-    | "r32sint"
-    | "r32float"
-    | "rg16uint"
-    | "rg16sint"
-    | "rg16float"
-    | "rgba8unorm"
-    | "rgba8unorm-srgb"
-    | "rgba8snorm"
-    | "rgba8uint"
-    | "rgba8sint"
-    | "bgra8unorm"
-    | "bgra8unorm-srgb"
-    // Packed 32-bit formats
-    | "rgb9e5ufloat"
-    | "rgb10a2unorm"
-    | "rg11b10ufloat"
-
-    // 64-bit formats
-    | "rg32uint"
-    | "rg32sint"
-    | "rg32float"
-    | "rgba16uint"
-    | "rgba16sint"
-    | "rgba16float"
-
-    // 128-bit formats
-    | "rgba32uint"
-    | "rgba32sint"
-    | "rgba32float"
-
-    // Depth and stencil formats
-    | "stencil8"
-    | "depth16unorm"
-    | "depth24plus"
-    | "depth24plus-stencil8"
-    | "depth32float"
-
-    // "depth24unorm-stencil8" feature
-    | "depth24unorm-stencil8"
-
-    // "depth32float-stencil8" feature
-    | "depth32float-stencil8"
-
-    // BC compressed formats usable if "texture-compression-bc" is both
-    // supported by the device/user agent and enabled in requestDevice.
-    | "bc1-rgba-unorm"
-    | "bc1-rgba-unorm-srgb"
-    | "bc2-rgba-unorm"
-    | "bc2-rgba-unorm-srgb"
-    | "bc3-rgba-unorm"
-    | "bc3-rgba-unorm-srgb"
-    | "bc4-r-unorm"
-    | "bc4-r-snorm"
-    | "bc5-rg-unorm"
-    | "bc5-rg-snorm"
-    | "bc6h-rgb-ufloat"
-    | "bc6h-rgb-float"
-    | "bc7-rgba-unorm"
-    | "bc7-rgba-unorm-srgb"
-
-    // ETC2 compressed formats usable if "texture-compression-etc2" is both
-    // supported by the device/user agent and enabled in requestDevice.
-    | "etc2-rgb8unorm"
-    | "etc2-rgb8unorm-srgb"
-    | "etc2-rgb8a1unorm"
-    | "etc2-rgb8a1unorm-srgb"
-    | "etc2-rgba8unorm"
-    | "etc2-rgba8unorm-srgb"
-    | "eac-r11unorm"
-    | "eac-r11snorm"
-    | "eac-rg11unorm"
-    | "eac-rg11snorm"
-
-    // ASTC compressed formats usable if "texture-compression-astc" is both
-    // supported by the device/user agent and enabled in requestDevice.
-    | "astc-4x4-unorm"
-    | "astc-4x4-unorm-srgb"
-    | "astc-5x4-unorm"
-    | "astc-5x4-unorm-srgb"
-    | "astc-5x5-unorm"
-    | "astc-5x5-unorm-srgb"
-    | "astc-6x5-unorm"
-    | "astc-6x5-unorm-srgb"
-    | "astc-6x6-unorm"
-    | "astc-6x6-unorm-srgb"
-    | "astc-8x5-unorm"
-    | "astc-8x5-unorm-srgb"
-    | "astc-8x6-unorm"
-    | "astc-8x6-unorm-srgb"
-    | "astc-8x8-unorm"
-    | "astc-8x8-unorm-srgb"
-    | "astc-10x5-unorm"
-    | "astc-10x5-unorm-srgb"
-    | "astc-10x6-unorm"
-    | "astc-10x6-unorm-srgb"
-    | "astc-10x8-unorm"
-    | "astc-10x8-unorm-srgb"
-    | "astc-10x10-unorm"
-    | "astc-10x10-unorm-srgb"
-    | "astc-12x10-unorm"
-    | "astc-12x10-unorm-srgb"
-    | "astc-12x12-unorm"
-    | "astc-12x12-unorm-srgb";
-
-class GPUExternalTexture implements GPUObjectBase {
-    label: string | undefined;
-}
-
-interface GPUExternalTextureDescriptor extends GPUObjectDescriptorBase {
-    source: HTMLVideoElement;
-    colorSpace?: GPUPredefinedColorSpace /* default="srgb" */;
-}
-
-class GPUSampler implements GPUObjectBase {
-    label: string | undefined;
-}
-
-interface GPUSamplerDescriptor extends GPUObjectDescriptorBase {
-    addressModeU?: GPUAddressMode /* default="clamp-to-edge" */;
-    addressModeV?: GPUAddressMode /* default="clamp-to-edge" */;
-    addressModeW?: GPUAddressMode /* default="clamp-to-edge" */;
-    magFilter?: GPUFilterMode /* default="nearest" */;
-    minFilter?: GPUFilterMode /* default="nearest" */;
-    mipmapFilter?: GPUFilterMode /* default="nearest" */;
-    lodMinClamp?: number /* default=0 */;
-    lodMaxClamp?: number /* default=32 */;
-    compare?: GPUCompareFunction;
-    maxAnisotropy?: number /* default=1 */;
-}
-
-type GPUAddressMode = "clamp-to-edge" | "repeat" | "mirror-repeat";
-
-type GPUFilterMode = "nearest" | "linear";
-
-type GPUCompareFunction = "never" | "less" | "equal" | "less-equal" | "greater" | "not-equal" | "greater-equal" | "always";
-
-class GPUBindGroupLayout implements GPUObjectBase {
-    label: string | undefined;
-}
-
-interface GPUBindGroupLayoutDescriptor extends GPUObjectDescriptorBase {
-    entries: GPUBindGroupLayoutEntry[];
-}
-
-interface GPUBindGroupLayoutEntry {
-    binding: GPUIndex32;
-    visibility: GPUShaderStageFlags;
-
-    buffer?: GPUBufferBindingLayout;
-    sampler?: GPUSamplerBindingLayout;
-    texture?: GPUTextureBindingLayout;
-    storageTexture?: GPUStorageTextureBindingLayout;
-    externalTexture?: GPUExternalTextureBindingLayout;
-}
-
-type GPUShaderStageFlags = number;
-
-type GPUBufferBindingType = "uniform" | "storage" | "read-only-storage";
-
-interface GPUBufferBindingLayout {
-    type?: GPUBufferBindingType /* default="uniform" */;
-    hasDynamicOffset?: boolean /* default=false */;
-    minBindingSize?: GPUSize64 /* default=0 */;
-}
-
-type GPUSamplerBindingType = "filtering" | "non-filtering" | "comparison";
-
-interface GPUSamplerBindingLayout {
-    type?: GPUSamplerBindingType /* default="filtering" */;
-}
-
-type GPUTextureSampleType = "float" | "unfilterable-float" | "depth" | "sint" | "uint";
-
-interface GPUTextureBindingLayout {
-    sampleType?: GPUTextureSampleType /* default="float" */;
-    viewDimension?: GPUTextureViewDimension /* default="2d" */;
-    multisampled?: boolean /* default=false */;
-}
-
-type GPUStorageTextureAccess = "write-only";
-
-interface GPUStorageTextureBindingLayout {
-    access?: GPUStorageTextureAccess /* default=write-only */;
-    format: GPUTextureFormat;
-    viewDimension?: GPUTextureViewDimension /* default="2d" */;
-}
-
-interface GPUExternalTextureBindingLayout {}
-
-class GPUBindGroup implements GPUObjectBase {
-    label: string | undefined;
-}
-
-interface GPUBindGroupDescriptor extends GPUObjectDescriptorBase {
-    layout: GPUBindGroupLayout;
-    entries: GPUBindGroupEntry[];
-}
-
-type GPUBindingResource = GPUSampler | GPUTextureView | GPUBufferBinding | GPUExternalTexture;
-
-interface GPUBindGroupEntry {
-    binding: GPUIndex32;
-    resource: GPUBindingResource;
-}
-
-interface GPUBufferBinding {
-    buffer: GPUBuffer;
-    offset?: GPUSize64 /* default=0 */;
-    size?: GPUSize64 /* default=size_of_buffer - offset */;
-}
-
-class GPUPipelineLayout implements GPUObjectBase {
-    label: string | undefined;
-}
-
-interface GPUPipelineLayoutDescriptor extends GPUObjectDescriptorBase {
-    bindGroupLayouts: GPUBindGroupLayout[];
-}
-
-class GPUShaderModule implements GPUObjectBase {
-    label: string | undefined;
-
-    compilationInfo(): Promise<GPUCompilationInfo>;
-}
-
-interface GPUShaderModuleDescriptor extends GPUObjectDescriptorBase {
-    code: string | Uint32Array;
-    sourceMap?: object;
-    hints?: { [name: string]: GPUShaderModuleCompilationHint };
-}
-
-interface GPUShaderModuleCompilationHint {
-    layout: GPUPipelineLayout | GPUAutoLayoutMode;
-}
-
-type GPUCompilationMessageType = "error" | "warning" | "info";
-
-interface GPUCompilationMessage {
-    readonly message: string;
-    readonly type: GPUCompilationMessageType;
-    readonly lineNum: number;
-    readonly linePos: number;
-    readonly offset: number;
-    readonly length: number;
-}
-
-interface GPUCompilationInfo {
-    readonly messages: readonly GPUCompilationMessage[];
-}
-
-type GPUAutoLayoutMode = "auto";
-
-interface GPUPipelineDescriptorBase extends GPUObjectDescriptorBase {
-    layout?: GPUPipelineLayout | GPUAutoLayoutMode;
-}
-
-interface GPUPipelineBase {
-    getBindGroupLayout(index: number): GPUBindGroupLayout;
-}
-
-interface GPUProgrammableStage {
-    module: GPUShaderModule;
-    entryPoint: string | Uint32Array;
-    constants?: { [name: string]: GPUPipelineConstantValue };
-}
-
-type GPUPipelineConstantValue = number; // May represent WGSL’s bool, f32, i32, u32, and f16 if enabled.
-
-class GPUComputePipeline implements GPUObjectBase, GPUPipelineBase {
-    label: string | undefined;
-
-    getBindGroupLayout(index: number): GPUBindGroupLayout;
-}
-
-interface GPUComputePipelineDescriptor extends GPUPipelineDescriptorBase {
-    compute: GPUProgrammableStage;
-}
-
-class GPURenderPipeline implements GPUObjectBase, GPUPipelineBase {
-    label: string | undefined;
-
-    getBindGroupLayout(index: number): GPUBindGroupLayout;
-}
-
-interface GPURenderPipelineDescriptor extends GPUPipelineDescriptorBase {
-    vertex: GPUVertexState;
-    primitive?: GPUPrimitiveState /* default={} */;
-    depthStencil?: GPUDepthStencilState;
-    multisample?: GPUMultisampleState /* default={} */;
-    fragment?: GPUFragmentState;
-}
-
-interface GPUPrimitiveState {
-    topology?: GPUPrimitiveTopology /* default="triangle-list" */;
-    stripIndexFormat?: GPUIndexFormat;
-    frontFace?: GPUFrontFace /* default="ccw" */;
-    cullMode?: GPUCullMode /* default="none" */;
-
-    // Requires "depth-clip-control" feature.
-    unclippedDepth?: boolean /* default=false */;
-}
-
-type GPUPrimitiveTopology = "point-list" | "line-list" | "line-strip" | "triangle-list" | "triangle-strip";
-
-type GPUFrontFace = "ccw" | "cw";
-
-type GPUCullMode = "none" | "front" | "back";
-
-interface GPUMultisampleState {
-    count?: GPUSize32 /* default=1 */;
-    mask?: GPUSampleMask /* default=0xFFFFFFFF */;
-    alphaToCoverageEnabled?: boolean /* default=false */;
-}
-
-interface GPUFragmentState extends GPUProgrammableStage {
-    targets: (GPUColorTargetState | null)[];
-}
-
-interface GPUColorTargetState {
-    format: GPUTextureFormat;
-
-    blend?: GPUBlendState;
-    writeMask?: GPUColorWriteFlags /* default=0xF - GPUColorWrite.ALL */;
-}
-
-interface GPUBlendState {
-    color: GPUBlendComponent;
-    alpha: GPUBlendComponent;
-}
-
-type GPUColorWriteFlags = number;
-
-interface GPUBlendComponent {
-    operation?: GPUBlendOperation /* default="add" */;
-    srcFactor?: GPUBlendFactor /* default="one" */;
-    dstFactor?: GPUBlendFactor /* default="zero" */;
-}
-
-type GPUBlendFactor =
-    | "zero"
-    | "one"
-    | "src"
-    | "one-minus-src"
-    | "src-alpha"
-    | "one-minus-src-alpha"
-    | "dst"
-    | "one-minus-dst"
-    | "dst-alpha"
-    | "one-minus-dst-alpha"
-    | "src-alpha-saturated"
-    | "constant"
-    | "one-minus-constant";
-
-type GPUBlendOperation = "add" | "subtract" | "reverse-subtract" | "min" | "max";
-
-interface GPUDepthStencilState {
-    format: GPUTextureFormat;
-
-    depthWriteEnabled?: boolean /* default=false */;
-    depthCompare?: GPUCompareFunction /* default="always" */;
-
-    stencilFront?: GPUStencilStateFace /* default={} */;
-    stencilBack?: GPUStencilStateFace /* default={} */;
-
-    stencilReadMask?: GPUStencilValue /* default=0xFFFFFFFF */;
-    stencilWriteMask?: GPUStencilValue /* default=0xFFFFFFFF */;
-
-    depthBias?: GPUDepthBias /* default=0 */;
-    depthBiasSlopeScale?: number /* default= 0 */;
-    depthBiasClamp?: number /* default=0 */;
-}
-
-interface GPUStencilStateFace {
-    compare?: GPUCompareFunction /* default="always" */;
-    failOp?: GPUStencilOperation /* default="keep" */;
-    depthFailOp?: GPUStencilOperation /* default="keep" */;
-    passOp?: GPUStencilOperation /* default="keep" */;
-}
-
-type GPUStencilOperation = "keep" | "zero" | "replace" | "invert" | "increment-clamp" | "decrement-clamp" | "increment-wrap" | "decrement-wrap";
-
-type GPUIndexFormat = "uint16" | "uint32";
-
-type GPUVertexFormat =
-    | "uint8x2"
-    | "uint8x4"
-    | "sint8x2"
-    | "sint8x4"
-    | "unorm8x2"
-    | "unorm8x4"
-    | "snorm8x2"
-    | "snorm8x4"
-    | "uint16x2"
-    | "uint16x4"
-    | "sint16x2"
-    | "sint16x4"
-    | "unorm16x2"
-    | "unorm16x4"
-    | "snorm16x2"
-    | "snorm16x4"
-    | "float16x2"
-    | "float16x4"
-    | "float32"
-    | "float32x2"
-    | "float32x3"
-    | "float32x4"
-    | "uint32"
-    | "uint32x2"
-    | "uint32x3"
-    | "uint32x4"
-    | "sint32"
-    | "sint32x2"
-    | "sint32x3"
-    | "sint32x4";
-
-type GPUVertexStepMode = "vertex" | "instance";
-
-interface GPUVertexState extends GPUProgrammableStage {
-    buffers?: GPUVertexBufferLayout[] /* default=[] */;
-}
-
-interface GPUVertexBufferLayout {
-    arrayStride: GPUSize64;
-    stepMode?: GPUVertexStepMode /* default="vertex" */;
-    attributes: GPUVertexAttribute[];
-}
-
-interface GPUVertexAttribute {
-    format: GPUVertexFormat;
-    offset: GPUSize64;
-    shaderLocation: GPUIndex32;
-}
-
-class GPUCommandBuffer implements GPUObjectBase {
-    label: string | undefined;
-}
-
-interface GPUCommandBufferDescriptor extends GPUObjectDescriptorBase {}
-
-interface GPUCommandsMixin {}
-
-class GPUCommandEncoder implements GPUObjectBase, GPUCommandsMixin, GPUDebugCommandsMixin {
-    label: string | undefined;
-
-    beginRenderPass(descriptor: GPURenderPassDescriptor): GPURenderPassEncoder;
-    beginComputePass(descriptor?: GPUComputePassDescriptor): GPUComputePassEncoder;
-
-    copyBufferToBuffer(source: GPUBuffer, sourceOffset: GPUSize64, destination: GPUBuffer, destinationOffset: GPUSize64, size: GPUSize64): void;
-    copyBufferToTexture(source: GPUImageCopyBuffer, destination: GPUImageCopyTexture, copySize: GPUExtent3D): void;
-    copyTextureToBuffer(source: GPUImageCopyTexture, destination: GPUImageCopyBuffer, copySize: GPUExtent3D): void;
-    copyTextureToTexture(source: GPUImageCopyTexture, destination: GPUImageCopyTexture, copySize: GPUExtent3D): void;
-    clearBuffer(buffer: GPUBuffer, offset?: GPUSize64 /* default=0 */, size?: GPUSize64): void;
-
-    pushDebugGroup(groupLabel: string): void;
-    popDebugGroup(): void;
-    insertDebugMarker(markerLabel: string): void;
-
-    writeTimestamp(querySet: GPUQuerySet, queryIndex: GPUSize32): void;
-
-    resolveQuerySet(querySet: GPUQuerySet, firstQuery: GPUSize32, queryCount: GPUSize32, destination: GPUBuffer, destinationOffset: GPUSize64): void;
-
-    finish(descriptor?: GPUCommandBufferDescriptor): GPUCommandBuffer;
-}
-
-interface GPUCommandEncoderDescriptor extends GPUObjectDescriptorBase {}
-
-interface GPUImageDataLayout {
-    offset?: GPUSize64 /* default=0 */;
-    bytesPerRow: GPUSize32;
-    rowsPerImage?: GPUSize32;
-}
-
-interface GPUImageCopyBuffer extends GPUImageDataLayout {
-    buffer: GPUBuffer;
-}
-
-interface GPUImageCopyTexture {
-    texture: GPUTexture;
-    mipLevel?: GPUIntegerCoordinate /* default=0 */;
-    origin?: GPUOrigin3D /* default={} */;
-    aspect?: GPUTextureAspect /* default="all" */;
-}
-
-interface GPUImageCopyTextureTagged extends GPUImageCopyTexture {
-    colorSpace?: GPUPredefinedColorSpace /* default="srgb" */;
-    premultipliedAlpha?: boolean /* default=false */;
-}
-
-interface GPUImageCopyExternalImage {
-    source: ImageBitmap | HTMLCanvasElement | OffscreenCanvas;
-    origin?: GPUOrigin2D /* default={} */;
-    flipY?: boolean /* default=false */;
-}
-
-interface GPUBindingCommandsMixin {
-    setBindGroup(index: GPUIndex32, bindGroup: GPUBindGroup, dynamicOffsets?: GPUBufferDynamicOffset[]): void;
-    setBindGroup(index: GPUIndex32, bindGroup: GPUBindGroup, dynamicOffsetData: Uint32Array, dynamicOffsetsDataStart: GPUSize64, dynamicOffsetsDataLength: GPUSize32): void;
-}
-
-interface GPUDebugCommandsMixin {
-    pushDebugGroup(groupLabel: string): void;
-    popDebugGroup(): void;
-    insertDebugMarker(markerLabel: string): void;
-}
-
-class GPUComputePassEncoder implements GPUObjectBase, GPUCommandsMixin, GPUDebugCommandsMixin, GPUBindingCommandsMixin {
-    label: string | undefined;
-
-    setBindGroup(index: number, bindGroup: GPUBindGroup, dynamicOffsets?: GPUBufferDynamicOffset[]): void;
-    setBindGroup(index: GPUIndex32, bindGroup: GPUBindGroup, dynamicOffsetData: Uint32Array, dynamicOffsetsDataStart: GPUSize64, dynamicOffsetsDataLength: GPUSize32): void;
-
-    pushDebugGroup(groupLabel: string): void;
-    popDebugGroup(): void;
-    insertDebugMarker(markerLabel: string): void;
-
-    setPipeline(pipeline: GPUComputePipeline): void;
-    dispatchWorkgroups(workgroupCountX: GPUSize32, workgroupCountY?: GPUSize32 /* default=1 */, workgroupCountZ?: GPUSize32 /* default=1 */): void;
-    dispatchWorkgroupsIndirect(indirectBuffer: GPUBuffer, indirectOffset: GPUSize64): void;
-
-    end(): void;
-}
-
-type GPUComputePassTimestampLocation = "beginning" | "end";
-
-interface GPUComputePassTimestampWrite {
-    querySet: GPUQuerySet;
-    queryIndex: GPUSize32;
-    location: GPUComputePassTimestampLocation;
-}
-
-type GPUComputePassTimestampWrites = Array<GPUComputePassTimestampWrite>;
-
-interface GPUComputePassDescriptor extends GPUObjectDescriptorBase {
-    timestampWrites?: GPUComputePassTimestampWrites /* default=[] */;
-}
-
-class GPURenderPassEncoder implements GPUObjectBase, GPUCommandsMixin, GPUDebugCommandsMixin, GPUBindingCommandsMixin, GPURenderCommandsMixin {
-    label: string | undefined;
-
-    setBindGroup(index: GPUIndex32, bindGroup: GPUBindGroup, dynamicOffsets?: GPUBufferDynamicOffset[]): void;
-    setBindGroup(index: GPUIndex32, bindGroup: GPUBindGroup, dynamicOffsetData: Uint32Array, dynamicOffsetsDataStart: GPUSize64, dynamicOffsetsDataLength: GPUSize32): void;
-
-    pushDebugGroup(groupLabel: string): void;
-    popDebugGroup(): void;
-    insertDebugMarker(markerLabel: string): void;
-
-    setPipeline(pipeline: GPURenderPipeline): void;
-
-    setIndexBuffer(buffer: GPUBuffer, indexFormat: GPUIndexFormat, offset?: GPUSize64 /* default=0 */, size?: GPUSize64 /* default=0 */): void;
-    setVertexBuffer(slot: GPUIndex32, buffer: GPUBuffer, offset?: GPUSize64 /* default=0 */, size?: GPUSize64 /* default=0 */): void;
-
-    draw(vertexCount: GPUSize32, instanceCount?: GPUSize32 /* default=1 */, firstVertex?: GPUSize32 /* default=0 */, firstInstance?: GPUSize32 /* default=0 */): void;
-    drawIndexed(
-        indexCount: GPUSize32,
-        instanceCount?: GPUSize32 /* default=1 */,
-        firstIndex?: GPUSize32 /* default=0 */,
-        baseVertex?: GPUSignedOffset32 /* default=0 */,
-        firstInstance?: GPUSize32 /* default=0 */
-    ): void;
-
-    drawIndirect(indirectBuffer: GPUBuffer, indirectOffset: GPUSize64): void;
-    drawIndexedIndirect(indirectBuffer: GPUBuffer, indirectOffset: GPUSize64): void;
-
-    setViewport(x: number, y: number, width: number, height: number, minDepth: number, maxDepth: number): void;
-
-    setScissorRect(x: GPUIntegerCoordinate, y: GPUIntegerCoordinate, width: GPUIntegerCoordinate, height: GPUIntegerCoordinate): void;
-
-    setBlendConstant(color: GPUColor): void;
-    setStencilReference(reference: GPUStencilValue): void;
-
-    beginOcclusionQuery(queryIndex: GPUSize32): void;
-    endOcclusionQuery(): void;
-
-    executeBundles(bundles: GPURenderBundle[]): void;
-    end(): void;
-}
-
-type GPURenderPassTimestampLocation = "beginning" | "end";
-
-interface GPURenderPassTimestampWrite {
-    querySet: GPUQuerySet;
-    queryIndex: GPUSize32;
-    location: GPURenderPassTimestampLocation;
-}
-
-type GPURenderPassTimestampWrites = Array<GPURenderPassTimestampWrite>;
-
-interface GPURenderPassDescriptor extends GPUObjectDescriptorBase {
-    colorAttachments: (GPURenderPassColorAttachment | null)[];
-    depthStencilAttachment?: GPURenderPassDepthStencilAttachment;
-    occlusionQuerySet?: GPUQuerySet;
-    timestampWrites?: GPURenderPassTimestampWrites /* default=[] */;
-}
-
-interface GPURenderPassColorAttachment {
-    view: GPUTextureView;
-    resolveTarget?: GPUTextureView;
-
-    clearValue?: GPUColor;
-    loadOp: GPULoadOp;
-    storeOp: GPUStoreOp;
-}
-
-interface GPURenderPassDepthStencilAttachment {
-    view: GPUTextureView;
-
-    depthClearValue?: number /* default=0 */;
-    depthLoadOp: GPULoadOp;
-    depthStoreOp: GPUStoreOp;
-    depthReadOnly?: boolean /* default=false */;
-
-    stencilClearValue?: GPUStencilValue /* default=0 */;
-    stencilLoadOp?: GPULoadOp;
-    stencilStoreOp?: GPUStoreOp;
-    stencilReadOnly?: boolean /* default=false */;
-}
-
-type GPULoadOp = "load" | "clear";
-
-type GPUStoreOp = "store" | "discard";
-
-interface GPURenderPassLayout extends GPUObjectDescriptorBase {
-    colorFormats: (GPUTextureFormat | null)[];
+// Ambient declarations for the WebXR/WebGPU binding module.
+// The community-maintained webxr.d.ts does not yet include XRGPUBinding and its associated
+// types, so they are declared here as a companion (mirroring webxr.nativeextensions.d.ts).
+//
+// Shapes are grounded in the immersive-web/WebXR-WebGPU-Binding explainer + proposed IDL:
+// https://github.com/immersive-web/WebXR-WebGPU-Binding/blob/main/explainer.md
+//
+// The base XR layer/sub-image types (XRSubImage, XRProjectionLayer, XRQuadLayer, XRCylinderLayer,
+// XREquirectLayer, XRCubeLayer, XRCompositionLayer, XRLayerLayout, XRFrame, XRView, XREye,
+// XRSpace, XRRigidTransform) come from webxr.d.ts. The WebGPU adapter opt-in
+// (GPURequestAdapterOptions.xrCompatible) is declared in webgpu.d.ts and intentionally not
+// duplicated here.
+
+// XRGPUSubImage : XRSubImage
+interface XRGPUSubImage extends XRSubImage {
+    readonly colorTexture: GPUTexture;
+    readonly depthStencilTexture?: GPUTexture;
+    readonly motionVectorTexture?: GPUTexture;
+    getViewDescriptor(): GPUTextureViewDescriptor;
+}
+
+abstract class XRGPUSubImage implements XRGPUSubImage {}
+
+// dictionary XRGPUProjectionLayerInit
+interface XRGPUProjectionLayerInit {
+    colorFormat: GPUTextureFormat;
     depthStencilFormat?: GPUTextureFormat;
-    sampleCount?: GPUSize32 /* default=1 */;
+    // GPUTextureUsage.RENDER_ATTACHMENT (0x10) per spec default.
+    textureUsage?: GPUTextureUsageFlags;
+    scaleFactor?: number;
 }
 
-interface GPURenderCommandsMixin {
-    setPipeline(pipeline: GPURenderPipeline): void;
-
-    setIndexBuffer(buffer: GPUBuffer, indexFormat: GPUIndexFormat, offset?: GPUSize64 /* default=0 */, size?: GPUSize64 /* default=0 */): void;
-    setVertexBuffer(slot: GPUIndex32, buffer: GPUBuffer, offset?: GPUSize64 /* default=0 */, size?: GPUSize64 /* default=0 */): void;
-
-    draw(vertexCount: GPUSize32, instanceCount?: GPUSize32 /* default=1 */, firstVertex?: GPUSize32 /* default=0 */, firstInstance?: GPUSize32 /* default=0 */): void;
-    drawIndexed(
-        indexCount: GPUSize32,
-        instanceCount?: GPUSize32 /* default=1 */,
-        firstIndex?: GPUSize32 /* default=0 */,
-        baseVertex?: GPUSignedOffset32 /* default=0 */,
-        firstInstance?: GPUSize32 /* default=0 */
-    ): void;
-
-    drawIndirect(indirectBuffer: GPUBuffer, indirectOffset: GPUSize64): void;
-    drawIndexedIndirect(indirectBuffer: GPUBuffer, indirectOffset: GPUSize64): void;
+// dictionary XRGPULayerInit
+interface XRGPULayerInit {
+    colorFormat: GPUTextureFormat;
+    depthStencilFormat?: GPUTextureFormat;
+    // GPUTextureUsage.RENDER_ATTACHMENT (0x10) per spec default.
+    textureUsage?: GPUTextureUsageFlags;
+    space: XRSpace;
+    mipLevels?: number;
+    viewPixelWidth: number;
+    viewPixelHeight: number;
+    layout?: XRLayerLayout;
+    isStatic?: boolean;
 }
 
-class GPURenderBundle implements GPUObjectBase {
-    label: string | undefined;
+// dictionary XRGPUQuadLayerInit : XRGPULayerInit
+interface XRGPUQuadLayerInit extends XRGPULayerInit {
+    transform?: XRRigidTransform;
+    width?: number;
+    height?: number;
 }
 
-interface GPURenderBundleDescriptor extends GPUObjectDescriptorBase {}
-
-class GPURenderBundleEncoder implements GPUObjectBase, GPUCommandsMixin, GPUDebugCommandsMixin, GPUBindingCommandsMixin, GPURenderCommandsMixin {
-    label: string | undefined;
-
-    setBindGroup(index: GPUIndex32, bindGroup: GPUBindGroup, dynamicOffsets?: GPUBufferDynamicOffset[]): void;
-    setBindGroup(index: GPUIndex32, bindGroup: GPUBindGroup, dynamicOffsetData: Uint32Array, dynamicOffsetsDataStart: GPUSize64, dynamicOffsetsDataLength: GPUSize32): void;
-
-    pushDebugGroup(groupLabel: string): void;
-    popDebugGroup(): void;
-    insertDebugMarker(markerLabel: string): void;
-
-    setPipeline(pipeline: GPURenderPipeline): void;
-
-    setIndexBuffer(buffer: GPUBuffer, indexFormat: GPUIndexFormat, offset?: GPUSize64 /* default=0 */, size?: GPUSize64 /* default=0 */): void;
-    setVertexBuffer(slot: GPUIndex32, buffer: GPUBuffer, offset?: GPUSize64 /* default=0 */, size?: GPUSize64 /* default=0 */): void;
-
-    draw(vertexCount: GPUSize32, instanceCount?: GPUSize32 /* default=1 */, firstVertex?: GPUSize32 /* default=0 */, firstInstance?: GPUSize32 /* default=0 */): void;
-    drawIndexed(
-        indexCount: GPUSize32,
-        instanceCount?: GPUSize32 /* default=1 */,
-        firstIndex?: GPUSize32 /* default=0 */,
-        baseVertex?: GPUSignedOffset32 /* default=0 */,
-        firstInstance?: GPUSize32 /* default=0 */
-    ): void;
-
-    drawIndirect(indirectBuffer: GPUBuffer, indirectOffset: GPUSize64): void;
-    drawIndexedIndirect(indirectBuffer: GPUBuffer, indirectOffset: GPUSize64): void;
-
-    finish(descriptor?: GPURenderBundleDescriptor): GPURenderBundle;
+// dictionary XRGPUCylinderLayerInit : XRGPULayerInit
+interface XRGPUCylinderLayerInit extends XRGPULayerInit {
+    transform?: XRRigidTransform;
+    radius?: number;
+    centralAngle?: number;
+    aspectRatio?: number;
 }
 
-interface GPURenderBundleEncoderDescriptor extends GPURenderPassLayout {
-    depthReadOnly?: boolean /* default=false */;
-    stencilReadOnly?: boolean /* default=false */;
+// dictionary XRGPUEquirectLayerInit : XRGPULayerInit
+interface XRGPUEquirectLayerInit extends XRGPULayerInit {
+    transform?: XRRigidTransform;
+    radius?: number;
+    centralHorizontalAngle?: number;
+    upperVerticalAngle?: number;
+    lowerVerticalAngle?: number;
 }
 
-interface GPUQueueDescriptor extends GPUObjectDescriptorBase {}
-
-class GPUQueue implements GPUObjectBase {
-    label: string | undefined;
-
-    submit(commandBuffers: GPUCommandBuffer[]): void;
-
-    onSubmittedWorkDone(): Promise<void>;
-
-    writeBuffer(buffer: GPUBuffer, bufferOffset: GPUSize64, data: BufferSource, dataOffset?: GPUSize64 /* default=0 */, size?: GPUSize64): void;
-
-    writeTexture(destination: GPUImageCopyTexture, data: BufferSource, dataLayout: GPUImageDataLayout, size: GPUExtent3D): void;
-
-    copyExternalImageToTexture(source: GPUImageCopyExternalImage, destination: GPUImageCopyTextureTagged, copySize: GPUExtent3D): void;
+// dictionary XRGPUCubeLayerInit : XRGPULayerInit
+interface XRGPUCubeLayerInit extends XRGPULayerInit {
+    orientation?: DOMPointReadOnly;
 }
 
-class GPUQuerySet implements GPUObjectBase {
-    label: string | undefined;
+// [Exposed=Window] interface XRGPUBinding
+class XRGPUBinding {
+    constructor(session: XRSession, device: GPUDevice);
 
-    destroy(): void;
+    readonly nativeProjectionScaleFactor: number;
+
+    createProjectionLayer(init?: XRGPUProjectionLayerInit): XRProjectionLayer;
+    createQuadLayer(init?: XRGPUQuadLayerInit): XRQuadLayer;
+    createCylinderLayer(init?: XRGPUCylinderLayerInit): XRCylinderLayer;
+    createEquirectLayer(init?: XRGPUEquirectLayerInit): XREquirectLayer;
+    createCubeLayer(init?: XRGPUCubeLayerInit): XRCubeLayer;
+
+    getSubImage(layer: XRCompositionLayer, frame: XRFrame, eye?: XREye): XRGPUSubImage;
+    getViewSubImage(layer: XRProjectionLayer, view: XRView): XRGPUSubImage;
+
+    getPreferredColorFormat(): GPUTextureFormat;
 }
-
-interface GPUQuerySetDescriptor extends GPUObjectDescriptorBase {
-    type: GPUQueryType;
-    count: GPUSize32;
-}
-
-type GPUQueryType = "occlusion" | "timestamp";
-
-class GPUCanvasContext {
-    readonly canvas: HTMLCanvasElement | OffscreenCanvas;
-
-    configure(configuration?: GPUCanvasConfiguration): void;
-    unconfigure(): void;
-
-    getCurrentTexture(): GPUTexture;
-}
-
-type GPUCanvasAlphaMode = "opaque" | "premultiplied";
-
-interface GPUCanvasConfiguration extends GPUObjectDescriptorBase {
-    device: GPUDevice;
-    format: GPUTextureFormat;
-    usage?: GPUTextureUsageFlags /* default=0x10 - GPUTextureUsage.RENDER_ATTACHMENT */;
-    viewFormats?: GPUTextureFormat[] /* default=[] */;
-    colorSpace?: GPUPredefinedColorSpace /* default="srgb" */;
-    alphaMode?: GPUCanvasAlphaMode /* default="opaque" */;
-}
-
-type GPUDeviceLostReason = "destroyed";
-
-class GPUDeviceLostInfo {
-    readonly reason?: GPUDeviceLostReason;
-    readonly message: string;
-}
-
-type GPUErrorFilter = "out-of-memory" | "validation";
-
-class GPUError {
-    readonly message: string;
-}
-
-class GPUOutOfMemoryError extends GPUError {
-    constructor();
-    readonly message: string;
-}
-
-class GPUValidationError extends GPUError {
-    constructor(message: string);
-    readonly message: string;
-}
-
-class GPUUncapturedErrorEvent extends Event {
-    constructor(type: string, gpuUncapturedErrorEventInitDict: GPUUncapturedErrorEventInit);
-    readonly error: GPUError;
-}
-
-interface GPUUncapturedErrorEventInit extends EventInit {
-    error: GPUError;
-}
-
-type GPUBufferDynamicOffset = number; /* unsigned long */
-type GPUStencilValue = number; /* unsigned long */
-type GPUSampleMask = number; /* unsigned long */
-type GPUDepthBias = number; /* long */
-type GPUSize64 = number; /* unsigned long long */
-type GPUIntegerCoordinate = number; /* unsigned long */
-type GPUIndex32 = number; /* unsigned long */
-type GPUSize32 = number; /* unsigned long */
-type GPUSignedOffset32 = number; /* long */
-
-interface GPUColorDict {
-    r: number;
-    g: number;
-    b: number;
-    a: number;
-}
-type GPUColor = [number, number, number, number] | GPUColorDict;
-
-interface GPUOrigin2DDict {
-    x?: GPUIntegerCoordinate /* default=0 */;
-    y?: GPUIntegerCoordinate /* default=0 */;
-}
-type GPUOrigin2D = [GPUIntegerCoordinate, GPUIntegerCoordinate] | GPUOrigin2DDict;
-
-interface GPUOrigin3DDict {
-    x?: GPUIntegerCoordinate /* default=0 */;
-    y?: GPUIntegerCoordinate /* default=0 */;
-    z?: GPUIntegerCoordinate /* default=0 */;
-}
-type GPUOrigin3D = [GPUIntegerCoordinate, GPUIntegerCoordinate, GPUIntegerCoordinate] | GPUOrigin3DDict;
-
-interface GPUExtent3DDict {
-    width: GPUIntegerCoordinate;
-    height?: GPUIntegerCoordinate /* default=1 */;
-    depthOrArrayLayers?: GPUIntegerCoordinate /* default=1 */;
-}
-type GPUExtent3D = [GPUIntegerCoordinate, GPUIntegerCoordinate, GPUIntegerCoordinate] | GPUExtent3DDict;
 
 /* eslint-disable @typescript-eslint/naming-convention */
-/* eslint-disable no-var */
-// Type definitions for WebVR API
-// Project: https://w3c.github.io/webvr/
-// Definitions by: six a <https://github.com/lostfictions>
-// Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
+// This file contains native only extensions for WebXR. These APIs are not supported in the browser yet.
+// They are intended for use with either Babylon Native https://github.com/BabylonJS/BabylonNative or
+// Babylon React Native: https://github.com/BabylonJS/BabylonReactNative
 
-interface VRDisplay extends EventTarget {
-    /**
-     * Dictionary of capabilities describing the VRDisplay.
-     */
-    readonly capabilities: VRDisplayCapabilities;
+type XRSceneObjectType = "unknown" | "background" | "wall" | "floor" | "ceiling" | "platform" | "inferred" | "world";
 
-    /**
-     * z-depth defining the far plane of the eye view frustum
-     * enables mapping of values in the render target depth
-     * attachment to scene coordinates. Initially set to 10000.0.
-     */
-    depthFar: number;
-
-    /**
-     * z-depth defining the near plane of the eye view frustum
-     * enables mapping of values in the render target depth
-     * attachment to scene coordinates. Initially set to 0.01.
-     */
-    depthNear: number;
-
-    /**
-     * An identifier for this distinct VRDisplay. Used as an
-     * association point in the Gamepad API.
-     */
-    readonly displayId: number;
-
-    /**
-     * A display name, a user-readable name identifying it.
-     */
-    readonly displayName: string;
-    readonly isConnected: boolean;
-    readonly isPresenting: boolean;
-
-    /**
-     * If this VRDisplay supports room-scale experiences, the optional
-     * stage attribute contains details on the room-scale parameters.
-     */
-    readonly stageParameters: VRStageParameters | null;
-
-    /**
-     * Passing the value returned by `requestAnimationFrame` to
-     * `cancelAnimationFrame` will unregister the callback.
-     * @param handle Define the handle of the request to cancel
-     */
-    cancelAnimationFrame(handle: number): void;
-
-    /**
-     * Stops presenting to the VRDisplay.
-     * @returns a promise to know when it stopped
-     */
-    exitPresent(): Promise<void>;
-
-    /**
-     * Return the current VREyeParameters for the given eye.
-     * @param whichEye Define the eye we want the parameter for
-     * @returns the eye parameters
-     */
-    getEyeParameters(whichEye: string): VREyeParameters;
-
-    /**
-     * Populates the passed VRFrameData with the information required to render
-     * the current frame.
-     * @param frameData Define the data structure to populate
-     * @returns true if ok otherwise false
-     */
-    getFrameData(frameData: VRFrameData): boolean;
-
-    /**
-     * Get the layers currently being presented.
-     * @returns the list of VR layers
-     */
-    getLayers(): VRLayer[];
-
-    /**
-     * Return a VRPose containing the future predicted pose of the VRDisplay
-     * when the current frame will be presented. The value returned will not
-     * change until JavaScript has returned control to the browser.
-     *
-     * The VRPose will contain the position, orientation, velocity,
-     * and acceleration of each of these properties.
-     * @returns the pose object
-     */
-    getPose(): VRPose;
-
-    /**
-     * Return the current instantaneous pose of the VRDisplay, with no
-     * prediction applied.
-     * @returns the current instantaneous pose
-     */
-    getImmediatePose(): VRPose;
-
-    /**
-     * The callback passed to `requestAnimationFrame` will be called
-     * any time a new frame should be rendered. When the VRDisplay is
-     * presenting the callback will be called at the native refresh
-     * rate of the HMD. When not presenting this function acts
-     * identically to how window.requestAnimationFrame acts. Content should
-     * make no assumptions of frame rate or vsync behavior as the HMD runs
-     * asynchronously from other displays and at differing refresh rates.
-     * @param callback Define the action to run next frame
-     * @returns the request handle it
-     */
-    requestAnimationFrame(callback: FrameRequestCallback): number;
-
-    /**
-     * Begin presenting to the VRDisplay. Must be called in response to a user gesture.
-     * Repeat calls while already presenting will update the VRLayers being displayed.
-     * @param layers Define the list of layer to present
-     * @returns a promise to know when the request has been fulfilled
-     */
-    requestPresent(layers: VRLayer[]): Promise<void>;
-
-    /**
-     * Reset the pose for this display, treating its current position and
-     * orientation as the "origin/zero" values. VRPose.position,
-     * VRPose.orientation, and VRStageParameters.sittingToStandingTransform may be
-     * updated when calling resetPose(). This should be called in only
-     * sitting-space experiences.
-     */
-    resetPose(): void;
-
-    /**
-     * The VRLayer provided to the VRDisplay will be captured and presented
-     * in the HMD. Calling this function has the same effect on the source
-     * canvas as any other operation that uses its source image, and canvases
-     * created without preserveDrawingBuffer set to true will be cleared.
-     * @param pose Define the pose to submit
-     */
-    submitFrame(pose?: VRPose): void;
+interface XRSceneObject {
+    type: XRSceneObjectType;
 }
 
-var VRDisplay: {
-    prototype: VRDisplay;
-    new (): VRDisplay;
-};
-
-interface VRLayer {
-    leftBounds?: number[] | Float32Array | null;
-    rightBounds?: number[] | Float32Array | null;
-    source?: HTMLCanvasElement | null;
+interface XRFieldOfView {
+    angleLeft: number;
+    angleRight: number;
+    angleUp: number;
+    angleDown: number;
 }
 
-interface VRDisplayCapabilities {
-    readonly canPresent: boolean;
-    readonly hasExternalDisplay: boolean;
-    readonly hasOrientation: boolean;
-    readonly hasPosition: boolean;
-    readonly maxLayers: number;
+interface XRFrustum {
+    position: DOMPointReadOnly;
+    orientation: DOMPointReadOnly;
+    fieldOfView: XRFieldOfView;
+    farDistance: number;
 }
 
-interface VREyeParameters {
-    /** @deprecated */
-    readonly fieldOfView: VRFieldOfView;
-    readonly offset: Float32Array;
-    readonly renderHeight: number;
-    readonly renderWidth: number;
+interface XRPlane {
+    parentSceneObject?: XRSceneObject;
 }
 
-interface VRFieldOfView {
-    readonly downDegrees: number;
-    readonly leftDegrees: number;
-    readonly rightDegrees: number;
-    readonly upDegrees: number;
+// extending the webxr XRMesh with babylon native properties
+interface XRMesh {
+    normals?: Float32Array;
+    parentSceneObject?: XRSceneObject;
+    positions: Float32Array; // Babylon native!
 }
 
-interface VRFrameData {
-    readonly leftProjectionMatrix: Float32Array;
-    readonly leftViewMatrix: Float32Array;
-    readonly pose: VRPose;
-    readonly rightProjectionMatrix: Float32Array;
-    readonly rightViewMatrix: Float32Array;
-    readonly timestamp: number;
+interface XRFrustumDetectionBoundary {
+    type: "frustum";
+    frustum: XRFrustum;
 }
 
-interface VRPose {
-    readonly angularAcceleration: Float32Array | null;
-    readonly angularVelocity: Float32Array | null;
-    readonly linearAcceleration: Float32Array | null;
-    readonly linearVelocity: Float32Array | null;
-    readonly orientation: Float32Array | null;
-    readonly position: Float32Array | null;
-    readonly timestamp: number;
+interface XRSphereDetectionBoundary {
+    type: "sphere";
+    radius: number;
 }
 
-interface VRStageParameters {
-    sittingToStandingTransform?: Float32Array;
-    sizeX?: number;
-    sizeY?: number;
+interface XRBoxDetectionBoundary {
+    type: "box";
+    extent: DOMPointReadOnly;
 }
 
-interface Navigator {
-    getVRDisplays(): Promise<VRDisplay[]>;
-    readonly activeVRDisplays: ReadonlyArray<VRDisplay>;
+type XRDetectionBoundary = XRFrustumDetectionBoundary | XRSphereDetectionBoundary | XRBoxDetectionBoundary;
+
+interface XRGeometryDetectorOptions {
+    detectionBoundary?: XRDetectionBoundary;
+    updateInterval?: number;
 }
 
-interface Window {
-    onvrdisplayconnected: ((this: Window, ev: Event) => any) | null;
-    onvrdisplaydisconnected: ((this: Window, ev: Event) => any) | null;
-    onvrdisplaypresentchange: ((this: Window, ev: Event) => any) | null;
-    addEventListener(type: "vrdisplayconnected", listener: (ev: Event) => any, useCapture?: boolean): void;
-    addEventListener(type: "vrdisplaydisconnected", listener: (ev: Event) => any, useCapture?: boolean): void;
-    addEventListener(type: "vrdisplaypresentchange", listener: (ev: Event) => any, useCapture?: boolean): void;
+interface XRSession {
+    trySetFeaturePointCloudEnabled(enabled: boolean): boolean;
+    trySetPreferredPlaneDetectorOptions(preferredOptions: XRGeometryDetectorOptions): boolean;
+    trySetMeshDetectorEnabled(enabled: boolean): boolean;
+    trySetPreferredMeshDetectorOptions(preferredOptions: XRGeometryDetectorOptions): boolean;
 }
 
-interface Gamepad {
-    readonly displayId: number;
+interface XRFrame {
+    featurePointCloud?: Array<number> | undefined;
 }
 
-var VRFrameData: any;
+interface XRWorldInformation {
+    detectedMeshes?: XRMeshSet;
+}
 
+/* eslint-disable @typescript-eslint/naming-convention */
 // Type definitions for non-npm package webxr 0.5
 // Project: https://www.w3.org/TR/webxr/
 // Definitions by: Rob Rohan <https://github.com/robrohan>
@@ -2402,7 +260,7 @@ type XRHandedness = "none" | "left" | "right";
 /**
  * InputSource target ray modes
  */
-type XRTargetRayMode = "gaze" | "tracked-pointer" | "screen";
+type XRTargetRayMode = "gaze" | "tracked-pointer" | "screen" | "transient-pointer";
 
 /**
  * Eye types
@@ -2582,6 +440,8 @@ interface XRInputSource {
     readonly gamepad?: Gamepad | undefined;
     readonly profiles: string[];
     readonly hand?: XRHand;
+    /** Indicates that the user agent recommends omitting the application's input source representation. */
+    readonly skipRendering?: boolean;
 }
 
 abstract class XRInputSource implements XRInputSource {}
@@ -2648,9 +508,39 @@ interface XRFrame {
      * @param referenceSpace
      */
     getViewerPose(referenceSpace: XRReferenceSpace): XRViewerPose | undefined;
+
+    /**
+     * The tracked body for this frame, when the body tracking feature is enabled.
+     * ref: https://immersive-web.github.io/body-tracking/#xrframe-interface
+     */
+    body?: XRBody;
 }
 
 abstract class XRFrame implements XRFrame {}
+
+/**
+ * Represents the XRBodySpace native interface as defined by the spec.
+ * An XRBodySpace is an XRSpace that additionally exposes a jointName.
+ * ref: https://immersive-web.github.io/body-tracking/#xrjointspace-interface
+ */
+interface XRBodySpace extends XRSpace {
+    readonly jointName: string;
+}
+
+/**
+ * Represents the native XRBody interface as defined by the spec.
+ * An XRBody is an iterable map of XRBodyJoint to XRBodySpace.
+ * ref: https://immersive-web.github.io/body-tracking/#xrbody-interface
+ */
+interface XRBody {
+    readonly size: number;
+    get(key: string): XRBodySpace | undefined;
+    forEach(callbackfn: (value: XRBodySpace, key: string, map: XRBody) => void): void;
+    [Symbol.iterator](): IterableIterator<[string, XRBodySpace]>;
+    entries(): IterableIterator<[string, XRBodySpace]>;
+    keys(): IterableIterator<string>;
+    values(): IterableIterator<XRBodySpace>;
+}
 
 /**
  * Type of XR events available
@@ -2743,6 +633,7 @@ interface XRSession extends EventTarget {
     readonly visibilityState: XRVisibilityState;
     readonly frameRate?: number | undefined;
     readonly supportedFrameRates?: Float32Array | undefined;
+    readonly maxRenderLayers?: number | undefined;
 
     /**
      * Removes a callback from the animation frame painting callback from
@@ -2838,8 +729,8 @@ interface XRView {
     readonly eye: XREye;
     readonly projectionMatrix: Float32Array;
     readonly transform: XRRigidTransform;
-    readonly recommendedViewportScale?: number | undefined;
-    requestViewportScale(scale: number): void;
+    readonly recommendedViewportScale?: number | null | undefined;
+    requestViewportScale(scale: number | null): void;
 }
 
 abstract class XRView implements XRView {}
@@ -2865,10 +756,17 @@ type XRAnchorSet = Set<XRAnchor>;
 
 interface XRAnchor {
     anchorSpace: XRSpace;
+    requestPersistentHandle?: () => Promise<string>;
     delete(): void;
 }
 
 abstract class XRAnchor implements XRAnchor {}
+
+interface XRSession {
+    readonly persistentAnchors?: ReadonlyArray<string>;
+    restorePersistentAnchor?: (uuid: string) => Promise<XRAnchor>;
+    deletePersistentAnchor?: (uuid: string) => Promise<void>;
+}
 
 interface XRFrame {
     trackedAnchors?: XRAnchorSet | undefined;
@@ -2955,6 +853,7 @@ interface XRPlane {
     planeSpace: XRSpace;
     polygon: DOMPointReadOnly[];
     lastChangedTime: number;
+    semanticLabel?: string | null;
 }
 
 abstract class XRPlane implements XRPlane {}
@@ -3012,7 +911,7 @@ interface XRJointPose extends XRPose {
 
 abstract class XRJointPose implements XRJointPose {}
 
-interface XRHand extends Map<string, XRJointSpace> {
+interface XRHand extends Map<XRHandJoint, XRJointSpace> {
     readonly WRIST: number;
 
     readonly THUMB_METACARPAL: number;
@@ -3045,7 +944,7 @@ interface XRHand extends Map<string, XRJointSpace> {
     readonly LITTLE_PHALANX_TIP: number;
 }
 
-abstract class XRHand extends Map<string, XRJointSpace> implements XRHand {}
+abstract class XRHand extends Map<XRHandJoint, XRJointSpace> implements XRHand {}
 
 // WebXR Layers
 
@@ -3111,8 +1010,11 @@ interface XRCompositionLayer extends XRLayer {
     readonly layout: XRLayerLayout;
     blendTextureSourceAlpha: boolean;
     chromaticAberrationCorrection?: boolean | undefined;
+    forceMonoPresentation?: boolean | undefined;
+    opacity?: number | undefined;
     readonly mipLevels: number;
     readonly needsRedraw: boolean;
+    quality?: XRLayerQuality | undefined;
     destroy(): void;
 
     space: XRSpace;
@@ -3138,11 +1040,14 @@ type XRTextureType = "texture" | "texture-array";
 
 type XRLayerLayout = "default" | "mono" | "stereo" | "stereo-left-right" | "stereo-top-bottom";
 
+type XRLayerQuality = "default" | "text-optimized" | "graphics-optimized";
+
 interface XRProjectionLayerInit {
     scaleFactor?: number | undefined;
     textureType?: XRTextureType | undefined;
     colorFormat?: GLenum | undefined;
     depthFormat?: GLenum | undefined;
+    clearOnAccess?: boolean | undefined;
 }
 
 interface XRProjectionLayer extends XRCompositionLayer {
@@ -3150,7 +1055,7 @@ interface XRProjectionLayer extends XRCompositionLayer {
     readonly textureHeight: number;
     readonly textureArrayLength: number;
     readonly ignoreDepthValues: number;
-    fixedFoveation: number;
+    fixedFoveation?: number | null | undefined;
 }
 
 abstract class XRProjectionLayer implements XRProjectionLayer {}
@@ -3164,6 +1069,7 @@ interface XRLayerInit {
     depthFormat?: GLenum | undefined;
     space: XRSpace;
     layout?: XRLayerLayout | undefined;
+    clearOnAccess?: boolean | undefined;
 }
 
 interface XRMediaLayerInit {
@@ -3174,7 +1080,7 @@ interface XRMediaLayerInit {
 
 interface XRCylinderLayerInit extends XRLayerInit {
     textureType?: XRTextureType | undefined;
-    transform: XRRigidTransform;
+    transform?: XRRigidTransform | undefined;
     radius?: number | undefined;
     centralAngle?: number | undefined;
     aspectRatio?: number | undefined;
@@ -3262,10 +1168,17 @@ abstract class XRSubImage implements XRSubImage {}
 
 interface XRWebGLSubImage extends XRSubImage {
     readonly colorTexture: WebGLTexture;
-    readonly depthStencilTexture: WebGLTexture;
+    readonly depthStencilTexture?: WebGLTexture;
+    readonly motionVectorTexture?: WebGLTexture;
     readonly imageIndex: number;
     readonly textureWidth: number;
     readonly textureHeight: number;
+    readonly colorTextureWidth?: number;
+    readonly colorTextureHeight?: number;
+    readonly depthStencilTextureWidth?: number;
+    readonly depthStencilTextureHeight?: number;
+    readonly motionVectorTextureWidth?: number;
+    readonly motionVectorTextureHeight?: number;
 }
 
 abstract class XRWebGLSubImage implements XRWebGLSubImage {}
@@ -3307,17 +1220,6 @@ enum XOVR_multiview2 {
     MAX_VIEWS_OVR = 0x9631,
     FRAMEBUFFER_INCOMPLETE_VIEW_TARGETS_OVR = 0x9633,
 }
-
-interface OVR_multiview2 {
-    readonly FRAMEBUFFER_ATTACHMENT_TEXTURE_NUM_VIEWS_OVR: number;
-    readonly FRAMEBUFFER_ATTACHMENT_TEXTURE_BASE_VIEW_INDEX_OVR: number;
-    readonly MAX_VIEWS_OVR: number;
-    readonly FRAMEBUFFER_INCOMPLETE_VIEW_TARGETS_OVR: number;
-
-    framebufferTextureMultiviewOVR(target: GLenum, attachment: GLenum, texture: WebGLTexture, level: number, baseViewIndex: number, numViews: number): WebGLRenderbuffer;
-}
-
-abstract class OVR_multiview2 implements OVR_multiview2 {}
 
 // Oculus extensions
 interface XRSessionGrant {
@@ -3403,14 +1305,19 @@ interface XRFrame {
     // Anchors
     trackedAnchors?: XRAnchorSet;
     // World geometries. DEPRECATED
-    worldInformation?: XRWorldInformation;
-    detectedPlanes?: XRPlaneSet;
+    worldInformation?: XRWorldInformation | undefined;
+    detectedPlanes?: XRPlaneSet | undefined;
     // Hand tracking
     getJointPose?(joint: XRJointSpace, baseSpace: XRSpace): XRJointPose;
     fillJointRadii?(jointSpaces: XRJointSpace[], radii: Float32Array): boolean;
     // Image tracking
     getImageTrackingResults?(): Array<XRImageTrackingResult>;
     getLightEstimate(xrLightProbe: XRLightProbe): XRLightEstimate;
+}
+
+// Plane detection
+interface XRSession {
+    initiateRoomCapture?(): Promise<void>;
 }
 
 type XREventType = keyof XRSessionEventMap;
@@ -3482,80 +1389,523 @@ interface XRLightProbe extends EventTarget {
  * https://immersive-web.github.io/dom-overlays/
  */
 
-// This file contains native only extensions for WebXR. These APIs are not supported in the browser yet.
-// They are intended for use with either Babylon Native https://github.com/BabylonJS/BabylonNative or
-// Babylon React Native: https://github.com/BabylonJS/BabylonReactNative
+/**
+ * BEGIN: WebXR Depth Sensing Moudle
+ * https://www.w3.org/TR/webxr-depth-sensing-1/
+ */
 
-type XRSceneObjectType = "unknown" | "background" | "wall" | "floor" | "ceiling" | "platform" | "inferred" | "world";
+type XRDepthUsage = "cpu-optimized" | "gpu-optimized";
+type XRDepthDataFormat = "luminance-alpha" | "float32" | "unsigned-short";
 
-interface XRSceneObject {
-    type: XRSceneObjectType;
-}
+type XRDepthStateInit = {
+    readonly usagePreference: XRDepthUsage[];
+    readonly dataFormatPreference: XRDepthDataFormat[];
+};
 
-interface XRFieldOfView {
-    angleLeft: number;
-    angleRight: number;
-    angleUp: number;
-    angleDown: number;
-}
-
-interface XRFrustum {
-    position: DOMPointReadOnly;
-    orientation: DOMPointReadOnly;
-    fieldOfView: XRFieldOfView;
-    farDistance: number;
-}
-
-interface XRPlane {
-    parentSceneObject?: XRSceneObject;
-}
-
-interface XRMesh {
-    meshSpace: XRSpace;
-    positions: Float32Array;
-    indices: Uint32Array;
-    normals?: Float32Array;
-    lastChangedTime: number;
-    parentSceneObject?: XRSceneObject;
-}
-
-interface XRFrustumDetectionBoundary {
-    type: "frustum";
-    frustum: XRFrustum;
-}
-
-interface XRSphereDetectionBoundary {
-    type: "sphere";
-    radius: number;
-}
-
-interface XRBoxDetectionBoundary {
-    type: "box";
-    extent: DOMPointReadOnly;
-}
-
-type XRDetectionBoundary = XRFrustumDetectionBoundary | XRSphereDetectionBoundary | XRBoxDetectionBoundary;
-
-interface XRGeometryDetectorOptions {
-    detectionBoundary?: XRDetectionBoundary;
-    updateInterval?: number;
+interface XRSessionInit {
+    depthSensing?: XRDepthStateInit;
 }
 
 interface XRSession {
-    trySetFeaturePointCloudEnabled(enabled: boolean): boolean;
-    trySetPreferredPlaneDetectorOptions(preferredOptions: XRGeometryDetectorOptions): boolean;
-    trySetMeshDetectorEnabled(enabled: boolean): boolean;
-    trySetPreferredMeshDetectorOptions(preferredOptions: XRGeometryDetectorOptions): boolean;
+    readonly depthUsage: XRDepthUsage;
+    readonly depthDataFormat: XRDepthDataFormat;
+}
+
+interface XRDepthInformation {
+    readonly width: number;
+    readonly height: number;
+
+    readonly normDepthBufferFromNormView: XRRigidTransform;
+    readonly rawValueToMeters: number;
+}
+
+interface XRCPUDepthInformation extends XRDepthInformation {
+    readonly data: ArrayBuffer;
+
+    getDepthInMeters(x: number, y: number): number;
 }
 
 interface XRFrame {
-    featurePointCloud?: Array<number>;
+    getDepthInformation(view: XRView): XRCPUDepthInformation | undefined;
+}
+
+interface XRWebGLDepthInformation extends XRDepthInformation {
+    readonly texture: WebGLTexture;
+
+    readonly textureType: XRTextureType;
+    readonly imageIndex?: number | undefined;
+}
+
+interface XRWebGLBinding {
+    getDepthInformation(view: XRView): XRWebGLDepthInformation | undefined;
+}
+
+// enabledFeatures
+interface XRSession {
+    enabledFeatures: string[];
+}
+
+// Raw camera access
+
+interface XRView {
+    readonly camera: XRCamera | undefined;
+}
+
+interface XRCamera {
+    readonly width: number;
+    readonly height: number;
+}
+
+interface XRWebGLBinding {
+    getCameraImage(camera: XRCamera): WebGLTexture | undefined;
+}
+
+// Mesh Detection
+
+interface XRMesh {
+    meshSpace: XRSpace;
+    vertices: Float32Array;
+    indices: Uint32Array;
+    lastChangedTime: DOMHighResTimeStamp;
+    semanticLabel?: string | null;
 }
 
 type XRMeshSet = Set<XRMesh>;
 
-interface XRWorldInformation {
+interface XRFrame {
     detectedMeshes?: XRMeshSet;
 }
+
+/* eslint-disable babylonjs/available */
+/* eslint-disable @typescript-eslint/naming-convention */
+
+// WebGPU type augmentations for APIs not yet in TypeScript's lib.dom.d.ts.
+// Do NOT re-types, interfaces, or classes already in lib.dom.d.ts,
+// as duplicate declarations cause errors with TypeScript 6.0+ which natively
+// includes WebGPU types.
+
+// String indexer and extra supported limits not yet in lib.dom.d.ts
+interface GPUSupportedLimits {
+    [name: string]: number;
+    readonly maxStorageBuffersInVertexStage: number;
+    readonly maxStorageBuffersInFragmentStage: number;
+    readonly maxStorageTexturesInVertexStage: number;
+    readonly maxStorageTexturesInFragmentStage: number;
+}
+
+// Extra adapter request options not yet in lib.dom.d.ts
+interface GPURequestAdapterOptions {
+    featureLevel?: string;
+    xrCompatible?: boolean;
+}
+
+// Extra texture properties not yet in lib.dom.d.ts
+interface GPUTexture {
+    readonly textureBindingViewDimension: GPUTextureViewDimension | undefined;
+}
+
+interface GPUTextureDescriptor {
+    textureBindingViewDimension?: GPUTextureViewDimension;
+}
+
+// Extra view descriptor property not yet in lib.dom.d.ts
+interface GPUTextureViewDescriptor {
+    swizzle?: string;
+}
+
+// Shader compilation hints not yet in lib.dom.d.ts
+interface GPUShaderModuleDescriptor {
+    compilationHints?: GPUShaderModuleCompilationHint[];
+}
+
+interface GPUShaderModuleCompilationHint {
+    entryPoint: string;
+    layout?: GPUPipelineLayout | GPUAutoLayoutMode;
+}
+
+// Empty mixin not in lib.dom.d.ts, used for type compatibility
+interface GPUCommandsMixin {}
+
+/* eslint-disable no-var */
+/* eslint-disable @typescript-eslint/naming-convention */
+// Type definitions for WebGL 2 extended with Babylon specific types
+
+interface WebGL2RenderingContext extends WebGL2RenderingContextBase {
+    HALF_FLOAT_OES: number;
+    RGBA16F: typeof WebGL2RenderingContext.RGBA16F;
+    RGBA32F: typeof WebGL2RenderingContext.RGBA32F;
+    DEPTH24_STENCIL8: typeof WebGL2RenderingContext.DEPTH24_STENCIL8;
+    COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR: number;
+    COMPRESSED_SRGB8_ALPHA8_ASTC_5x4_KHR: number;
+    COMPRESSED_SRGB8_ALPHA8_ASTC_5x5_KHR: number;
+    COMPRESSED_SRGB8_ALPHA8_ASTC_6x5_KHR: number;
+    COMPRESSED_SRGB8_ALPHA8_ASTC_6x6_KHR: number;
+    COMPRESSED_SRGB8_ALPHA8_ASTC_8x5_KHR: number;
+    COMPRESSED_SRGB8_ALPHA8_ASTC_8x6_KHR: number;
+    COMPRESSED_SRGB8_ALPHA8_ASTC_8x8_KHR: number;
+    COMPRESSED_SRGB8_ALPHA8_ASTC_10x5_KHR: number;
+    COMPRESSED_SRGB8_ALPHA8_ASTC_10x6_KHR: number;
+    COMPRESSED_SRGB8_ALPHA8_ASTC_10x8_KHR: number;
+    COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR: number;
+    COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR: number;
+    COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR: number;
+    COMPRESSED_SRGB_S3TC_DXT1_EXT: number;
+    COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT: number;
+    COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT: number;
+    COMPRESSED_SRGB_ALPHA_BPTC_UNORM_EXT: number;
+    COMPRESSED_SRGB8_ETC2: number;
+    COMPRESSED_SRGB8_ALPHA8_ETC2_EAC: number;
+    DRAW_FRAMEBUFFER: typeof WebGL2RenderingContext.DRAW_FRAMEBUFFER;
+    UNSIGNED_INT_24_8: typeof WebGL2RenderingContext.UNSIGNED_INT_24_8;
+    MIN: typeof WebGL2RenderingContext.MIN;
+    MAX: typeof WebGL2RenderingContext.MAX;
+    R16_EXT: number;
+    RG16_EXT: number;
+    RGB16_EXT: number;
+    RGBA16_EXT: number;
+    R16_SNORM_EXT: number;
+    RG16_SNORM_EXT: number;
+    RGB16_SNORM_EXT: number;
+    RGBA16_SNORM_EXT: number;
+
+    // OES_draw_buffers_indexed extension methods
+    blendEquationSeparateIndexed(buf: GLuint, modeRGB: GLenum, modeAlpha: GLenum): void;
+    blendEquationIndexed(buf: GLuint, mode: GLenum): void;
+    blendFuncSeparateIndexed(buf: GLuint, srcRGB: GLenum, dstRGB: GLenum, srcAlpha: GLenum, dstAlpha: GLenum): void;
+    blendFuncIndexed(buf: GLuint, src: GLenum, dst: GLenum): void;
+    colorMaskIndexed(buf: GLuint, r: GLboolean, g: GLboolean, b: GLboolean, a: GLboolean): void;
+    disableIndexed(target: GLenum, index: GLuint): void;
+    enableIndexed(target: GLenum, index: GLuint): void;
+}
+
+interface EXT_disjoint_timer_query {
+    QUERY_COUNTER_BITS_EXT: number;
+    TIME_ELAPSED_EXT: number;
+    TIMESTAMP_EXT: number;
+    GPU_DISJOINT_EXT: number;
+    QUERY_RESULT_EXT: number;
+    QUERY_RESULT_AVAILABLE_EXT: number;
+    queryCounterEXT(query: WebGLQuery, target: number): void;
+    createQueryEXT(): WebGLQuery;
+    beginQueryEXT(target: number, query: WebGLQuery): void;
+    endQueryEXT(target: number): void;
+    getQueryObjectEXT(query: WebGLQuery, target: number): any;
+    deleteQueryEXT(query: WebGLQuery): void;
+}
+
+interface WebGLProgram {
+    __SPECTOR_rebuildProgram?:
+        ((vertexSourceCode: string, fragmentSourceCode: string, onCompiled: (program: WebGLProgram) => void, onError: (message: string) => void) => void) | null;
+}
+
+interface WebGLUniformLocation {
+    _currentState: any;
+}
+
+/**
+ * TODO: remove this file when we upgrade to TypeScript 5.0
+ */
+
+/* eslint-disable no-var */
+/* eslint-disable @typescript-eslint/naming-convention */
+interface OffscreenCanvasEventMap {
+    contextlost: Event;
+    contextrestored: Event;
+}
+
+interface ImageEncodeOptions {
+    quality?: number;
+    type?: string;
+}
+
+// These types are only needed for older versions of typescript.
+// The BJS addition is only needed because otherwise it is a type duplicate definition
+type OffscreenRenderingContextIdBJS = "2d" | "bitmaprenderer" | "webgl" | "webgl2" | "webgpu";
+type OffscreenRenderingContextBJS = OffscreenCanvasRenderingContext2D | ImageBitmapRenderingContext | WebGLRenderingContext | WebGL2RenderingContext;
+
+interface OffscreenCanvas extends EventTarget {
+    /**
+     * These attributes return the dimensions of the OffscreenCanvas object's bitmap.
+     *
+     * They can be set, to replace the bitmap with a new, transparent black bitmap of the specified dimensions (effectively resizing it).
+     */
+    height: number;
+    oncontextlost: ((this: OffscreenCanvas, ev: Event) => any) | null;
+    oncontextrestored: ((this: OffscreenCanvas, ev: Event) => any) | null;
+    /**
+     * These attributes return the dimensions of the OffscreenCanvas object's bitmap.
+     *
+     * They can be set, to replace the bitmap with a new, transparent black bitmap of the specified dimensions (effectively resizing it).
+     */
+    width: number;
+    /**
+     * Returns a promise that will fulfill with a new Blob object representing a file containing the image in the OffscreenCanvas object.
+     *
+     * The argument, if provided, is a dictionary that controls the encoding options of the image file to be created. The type field specifies the file format and has a default value of "image/png"; that type is also used if the requested type isn't supported. If the image format supports variable quality (such as "image/jpeg"), then the quality field is a number in the range 0.0 to 1.0 inclusive indicating the desired quality level for the resulting image.
+     */
+    convertToBlob(options?: ImageEncodeOptions): Promise<Blob>;
+    /**
+     * Returns an object that exposes an API for drawing on the OffscreenCanvas object. contextId specifies the desired API: "2d", "bitmaprenderer", "webgl", or "webgl2". options is handled by that API.
+     *
+     * This specification defines the "2d" context below, which is similar but distinct from the "2d" context that is created from a canvas element. The WebGL specifications define the "webgl" and "webgl2" contexts. [WEBGL]
+     *
+     * Returns null if the canvas has already been initialized with another context type (e.g., trying to get a "2d" context after getting a "webgl" context).
+     */
+    getContext(contextId: "2d", options?: any): OffscreenCanvasRenderingContext2D | null;
+    getContext(contextId: "bitmaprenderer", options?: any): ImageBitmapRenderingContext | null;
+    getContext(contextId: "webgl", options?: any): WebGLRenderingContext | null;
+    getContext(contextId: "webgl2", options?: any): WebGL2RenderingContext | null;
+    getContext(contextId: OffscreenRenderingContextIdBJS, options?: any): OffscreenRenderingContextBJS | null;
+    /** Returns a newly created ImageBitmap object with the image in the OffscreenCanvas object. The image in the OffscreenCanvas object is replaced with a new blank image. */
+    transferToImageBitmap(): ImageBitmap;
+    addEventListener<K extends keyof OffscreenCanvasEventMap>(
+        type: K,
+        listener: (this: OffscreenCanvas, ev: OffscreenCanvasEventMap[K]) => any,
+        options?: boolean | AddEventListenerOptions
+    ): void;
+    addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
+    removeEventListener<K extends keyof OffscreenCanvasEventMap>(
+        type: K,
+        listener: (this: OffscreenCanvas, ev: OffscreenCanvasEventMap[K]) => any,
+        options?: boolean | EventListenerOptions
+    ): void;
+    removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
+}
+
+var OffscreenCanvas: {
+    prototype: OffscreenCanvas;
+    new (width: number, height: number): OffscreenCanvas;
+};
+
+interface OffscreenCanvasRenderingContext2D
+    extends
+        CanvasCompositing,
+        CanvasDrawImage,
+        CanvasDrawPath,
+        CanvasFillStrokeStyles,
+        CanvasFilters,
+        CanvasImageData,
+        CanvasImageSmoothing,
+        CanvasPath,
+        CanvasPathDrawingStyles,
+        CanvasRect,
+        CanvasShadowStyles,
+        CanvasState,
+        CanvasText,
+        CanvasTextDrawingStyles,
+        CanvasTransform {
+    readonly canvas: OffscreenCanvas;
+    commit(): void;
+}
+
+var OffscreenCanvasRenderingContext2D: {
+    prototype: OffscreenCanvasRenderingContext2D;
+    new (): OffscreenCanvasRenderingContext2D;
+};
+
+/* eslint-disable @typescript-eslint/naming-convention */
+/* eslint-disable no-var */
+// Type definitions for the WICG HTML-in-Canvas proposal (https://github.com/WICG/html-in-canvas).
+// These augment the standard DOM, WebGL and WebGPU types so Babylon can consume the API - whether
+// provided natively (behind chrome://flags/#canvas-draw-element) or by the three-html-render polyfill -
+// without TypeScript errors. The proposal is experimental; signatures track the explainer IDL and
+// may change.
+
+/**
+ * A transferable snapshot of a rendered element, produced by `HTMLCanvasElement.captureElementImage`.
+ */
+interface ElementImage {
+    readonly width: number;
+    readonly height: number;
+    close(): void;
+}
+
+var ElementImage: {
+    prototype: ElementImage;
+    new (): ElementImage;
+};
+
+/**
+ * Source rectangle and sizing configuration for `WebGLRenderingContext.texElementImage2D`.
+ */
+interface WebGLCopyElementImageConfig {
+    sx?: number;
+    sy?: number;
+    swidth?: number;
+    sheight?: number;
+    width?: number;
+    height?: number;
+}
+
+/**
+ * Event dispatched on a `<canvas layoutsubtree>` when the rendering of one of its children changes.
+ */
+interface PaintEvent extends Event {
+    readonly changedElements: ReadonlyArray<Element>;
+}
+
+interface HTMLCanvasElementEventMap {
+    paint: PaintEvent;
+}
+
+interface HTMLCanvasElement {
+    /** Opts canvas descendants into layout and hit testing so they can be drawn into the canvas. */
+    layoutSubtree: boolean;
+    /** Fired when the rendering of any canvas child has changed. */
+    onpaint: ((this: HTMLCanvasElement, ev: PaintEvent) => any) | null;
+    /** Requests a single `paint` event on the next rendering update, even if nothing changed. */
+    requestPaint(): void;
+    /** Captures a transferable snapshot of the given element. */
+    captureElementImage(element: Element): ElementImage;
+    /** Returns the CSS transform that keeps the element's DOM location in sync with its drawn location. */
+    getElementTransform(element: Element | ElementImage, drawTransform: DOMMatrix): DOMMatrix;
+}
+
+interface CanvasRenderingContext2D {
+    drawElementImage(element: Element | ElementImage, dx: number, dy: number): DOMMatrix;
+    drawElementImage(element: Element | ElementImage, dx: number, dy: number, dwidth: number, dheight: number): DOMMatrix;
+    drawElementImage(
+        element: Element | ElementImage,
+        sx: number,
+        sy: number,
+        swidth: number,
+        sheight: number,
+        dx: number,
+        dy: number,
+        dwidth?: number,
+        dheight?: number
+    ): DOMMatrix;
+}
+
+interface WebGLRenderingContext {
+    /** Uploads a rendered element (or snapshot) into the currently bound 2D texture (current WICG signature). */
+    texElementImage2D(target: number, internalformat: number, element: Element | ElementImage, config?: WebGLCopyElementImageConfig): void;
+    /** Legacy texImage2D-shaped overload still shipped by some Chrome Canary builds. */
+    texElementImage2D(target: number, level: number, internalformat: number, format: number, type: number, element: Element | ElementImage): void;
+}
+
+interface WebGL2RenderingContext {
+    /** Uploads a rendered element (or snapshot) into the currently bound 2D texture (current WICG signature). */
+    texElementImage2D(target: number, internalformat: number, element: Element | ElementImage, config?: WebGLCopyElementImageConfig): void;
+    /** Legacy texImage2D-shaped overload still shipped by some Chrome Canary builds. */
+    texElementImage2D(target: number, level: number, internalformat: number, format: number, type: number, element: Element | ElementImage): void;
+}
+
+/**
+ * Source descriptor for `GPUQueue.copyElementImageToTexture`.
+ */
+interface GPUCopyElementImageSource {
+    source: Element | ElementImage;
+    sx?: number;
+    sy?: number;
+    swidth?: number;
+    sheight?: number;
+}
+
+/**
+ * Destination descriptor for `GPUQueue.copyElementImageToTexture`.
+ */
+interface GPUCopyElementImageDestination {
+    destination: GPUCopyExternalImageDestInfo;
+    width?: number;
+    height?: number;
+}
+
+interface GPUQueue {
+    /** Uploads a rendered element (or snapshot) into a destination GPU texture. */
+    copyElementImageToTexture(source: GPUCopyElementImageSource, destination: GPUCopyElementImageDestination): void;
+}
+
+/* eslint-disable no-var */
+/* eslint-disable @typescript-eslint/naming-convention */
+// Mixins
+interface Window {
+    CANNON: any;
+    DracoDecoderModule: any;
+}
+
+interface Uint8Array<TArrayBuffer extends ArrayBufferLike = ArrayBufferLike> {
+    /**
+     * Converts the `Uint8Array` to a base64-encoded string.
+     * @param options If provided, sets the alphabet and padding behavior used.
+     * @returns A base64-encoded string.
+     */
+    toBase64(options?: { alphabet?: "base64" | "base64url" | undefined; omitPadding?: boolean | undefined }): string;
+}
+
+interface Int8ArrayConstructor {
+    new (data: number | ArrayLike<number> | ArrayBufferLike): Int8Array<ArrayBuffer>;
+}
+
+interface Uint8ArrayConstructor {
+    new (data: number | ArrayLike<number> | ArrayBufferLike): Uint8Array<ArrayBuffer>;
+
+    /**
+     * Creates a new `Uint8Array` from a base64-encoded string.
+     * @param string The base64-encoded string.
+     * @param options If provided, specifies the alphabet and handling of the last chunk.
+     * @returns A new `Uint8Array` instance.
+     * @throws {SyntaxError} If the input string contains characters outside the specified alphabet, or if the last
+     * chunk is inconsistent with the `lastChunkHandling` option.
+     */
+    fromBase64(
+        string: string,
+        options?: {
+            alphabet?: "base64" | "base64url" | undefined;
+            lastChunkHandling?: "loose" | "strict" | "stop-before-partial" | undefined;
+        }
+    ): Uint8Array<ArrayBuffer>;
+}
+
+interface Float32ArrayConstructor {
+    new (data: number | ArrayLike<number> | ArrayBufferLike): Float32Array<ArrayBuffer>;
+}
+
+interface WorkerGlobalScope {
+    importScripts: (...args: string[]) => void;
+}
+
+type WorkerSelf = WindowOrWorkerGlobalScope & WorkerGlobalScope;
+
+// Babylon Extension to enable UIEvents to work with our IUIEvents
+interface UIEvent {
+    inputIndex: number;
+}
+
+// Experimental Pressure API https://wicg.github.io/compute-pressure/
+type PressureSource = "cpu";
+
+type PressureState = "nominal" | "fair" | "serious" | "critical";
+
+type PressureFactor = "thermal" | "power-supply";
+
+// Not available in Firefox, Safari, Not baseline.
+interface PressureRecord {
+    source: PressureSource;
+    state: PressureState;
+    factors: ReadonlyArray<PressureFactor>;
+    time: number;
+}
+
+// Not available in Firefox, Safari
+interface PressureObserver {
+    observe(source: PressureSource): Promise<void>;
+    unobserve(source: PressureSource): void;
+    disconnect(): void;
+    takeRecords(): Array<PressureRecord>;
+}
+
+interface PressureObserverOptions {
+    sampleRate?: number;
+}
+
+type PressureUpdateCallback = (changes: Array<PressureRecord>, observer: PressureObserver) => void;
+
+const PressureObserver: {
+    prototype: PressureObserver;
+    new (callback: PressureUpdateCallback, options?: PressureObserverOptions): PressureObserver;
+
+    knownSources: ReadonlyArray<PressureSource>;
+};
 
 }

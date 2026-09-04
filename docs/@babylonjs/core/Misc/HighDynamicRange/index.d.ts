@@ -1,3 +1,3 @@
-export * from "./cubemapToSphericalPolynomial";
-export * from "./hdr";
-export * from "./panoramaToCubemap";
+export * from "./cubemapToSphericalPolynomial.js";
+export { HDRTools } from "./hdr.js";
+export * from "./panoramaToCubemap.js";

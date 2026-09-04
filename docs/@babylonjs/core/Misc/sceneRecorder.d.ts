@@ -1,8 +1,8 @@
-import type { Scene } from "../scene";
+import { type IDisposable, type Scene } from "../scene.js";
 /**
  * Class used to record delta files between 2 scene states
  */
-export declare class SceneRecorder {
+export declare class SceneRecorder implements IDisposable {
     private _trackedScene;
     private _savedJSON;
     /**
@@ -18,6 +18,10 @@ export declare class SceneRecorder {
     private _compareArray;
     private _compareObjects;
     private _compareCollections;
+    /**
+     * Dispose the recorder.
+     */
+    dispose(): void;
     private static GetShadowGeneratorById;
     /**
      * Apply a given delta to a given scene

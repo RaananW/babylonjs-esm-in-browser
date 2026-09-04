@@ -9,22 +9,6 @@ import { PrecisionDate } from "./precisionDate.js";
  */
 export class PerfCounter {
     /**
-     * Creates a new counter
-     */
-    constructor() {
-        this._startMonitoringTime = 0;
-        this._min = 0;
-        this._max = 0;
-        this._average = 0;
-        this._lastSecAverage = 0;
-        this._current = 0;
-        this._totalValueCount = 0;
-        this._totalAccumulated = 0;
-        this._lastSecAccumulated = 0;
-        this._lastSecTime = 0;
-        this._lastSecValueCount = 0;
-    }
-    /**
      * Returns the smallest value ever
      */
     get min() {
@@ -67,12 +51,31 @@ export class PerfCounter {
         return this._totalValueCount;
     }
     /**
+     * Creates a new counter
+     */
+    constructor() {
+        this._startMonitoringTime = 0;
+        this._min = 0;
+        this._max = 0;
+        this._hasResult = false;
+        this._hasCurrentValue = false;
+        this._average = 0;
+        this._lastSecAverage = 0;
+        this._current = 0;
+        this._totalValueCount = 0;
+        this._totalAccumulated = 0;
+        this._lastSecAccumulated = 0;
+        this._lastSecTime = 0;
+        this._lastSecValueCount = 0;
+    }
+    /**
      * Call this method to start monitoring a new frame.
      * This scenario is typically used when you accumulate monitoring time many times for a single frame, you call this method at the start of the frame, then beginMonitoring to start recording and endMonitoring(false) to accumulated the recorded time to the PerfCounter or addCount() to accumulate a monitored count.
      */
     fetchNewFrame() {
         this._totalValueCount++;
         this._current = 0;
+        this._hasCurrentValue = PerfCounter.Enabled;
         this._lastSecValueCount++;
     }
     /**
@@ -85,6 +88,7 @@ export class PerfCounter {
             return;
         }
         this._current += newCount;
+        this._hasCurrentValue = true;
         if (fetchResult) {
             this._fetchResult();
         }
@@ -111,16 +115,35 @@ export class PerfCounter {
         }
         const currentTime = PrecisionDate.Now;
         this._current = currentTime - this._startMonitoringTime;
+        this._hasCurrentValue = true;
         if (newFrame) {
             this._fetchResult();
         }
     }
+    /**
+     * Call this method to end the monitoring of a frame.
+     * This scenario is typically used when you accumulate monitoring time many times for a single frame, you call this method at the end of the frame, after beginMonitoring to start recording and endMonitoring(false) to accumulated the recorded time to the PerfCounter or addCount() to accumulate a monitored count.
+     */
+    endFrame() {
+        this._fetchResult();
+    }
+    /** @internal */
     _fetchResult() {
+        if (!this._hasCurrentValue) {
+            return;
+        }
         this._totalAccumulated += this._current;
         this._lastSecAccumulated += this._current;
         // Min/Max update
-        this._min = Math.min(this._min, this._current);
-        this._max = Math.max(this._max, this._current);
+        if (this._hasResult) {
+            this._min = Math.min(this._min, this._current);
+            this._max = Math.max(this._max, this._current);
+        }
+        else {
+            this._min = this._current;
+            this._max = this._current;
+            this._hasResult = true;
+        }
         this._average = this._totalAccumulated / this._totalValueCount;
         // Reset last sec?
         const now = PrecisionDate.Now;

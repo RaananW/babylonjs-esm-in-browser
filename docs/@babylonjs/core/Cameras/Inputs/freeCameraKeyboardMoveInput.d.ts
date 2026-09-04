@@ -1,5 +1,5 @@
-import type { ICameraInput } from "../../Cameras/cameraInputsManager";
-import type { FreeCamera } from "../../Cameras/freeCamera";
+import { type ICameraInput } from "../../Cameras/cameraInputsManager.js";
+import { type FreeCamera } from "../../Cameras/freeCamera.js";
 /**
  * Manage the keyboard inputs to control the movement of a free camera.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs
@@ -45,6 +45,14 @@ export declare class FreeCameraKeyboardMoveInput implements ICameraInput<FreeCam
      * Gets or Set the list of keyboard keys used to control the right rotation move of the camera.
      */
     keysRotateRight: number[];
+    /**
+     * Gets or Set the list of keyboard keys used to control the up rotation move of the camera.
+     */
+    keysRotateUp: number[];
+    /**
+     * Gets or Set the list of keyboard keys used to control the down rotation move of the camera.
+     */
+    keysRotateDown: number[];
     private _keys;
     private _onCanvasBlurObserver;
     private _onKeyboardObserver;

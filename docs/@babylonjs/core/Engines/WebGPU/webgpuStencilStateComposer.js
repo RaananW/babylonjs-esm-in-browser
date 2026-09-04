@@ -18,6 +18,16 @@ export class WebGPUStencilStateComposer extends StencilStateComposer {
         this._func = value;
         this._cache.setStencilCompare(value);
     }
+    get backFunc() {
+        return this._backFunc;
+    }
+    set backFunc(value) {
+        if (this._backFunc === value) {
+            return;
+        }
+        this._backFunc = value;
+        this._cache.setStencilBackCompare(value);
+    }
     get funcMask() {
         return this._funcMask;
     }
@@ -58,6 +68,36 @@ export class WebGPUStencilStateComposer extends StencilStateComposer {
         this._opStencilDepthPass = value;
         this._cache.setStencilPassOp(value);
     }
+    get backOpStencilFail() {
+        return this._backOpStencilFail;
+    }
+    set backOpStencilFail(value) {
+        if (this._backOpStencilFail === value) {
+            return;
+        }
+        this._backOpStencilFail = value;
+        this._cache.setStencilBackFailOp(value);
+    }
+    get backOpDepthFail() {
+        return this._backOpDepthFail;
+    }
+    set backOpDepthFail(value) {
+        if (this._backOpDepthFail === value) {
+            return;
+        }
+        this._backOpDepthFail = value;
+        this._cache.setStencilBackDepthFailOp(value);
+    }
+    get backOpStencilDepthPass() {
+        return this._backOpStencilDepthPass;
+    }
+    set backOpStencilDepthPass(value) {
+        if (this._backOpStencilDepthPass === value) {
+            return;
+        }
+        this._backOpStencilDepthPass = value;
+        this._cache.setStencilBackPassOp(value);
+    }
     get mask() {
         return this._mask;
     }
@@ -83,19 +123,22 @@ export class WebGPUStencilStateComposer extends StencilStateComposer {
         this._cache.resetStencilState();
     }
     apply() {
-        var _a;
-        const stencilMaterialEnabled = (_a = this.stencilMaterial) === null || _a === void 0 ? void 0 : _a.enabled;
+        const stencilMaterialEnabled = !this.useStencilGlobalOnly && !!this.stencilMaterial?.enabled;
         this.enabled = stencilMaterialEnabled ? this.stencilMaterial.enabled : this.stencilGlobal.enabled;
         if (!this.enabled) {
             return;
         }
-        this.func = stencilMaterialEnabled ? this.stencilMaterial.func : this.stencilGlobal.func;
+        this.mask = stencilMaterialEnabled ? this.stencilMaterial.mask : this.stencilGlobal.mask;
         this.funcRef = stencilMaterialEnabled ? this.stencilMaterial.funcRef : this.stencilGlobal.funcRef;
         this.funcMask = stencilMaterialEnabled ? this.stencilMaterial.funcMask : this.stencilGlobal.funcMask;
+        this.func = stencilMaterialEnabled ? this.stencilMaterial.func : this.stencilGlobal.func;
         this.opStencilFail = stencilMaterialEnabled ? this.stencilMaterial.opStencilFail : this.stencilGlobal.opStencilFail;
         this.opDepthFail = stencilMaterialEnabled ? this.stencilMaterial.opDepthFail : this.stencilGlobal.opDepthFail;
         this.opStencilDepthPass = stencilMaterialEnabled ? this.stencilMaterial.opStencilDepthPass : this.stencilGlobal.opStencilDepthPass;
-        this.mask = stencilMaterialEnabled ? this.stencilMaterial.mask : this.stencilGlobal.mask;
+        this.backFunc = stencilMaterialEnabled ? this.stencilMaterial.backFunc : this.stencilGlobal.backFunc;
+        this.backOpStencilFail = stencilMaterialEnabled ? this.stencilMaterial.backOpStencilFail : this.stencilGlobal.backOpStencilFail;
+        this.backOpDepthFail = stencilMaterialEnabled ? this.stencilMaterial.backOpDepthFail : this.stencilGlobal.backOpDepthFail;
+        this.backOpStencilDepthPass = stencilMaterialEnabled ? this.stencilMaterial.backOpStencilDepthPass : this.stencilGlobal.backOpStencilDepthPass;
     }
 }
 //# sourceMappingURL=webgpuStencilStateComposer.js.map

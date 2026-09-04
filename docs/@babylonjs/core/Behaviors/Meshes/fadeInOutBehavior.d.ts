@@ -1,5 +1,6 @@
-import type { Behavior } from "../behavior";
-import type { Mesh } from "../../Meshes/mesh";
+import { type Behavior } from "../behavior.js";
+import { type Mesh } from "../../Meshes/mesh.js";
+import { type Nullable } from "../../types.js";
 /**
  * A behavior that when attached to a mesh will allow the mesh to fade in and out
  */
@@ -7,15 +8,36 @@ export declare class FadeInOutBehavior implements Behavior<Mesh> {
     /**
      * Time in milliseconds to delay before fading in (Default: 0)
      */
-    delay: number;
+    fadeInDelay: number;
+    /**
+     * Time in milliseconds to delay before fading out (Default: 0)
+     */
+    fadeOutDelay: number;
     /**
      * Time in milliseconds for the mesh to fade in (Default: 300)
      */
     fadeInTime: number;
+    /**
+     * Time in milliseconds for the mesh to fade out (Default: 300)
+     */
+    fadeOutTime: number;
+    /**
+     * Time in milliseconds to delay before fading in (Default: 0)
+     * Will set both fade in and out delay to the same value
+     */
+    get delay(): number;
+    set delay(value: number);
     private _millisecondsPerFrame;
     private _hovered;
     private _hoverValue;
     private _ownerNode;
+    private _onBeforeRenderObserver;
+    private _delay;
+    private _time;
+    /**
+     * Attached node of this behavior
+     */
+    get attachedNode(): Nullable<Mesh>;
     /**
      * Instantiates the FadeInOutBehavior
      */
@@ -38,10 +60,16 @@ export declare class FadeInOutBehavior implements Behavior<Mesh> {
      */
     detach(): void;
     /**
-     * Triggers the mesh to begin fading in or out
-     * @param value if the object should fade in or out (true to fade in)
+     * Triggers the mesh to begin fading in (or out)
+     * @param fadeIn if the object should fade in or out (true to fade in)
      */
-    fadeIn(value: boolean): void;
+    fadeIn(fadeIn?: boolean): void;
+    /**
+     * Triggers the mesh to begin fading out
+     */
+    fadeOut(): void;
     private _update;
     private _setAllVisibility;
+    private _attachObserver;
+    private _detachObserver;
 }

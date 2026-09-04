@@ -1,11 +1,11 @@
 import { WebXRAbstractMotionController } from "./webXRAbstractMotionController.js";
 import { SceneLoader } from "../../Loading/sceneLoader.js";
-import { Mesh } from "../../Meshes/mesh.js";
-import { Axis, Space } from "../../Maths/math.axis.js";
-import { Color3 } from "../../Maths/math.color.js";
+import { Mesh } from "../../Meshes/mesh.pure.js";
+import { Axis } from "../../Maths/math.axis.js";
+import { Color3 } from "../../Maths/math.color.pure.js";
 import { WebXRControllerComponent } from "./webXRControllerComponent.js";
-import { CreateSphere } from "../../Meshes/Builders/sphereBuilder.js";
-import { StandardMaterial } from "../../Materials/standardMaterial.js";
+import { CreateSphere } from "../../Meshes/Builders/sphereBuilder.pure.js";
+import { StandardMaterial } from "../../Materials/standardMaterial.pure.js";
 import { Logger } from "../../Misc/logger.js";
 /**
  * A profiled motion controller has its profile loaded from an online repository.
@@ -25,9 +25,10 @@ export class WebXRProfiledMotionController extends WebXRAbstractMotionController
     dispose() {
         super.dispose();
         if (!this.controllerCache) {
-            Object.keys(this._touchDots).forEach((visResKey) => {
+            const keys = Object.keys(this._touchDots);
+            for (const visResKey of keys) {
                 this._touchDots[visResKey].dispose();
-            });
+            }
         }
     }
     _getFilenameAndPath() {
@@ -44,13 +45,15 @@ export class WebXRProfiledMotionController extends WebXRAbstractMotionController
         return glbLoaded;
     }
     _processLoadedModel(_meshes) {
-        this.getComponentIds().forEach((type) => {
+        const ids = this.getComponentIds();
+        for (const type of ids) {
             const componentInLayout = this.layout.components[type];
             this._buttonMeshMapping[type] = {
                 mainMesh: this._getChildByName(this.rootMesh, componentInLayout.rootNodeName),
                 states: {},
             };
-            Object.keys(componentInLayout.visualResponses).forEach((visualResponseKey) => {
+            const keys = Object.keys(componentInLayout.visualResponses);
+            for (const visualResponseKey of keys) {
                 const visResponse = componentInLayout.visualResponses[visualResponseKey];
                 if (visResponse.valueNodeProperty === "transform") {
                     this._buttonMeshMapping[type].states[visualResponseKey] = {
@@ -79,8 +82,8 @@ export class WebXRProfiledMotionController extends WebXRAbstractMotionController
                         this._touchDots[visualResponseKey] = dot;
                     }
                 }
-            });
-        });
+            }
+        }
     }
     _setRootMesh(meshes) {
         this.rootMesh = new Mesh(this.profileId + "-" + this.handedness, this.scene);
@@ -99,21 +102,23 @@ export class WebXRProfiledMotionController extends WebXRAbstractMotionController
             rootMesh.setParent(this.rootMesh);
         }
         if (!this.scene.useRightHandedSystem) {
-            this.rootMesh.rotate(Axis.Y, Math.PI, Space.WORLD);
+            this.rootMesh.rotate(Axis.Y, Math.PI, 1 /* Space.WORLD */);
         }
     }
     _updateModel(_xrFrame) {
         if (this.disableAnimation) {
             return;
         }
-        this.getComponentIds().forEach((id) => {
+        const ids = this.getComponentIds();
+        for (const id of ids) {
             const component = this.getComponent(id);
             if (!component.hasChanges) {
-                return;
+                continue;
             }
             const meshes = this._buttonMeshMapping[id];
             const componentInLayout = this.layout.components[id];
-            Object.keys(componentInLayout.visualResponses).forEach((visualResponseKey) => {
+            const keys = Object.keys(componentInLayout.visualResponses);
+            for (const visualResponseKey of keys) {
                 const visResponse = componentInLayout.visualResponses[visualResponseKey];
                 let value = component.value;
                 if (visResponse.componentProperty === "xAxis") {
@@ -135,8 +140,8 @@ export class WebXRProfiledMotionController extends WebXRAbstractMotionController
                         this._touchDots[visualResponseKey].isVisible = component.touched || component.pressed;
                     }
                 }
-            });
-        });
+            }
+        }
     }
 }
 //# sourceMappingURL=webXRProfiledMotionController.js.map

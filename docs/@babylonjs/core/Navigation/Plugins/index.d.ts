@@ -1,1 +1,1 @@
-export * from "./recastJSPlugin";
+export * from "./recastJSPlugin.js";

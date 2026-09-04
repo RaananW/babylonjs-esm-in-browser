@@ -1,10 +1,9 @@
 
-import { Buffer, VertexBuffer } from "../Buffers/buffer.js";
+import { Buffer, VertexBuffer } from "../Buffers/buffer.pure.js";
 import { DrawWrapper } from "../Materials/drawWrapper.js";
-import "../Engines/Extensions/engine.alpha.js";
-import "../Engines/Extensions/engine.dynamicBuffer.js";
-import "../Shaders/sprites.fragment.js";
-import "../Shaders/sprites.vertex.js";
+import { Logger } from "../Misc/logger.js";
+import { BindLogDepth } from "../Materials/materialHelper.functions.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
 /**
  * Class used to render sprites.
  *
@@ -12,13 +11,69 @@ import "../Shaders/sprites.vertex.js";
  */
 export class SpriteRenderer {
     /**
-     * Creates a new sprite Renderer
+     * Gets or sets a boolean indicating if the manager must consider scene fog when rendering
+     */
+    get fogEnabled() {
+        return this._fogEnabled;
+    }
+    set fogEnabled(value) {
+        if (this._fogEnabled === value) {
+            return;
+        }
+        this._fogEnabled = value;
+        this._createEffects();
+    }
+    /**
+     * In case the depth buffer does not allow enough depth precision for your scene (might be the case in large scenes)
+     * You can try switching to logarithmic depth.
+     * @see https://doc.babylonjs.com/features/featuresDeepDive/materials/advanced/logarithmicDepthBuffer
+     */
+    get useLogarithmicDepth() {
+        return this._useLogarithmicDepth;
+    }
+    set useLogarithmicDepth(value) {
+        const fragmentDepthSupported = !!this._scene?.getEngine().getCaps().fragmentDepthSupported;
+        if (value && !fragmentDepthSupported) {
+            Logger.Warn("Logarithmic depth has been requested for a sprite renderer on a device that doesn't support it.");
+        }
+        this._useLogarithmicDepth = value && fragmentDepthSupported;
+        this._createEffects();
+    }
+    /**
+     * Gets the capacity of the manager
+     */
+    get capacity() {
+        return this._capacity;
+    }
+    /**
+     * Gets or sets a boolean indicating if the renderer must render sprites with pixel perfect rendering
+     * Note that pixel perfect mode is not supported in WebGL 1
+     */
+    get pixelPerfect() {
+        return this._pixelPerfect;
+    }
+    set pixelPerfect(value) {
+        if (this._pixelPerfect === value) {
+            return;
+        }
+        this._pixelPerfect = value;
+        this._createEffects();
+    }
+    /**
+     * Gets the shader language used in this renderer.
+     */
+    get shaderLanguage() {
+        return this._shaderLanguage;
+    }
+    /**
+     * Creates a new sprite renderer
      * @param engine defines the engine the renderer works with
      * @param capacity defines the maximum allowed number of sprites
      * @param epsilon defines the epsilon value to align texture (0.01 by default)
      * @param scene defines the hosting scene
+     * @param rendererOptions options for the sprite renderer
      */
-    constructor(engine, capacity, epsilon = 0.01, scene = null) {
+    constructor(engine, capacity, epsilon = 0.01, scene = null, rendererOptions) {
         /**
          * Blend mode use to render the particle, it can be any of
          * the static undefined properties provided in this class.
@@ -36,37 +91,24 @@ export class SpriteRenderer {
          * and setting some specific blend modes.
          */
         this.disableDepthWrite = false;
-        /**
-         * Gets or sets a boolean indicating if the manager must consider scene fog when rendering
-         */
-        this.fogEnabled = true;
+        this._fogEnabled = true;
+        this._pixelPerfect = false;
+        /** Shader language used by the material */
+        this._shaderLanguage = 0 /* ShaderLanguage.GLSL */;
         this._useVAO = false;
         this._useInstancing = false;
         this._vertexBuffers = {};
+        this._isDisposed = false;
+        this._shadersLoaded = false;
+        this._pixelPerfect = rendererOptions?.pixelPerfect ?? false;
         this._capacity = capacity;
         this._epsilon = epsilon;
         this._engine = engine;
         this._useInstancing = engine.getCaps().instancedArrays && engine._features.supportSpriteInstancing;
         this._useVAO = engine.getCaps().vertexArrayObject && !engine.disableVertexArrayObjects;
         this._scene = scene;
-        this._drawWrapperBase = new DrawWrapper(engine);
-        this._drawWrapperFog = new DrawWrapper(engine);
-        this._drawWrapperDepth = new DrawWrapper(engine, false);
-        this._drawWrapperFogDepth = new DrawWrapper(engine, false);
         if (!this._useInstancing) {
             this._buildIndexBuffer();
-        }
-        if (this._drawWrapperBase.drawContext) {
-            this._drawWrapperBase.drawContext.useInstancing = this._useInstancing;
-        }
-        if (this._drawWrapperFog.drawContext) {
-            this._drawWrapperFog.drawContext.useInstancing = this._useInstancing;
-        }
-        if (this._drawWrapperDepth.drawContext) {
-            this._drawWrapperDepth.drawContext.useInstancing = this._useInstancing;
-        }
-        if (this._drawWrapperFogDepth.drawContext) {
-            this._drawWrapperFogDepth.drawContext.useInstancing = this._useInstancing;
         }
         // VBO
         // 18 floats per sprite (x, y, z, angle, sizeX, sizeY, offsetX, offsetY, invertU, invertV, cellLeft, cellTop, cellWidth, cellHeight, color r, color g, color b, color a)
@@ -79,7 +121,16 @@ export class SpriteRenderer {
         let offset = 6;
         let offsets;
         if (this._useInstancing) {
-            const spriteData = new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]);
+            const spriteData = new Float32Array([
+                this._epsilon,
+                this._epsilon,
+                1 - this._epsilon,
+                this._epsilon,
+                this._epsilon,
+                1 - this._epsilon,
+                1 - this._epsilon,
+                1 - this._epsilon,
+            ]);
             this._spriteBuffer = new Buffer(engine, spriteData, false, 2);
             offsets = this._spriteBuffer.createVertexBuffer("offsets", 0, 2);
         }
@@ -96,23 +147,49 @@ export class SpriteRenderer {
         this._vertexBuffers["inverts"] = inverts;
         this._vertexBuffers["cellInfo"] = cellInfo;
         this._vertexBuffers[VertexBuffer.ColorKind] = colors;
-        // Effects
-        this._drawWrapperBase.effect = this._engine.createEffect("sprites", [VertexBuffer.PositionKind, "options", "offsets", "inverts", "cellInfo", VertexBuffer.ColorKind], ["view", "projection", "textureInfos", "alphaTest"], ["diffuseSampler"], "");
-        this._drawWrapperDepth.effect = this._drawWrapperBase.effect;
-        this._drawWrapperDepth.materialContext = this._drawWrapperBase.materialContext;
-        if (this._scene) {
-            this._drawWrapperFog.effect = this._scene
-                .getEngine()
-                .createEffect("sprites", [VertexBuffer.PositionKind, "options", "offsets", "inverts", "cellInfo", VertexBuffer.ColorKind], ["view", "projection", "textureInfos", "alphaTest", "vFogInfos", "vFogColor"], ["diffuseSampler"], "#define FOG");
-            this._drawWrapperFogDepth.effect = this._drawWrapperFog.effect;
-            this._drawWrapperFogDepth.materialContext = this._drawWrapperFog.materialContext;
-        }
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        this._initShaderSourceAsync();
     }
-    /**
-     * Gets the capacity of the manager
-     */
-    get capacity() {
-        return this._capacity;
+    async _initShaderSourceAsync() {
+        const engine = this._engine;
+        if (engine.isWebGPU && !SpriteRenderer.ForceGLSL) {
+            this._shaderLanguage = 1 /* ShaderLanguage.WGSL */;
+            await Promise.all([import("../ShadersWGSL/sprites.vertex.js"), import("../ShadersWGSL/sprites.fragment.js")]);
+        }
+        else {
+            await Promise.all([import("../Shaders/sprites.vertex.js"), import("../Shaders/sprites.fragment.js")]);
+        }
+        this._shadersLoaded = true;
+        this._createEffects();
+    }
+    _createEffects() {
+        if (this._isDisposed || !this._shadersLoaded) {
+            return;
+        }
+        this._drawWrapperBase?.dispose();
+        this._drawWrapperDepth?.dispose();
+        this._drawWrapperBase = new DrawWrapper(this._engine);
+        this._drawWrapperDepth = new DrawWrapper(this._engine, false);
+        if (this._drawWrapperBase.drawContext) {
+            this._drawWrapperBase.drawContext.useInstancing = this._useInstancing;
+        }
+        if (this._drawWrapperDepth.drawContext) {
+            this._drawWrapperDepth.drawContext.useInstancing = this._useInstancing;
+        }
+        let defines = "";
+        if (this._pixelPerfect) {
+            defines += "#define PIXEL_PERFECT\n";
+        }
+        if (this._scene && this._scene.fogEnabled && this._scene.fogMode !== 0 && this._fogEnabled) {
+            defines += "#define FOG\n";
+        }
+        if (this._useLogarithmicDepth) {
+            defines += "#define LOGARITHMICDEPTH\n";
+        }
+        this._drawWrapperBase.effect = this._engine.createEffect("sprites", [VertexBuffer.PositionKind, "options", "offsets", "inverts", "cellInfo", VertexBuffer.ColorKind], ["view", "projection", "textureInfos", "alphaTest", "vFogInfos", "vFogColor", "logarithmicDepthConstant"], ["diffuseSampler"], defines, undefined, undefined, undefined, undefined, this._shaderLanguage);
+        this._drawWrapperDepth.effect = this._drawWrapperBase.effect;
+        this._drawWrapperBase.effect._refCount++;
+        this._drawWrapperDepth.materialContext = this._drawWrapperBase.materialContext;
     }
     /**
      * Render all child sprites
@@ -123,17 +200,12 @@ export class SpriteRenderer {
      * @param customSpriteUpdate defines a custom function to update the sprites data before they render
      */
     render(sprites, deltaTime, viewMatrix, projectionMatrix, customSpriteUpdate = null) {
-        if (!this.texture || !this.texture.isReady() || !sprites.length) {
+        if (!this._shadersLoaded || !this.texture || !this.texture.isReady() || !sprites.length) {
             return;
         }
-        let drawWrapper = this._drawWrapperBase;
-        let drawWrapperDepth = this._drawWrapperDepth;
-        let shouldRenderFog = false;
-        if (this.fogEnabled && this._scene && this._scene.fogEnabled && this._scene.fogMode !== 0) {
-            drawWrapper = this._drawWrapperFog;
-            drawWrapperDepth = this._drawWrapperFogDepth;
-            shouldRenderFog = true;
-        }
+        const drawWrapper = this._drawWrapperBase;
+        const drawWrapperDepth = this._drawWrapperDepth;
+        const shouldRenderFog = this.fogEnabled && this._scene && this._scene.fogEnabled && this._scene.fogMode !== 0;
         const effect = drawWrapper.effect;
         // Check
         if (!effect.isReady()) {
@@ -141,11 +213,11 @@ export class SpriteRenderer {
         }
         const engine = this._engine;
         const useRightHandedSystem = !!(this._scene && this._scene.useRightHandedSystem);
-        const baseSize = this.texture.getBaseSize();
         // Sprites
         const max = Math.min(this._capacity, sprites.length);
         let offset = 0;
         let noSprite = true;
+        const floatingOriginOffset = this._scene?.floatingOriginOffset || Vector3.ZeroReadOnly;
         for (let index = 0; index < max; index++) {
             const sprite = sprites[index];
             if (!sprite || !sprite.isVisible) {
@@ -153,11 +225,12 @@ export class SpriteRenderer {
             }
             noSprite = false;
             sprite._animate(deltaTime);
-            this._appendSpriteVertex(offset++, sprite, 0, 0, baseSize, useRightHandedSystem, customSpriteUpdate);
+            const baseSize = this.texture.getBaseSize(); // This could be change by the user inside the animate callback (like onAnimationEnd)
+            this._appendSpriteVertex(offset++, sprite, 0, 0, baseSize, useRightHandedSystem, customSpriteUpdate, floatingOriginOffset);
             if (!this._useInstancing) {
-                this._appendSpriteVertex(offset++, sprite, 1, 0, baseSize, useRightHandedSystem, customSpriteUpdate);
-                this._appendSpriteVertex(offset++, sprite, 1, 1, baseSize, useRightHandedSystem, customSpriteUpdate);
-                this._appendSpriteVertex(offset++, sprite, 0, 1, baseSize, useRightHandedSystem, customSpriteUpdate);
+                this._appendSpriteVertex(offset++, sprite, 1, 0, baseSize, useRightHandedSystem, customSpriteUpdate, floatingOriginOffset);
+                this._appendSpriteVertex(offset++, sprite, 1, 1, baseSize, useRightHandedSystem, customSpriteUpdate, floatingOriginOffset);
+                this._appendSpriteVertex(offset++, sprite, 0, 1, baseSize, useRightHandedSystem, customSpriteUpdate, floatingOriginOffset);
             }
         }
         if (noSprite) {
@@ -179,6 +252,10 @@ export class SpriteRenderer {
             // Fog
             effect.setFloat4("vFogInfos", scene.fogMode, scene.fogStart, scene.fogEnd, scene.fogDensity);
             effect.setColor3("vFogColor", scene.fogColor);
+        }
+        // Log. depth
+        if (this.useLogarithmicDepth && this._scene) {
+            BindLogDepth(drawWrapper.defines, effect, this._scene);
         }
         if (this._useVAO) {
             if (!this._vertexArrayObject) {
@@ -222,7 +299,7 @@ export class SpriteRenderer {
         }
         engine.unbindInstanceAttributes();
     }
-    _appendSpriteVertex(index, sprite, offsetX, offsetY, baseSize, useRightHandedSystem, customSpriteUpdate) {
+    _appendSpriteVertex(index, sprite, offsetX, offsetY, baseSize, useRightHandedSystem, customSpriteUpdate, floatingOriginOffset) {
         let arrayOffset = index * this._vertexBufferSize;
         if (offsetX === 0) {
             offsetX = this._epsilon;
@@ -251,9 +328,9 @@ export class SpriteRenderer {
             sprite._ySize = this.cellHeight;
         }
         // Positions
-        this._vertexData[arrayOffset] = sprite.position.x;
-        this._vertexData[arrayOffset + 1] = sprite.position.y;
-        this._vertexData[arrayOffset + 2] = sprite.position.z;
+        this._vertexData[arrayOffset] = sprite.position.x - floatingOriginOffset.x;
+        this._vertexData[arrayOffset + 1] = sprite.position.y - floatingOriginOffset.y;
+        this._vertexData[arrayOffset + 2] = sprite.position.z - floatingOriginOffset.z;
         this._vertexData[arrayOffset + 3] = sprite.angle;
         // Options
         this._vertexData[arrayOffset + 4] = sprite.width;
@@ -301,7 +378,6 @@ export class SpriteRenderer {
      * Rebuilds the renderer (after a context lost, for eg)
      */
     rebuild() {
-        var _a;
         if (this._indexBuffer) {
             this._buildIndexBuffer();
         }
@@ -313,7 +389,7 @@ export class SpriteRenderer {
             const vertexBuffer = this._vertexBuffers[key];
             vertexBuffer._rebuild();
         }
-        (_a = this._spriteBuffer) === null || _a === void 0 ? void 0 : _a._rebuild();
+        this._spriteBuffer?._rebuild();
     }
     /**
      * Release associated resources
@@ -339,10 +415,14 @@ export class SpriteRenderer {
             this.texture.dispose();
             this.texture = null;
         }
-        this._drawWrapperBase.dispose();
-        this._drawWrapperFog.dispose();
-        this._drawWrapperDepth.dispose();
-        this._drawWrapperFogDepth.dispose();
+        this._drawWrapperBase?.dispose();
+        this._drawWrapperDepth?.dispose();
+        this._isDisposed = true;
     }
 }
+/**
+ * Force all the sprites to compile to glsl even on WebGPU engines.
+ * False by default. This is mostly meant for backward compatibility.
+ */
+SpriteRenderer.ForceGLSL = false;
 //# sourceMappingURL=spriteRenderer.js.map

@@ -29,7 +29,7 @@ export class MTLFileLoader {
         //Split the lines from the file
         const lines = data.split("\n");
         // whitespace char ie: [ \t\r\n\f]
-        const delimiter_pattern = /\s+/;
+        const delimiterPattern = /\s+/;
         //Array with RGB colors
         let color;
         //New material
@@ -65,7 +65,7 @@ export class MTLFileLoader {
             else if (key === "kd" && material) {
                 // Diffuse color (color under white light) using RGB values
                 //value  = "r g b"
-                color = value.split(delimiter_pattern, 3).map(parseFloat);
+                color = value.split(delimiterPattern, 3).map(parseFloat);
                 //color = [r,g,b]
                 //Set tghe color into the material
                 material.diffuseColor = Color3.FromArray(color);
@@ -73,7 +73,7 @@ export class MTLFileLoader {
             else if (key === "ka" && material) {
                 // Ambient color (color under shadow) using RGB values
                 //value = "r g b"
-                color = value.split(delimiter_pattern, 3).map(parseFloat);
+                color = value.split(delimiterPattern, 3).map(parseFloat);
                 //color = [r,g,b]
                 //Set tghe color into the material
                 material.ambientColor = Color3.FromArray(color);
@@ -81,14 +81,14 @@ export class MTLFileLoader {
             else if (key === "ks" && material) {
                 // Specular color (color when light is reflected from shiny surface) using RGB values
                 //value = "r g b"
-                color = value.split(delimiter_pattern, 3).map(parseFloat);
+                color = value.split(delimiterPattern, 3).map(parseFloat);
                 //color = [r,g,b]
                 //Set the color into the material
                 material.specularColor = Color3.FromArray(color);
             }
             else if (key === "ke" && material) {
                 // Emissive color using RGB values
-                color = value.split(delimiter_pattern, 3).map(parseFloat);
+                color = value.split(delimiterPattern, 3).map(parseFloat);
                 material.emissiveColor = Color3.FromArray(color);
             }
             else if (key === "ns" && material) {
@@ -126,7 +126,7 @@ export class MTLFileLoader {
             }
             else if (key === "map_bump" && material) {
                 //The bump texture
-                const values = value.split(delimiter_pattern);
+                const values = value.split(delimiterPattern);
                 const bumpMultiplierIndex = values.indexOf("-bm");
                 let bumpMultiplier = null;
                 if (bumpMultiplierIndex >= 0) {
@@ -211,7 +211,7 @@ export class MTLFileLoader {
                 lastDelimiter = value.lastIndexOf("/");
             }
             if (lastDelimiter > -1) {
-                url += value.substr(lastDelimiter + 1);
+                url += value.substring(lastDelimiter + 1);
             }
             else {
                 url += value;

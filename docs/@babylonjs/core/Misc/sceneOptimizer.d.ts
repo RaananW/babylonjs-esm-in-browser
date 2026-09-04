@@ -1,12 +1,12 @@
-import type { Scene, IDisposable } from "../scene";
-import { Observable } from "./observable";
+import { type Scene, type IDisposable } from "../scene.js";
+import { Observable } from "./observable.js";
 /**
  * Defines the root class used to create scene optimization to use with SceneOptimizer
- * @description More details at https://doc.babylonjs.com/features/featuresDeepDive/scene/sceneOptimizer
+ * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/sceneOptimizer
  */
 export declare class SceneOptimization {
     /**
-     * Defines the priority of this optimization (0 by default which means first in the list)
+     * [0] Defines the priority of this optimization (0 by default which means first in the list)
      */
     priority: number;
     /**
@@ -27,25 +27,25 @@ export declare class SceneOptimization {
      */
     constructor(
     /**
-     * Defines the priority of this optimization (0 by default which means first in the list)
+     * [0] Defines the priority of this optimization (0 by default which means first in the list)
      */
     priority?: number);
 }
 /**
  * Defines an optimization used to reduce the size of render target textures
- * @description More details at https://doc.babylonjs.com/features/featuresDeepDive/scene/sceneOptimizer
+ * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/sceneOptimizer
  */
 export declare class TextureOptimization extends SceneOptimization {
     /**
-     * Defines the priority of this optimization (0 by default which means first in the list)
+     * [0] Defines the priority of this optimization (0 by default which means first in the list)
      */
     priority: number;
     /**
-     * Defines the maximum sized allowed for textures (1024 is the default value). If a texture is bigger, it will be scaled down using a factor defined by the step parameter
+     * [1024] Defines the maximum sized allowed for textures (1024 is the default value). If a texture is bigger, it will be scaled down using a factor defined by the step parameter
      */
     maximumSize: number;
     /**
-     * Defines the factor (0.5 by default) used to scale down textures bigger than maximum sized allowed.
+     * [0.5] Defines the factor (0.5 by default) used to scale down textures bigger than maximum sized allowed.
      */
     step: number;
     /**
@@ -61,15 +61,15 @@ export declare class TextureOptimization extends SceneOptimization {
      */
     constructor(
     /**
-     * Defines the priority of this optimization (0 by default which means first in the list)
+     * [0] Defines the priority of this optimization (0 by default which means first in the list)
      */
     priority?: number, 
     /**
-     * Defines the maximum sized allowed for textures (1024 is the default value). If a texture is bigger, it will be scaled down using a factor defined by the step parameter
+     * [1024] Defines the maximum sized allowed for textures (1024 is the default value). If a texture is bigger, it will be scaled down using a factor defined by the step parameter
      */
     maximumSize?: number, 
     /**
-     * Defines the factor (0.5 by default) used to scale down textures bigger than maximum sized allowed.
+     * [0.5] Defines the factor (0.5 by default) used to scale down textures bigger than maximum sized allowed.
      */
     step?: number);
     /**
@@ -86,15 +86,15 @@ export declare class TextureOptimization extends SceneOptimization {
  */
 export declare class HardwareScalingOptimization extends SceneOptimization {
     /**
-     * Defines the priority of this optimization (0 by default which means first in the list)
+     * [0] Defines the priority of this optimization (0 by default which means first in the list)
      */
     priority: number;
     /**
-     * Defines the maximum scale to use (2 by default)
+     * [2] Defines the maximum scale to use (2 by default)
      */
     maximumScale: number;
     /**
-     * Defines the step to use between two passes (0.5 by default)
+     * [0.25] Defines the step to use between two passes (0.5 by default)
      */
     step: number;
     private _currentScale;
@@ -112,15 +112,15 @@ export declare class HardwareScalingOptimization extends SceneOptimization {
      */
     constructor(
     /**
-     * Defines the priority of this optimization (0 by default which means first in the list)
+     * [0] Defines the priority of this optimization (0 by default which means first in the list)
      */
     priority?: number, 
     /**
-     * Defines the maximum scale to use (2 by default)
+     * [2] Defines the maximum scale to use (2 by default)
      */
     maximumScale?: number, 
     /**
-     * Defines the step to use between two passes (0.5 by default)
+     * [0.25] Defines the step to use between two passes (0.5 by default)
      */
     step?: number);
     /**
@@ -282,11 +282,11 @@ export declare class MergeMeshesOptimization extends SceneOptimization {
  */
 export declare class SceneOptimizerOptions {
     /**
-     * Defines the target frame rate to reach (60 by default)
+     * [60] Defines the target frame rate to reach (60 by default)
      */
     targetFrameRate: number;
     /**
-     * Defines the interval between two checks (2000ms by default)
+     * [2000] Defines the interval between two checks (2000ms by default)
      */
     trackerDuration: number;
     /**
@@ -300,11 +300,11 @@ export declare class SceneOptimizerOptions {
      */
     constructor(
     /**
-     * Defines the target frame rate to reach (60 by default)
+     * [60] Defines the target frame rate to reach (60 by default)
      */
     targetFrameRate?: number, 
     /**
-     * Defines the interval between two checks (2000ms by default)
+     * [2000] Defines the interval between two checks (2000ms by default)
      */
     trackerDuration?: number);
     /**

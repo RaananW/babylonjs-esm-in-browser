@@ -1,25 +1,28 @@
-import type { IAnimatable } from "../Animations/animatable.interface";
-import { Observable } from "../Misc/observable";
-import type { Nullable, FloatArray } from "../types";
-import type { Scene } from "../scene";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import type { AnimationPropertiesOverride } from "../Animations/animationPropertiesOverride";
+import { type IAnimatable } from "../Animations/animatable.interface.js";
+import { Observable } from "../Misc/observable.js";
+import { type Nullable, type FloatArray } from "../types.js";
+import { type Scene } from "../scene.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { type AnimationPropertiesOverride } from "../Animations/animationPropertiesOverride.js";
+import { type Animation } from "../Animations/animation.js";
+import { type MorphTargetManager } from "./morphTargetManager.js";
 /**
  * Defines a target to use with MorphTargetManager
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/morphTargets
  */
 export declare class MorphTarget implements IAnimatable {
-    /** defines the name of the target */
     name: string;
     /**
      * Gets or sets the list of animations
      */
-    animations: import("../Animations/animation").Animation[];
+    animations: Animation[];
     private _scene;
     private _positions;
     private _normals;
     private _tangents;
     private _uvs;
+    private _uv2s;
+    private _colors;
     private _influence;
     private _uniqueId;
     /**
@@ -37,6 +40,10 @@ export declare class MorphTarget implements IAnimatable {
      * Gets or sets the id of the morph Target
      */
     id: string;
+    /**
+     * Gets or sets the morph target manager this morph target is associated with
+     */
+    morphTargetManager: Nullable<MorphTargetManager>;
     private _animationPropertiesOverride;
     /**
      * Gets or sets the animation properties override
@@ -48,10 +55,9 @@ export declare class MorphTarget implements IAnimatable {
      * @param name defines the name of the target
      * @param influence defines the influence to use
      * @param scene defines the scene the morphtarget belongs to
+     * @param morphTargetManager morph target manager this morph target is associated with
      */
-    constructor(
-    /** defines the name of the target */
-    name: string, influence?: number, scene?: Nullable<Scene>);
+    constructor(name: string, influence?: number, scene?: Nullable<Scene>, morphTargetManager?: Nullable<MorphTargetManager>);
     /**
      * Gets the unique ID of this manager
      */
@@ -72,6 +78,15 @@ export declare class MorphTarget implements IAnimatable {
      * Gets a boolean defining if the target contains texture coordinates data
      */
     get hasUVs(): boolean;
+    /**
+     * Gets a boolean defining if the target contains texture coordinates 2 data
+     */
+    get hasUV2s(): boolean;
+    get hasColors(): boolean;
+    /**
+     * Gets the number of vertices stored in this target
+     */
+    get vertexCount(): number;
     /**
      * Affects position data to this target
      * @param data defines the position data to use
@@ -113,6 +128,26 @@ export declare class MorphTarget implements IAnimatable {
      */
     getUVs(): Nullable<FloatArray>;
     /**
+     * Affects texture coordinates 2 data to this target
+     * @param data defines the texture coordinates 2 data to use
+     */
+    setUV2s(data: Nullable<FloatArray>): void;
+    /**
+     * Gets the texture coordinates 2 data stored in this target
+     * @returns a FloatArray containing the texture coordinates 2 data (or null if not present)
+     */
+    getUV2s(): Nullable<FloatArray>;
+    /**
+     * Affects color data to this target
+     * @param data defines the color data to use
+     */
+    setColors(data: Nullable<FloatArray>): void;
+    /**
+     * Gets the color data stored in this target
+     * @returns a FloatArray containing the color data (or null if not present)
+     */
+    getColors(): Nullable<FloatArray>;
+    /**
      * Clone the current target
      * @returns a new MorphTarget
      */
@@ -131,9 +166,10 @@ export declare class MorphTarget implements IAnimatable {
      * Creates a new target from serialized data
      * @param serializationObject defines the serialized data to use
      * @param scene defines the hosting scene
+     * @param morphTargetManager morph target manager this morph target is associated with
      * @returns a new MorphTarget
      */
-    static Parse(serializationObject: any, scene?: Scene): MorphTarget;
+    static Parse(serializationObject: any, scene?: Scene, morphTargetManager?: Nullable<MorphTargetManager>): MorphTarget;
     /**
      * Creates a MorphTarget from mesh data
      * @param mesh defines the source mesh

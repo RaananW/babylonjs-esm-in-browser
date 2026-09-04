@@ -1,32 +1,32 @@
-import type { ShaderCustomProcessingFunction } from "../Engines/Processors/shaderProcessingOptions";
-import type { SmartArray } from "../Misc/smartArray";
-declare type BaseTexture = import("./Textures/baseTexture").BaseTexture;
-declare type EffectFallbacks = import("./effectFallbacks").EffectFallbacks;
-declare type MaterialDefines = import("./materialDefines").MaterialDefines;
-declare type UniformBuffer = import("./uniformBuffer").UniformBuffer;
-declare type SubMesh = import("../Meshes/subMesh").SubMesh;
-declare type AbstractMesh = import("../Meshes/abstractMesh").AbstractMesh;
-declare type IAnimatable = import("../Animations/animatable.interface").IAnimatable;
-declare type RenderTargetTexture = import("./Textures/renderTargetTexture").RenderTargetTexture;
+import { type ShaderCustomProcessingFunction } from "../Engines/Processors/shaderProcessingOptions.js";
+import { type SmartArray } from "../Misc/smartArray.js";
+import { type BaseTexture } from "./Textures/baseTexture.js";
+import { type EffectFallbacks } from "./effectFallbacks.js";
+import { type MaterialDefines } from "./materialDefines.js";
+import { type UniformBuffer } from "./uniformBuffer.js";
+import { type SubMesh } from "../Meshes/subMesh.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { type IAnimatable } from "../Animations/animatable.interface.js";
+import { type RenderTargetTexture } from "./Textures/renderTargetTexture.js";
 /** @internal */
-export declare type MaterialPluginCreated = {};
+export type MaterialPluginCreated = object;
 /** @internal */
-export declare type MaterialPluginDisposed = {
+export type MaterialPluginDisposed = {
     forceDisposeTextures?: boolean;
 };
 /** @internal */
-export declare type MaterialPluginHasTexture = {
+export type MaterialPluginHasTexture = {
     hasTexture: boolean;
     texture: BaseTexture;
 };
 /** @internal */
-export declare type MaterialPluginIsReadyForSubMesh = {
+export type MaterialPluginIsReadyForSubMesh = {
     isReadyForSubMesh: boolean;
     defines: MaterialDefines;
     subMesh: SubMesh;
 };
 /** @internal */
-export declare type MaterialPluginGetDefineNames = {
+export type MaterialPluginGetDefineNames = {
     defineNames?: {
         [name: string]: {
             type: string;
@@ -35,7 +35,7 @@ export declare type MaterialPluginGetDefineNames = {
     };
 };
 /** @internal */
-export declare type MaterialPluginPrepareEffect = {
+export type MaterialPluginPrepareEffect = {
     defines: MaterialDefines;
     fallbacks: EffectFallbacks;
     fallbackRank: number;
@@ -45,38 +45,39 @@ export declare type MaterialPluginPrepareEffect = {
     samplers: string[];
     uniformBuffersNames: string[];
     mesh: AbstractMesh;
+    indexParameters: any;
 };
 /** @internal */
-export declare type MaterialPluginPrepareDefines = {
+export type MaterialPluginPrepareDefines = {
     defines: MaterialDefines;
     mesh: AbstractMesh;
 };
 /** @internal */
-export declare type MaterialPluginPrepareUniformBuffer = {
+export type MaterialPluginPrepareUniformBuffer = {
     ubo: UniformBuffer;
 };
 /** @internal */
-export declare type MaterialPluginBindForSubMesh = {
+export type MaterialPluginBindForSubMesh = {
     subMesh: SubMesh;
 };
 /** @internal */
-export declare type MaterialPluginGetAnimatables = {
+export type MaterialPluginGetAnimatables = {
     animatables: IAnimatable[];
 };
 /** @internal */
-export declare type MaterialPluginGetActiveTextures = {
+export type MaterialPluginGetActiveTextures = {
     activeTextures: BaseTexture[];
 };
 /** @internal */
-export declare type MaterialPluginFillRenderTargetTextures = {
+export type MaterialPluginFillRenderTargetTextures = {
     renderTargets: SmartArray<RenderTargetTexture>;
 };
 /** @internal */
-export declare type MaterialPluginHasRenderTargetTextures = {
+export type MaterialPluginHasRenderTargetTextures = {
     hasRenderTargetTextures: boolean;
 };
 /** @internal */
-export declare type MaterialPluginHardBindForSubMesh = {
+export type MaterialPluginHardBindForSubMesh = {
     subMesh: SubMesh;
 };
 /**
@@ -98,4 +99,3 @@ export declare enum MaterialPluginEvent {
     HasRenderTargetTextures = 4096,
     HardBindForSubMesh = 8192
 }
-export {};

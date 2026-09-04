@@ -1,4 +1,4 @@
-import type { Nullable } from "../types";
+import { type Nullable } from "../types.js";
 /**
  * Interface used to define a behavior
  */
@@ -6,7 +6,7 @@ export interface Behavior<T> {
     /** gets or sets behavior's name */
     name: string;
     /**
-     * Function called when the behavior needs to be initialized (after attaching it to a target)
+     * Function called when the behavior needs to be initialized (before attaching it to a target)
      */
     init(): void;
     /**
@@ -18,6 +18,10 @@ export interface Behavior<T> {
      * Called when the behavior is detached from its target
      */
     detach(): void;
+    /**
+     * Gets the current attached target
+     */
+    attachedNode: Nullable<T>;
 }
 /**
  * Interface implemented by classes supporting behaviors

@@ -1,36 +1,18 @@
-import { StandardMaterial } from "../Materials/standardMaterial.js";
-import { Color3 } from "../Maths/math.color.js";
-import { Matrix, TmpVectors, Vector3 } from "../Maths/math.vector.js";
-import { CreateLines } from "../Meshes/Builders/linesBuilder.js";
-import { Mesh } from "../Meshes/mesh.js";
+import { StandardMaterial } from "../Materials/standardMaterial.pure.js";
+import { Color3 } from "../Maths/math.color.pure.js";
+import { Matrix, TmpVectors, Vector3 } from "../Maths/math.vector.pure.js";
+import { CreateLines } from "../Meshes/Builders/linesBuilder.pure.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
 import { VertexData } from "../Meshes/mesh.vertexData.js";
-import { TransformNode } from "../Meshes/transformNode.js";
+import { TransformNode } from "../Meshes/transformNode.pure.js";
+
+import { FrameGraphUtils } from "../FrameGraph/frameGraphUtils.js";
 /**
  * Class used to render a debug view of the frustum for a directional light
  * @see https://playground.babylonjs.com/#7EFGSG#4
  * @since 5.0.0
  */
 export class DirectionalLightFrustumViewer {
-    /**
-     * Creates a new frustum viewer
-     * @param light directional light to display the frustum for
-     * @param camera camera used to retrieve the minZ / maxZ values if the shadowMinZ/shadowMaxZ values of the light are not setup
-     */
-    constructor(light, camera) {
-        this._oldPosition = new Vector3(Number.NaN, Number.NaN, Number.NaN);
-        this._oldDirection = new Vector3(Number.NaN, Number.NaN, Number.NaN);
-        this._transparency = 0.3;
-        this._showLines = true;
-        this._showPlanes = true;
-        this._scene = light.getScene();
-        this._light = light;
-        this._camera = camera;
-        this._inverseViewMatrix = Matrix.Identity();
-        this._lightHelperFrustumMeshes = [];
-        this._createGeometry();
-        this.show();
-        this.update();
-    }
     /**
      * Gets or sets the transparency of the frustum planes
      */
@@ -74,9 +56,33 @@ export class DirectionalLightFrustumViewer {
         }
     }
     /**
+     * Creates a new frustum viewer
+     * @param light directional light to display the frustum for
+     * @param camera camera used to retrieve the minZ / maxZ values if the shadowMinZ/shadowMaxZ values of the light are not setup
+     */
+    constructor(light, camera = null) {
+        this._oldPosition = new Vector3(Number.NaN, Number.NaN, Number.NaN);
+        this._oldDirection = new Vector3(Number.NaN, Number.NaN, Number.NaN);
+        this._transparency = 0.3;
+        this._showLines = true;
+        this._showPlanes = true;
+        this._scene = light.getScene();
+        this._light = light;
+        this._camera = camera;
+        this._inverseViewMatrix = Matrix.Identity();
+        this._lightHelperFrustumMeshes = [];
+        this._createGeometry();
+        this.show();
+        this.update();
+    }
+    /**
      * Shows the frustum
      */
     show() {
+        if (this._scene.frameGraph) {
+            this._removeMeshesFromFrameGraph(this._scene.frameGraph);
+            this._addMeshesToFrameGraph(this._scene.frameGraph);
+        }
         this._lightHelperFrustumMeshes.forEach((mesh, index) => {
             mesh.setEnabled((index < 6 && this._showLines) || (index >= 6 && this._showPlanes));
         });
@@ -87,17 +93,38 @@ export class DirectionalLightFrustumViewer {
      * Hides the frustum
      */
     hide() {
-        this._lightHelperFrustumMeshes.forEach((mesh) => {
+        if (this._scene.frameGraph) {
+            this._removeMeshesFromFrameGraph(this._scene.frameGraph);
+        }
+        for (const mesh of this._lightHelperFrustumMeshes) {
             mesh.setEnabled(false);
-        });
+        }
         this._visible = false;
+    }
+    _addMeshesToFrameGraph(frameGraph) {
+        const objectRenderer = FrameGraphUtils.FindMainObjectRenderer(frameGraph);
+        if (objectRenderer && objectRenderer.objectList.meshes) {
+            for (const mesh of this._lightHelperFrustumMeshes) {
+                objectRenderer.objectList.meshes.push(mesh);
+            }
+        }
+    }
+    _removeMeshesFromFrameGraph(frameGraph) {
+        const objectRenderer = FrameGraphUtils.FindMainObjectRenderer(frameGraph);
+        if (objectRenderer && objectRenderer.objectList.meshes) {
+            for (const mesh of this._lightHelperFrustumMeshes) {
+                const index = objectRenderer.objectList.meshes.indexOf(mesh);
+                if (index !== -1) {
+                    objectRenderer.objectList.meshes.splice(index, 1);
+                }
+            }
+        }
     }
     /**
      * Updates the frustum.
      * Call this method to update the frustum view if the light has changed position/direction
      */
     update() {
-        var _a, _b, _c, _d, _e, _f;
         if (!this._visible) {
             return;
         }
@@ -105,7 +132,11 @@ export class DirectionalLightFrustumViewer {
             this._oldDirection.equals(this._light.direction) &&
             this._oldAutoCalc === this._light.autoCalcShadowZBounds &&
             this._oldMinZ === this._light.shadowMinZ &&
-            this._oldMaxZ === this._light.shadowMaxZ) {
+            this._oldMaxZ === this._light.shadowMaxZ &&
+            this._oldOrthoLeft === this._light.orthoLeft &&
+            this._oldOrthoRight === this._light.orthoRight &&
+            this._oldOrthoTop === this._light.orthoTop &&
+            this._oldOrthoBottom === this._light.orthoBottom) {
             return;
         }
         this._oldPosition.copyFrom(this._light.position);
@@ -113,8 +144,12 @@ export class DirectionalLightFrustumViewer {
         this._oldAutoCalc = this._light.autoCalcShadowZBounds;
         this._oldMinZ = this._light.shadowMinZ;
         this._oldMaxZ = this._light.shadowMaxZ;
-        TmpVectors.Vector3[0].set(this._light.orthoLeft, this._light.orthoBottom, this._light.shadowMinZ !== undefined ? this._light.shadowMinZ : this._camera.minZ); // min light extents
-        TmpVectors.Vector3[1].set(this._light.orthoRight, this._light.orthoTop, this._light.shadowMaxZ !== undefined ? this._light.shadowMaxZ : this._camera.maxZ); // max light extents
+        this._oldOrthoLeft = this._light.orthoLeft;
+        this._oldOrthoRight = this._light.orthoRight;
+        this._oldOrthoTop = this._light.orthoTop;
+        this._oldOrthoBottom = this._light.orthoBottom;
+        TmpVectors.Vector3[0].set(this._light.orthoLeft, this._light.orthoBottom, this._light.shadowMinZ !== undefined ? this._light.shadowMinZ : (this._camera?.minZ ?? 0)); // min light extents
+        TmpVectors.Vector3[1].set(this._light.orthoRight, this._light.orthoTop, this._light.shadowMaxZ !== undefined ? this._light.shadowMaxZ : (this._camera?.maxZ ?? 10000)); // max light extents
         const invLightView = this._getInvertViewMatrix();
         TmpVectors.Vector3[2].copyFromFloats(TmpVectors.Vector3[1].x, TmpVectors.Vector3[1].y, TmpVectors.Vector3[0].z); // n1
         TmpVectors.Vector3[3].copyFromFloats(TmpVectors.Vector3[1].x, TmpVectors.Vector3[0].y, TmpVectors.Vector3[0].z); // n2
@@ -142,68 +177,70 @@ export class DirectionalLightFrustumViewer {
         TmpVectors.Vector3[3].toArray(this._nearPlaneVertices, 3);
         TmpVectors.Vector3[4].toArray(this._nearPlaneVertices, 6);
         TmpVectors.Vector3[5].toArray(this._nearPlaneVertices, 9);
-        (_a = this._lightHelperFrustumMeshes[6].geometry) === null || _a === void 0 ? void 0 : _a.updateVerticesDataDirectly("position", this._nearPlaneVertices, 0);
+        this._lightHelperFrustumMeshes[6].geometry?.updateVerticesDataDirectly("position", this._nearPlaneVertices, 0);
         TmpVectors.Vector3[6].toArray(this._farPlaneVertices, 0);
         TmpVectors.Vector3[7].toArray(this._farPlaneVertices, 3);
         TmpVectors.Vector3[8].toArray(this._farPlaneVertices, 6);
         TmpVectors.Vector3[9].toArray(this._farPlaneVertices, 9);
-        (_b = this._lightHelperFrustumMeshes[7].geometry) === null || _b === void 0 ? void 0 : _b.updateVerticesDataDirectly("position", this._farPlaneVertices, 0);
+        this._lightHelperFrustumMeshes[7].geometry?.updateVerticesDataDirectly("position", this._farPlaneVertices, 0);
         TmpVectors.Vector3[2].toArray(this._rightPlaneVertices, 0);
         TmpVectors.Vector3[6].toArray(this._rightPlaneVertices, 3);
         TmpVectors.Vector3[7].toArray(this._rightPlaneVertices, 6);
         TmpVectors.Vector3[3].toArray(this._rightPlaneVertices, 9);
-        (_c = this._lightHelperFrustumMeshes[8].geometry) === null || _c === void 0 ? void 0 : _c.updateVerticesDataDirectly("position", this._rightPlaneVertices, 0);
+        this._lightHelperFrustumMeshes[8].geometry?.updateVerticesDataDirectly("position", this._rightPlaneVertices, 0);
         TmpVectors.Vector3[5].toArray(this._leftPlaneVertices, 0);
         TmpVectors.Vector3[9].toArray(this._leftPlaneVertices, 3);
         TmpVectors.Vector3[8].toArray(this._leftPlaneVertices, 6);
         TmpVectors.Vector3[4].toArray(this._leftPlaneVertices, 9);
-        (_d = this._lightHelperFrustumMeshes[9].geometry) === null || _d === void 0 ? void 0 : _d.updateVerticesDataDirectly("position", this._leftPlaneVertices, 0);
+        this._lightHelperFrustumMeshes[9].geometry?.updateVerticesDataDirectly("position", this._leftPlaneVertices, 0);
         TmpVectors.Vector3[2].toArray(this._topPlaneVertices, 0);
         TmpVectors.Vector3[6].toArray(this._topPlaneVertices, 3);
         TmpVectors.Vector3[9].toArray(this._topPlaneVertices, 6);
         TmpVectors.Vector3[5].toArray(this._topPlaneVertices, 9);
-        (_e = this._lightHelperFrustumMeshes[10].geometry) === null || _e === void 0 ? void 0 : _e.updateVerticesDataDirectly("position", this._topPlaneVertices, 0);
+        this._lightHelperFrustumMeshes[10].geometry?.updateVerticesDataDirectly("position", this._topPlaneVertices, 0);
         TmpVectors.Vector3[3].toArray(this._bottomPlaneVertices, 0);
         TmpVectors.Vector3[7].toArray(this._bottomPlaneVertices, 3);
         TmpVectors.Vector3[8].toArray(this._bottomPlaneVertices, 6);
         TmpVectors.Vector3[4].toArray(this._bottomPlaneVertices, 9);
-        (_f = this._lightHelperFrustumMeshes[11].geometry) === null || _f === void 0 ? void 0 : _f.updateVerticesDataDirectly("position", this._bottomPlaneVertices, 0);
+        this._lightHelperFrustumMeshes[11].geometry?.updateVerticesDataDirectly("position", this._bottomPlaneVertices, 0);
     }
     /**
      * Dispose of the class / remove the frustum view
      */
     dispose() {
-        this._lightHelperFrustumMeshes.forEach((mesh) => {
-            var _a;
-            (_a = mesh.material) === null || _a === void 0 ? void 0 : _a.dispose();
+        if (this._scene.frameGraph) {
+            this._removeMeshesFromFrameGraph(this._scene.frameGraph);
+        }
+        for (const mesh of this._lightHelperFrustumMeshes) {
+            mesh.material?.dispose();
             mesh.dispose();
-        });
+        }
         this._rootNode.dispose();
     }
     _createGeometry() {
         this._rootNode = new TransformNode("directionalLightHelperRoot_" + this._light.name, this._scene);
         this._rootNode.parent = this._light.parent;
-        this._nearLinesPoints = [Vector3.ZeroReadOnly, Vector3.ZeroReadOnly, Vector3.ZeroReadOnly, Vector3.ZeroReadOnly, Vector3.ZeroReadOnly];
+        this._nearLinesPoints = [TmpVectors.Vector3[0], TmpVectors.Vector3[1], TmpVectors.Vector3[2], TmpVectors.Vector3[3], TmpVectors.Vector3[4]];
         const nearLines = CreateLines("nearlines", { updatable: true, points: this._nearLinesPoints }, this._scene);
         nearLines.parent = this._rootNode;
         nearLines.alwaysSelectAsActiveMesh = true;
-        this._farLinesPoints = [Vector3.ZeroReadOnly, Vector3.ZeroReadOnly, Vector3.ZeroReadOnly, Vector3.ZeroReadOnly, Vector3.ZeroReadOnly];
+        this._farLinesPoints = [TmpVectors.Vector3[5], TmpVectors.Vector3[6], TmpVectors.Vector3[7], TmpVectors.Vector3[8], TmpVectors.Vector3[9]];
         const farLines = CreateLines("farlines", { updatable: true, points: this._farLinesPoints }, this._scene);
         farLines.parent = this._rootNode;
         farLines.alwaysSelectAsActiveMesh = true;
-        this._trLinesPoints = [Vector3.ZeroReadOnly, Vector3.ZeroReadOnly];
+        this._trLinesPoints = [TmpVectors.Vector3[10], TmpVectors.Vector3[11]];
         const trLines = CreateLines("trlines", { updatable: true, points: this._trLinesPoints }, this._scene);
         trLines.parent = this._rootNode;
         trLines.alwaysSelectAsActiveMesh = true;
-        this._brLinesPoints = [Vector3.ZeroReadOnly, Vector3.ZeroReadOnly];
+        this._brLinesPoints = [TmpVectors.Vector3[12], TmpVectors.Vector3[0]];
         const brLines = CreateLines("brlines", { updatable: true, points: this._brLinesPoints }, this._scene);
         brLines.parent = this._rootNode;
         brLines.alwaysSelectAsActiveMesh = true;
-        this._tlLinesPoints = [Vector3.ZeroReadOnly, Vector3.ZeroReadOnly];
+        this._tlLinesPoints = [TmpVectors.Vector3[1], TmpVectors.Vector3[2]];
         const tlLines = CreateLines("tllines", { updatable: true, points: this._tlLinesPoints }, this._scene);
         tlLines.parent = this._rootNode;
         tlLines.alwaysSelectAsActiveMesh = true;
-        this._blLinesPoints = [Vector3.ZeroReadOnly, Vector3.ZeroReadOnly];
+        this._blLinesPoints = [TmpVectors.Vector3[3], TmpVectors.Vector3[4]];
         const blLines = CreateLines("bllines", { updatable: true, points: this._blLinesPoints }, this._scene);
         blLines.parent = this._rootNode;
         blLines.alwaysSelectAsActiveMesh = true;

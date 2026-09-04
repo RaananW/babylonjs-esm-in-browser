@@ -1,4 +1,4 @@
-/* eslint-disable import/no-internal-modules */
+/* eslint-disable @typescript-eslint/no-restricted-imports */
 export * from "./light.js";
 export * from "./shadowLight.js";
 export * from "./Shadows/index.js";
@@ -6,4 +6,10 @@ export * from "./directionalLight.js";
 export * from "./hemisphericLight.js";
 export * from "./pointLight.js";
 export * from "./spotLight.js";
+export * from "./areaLight.js";
+export * from "./rectAreaLight.js";
+export * from "./Clustered/index.js";
+export * from "./IES/iesLoader.js";
+export * from "./lightConstants.js";
+export * from "./lightingVolume.js";
 //# sourceMappingURL=index.js.map

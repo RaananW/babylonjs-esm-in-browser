@@ -1,9 +1,9 @@
 import { Logger } from "../../Misc/logger.js";
 import { VertexData } from "../../Meshes/mesh.vertexData.js";
-import { Mesh } from "../../Meshes/mesh.js";
+import { Mesh } from "../../Meshes/mesh.pure.js";
 import { Epsilon, Vector3, Matrix } from "../../Maths/math.js";
 import { Observable } from "../../Misc/observable.js";
-import { VertexBuffer } from "../../Buffers/buffer.js";
+import { VertexBuffer } from "../../Buffers/buffer.pure.js";
 /**
  * RecastJS navigation plugin
  */
@@ -16,6 +16,7 @@ export class RecastJSPlugin {
         /**
          * Reference to the Recast library
          */
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         this.bjsRECAST = {};
         /**
          * plugin name
@@ -69,7 +70,7 @@ export class RecastJSPlugin {
     }
     /**
      * If delta time in navigation tick update is greater than the time step
-     * a number of sub iterations are done. If more iterations are need to reach deltatime
+     * a number of sub iterations are done. If more iterations are needed to reach deltatime
      * they will be discarded.
      * A value of 0 will set to no maximum and update will use as many substeps as needed
      * @param newStepCount the maximum number of iterations
@@ -106,10 +107,10 @@ export class RecastJSPlugin {
      */
     createNavMesh(meshes, parameters, completion) {
         if (this._worker && !completion) {
-            console.warn("A worker is avaible but no completion callback. Defaulting to blocking navmesh creation");
+            Logger.Warn("A worker is available but no completion callback. Defaulting to blocking navmesh creation");
         }
         else if (!this._worker && completion) {
-            console.warn("A completion callback is avaible but no worker. Defaulting to blocking navmesh creation");
+            Logger.Warn("A completion callback is available but no worker. Defaulting to blocking navmesh creation");
         }
         this.navMesh = new this.bjsRECAST.NavMesh();
         let index;
@@ -300,21 +301,8 @@ export class RecastJSPlugin {
         const ret = this.navMesh.moveAlong(this._tempVec1, this._tempVec2);
         result.set(ret.x, ret.y, ret.z);
     }
-    /**
-     * Compute a navigation path from start to end. Returns an empty array if no path can be computed
-     * @param start world position
-     * @param end world position
-     * @returns array containing world position composing the path
-     */
-    computePath(start, end) {
+    _convertNavPathPoints(navPath) {
         let pt;
-        this._tempVec1.x = start.x;
-        this._tempVec1.y = start.y;
-        this._tempVec1.z = start.z;
-        this._tempVec2.x = end.x;
-        this._tempVec2.y = end.y;
-        this._tempVec2.z = end.z;
-        const navPath = this.navMesh.computePath(this._tempVec1, this._tempVec2);
         const pointCount = navPath.getPointCount();
         const positions = [];
         for (pt = 0; pt < pointCount; pt++) {
@@ -322,6 +310,40 @@ export class RecastJSPlugin {
             positions.push(new Vector3(p.x, p.y, p.z));
         }
         return positions;
+    }
+    /**
+     * Compute a navigation path from start to end. Returns an empty array if no path can be computed
+     * Path is straight.
+     * @param start world position
+     * @param end world position
+     * @returns array containing world position composing the path
+     */
+    computePath(start, end) {
+        this._tempVec1.x = start.x;
+        this._tempVec1.y = start.y;
+        this._tempVec1.z = start.z;
+        this._tempVec2.x = end.x;
+        this._tempVec2.y = end.y;
+        this._tempVec2.z = end.z;
+        const navPath = this.navMesh.computePath(this._tempVec1, this._tempVec2);
+        return this._convertNavPathPoints(navPath);
+    }
+    /**
+     * Compute a navigation path from start to end. Returns an empty array if no path can be computed.
+     * Path follows navigation mesh geometry.
+     * @param start world position
+     * @param end world position
+     * @returns array containing world position composing the path
+     */
+    computePathSmooth(start, end) {
+        this._tempVec1.x = start.x;
+        this._tempVec1.y = start.y;
+        this._tempVec1.z = start.z;
+        this._tempVec2.x = end.x;
+        this._tempVec2.y = end.y;
+        this._tempVec2.z = end.z;
+        const navPath = this.navMesh.computePathSmooth(this._tempVec1, this._tempVec2);
+        return this._convertNavPathPoints(navPath);
     }
     /**
      * Create a new Crowd so you can add agents
@@ -392,9 +414,18 @@ export class RecastJSPlugin {
         result.set(p.x, p.y, p.z);
     }
     /**
-     * Disposes
+     * Disposes of the plugin resources
      */
-    dispose() { }
+    dispose() {
+        if (this._worker) {
+            // Clear handlers and terminate the worker to avoid leaks
+            this._worker.onmessage = null;
+            // Clear other handlers if they were used
+            this._worker.onerror = null;
+            this._worker.terminate();
+        }
+        this._worker = null;
+    }
     /**
      * Creates a cylinder obstacle and add it to the navigation
      * @param position world position
@@ -437,6 +468,20 @@ export class RecastJSPlugin {
      */
     isSupported() {
         return this.bjsRECAST !== undefined;
+    }
+    /**
+     * Returns the seed used for randomized functions like `getRandomPointAround`
+     * @returns seed number
+     */
+    getRandomSeed() {
+        return this.bjsRECAST._getRandomSeed();
+    }
+    /**
+     * Set the seed used for randomized functions like `getRandomPointAround`
+     * @param seed number used as seed for random functions
+     */
+    setRandomSeed(seed) {
+        this.bjsRECAST._setRandomSeed(seed);
     }
 }
 /**
@@ -708,8 +753,8 @@ export class RecastJSCrowd {
                 const ceilingY = this._agentDestination[index].y + this.reachRadii[index];
                 const distanceXZSquared = dx * dx + dz * dz;
                 if (agentPosition.y > groundY && agentPosition.y < ceilingY && distanceXZSquared < radius * radius) {
-                    this.onReachTargetObservable.notifyObservers({ agentIndex: agentIndex, destination: this._agentDestination[index] });
                     this._agentDestinationArmed[index] = false;
+                    this.onReachTargetObservable.notifyObservers({ agentIndex: agentIndex, destination: this._agentDestination[index] });
                 }
             }
         }

@@ -1,19 +1,9 @@
-import type { HardwareTextureWrapper } from "../../Materials/Textures/hardwareTextureWrapper";
-import type { Nullable } from "../../types";
-declare type WebGPUBundleList = import("./webgpuBundleList").WebGPUBundleList;
+import { type IHardwareTextureWrapper } from "../../Materials/Textures/hardwareTextureWrapper.js";
+import { type Nullable } from "../../types.js";
+import { type WebGPUEngine } from "../webgpuEngine.js";
 /** @internal */
-export declare class WebGPUHardwareTexture implements HardwareTextureWrapper {
-    /**
-     * List of bundles collected in the snapshot rendering mode when the texture is a render target texture
-     * The index in this array is the current layer we are rendering into
-     * @internal
-     */
-    _bundleLists: WebGPUBundleList[];
-    /**
-     * Current layer we are rendering into when in snapshot rendering mode (if the texture is a render target texture)
-     * @internal
-     */
-    _currentLayer: number;
+export declare class WebGPUHardwareTexture implements IHardwareTextureWrapper {
+    private _engine;
     /**
      * Cache of RenderPassDescriptor and BindGroup used when generating mipmaps (see WebGPUTextureHelper.generateMipmaps)
      * @internal
@@ -32,21 +22,24 @@ export declare class WebGPUHardwareTexture implements HardwareTextureWrapper {
     _copyInvertYBindGroup: GPUBindGroup;
     /** @internal */
     _copyInvertYBindGroupWithOfst: GPUBindGroup;
+    /** @internal */
+    _originalFormatIsRGB: boolean;
     private _webgpuTexture;
     private _webgpuMSAATexture;
     get underlyingResource(): Nullable<GPUTexture>;
-    get msaaTexture(): Nullable<GPUTexture>;
-    set msaaTexture(texture: Nullable<GPUTexture>);
+    getMSAATexture(sampleCount: number, index?: number): GPUTexture;
+    releaseMSAATextures(): void;
     view: Nullable<GPUTextureView>;
     viewForWriting: Nullable<GPUTextureView>;
     format: GPUTextureFormat;
+    originalFormat: GPUTextureFormat;
     textureUsages: number;
     textureAdditionalUsages: number;
-    constructor(existingTexture?: Nullable<GPUTexture>);
+    constructor(_engine: WebGPUEngine, existingTexture?: Nullable<GPUTexture>);
     set(hardwareTexture: GPUTexture): void;
-    setUsage(textureSource: number, generateMipMaps: boolean, isCube: boolean, width: number, height: number): void;
+    setUsage(_textureSource: number, generateMipMaps: boolean, is2DArray: boolean, isCube: boolean, is3D: boolean, width: number, height: number, depth: number): void;
     createView(descriptor?: GPUTextureViewDescriptor, createViewForWriting?: boolean): void;
     reset(): void;
     release(): void;
+    private _createMSAATexture;
 }
-export {};

@@ -1,0 +1,62 @@
+// Store vertex pulling metadata per geometry
+const _VertexPullingMetadataCache = new WeakMap();
+/**
+ * Prepares vertex pulling uniforms for the given attributes and mesh
+ * @param geometry The geometry containing the vertex buffers
+ * @returns A map of attribute names to their metadata, or null if unavailable
+ */
+export function PrepareVertexPullingUniforms(geometry) {
+    const vertexBuffers = geometry.getVertexBuffers();
+    if (!vertexBuffers) {
+        return null;
+    }
+    // Check cache first
+    let metadata = _VertexPullingMetadataCache.get(geometry);
+    if (!metadata) {
+        metadata = new Map();
+        _VertexPullingMetadataCache.set(geometry, metadata);
+    }
+    else {
+        // Return cached metadata if it exists and hasn't changed
+        let needsUpdate = false;
+        for (const vb in vertexBuffers) {
+            if (!metadata.has(vb)) {
+                needsUpdate = true;
+                break;
+            }
+        }
+        if (!needsUpdate) {
+            return metadata;
+        }
+    }
+    // Build or update metadata
+    for (const vb in vertexBuffers) {
+        const vertexBuffer = vertexBuffers[vb];
+        if (vertexBuffer) {
+            const offset = vertexBuffer.byteOffset;
+            const stride = vertexBuffer.byteStride;
+            const type = vertexBuffer.type;
+            const normalized = vertexBuffer.normalized;
+            metadata.set(vb, {
+                offset: offset,
+                stride: stride,
+                type: type,
+                normalized: normalized,
+            });
+        }
+    }
+    return metadata;
+}
+/**
+ * Bind vertex pulling uniforms to the effect
+ * @param effect The effect to bind the uniforms to
+ * @param metadata The vertex pulling metadata
+ */
+export function BindVertexPullingUniforms(effect, metadata) {
+    metadata.forEach((data, attribute) => {
+        const uniformName = `vp_${attribute}_info`;
+        // Pack into vec4: (offset, stride, type, normalized)
+        effect.setFloat4(uniformName, data.offset, data.stride, data.type, data.normalized ? 1 : 0);
+    });
+}
+//# sourceMappingURL=vertexPullingHelper.functions.js.map

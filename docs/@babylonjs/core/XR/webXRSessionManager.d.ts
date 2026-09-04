@@ -1,12 +1,13 @@
-import { Observable } from "../Misc/observable";
-import type { Nullable } from "../types";
-import type { IDisposable, Scene } from "../scene";
-import type { RenderTargetTexture } from "../Materials/Textures/renderTargetTexture";
-import type { WebXRRenderTarget } from "./webXRTypes";
-import { WebXRManagedOutputCanvasOptions } from "./webXRManagedOutputCanvas";
-import type { IWebXRRenderTargetTextureProvider } from "./webXRRenderTargetTextureProvider";
-import type { Viewport } from "../Maths/math.viewport";
-import type { WebXRLayerWrapper } from "./webXRLayerWrapper";
+import { Observable } from "../Misc/observable.js";
+import { type Nullable } from "../types.js";
+import { type IDisposable, type Scene } from "../scene.js";
+import { type RenderTargetTexture } from "../Materials/Textures/renderTargetTexture.js";
+import { type WebXRRenderTarget } from "./webXRTypes.js";
+import { WebXRManagedOutputCanvasOptions } from "./webXRManagedOutputCanvas.js";
+import { type IWebXRRenderTargetTextureProvider } from "./webXRRenderTargetTextureProvider.js";
+import { type Viewport } from "../Maths/math.viewport.js";
+import { type WebXRLayerWrapper } from "./webXRLayerWrapper.js";
+import { type WebXRGraphicsBinding } from "./webXRGraphicsBinding.js";
 /**
  * Manages an XRSession to work with Babylon's engine
  * @see https://doc.babylonjs.com/features/featuresDeepDive/webXR/webXRSessionManagers
@@ -18,9 +19,12 @@ export declare class WebXRSessionManager implements IDisposable, IWebXRRenderTar
     private _referenceSpace;
     private _baseLayerWrapper;
     private _baseLayerRTTProvider;
+    private _graphicsBinding;
     private _xrNavigator;
     private _sessionMode;
     private _onEngineDisposedObserver;
+    private _sessionCleanup;
+    private _referenceSpaceInitialized;
     /**
      * The base reference space from which the session started. good if you want to reset your
      * reference space
@@ -54,6 +58,14 @@ export declare class WebXRSessionManager implements IDisposable, IWebXRRenderTar
      */
     onXRSessionInit: Observable<XRSession>;
     /**
+     * Fires when the xr reference space has been initialized
+     */
+    onXRReferenceSpaceInitialized: Observable<XRReferenceSpace>;
+    /**
+     * Fires when the session manager is rendering the first frame
+     */
+    onXRReady: Observable<WebXRSessionManager>;
+    /**
      * Underlying xr session
      */
     session: XRSession;
@@ -70,6 +82,19 @@ export declare class WebXRSessionManager implements IDisposable, IWebXRRenderTar
      * Are we in an XR session?
      */
     inXRSession: boolean;
+    private _worldScalingFactor;
+    /**
+     * Observable raised when the world scale has changed
+     */
+    onWorldScaleFactorChangedObservable: Observable<{
+        previousScaleFactor: number;
+        newScaleFactor: number;
+    }>;
+    /**
+     * Scale factor to apply to all XR-related elements (camera, controllers)
+     */
+    get worldScalingFactor(): number;
+    set worldScalingFactor(value: number);
     /**
      * Constructs a WebXRSessionManager, this must be initialized within a user action before usage
      * @param scene The scene which the session should be created for
@@ -121,6 +146,46 @@ export declare class WebXRSessionManager implements IDisposable, IWebXRRenderTar
      */
     getRenderTargetTextureForView(view: XRView): Nullable<RenderTargetTexture>;
     /**
+     * Checks whether the current XR view exposes the dynamic viewport scaling API.
+     * API availability does not guarantee that the active XR device will change the viewport dimensions.
+     * This method must be called during an active XR frame.
+     * @param viewIndex the index of the view in the current viewer pose
+     * @returns whether dynamic viewport scaling is exposed for the view
+     * @see https://playground.babylonjs.com/#BAGIIM#0
+     */
+    isViewportScaleSupported(viewIndex: number): boolean;
+    /**
+     * Gets the runtime-recommended viewport scale for the current XR view.
+     * A number is returned when the runtime has a recommendation, `null` when the API is supported but
+     * the runtime has no recommendation, and `undefined` when the API is not supported.
+     * This method must be called during an active XR frame.
+     * @param viewIndex the index of the view in the current viewer pose
+     * @returns the recommended viewport scale, `null` when no recommendation is available, or `undefined` when unsupported
+     * @see https://playground.babylonjs.com/#BAGIIM#0
+     */
+    getRecommendedViewportScale(viewIndex: number): Nullable<number> | undefined;
+    /**
+     * Requests a viewport scale for the current XR view.
+     * The request is a hint to the runtime. Babylon uses the native viewport returned on subsequent frames
+     * and does not derive viewport dimensions from this value. Pass `1` to restore the full viewport scale;
+     * `null` follows the native no-op behavior. Native ignored-value, clamping, and exception behavior is preserved.
+     * Requests made from an application observer of `onXRFrameObservable` apply to a future frame because
+     * Babylon's camera acquires the current frame's viewport before notifying application observers.
+     * This method must be called during an active XR frame.
+     * @param viewIndex the index of the view in the current viewer pose
+     * @param scale the viewport scale requested from the runtime
+     * @see https://playground.babylonjs.com/#BAGIIM#0
+     */
+    requestViewportScale(viewIndex: number, scale: Nullable<number>): void;
+    private _getCurrentXRView;
+    /**
+     * Obtains the XR graphics binding for the current session, creating it lazily.
+     * This is the API-agnostic seam used by WebGL and WebGPU XR features to share a binding.
+     * @returns the XR graphics binding for the current session
+     * @internal
+     */
+    _getGraphicsBinding(): WebXRGraphicsBinding;
+    /**
      * Creates a WebXRRenderTarget object for the XR session
      * @param options optional options to provide when creating a new render target
      * @returns a WebXR render target to which the session can render
@@ -164,13 +229,17 @@ export declare class WebXRSessionManager implements IDisposable, IWebXRRenderTar
      * Note that this is deprecated in favor of WebXRSessionManager.updateRenderState().
      * @param state state to set
      * @returns a promise that resolves once the render state has been updated
-     * @deprecated
+     * @deprecated Use updateRenderState() instead.
      */
     updateRenderStateAsync(state: XRRenderState): Promise<void>;
     /**
      * @internal
      */
     _setBaseLayerWrapper(baseLayerWrapper: Nullable<WebXRLayerWrapper>): void;
+    /**
+     * @internal
+     */
+    _getBaseLayerWrapper(): Nullable<WebXRLayerWrapper>;
     /**
      * Updates the render state of the session
      * @param state state to set
@@ -182,6 +251,16 @@ export declare class WebXRSessionManager implements IDisposable, IWebXRRenderTar
      * @returns a promise with boolean as final value
      */
     static IsSessionSupportedAsync(sessionMode: XRSessionMode): Promise<boolean>;
+    /**
+     * Returns whether the runtime exposes the WebGPU-XR binding APIs required by Babylon.js.
+     *
+     * This is an advisory check only. XR session negotiation can still fail for the active device,
+     * permissions, or adapter. A WebGPU engine intended for XR must also be created with
+     * `xrCompatible: true`.
+     * @returns whether the required XRGPUBinding projection APIs are exposed
+     * @experimental WebGPU-XR support is experimental and may change.
+     */
+    static get IsWebGPUXRSupported(): boolean;
     /**
      * Returns true if Babylon.js is using the BabylonNative backend, otherwise false
      */
@@ -220,4 +299,10 @@ export declare class WebXRSessionManager implements IDisposable, IWebXRRenderTar
      * This value will be normalized to be between 0 and 1, 1 being max foveation, 0 being no foveation
      */
     set fixedFoveation(value: Nullable<number>);
+    /**
+     * Get the features enabled on the current session
+     * This is only available in-session!
+     * @see https://www.w3.org/TR/webxr/#dom-xrsession-enabledfeatures
+     */
+    get enabledFeatures(): Nullable<string[]>;
 }

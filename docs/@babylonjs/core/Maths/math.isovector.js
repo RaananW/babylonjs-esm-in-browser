@@ -1,5 +1,5 @@
 import { Logger } from "../Misc/logger.js";
-import { Vector3 } from "./math.vector.js";
+import { Vector3 } from "./math.vector.pure.js";
 /**
  * Class representing an isovector a vector containing 2 INTEGER coordinates
  * x axis is horizontal
@@ -14,18 +14,18 @@ export class _IsoVector {
      * @param y defines the second coordinate, must be an integer
      */
     constructor(
-    /** defines the first coordinate */
+    /** [0] defines the first coordinate */
     x = 0, 
-    /** defines the second coordinate */
+    /** [0] defines the second coordinate */
     y = 0) {
         this.x = x;
         this.y = y;
         if (x !== Math.floor(x)) {
-            x === Math.floor(x);
+            x = Math.floor(x);
             Logger.Warn("x is not an integer, floor(x) used");
         }
         if (y !== Math.floor(y)) {
-            y === Math.floor(y);
+            y = Math.floor(y);
             Logger.Warn("y is not an integer, floor(y) used");
         }
     }
@@ -73,11 +73,11 @@ export class _IsoVector {
     rotate120(m, n) {
         //m, n integers
         if (m !== Math.floor(m)) {
-            m === Math.floor(m);
+            m = Math.floor(m);
             Logger.Warn("m not an integer only floor(m) used");
         }
         if (n !== Math.floor(n)) {
-            n === Math.floor(n);
+            n = Math.floor(n);
             Logger.Warn("n not an integer only floor(n) used");
         }
         const x = this.x;
@@ -96,11 +96,11 @@ export class _IsoVector {
     rotateNeg120(m, n) {
         //m, n integers
         if (m !== Math.floor(m)) {
-            m === Math.floor(m);
+            m = Math.floor(m);
             Logger.Warn("m is not an integer, floor(m) used");
         }
         if (n !== Math.floor(n)) {
-            n === Math.floor(n);
+            n = Math.floor(n);
             Logger.Warn("n is not an integer,   floor(n) used");
         }
         const x = this.x;

@@ -3,5 +3,4 @@ export * from "./vrDeviceOrientationArcRotateCamera.js";
 export * from "./vrDeviceOrientationFreeCamera.js";
 export * from "./vrDeviceOrientationGamepadCamera.js";
 export * from "./vrExperienceHelper.js";
-export * from "./webVRCamera.js";
 //# sourceMappingURL=index.js.map

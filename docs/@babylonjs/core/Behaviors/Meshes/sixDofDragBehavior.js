@@ -1,8 +1,7 @@
-import { Vector3, Quaternion, Matrix, TmpVectors } from "../../Maths/math.vector.js";
+import { Vector3, Quaternion, Matrix, TmpVectors } from "../../Maths/math.vector.pure.js";
 import { Observable } from "../../Misc/observable.js";
 import { BaseSixDofDragBehavior } from "./baseSixDofDragBehavior.js";
-import { TransformNode } from "../../Meshes/transformNode.js";
-import { Space } from "../../Maths/math.axis.js";
+import { TransformNode } from "../../Meshes/transformNode.pure.js";
 /**
  * A behavior that when attached to a mesh will allow the mesh to be dragged around based on directions and origin of the pointer's ray
  */
@@ -31,6 +30,7 @@ export class SixDofDragBehavior extends BaseSixDofDragBehavior {
         /**
          * If `rotateDraggedObject` is set to `true`, this parameter determines if we are only rotating around the y axis (yaw)
          */
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         this.rotateAroundYOnly = false;
         /**
          * Should the behavior rotate 1:1 with the motion controller, when one is used.
@@ -53,27 +53,50 @@ export class SixDofDragBehavior extends BaseSixDofDragBehavior {
     }
     /**
      * Attaches the six DoF drag behavior
+     * In XR mode the mesh and its children will have their isNearGrabbable property set to true
      * @param ownerNode The mesh that will be dragged around once attached
      */
     attach(ownerNode) {
         super.attach(ownerNode);
         ownerNode.isNearGrabbable = true;
+        // if it has children, make sure they are grabbable too
+        const children = ownerNode.getChildMeshes();
+        for (const m of children) {
+            m.isNearGrabbable = true;
+        }
         // Node that will save the owner's transform
-        this._virtualTransformNode = new TransformNode("virtual_sixDof", BaseSixDofDragBehavior._virtualScene);
+        this._virtualTransformNode = new TransformNode("virtual_sixDof", BaseSixDofDragBehavior._VirtualScene);
         this._virtualTransformNode.rotationQuaternion = Quaternion.Identity();
         // On every frame move towards target scaling to avoid jitter caused by vr controllers
         this._sceneRenderObserver = ownerNode.getScene().onBeforeRenderObservable.add(() => {
             if (this.currentDraggingPointerIds.length === 1 && this._moving && !this.disableMovement) {
                 // 1 pointer only drags mesh
-                const oldParent = ownerNode.parent;
-                ownerNode.setParent(null);
-                ownerNode.position.addInPlace(this._targetPosition.subtract(ownerNode.position).scale(this.dragDeltaRatio));
+                const deltaToAdd = TmpVectors.Vector3[0];
+                deltaToAdd.copyFrom(this._targetPosition).subtractInPlace(ownerNode.absolutePosition).scaleInPlace(this.dragDeltaRatio);
+                const deltaToAddTransformed = TmpVectors.Vector3[1];
+                deltaToAddTransformed.copyFrom(deltaToAdd);
+                // If the node has a parent, transform the delta to local space, so it can be added to the
+                // position in local space
+                if (ownerNode.parent) {
+                    const parentRotationMatrixInverse = TmpVectors.Matrix[0];
+                    ownerNode.parent.absoluteRotationQuaternion.toRotationMatrix(parentRotationMatrixInverse);
+                    parentRotationMatrixInverse.invert();
+                    Vector3.TransformNormalToRef(deltaToAdd, parentRotationMatrixInverse, deltaToAddTransformed);
+                }
+                ownerNode.position.addInPlace(deltaToAddTransformed);
                 this.onPositionChangedObservable.notifyObservers({ position: ownerNode.absolutePosition });
                 // Only rotate the mesh if it's parent has uniform scaling
-                if (!oldParent || (oldParent.scaling && !oldParent.scaling.isNonUniformWithinEpsilon(0.001))) {
-                    Quaternion.SlerpToRef(ownerNode.rotationQuaternion, this._targetOrientation, this.dragDeltaRatio, ownerNode.rotationQuaternion);
+                if (!ownerNode.parent || (ownerNode.parent.scaling && !ownerNode.parent.scaling.isNonUniformWithinEpsilon(0.001))) {
+                    const rotationToApply = TmpVectors.Quaternion[0];
+                    rotationToApply.copyFrom(this._targetOrientation);
+                    if (ownerNode.parent) {
+                        const parentRotationInverse = TmpVectors.Quaternion[0];
+                        parentRotationInverse.copyFrom(ownerNode.parent.absoluteRotationQuaternion);
+                        parentRotationInverse.invertInPlace();
+                        parentRotationInverse.multiplyToRef(this._targetOrientation, rotationToApply);
+                    }
+                    Quaternion.SlerpToRef(ownerNode.rotationQuaternion, rotationToApply, this.dragDeltaRatio, ownerNode.rotationQuaternion);
                 }
-                ownerNode.setParent(oldParent);
             }
         });
     }
@@ -141,16 +164,14 @@ export class SixDofDragBehavior extends BaseSixDofDragBehavior {
     }
     _targetDragStart() {
         const pointerCount = this.currentDraggingPointerIds.length;
-        const oldParent = this._ownerNode.parent;
         if (!this._ownerNode.rotationQuaternion) {
             this._ownerNode.rotationQuaternion = Quaternion.RotationYawPitchRoll(this._ownerNode.rotation.y, this._ownerNode.rotation.x, this._ownerNode.rotation.z);
         }
         const worldPivot = this._ownerNode.getAbsolutePivotPoint();
-        this._ownerNode.setParent(null);
         if (pointerCount === 1) {
-            this._targetPosition.copyFrom(this._ownerNode.position);
+            this._targetPosition.copyFrom(this._ownerNode.absolutePosition);
             this._targetOrientation.copyFrom(this._ownerNode.rotationQuaternion);
-            this._targetScaling.copyFrom(this._ownerNode.scaling);
+            this._targetScaling.copyFrom(this._ownerNode.absoluteScaling);
             if (this.faceCameraOnDragStart && this._scene.activeCamera) {
                 const toCamera = TmpVectors.Vector3[0];
                 this._scene.activeCamera.position.subtractToRef(worldPivot, toCamera);
@@ -171,14 +192,13 @@ export class SixDofDragBehavior extends BaseSixDofDragBehavior {
             this._startingScaling.copyFrom(this._targetScaling);
         }
         else if (pointerCount === 2) {
-            this._virtualTransformNode.setPivotPoint(new Vector3(0, 0, 0), Space.LOCAL);
-            this._virtualTransformNode.position.copyFrom(this._ownerNode.position);
-            this._virtualTransformNode.scaling.copyFrom(this._ownerNode.scaling);
-            this._virtualTransformNode.rotationQuaternion.copyFrom(this._ownerNode.rotationQuaternion);
-            this._virtualTransformNode.setPivotPoint(worldPivot, Space.WORLD);
+            this._virtualTransformNode.setPivotPoint(new Vector3(0, 0, 0), 0 /* Space.LOCAL */);
+            this._virtualTransformNode.position.copyFrom(this._ownerNode.absolutePosition);
+            this._virtualTransformNode.scaling.copyFrom(this._ownerNode.absoluteScaling);
+            this._virtualTransformNode.rotationQuaternion.copyFrom(this._ownerNode.absoluteRotationQuaternion);
+            this._virtualTransformNode.setPivotPoint(worldPivot, 1 /* Space.WORLD */);
             this._resetVirtualMeshesPosition();
         }
-        this._ownerNode.setParent(oldParent);
     }
     _targetDrag(worldDeltaPosition, worldDeltaRotation) {
         if (this.currentDraggingPointerIds.length === 1) {
@@ -202,14 +222,13 @@ export class SixDofDragBehavior extends BaseSixDofDragBehavior {
      *  Detaches the behavior from the mesh
      */
     detach() {
-        super.detach();
         if (this._ownerNode) {
-            this._ownerNode.isNearGrabbable = false;
             this._ownerNode.getScene().onBeforeRenderObservable.remove(this._sceneRenderObserver);
         }
         if (this._virtualTransformNode) {
             this._virtualTransformNode.dispose();
         }
+        super.detach();
     }
 }
 //# sourceMappingURL=sixDofDragBehavior.js.map

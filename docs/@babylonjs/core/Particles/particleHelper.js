@@ -1,10 +1,10 @@
-import { Tools } from "../Misc/tools.js";
-import { Color4 } from "../Maths/math.color.js";
-import { Texture } from "../Materials/Textures/texture.js";
+import { Tools } from "../Misc/tools.pure.js";
+import { Color4 } from "../Maths/math.color.pure.js";
+import { Texture } from "../Materials/Textures/texture.pure.js";
 import { EngineStore } from "../Engines/engineStore.js";
-import { GPUParticleSystem } from "./gpuParticleSystem.js";
+import { GPUParticleSystem } from "./gpuParticleSystem.pure.js";
 import { ParticleSystemSet } from "./particleSystemSet.js";
-import { ParticleSystem } from "./particleSystem.js";
+import { ParticleSystem } from "./particleSystem.pure.js";
 import { WebRequest } from "../Misc/webRequest.js";
 
 /**
@@ -28,7 +28,8 @@ export class ParticleHelper {
             system = new ParticleSystem("default system", capacity, scene);
         }
         system.emitter = emitter;
-        system.particleTexture = new Texture("https://assets.babylonjs.com/textures/flare.png", system.getScene());
+        const textureUrl = Tools.GetAssetUrl("https://assets.babylonjs.com/core/textures/flare.png");
+        system.particleTexture = new Texture(textureUrl, system.getScene());
         system.createConeEmitter(0.1, Math.PI / 4);
         // Particle color
         system.color1 = new Color4(1.0, 1.0, 1.0, 1.0);
@@ -53,6 +54,7 @@ export class ParticleHelper {
      * @param capacity defines the system capacity (if null or undefined the sotred capacity will be used)
      * @returns the ParticleSystemSet created
      */
+    // eslint-disable-next-line @typescript-eslint/promise-function-async, no-restricted-syntax
     static CreateAsync(type, scene, gpu = false, capacity) {
         if (!scene) {
             scene = EngineStore.LastCreatedScene;
@@ -62,6 +64,7 @@ export class ParticleHelper {
         return new Promise((resolve, reject) => {
             if (gpu && !GPUParticleSystem.IsSupported) {
                 scene.removePendingData(token);
+                // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
                 return reject("Particle system with GPU is not supported.");
             }
             Tools.LoadFile(`${ParticleHelper.BaseAssetsUrl}/systems/${type}.json`, (data) => {
@@ -70,6 +73,7 @@ export class ParticleHelper {
                 return resolve(ParticleSystemSet.Parse(newData, scene, gpu, capacity));
             }, undefined, undefined, undefined, () => {
                 scene.removePendingData(token);
+                // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
                 return reject(`An error occurred with the creation of your particle system. Check if your type '${type}' exists.`);
             });
         });
@@ -97,6 +101,7 @@ export class ParticleHelper {
      * @param capacity defines the system capacity (if null or undefined the sotred capacity will be used)
      * @returns a promise that will resolve to the new particle system
      */
+    // eslint-disable-next-line @typescript-eslint/promise-function-async, no-restricted-syntax
     static ParseFromFileAsync(name, url, scene, gpu = false, rootUrl = "", capacity) {
         return new Promise((resolve, reject) => {
             const request = new WebRequest();
@@ -117,6 +122,7 @@ export class ParticleHelper {
                         resolve(output);
                     }
                     else {
+                        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
                         reject("Unable to load the particle system");
                     }
                 }
@@ -134,6 +140,7 @@ export class ParticleHelper {
      * @param capacity defines the system capacity (if null or undefined the sotred capacity will be used)
      * @returns a promise that will resolve to the new particle system
      */
+    // eslint-disable-next-line @typescript-eslint/promise-function-async, no-restricted-syntax
     static ParseFromSnippetAsync(snippetId, scene, gpu = false, rootUrl = "", capacity) {
         if (snippetId === "_BLANK") {
             const system = this.CreateDefault(null);
@@ -158,6 +165,7 @@ export class ParticleHelper {
                         resolve(output);
                     }
                     else {
+                        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
                         reject("Unable to load the snippet " + snippetId);
                     }
                 }

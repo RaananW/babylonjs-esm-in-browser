@@ -1,8 +1,8 @@
-import { Camera } from "../../Cameras/camera";
-import { UniversalCamera } from "../../Cameras/universalCamera";
-import type { Scene } from "../../scene";
-import { Vector3 } from "../../Maths/math.vector";
-import type { Nullable } from "../../types";
+import { Camera } from "../../Cameras/camera.pure.js";
+import { UniversalCamera } from "../../Cameras/universalCamera.pure.js";
+import { type Scene } from "../../scene.js";
+import { Vector3 } from "../../Maths/math.vector.pure.js";
+import { type Nullable } from "../../types.js";
 /**
  * Camera used to simulate stereoscopic rendering on real screens (based on UniversalCamera)
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras

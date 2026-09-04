@@ -71,7 +71,7 @@ export declare class CircleEase extends EasingFunction implements IEasingFunctio
  * @see https://doc.babylonjs.com/features/featuresDeepDive/animation/advanced_animations#easing-functions
  */
 export declare class BackEase extends EasingFunction implements IEasingFunction {
-    /** Defines the amplitude of the function */
+    /** [1] Defines the amplitude of the function */
     amplitude: number;
     /**
      * Instantiates a back ease easing
@@ -79,7 +79,7 @@ export declare class BackEase extends EasingFunction implements IEasingFunction 
      * @param amplitude Defines the amplitude of the function
      */
     constructor(
-    /** Defines the amplitude of the function */
+    /** [1] Defines the amplitude of the function */
     amplitude?: number);
     /**
      * @internal
@@ -92,9 +92,9 @@ export declare class BackEase extends EasingFunction implements IEasingFunction 
  * @see https://doc.babylonjs.com/features/featuresDeepDive/animation/advanced_animations#easing-functions
  */
 export declare class BounceEase extends EasingFunction implements IEasingFunction {
-    /** Defines the number of bounces */
+    /** [3] Defines the number of bounces */
     bounces: number;
-    /** Defines the amplitude of the bounce */
+    /** [2] Defines the amplitude of the bounce */
     bounciness: number;
     /**
      * Instantiates a bounce easing
@@ -103,9 +103,9 @@ export declare class BounceEase extends EasingFunction implements IEasingFunctio
      * @param bounciness Defines the amplitude of the bounce
      */
     constructor(
-    /** Defines the number of bounces */
+    /** [3] Defines the number of bounces */
     bounces?: number, 
-    /** Defines the amplitude of the bounce */
+    /** [2] Defines the amplitude of the bounce */
     bounciness?: number);
     /**
      * @internal
@@ -129,9 +129,9 @@ export declare class CubicEase extends EasingFunction implements IEasingFunction
  * @see https://doc.babylonjs.com/features/featuresDeepDive/animation/advanced_animations#easing-functions
  */
 export declare class ElasticEase extends EasingFunction implements IEasingFunction {
-    /** Defines the number of oscillations*/
+    /** [3] Defines the number of oscillations*/
     oscillations: number;
-    /** Defines the amplitude of the oscillations*/
+    /** [3] Defines the amplitude of the oscillations*/
     springiness: number;
     /**
      * Instantiates an elastic easing function
@@ -140,9 +140,9 @@ export declare class ElasticEase extends EasingFunction implements IEasingFuncti
      * @param springiness Defines the amplitude of the oscillations
      */
     constructor(
-    /** Defines the number of oscillations*/
+    /** [3] Defines the number of oscillations*/
     oscillations?: number, 
-    /** Defines the amplitude of the oscillations*/
+    /** [3] Defines the amplitude of the oscillations*/
     springiness?: number);
     /**
      * @internal
@@ -155,7 +155,7 @@ export declare class ElasticEase extends EasingFunction implements IEasingFuncti
  * @see https://doc.babylonjs.com/features/featuresDeepDive/animation/advanced_animations#easing-functions
  */
 export declare class ExponentialEase extends EasingFunction implements IEasingFunction {
-    /** Defines the exponent of the function */
+    /** [3] Defines the exponent of the function */
     exponent: number;
     /**
      * Instantiates an exponential easing function
@@ -163,7 +163,7 @@ export declare class ExponentialEase extends EasingFunction implements IEasingFu
      * @param exponent Defines the exponent of the function
      */
     constructor(
-    /** Defines the exponent of the function */
+    /** [3] Defines the exponent of the function */
     exponent?: number);
     /**
      * @internal
@@ -176,7 +176,7 @@ export declare class ExponentialEase extends EasingFunction implements IEasingFu
  * @see https://doc.babylonjs.com/features/featuresDeepDive/animation/advanced_animations#easing-functions
  */
 export declare class PowerEase extends EasingFunction implements IEasingFunction {
-    /** Defines the power of the function */
+    /** [2] Defines the power of the function */
     power: number;
     /**
      * Instantiates an power base easing function
@@ -184,7 +184,7 @@ export declare class PowerEase extends EasingFunction implements IEasingFunction
      * @param power Defines the power of the function
      */
     constructor(
-    /** Defines the power of the function */
+    /** [2] Defines the power of the function */
     power?: number);
     /**
      * @internal
@@ -241,13 +241,13 @@ export declare class SineEase extends EasingFunction implements IEasingFunction 
  * @see https://doc.babylonjs.com/features/featuresDeepDive/animation/advanced_animations#easing-functions
  */
 export declare class BezierCurveEase extends EasingFunction implements IEasingFunction {
-    /** Defines the x component of the start tangent in the bezier curve */
+    /** [0] Defines the x component of the start tangent in the bezier curve */
     x1: number;
-    /** Defines the y component of the start tangent in the bezier curve */
+    /** [0] Defines the y component of the start tangent in the bezier curve */
     y1: number;
-    /** Defines the x component of the end tangent in the bezier curve */
+    /** [1] Defines the x component of the end tangent in the bezier curve */
     x2: number;
-    /** Defines the y component of the end tangent in the bezier curve */
+    /** [1] Defines the y component of the end tangent in the bezier curve */
     y2: number;
     /**
      * Instantiates a bezier function
@@ -258,13 +258,13 @@ export declare class BezierCurveEase extends EasingFunction implements IEasingFu
      * @param y2 Defines the y component of the end tangent in the bezier curve
      */
     constructor(
-    /** Defines the x component of the start tangent in the bezier curve */
+    /** [0] Defines the x component of the start tangent in the bezier curve */
     x1?: number, 
-    /** Defines the y component of the start tangent in the bezier curve */
+    /** [0] Defines the y component of the start tangent in the bezier curve */
     y1?: number, 
-    /** Defines the x component of the end tangent in the bezier curve */
+    /** [1] Defines the x component of the end tangent in the bezier curve */
     x2?: number, 
-    /** Defines the y component of the end tangent in the bezier curve */
+    /** [1] Defines the y component of the end tangent in the bezier curve */
     y2?: number);
     /**
      * @internal

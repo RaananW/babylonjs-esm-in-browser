@@ -1,0 +1,8 @@
+/**
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import exrCubeTexture.pure for tree-shakeable, side-effect-free usage.
+ */
+export * from "./exrCubeTexture.pure.js";
+import { RegisterExrCubeTexture } from "./exrCubeTexture.pure.js";
+RegisterExrCubeTexture();
+//# sourceMappingURL=exrCubeTexture.js.map

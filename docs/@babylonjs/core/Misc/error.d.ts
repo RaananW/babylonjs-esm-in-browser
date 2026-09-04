@@ -28,7 +28,7 @@ export declare const ErrorCodes: {
 /**
  * Error code type
  */
-export declare type ErrorCodesType = typeof ErrorCodes[keyof typeof ErrorCodes];
+export type ErrorCodesType = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 /**
  * Application runtime error
  */
@@ -48,4 +48,10 @@ export declare class RuntimeError extends BaseError {
      * @param innerError the error that caused the outer error
      */
     constructor(message: string, errorCode: ErrorCodesType, innerError?: Error);
+}
+/**
+ * Used for flow control when an operation is aborted, such as with AbortController.
+ */
+export declare class AbortError extends BaseError {
+    constructor(message?: string);
 }

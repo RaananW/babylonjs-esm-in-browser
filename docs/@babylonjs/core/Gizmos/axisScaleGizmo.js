@@ -1,17 +1,30 @@
 import { Observable } from "../Misc/observable.js";
-import { Mesh } from "../Meshes/mesh.js";
-import { CreateBox } from "../Meshes/Builders/boxBuilder.js";
-import { CreateCylinder } from "../Meshes/Builders/cylinderBuilder.js";
-import { StandardMaterial } from "../Materials/standardMaterial.js";
+import { Vector3, Matrix, TmpVectors } from "../Maths/math.vector.pure.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
+import { CreateBox } from "../Meshes/Builders/boxBuilder.pure.js";
+import { CreateCylinder } from "../Meshes/Builders/cylinderBuilder.pure.js";
+import { StandardMaterial } from "../Materials/standardMaterial.pure.js";
 import { PointerDragBehavior } from "../Behaviors/Meshes/pointerDragBehavior.js";
 import { Gizmo } from "./gizmo.js";
 import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer.js";
-import { Color3 } from "../Maths/math.color.js";
-import { TmpVectors, Matrix } from "../Maths/math.vector.js";
+import { Color3 } from "../Maths/math.color.pure.js";
+import { Epsilon } from "../Maths/math.constants.js";
 /**
  * Single axis scale gizmo
  */
 export class AxisScaleGizmo extends Gizmo {
+    /** Default material used to render when gizmo is not disabled or hovered */
+    get coloredMaterial() {
+        return this._coloredMaterial;
+    }
+    /** Material used to render when gizmo is hovered with mouse*/
+    get hoverMaterial() {
+        return this._hoverMaterial;
+    }
+    /** Material used to render when gizmo is disabled. typically grey.*/
+    get disableMaterial() {
+        return this._disableMaterial;
+    }
     /**
      * Creates an AxisScaleGizmo
      * @param dragAxis The axis which the gizmo will be able to scale on
@@ -19,9 +32,10 @@ export class AxisScaleGizmo extends Gizmo {
      * @param gizmoLayer The utility layer the gizmo will be added to
      * @param parent
      * @param thickness display gizmo axis thickness
+     * @param hoverColor The color of the gizmo when hovering over and dragging
+     * @param disableColor The Color of the gizmo when its disabled
      */
-    constructor(dragAxis, color = Color3.Gray(), gizmoLayer = UtilityLayerRenderer.DefaultUtilityLayer, parent = null, thickness = 1) {
-        var _a, _b, _c, _d, _e, _f, _g;
+    constructor(dragAxis, color = Color3.Gray(), gizmoLayer = UtilityLayerRenderer.DefaultUtilityLayer, parent = null, thickness = 1, hoverColor = Color3.Yellow(), disableColor = Color3.Gray()) {
         super(gizmoLayer);
         this._pointerObserver = null;
         /**
@@ -30,7 +44,7 @@ export class AxisScaleGizmo extends Gizmo {
         this.snapDistance = 0;
         /**
          * Event that fires each time the gizmo snaps to a new location.
-         * * snapDistance is the the change in distance
+         * * snapDistance is the change in distance
          */
         this.onSnapObservable = new Observable();
         /**
@@ -45,18 +59,24 @@ export class AxisScaleGizmo extends Gizmo {
          * The magnitude of the drag strength (scaling factor)
          */
         this.dragScale = 1;
+        /**
+         * Incremental snap scaling (default is false). When true, with a snapDistance of 0.1, scaling will be 1.1,1.2,1.3 instead of, when false: 1.1,1.21,1.33,...
+         */
+        this.incrementalSnap = false;
         this._isEnabled = true;
         this._parent = null;
         this._dragging = false;
+        this._tmpVector = new Vector3(0, 0, 0);
+        this._incrementalStartupValue = Vector3.Zero();
         this._parent = parent;
         // Create Material
         this._coloredMaterial = new StandardMaterial("", gizmoLayer.utilityLayerScene);
         this._coloredMaterial.diffuseColor = color;
         this._coloredMaterial.specularColor = color.subtract(new Color3(0.1, 0.1, 0.1));
         this._hoverMaterial = new StandardMaterial("", gizmoLayer.utilityLayerScene);
-        this._hoverMaterial.diffuseColor = Color3.Yellow();
+        this._hoverMaterial.diffuseColor = hoverColor;
         this._disableMaterial = new StandardMaterial("", gizmoLayer.utilityLayerScene);
-        this._disableMaterial.diffuseColor = Color3.Gray();
+        this._disableMaterial.diffuseColor = disableColor;
         this._disableMaterial.alpha = 0.4;
         // Build mesh + Collider
         this._gizmoMesh = new Mesh("axis", gizmoLayer.utilityLayerScene);
@@ -89,47 +109,71 @@ export class AxisScaleGizmo extends Gizmo {
         this.dragBehavior.updateDragPlane = false;
         this._rootMesh.addBehavior(this.dragBehavior);
         let currentSnapDragDistance = 0;
+        let currentSnapDragDistanceIncremental = 0;
         const tmpSnapEvent = { snapDistance: 0 };
         this.dragBehavior.onDragObservable.add((event) => {
             if (this.attachedNode) {
-                this._handlePivot();
                 // Drag strength is modified by the scale of the gizmo (eg. for small objects like boombox the strength will be increased to match the behavior of larger objects)
                 const dragStrength = this.sensitivity * event.dragDistance * ((this.scaleRatio * 3) / this._rootMesh.scaling.length());
+                const tmpVector = this._tmpVector;
                 // Snapping logic
                 let snapped = false;
                 let dragSteps = 0;
                 if (this.uniformScaling) {
-                    TmpVectors.Vector3[0].setAll(0.57735); // 1 / sqrt(3)
+                    tmpVector.setAll(0.57735); // 1 / sqrt(3)
                 }
                 else {
-                    TmpVectors.Vector3[0].copyFrom(dragAxis);
+                    tmpVector.copyFrom(dragAxis);
                 }
                 if (this.snapDistance == 0) {
-                    TmpVectors.Vector3[0].scaleToRef(dragStrength, TmpVectors.Vector3[0]);
+                    tmpVector.scaleToRef(dragStrength, tmpVector);
                 }
                 else {
                     currentSnapDragDistance += dragStrength;
-                    if (Math.abs(currentSnapDragDistance) > this.snapDistance) {
-                        dragSteps = Math.floor(Math.abs(currentSnapDragDistance) / this.snapDistance);
-                        if (currentSnapDragDistance < 0) {
+                    currentSnapDragDistanceIncremental += dragStrength;
+                    const currentSnap = this.incrementalSnap ? currentSnapDragDistanceIncremental : currentSnapDragDistance;
+                    if (Math.abs(currentSnap) > this.snapDistance) {
+                        dragSteps = Math.floor(Math.abs(currentSnap) / this.snapDistance);
+                        if (currentSnap < 0) {
                             dragSteps *= -1;
                         }
                         currentSnapDragDistance = currentSnapDragDistance % this.snapDistance;
-                        TmpVectors.Vector3[0].scaleToRef(this.snapDistance * dragSteps, TmpVectors.Vector3[0]);
+                        tmpVector.scaleToRef(this.snapDistance * dragSteps, tmpVector);
                         snapped = true;
                     }
                     else {
-                        TmpVectors.Vector3[0].scaleInPlace(0);
+                        tmpVector.scaleInPlace(0);
                     }
                 }
-                Matrix.ScalingToRef(1 + TmpVectors.Vector3[0].x, 1 + TmpVectors.Vector3[0].y, 1 + TmpVectors.Vector3[0].z, TmpVectors.Matrix[2]);
-                TmpVectors.Matrix[2].multiplyToRef(this.attachedNode.getWorldMatrix(), TmpVectors.Matrix[1]);
+                tmpVector.addInPlaceFromFloats(1, 1, 1);
+                // can't use Math.sign here because Math.sign(0) is 0 and it needs to be positive
+                tmpVector.x = Math.abs(tmpVector.x) < AxisScaleGizmo.MinimumAbsoluteScale ? AxisScaleGizmo.MinimumAbsoluteScale * (tmpVector.x < 0 ? -1 : 1) : tmpVector.x;
+                tmpVector.y = Math.abs(tmpVector.y) < AxisScaleGizmo.MinimumAbsoluteScale ? AxisScaleGizmo.MinimumAbsoluteScale * (tmpVector.y < 0 ? -1 : 1) : tmpVector.y;
+                tmpVector.z = Math.abs(tmpVector.z) < AxisScaleGizmo.MinimumAbsoluteScale ? AxisScaleGizmo.MinimumAbsoluteScale * (tmpVector.z < 0 ? -1 : 1) : tmpVector.z;
                 const transformNode = this.attachedNode._isMesh ? this.attachedNode : undefined;
+                if (Math.abs(this.snapDistance) > 0 && this.incrementalSnap) {
+                    // get current scaling
+                    this.attachedNode.getWorldMatrix().decompose(undefined, TmpVectors.Quaternion[0], TmpVectors.Vector3[2], Gizmo.PreserveScaling ? transformNode : undefined);
+                    // apply incrementally, without taking care of current scaling value
+                    tmpVector.addInPlace(this._incrementalStartupValue);
+                    tmpVector.addInPlaceFromFloats(-1, -1, -1);
+                    // keep same sign or stretching close to 0 will change orientation at each drag and scaling will oscillate around 0
+                    tmpVector.x = Math.abs(tmpVector.x) * (this._incrementalStartupValue.x > 0 ? 1 : -1);
+                    tmpVector.y = Math.abs(tmpVector.y) * (this._incrementalStartupValue.y > 0 ? 1 : -1);
+                    tmpVector.z = Math.abs(tmpVector.z) * (this._incrementalStartupValue.z > 0 ? 1 : -1);
+                    Matrix.ComposeToRef(tmpVector, TmpVectors.Quaternion[0], TmpVectors.Vector3[2], TmpVectors.Matrix[1]);
+                }
+                else {
+                    Matrix.ScalingToRef(tmpVector.x, tmpVector.y, tmpVector.z, TmpVectors.Matrix[2]);
+                    TmpVectors.Matrix[2].multiplyToRef(this.attachedNode.getWorldMatrix(), TmpVectors.Matrix[1]);
+                }
+                // check scaling are not out of bounds. If not, copy resulting temp matrix to node world matrix
                 TmpVectors.Matrix[1].decompose(TmpVectors.Vector3[1], undefined, undefined, Gizmo.PreserveScaling ? transformNode : undefined);
                 const maxScale = 100000;
                 if (Math.abs(TmpVectors.Vector3[1].x) < maxScale && Math.abs(TmpVectors.Vector3[1].y) < maxScale && Math.abs(TmpVectors.Vector3[1].z) < maxScale) {
                     this.attachedNode.getWorldMatrix().copyFrom(TmpVectors.Matrix[1]);
                 }
+                // notify observers
                 if (snapped) {
                     tmpSnapEvent.snapDistance = this.snapDistance * dragSteps;
                     this.onSnapObservable.notifyObservers(tmpSnapEvent);
@@ -140,12 +184,16 @@ export class AxisScaleGizmo extends Gizmo {
         // On Drag Listener: to move gizmo mesh with user action
         this.dragBehavior.onDragStartObservable.add(() => {
             this._dragging = true;
+            const transformNode = this.attachedNode._isMesh ? this.attachedNode : undefined;
+            this.attachedNode?.getWorldMatrix().decompose(this._incrementalStartupValue, undefined, undefined, Gizmo.PreserveScaling ? transformNode : undefined);
+            currentSnapDragDistance = 0;
+            currentSnapDragDistanceIncremental = 0;
         });
         this.dragBehavior.onDragObservable.add((e) => increaseGizmoMesh(e.dragDistance));
         this.dragBehavior.onDragEndObservable.add(resetGizmoMesh);
         // Listeners for Universal Scalar
-        (_c = (_b = (_a = parent === null || parent === void 0 ? void 0 : parent.uniformScaleGizmo) === null || _a === void 0 ? void 0 : _a.dragBehavior) === null || _b === void 0 ? void 0 : _b.onDragObservable) === null || _c === void 0 ? void 0 : _c.add((e) => increaseGizmoMesh(e.delta.y));
-        (_f = (_e = (_d = parent === null || parent === void 0 ? void 0 : parent.uniformScaleGizmo) === null || _d === void 0 ? void 0 : _d.dragBehavior) === null || _e === void 0 ? void 0 : _e.onDragEndObservable) === null || _f === void 0 ? void 0 : _f.add(resetGizmoMesh);
+        parent?.uniformScaleGizmo?.dragBehavior?.onDragObservable?.add((e) => increaseGizmoMesh(e.delta.y));
+        parent?.uniformScaleGizmo?.dragBehavior?.onDragEndObservable?.add(resetGizmoMesh);
         const cache = {
             gizmoMeshes: [arrowMesh, arrowTail],
             colliderMeshes: [collider.arrowMesh, collider.arrowTail],
@@ -155,13 +203,17 @@ export class AxisScaleGizmo extends Gizmo {
             active: false,
             dragBehavior: this.dragBehavior,
         };
-        (_g = this._parent) === null || _g === void 0 ? void 0 : _g.addToAxisCache(this._gizmoMesh, cache);
+        this._parent?.addToAxisCache(this._gizmoMesh, cache);
         this._pointerObserver = gizmoLayer.utilityLayerScene.onPointerObservable.add((pointerInfo) => {
-            var _a;
             if (this._customMeshSet) {
                 return;
             }
-            this._isHovered = !!(cache.colliderMeshes.indexOf((_a = pointerInfo === null || pointerInfo === void 0 ? void 0 : pointerInfo.pickInfo) === null || _a === void 0 ? void 0 : _a.pickedMesh) != -1);
+            // axis mesh cache
+            let meshCache = this._parent?.getAxisCache(this._gizmoMesh);
+            this._isHovered = !!meshCache && !!(meshCache.colliderMeshes.indexOf(pointerInfo?.pickInfo?.pickedMesh) != -1);
+            // uniform mesh cache
+            meshCache = this._parent?.getAxisCache(this._rootMesh);
+            this._isHovered || (this._isHovered = !!meshCache && !!(meshCache.colliderMeshes.indexOf(pointerInfo?.pickInfo?.pickedMesh) != -1));
             if (!this._parent) {
                 const material = this.dragBehavior.enabled ? (this._isHovered || this._dragging ? this._hoverMaterial : this._coloredMaterial) : this._disableMaterial;
                 this._setGizmoMeshMaterial(cache.gizmoMeshes, material);
@@ -173,23 +225,13 @@ export class AxisScaleGizmo extends Gizmo {
         const light = gizmoLayer._getSharedGizmoLight();
         light.includedOnlyMeshes = light.includedOnlyMeshes.concat(this._rootMesh.getChildMeshes());
     }
-    /** Default material used to render when gizmo is not disabled or hovered */
-    get coloredMaterial() {
-        return this._coloredMaterial;
-    }
-    /** Material used to render when gizmo is hovered with mouse*/
-    get hoverMaterial() {
-        return this._hoverMaterial;
-    }
-    /** Material used to render when gizmo is disabled. typically grey.*/
-    get disableMaterial() {
-        return this._disableMaterial;
-    }
     /**
+     * @internal
      * Create Geometry for Gizmo
      * @param parentMesh
      * @param thickness
      * @param isCollider
+     * @returns the gizmo mesh
      */
     _createGizmoMesh(parentMesh, thickness, isCollider = false) {
         const arrowMesh = CreateBox("yPosMesh", { size: 0.4 * (1 + (thickness - 1) / 4) }, this.gizmoLayer.utilityLayerScene);
@@ -244,11 +286,12 @@ export class AxisScaleGizmo extends Gizmo {
         if (this._gizmoMesh) {
             this._gizmoMesh.dispose();
         }
-        [this._coloredMaterial, this._hoverMaterial, this._disableMaterial].forEach((matl) => {
+        const mats = [this._coloredMaterial, this._hoverMaterial, this._disableMaterial];
+        for (const matl of mats) {
             if (matl) {
                 matl.dispose();
             }
-        });
+        }
         super.dispose();
     }
     /**
@@ -259,14 +302,19 @@ export class AxisScaleGizmo extends Gizmo {
     setCustomMesh(mesh, useGizmoMaterial = false) {
         super.setCustomMesh(mesh);
         if (useGizmoMaterial) {
-            this._rootMesh.getChildMeshes().forEach((m) => {
+            const childMeshes = this._gizmoMesh.getChildMeshes();
+            for (const m of childMeshes) {
                 m.material = this._coloredMaterial;
                 if (m.color) {
                     m.color = this._coloredMaterial.diffuseColor;
                 }
-            });
+            }
             this._customMeshSet = false;
         }
     }
 }
+/**
+ * The minimal absolute scale per component. can be positive or negative but never smaller.
+ */
+AxisScaleGizmo.MinimumAbsoluteScale = Epsilon;
 //# sourceMappingURL=axisScaleGizmo.js.map

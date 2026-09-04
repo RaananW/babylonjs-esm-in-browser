@@ -1,4 +1,4 @@
-import type { IStencilState } from "./IStencilState";
+import { type IStencilState } from "./IStencilState.js";
 /**
  * @internal
  **/
@@ -14,6 +14,9 @@ export declare class StencilState implements IStencilState {
     func: number;
     get stencilFunc(): number;
     set stencilFunc(value: number);
+    backFunc: number;
+    get stencilBackFunc(): number;
+    set stencilBackFunc(value: number);
     funcRef: number;
     get stencilFuncRef(): number;
     set stencilFuncRef(value: number);
@@ -29,6 +32,15 @@ export declare class StencilState implements IStencilState {
     opStencilDepthPass: number;
     get stencilOpStencilDepthPass(): number;
     set stencilOpStencilDepthPass(value: number);
+    backOpStencilFail: number;
+    get stencilBackOpStencilFail(): number;
+    set stencilBackOpStencilFail(value: number);
+    backOpDepthFail: number;
+    get stencilBackOpDepthFail(): number;
+    set stencilBackOpDepthFail(value: number);
+    backOpStencilDepthPass: number;
+    get stencilBackOpStencilDepthPass(): number;
+    set stencilBackOpStencilDepthPass(value: number);
     mask: number;
     get stencilMask(): number;
     set stencilMask(value: number);

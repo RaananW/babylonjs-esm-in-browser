@@ -1,8 +1,11 @@
-import type { Behavior } from "../../Behaviors/behavior";
-import type { AbstractMesh } from "../../Meshes/abstractMesh";
-import { Observable } from "../../Misc/observable";
-import { Vector3 } from "../../Maths/math.vector";
-import { Ray } from "../../Culling/ray";
+import { type Behavior } from "../../Behaviors/behavior.js";
+import { Mesh } from "../../Meshes/mesh.pure.js";
+import { type AbstractMesh } from "../../Meshes/abstractMesh.js";
+import { type TransformNode } from "../../Meshes/transformNode.js";
+import { Observable } from "../../Misc/observable.js";
+import { Vector3 } from "../../Maths/math.vector.pure.js";
+import { Ray } from "../../Culling/ray.pure.js";
+import { type DragEvent, type DragStartEndEvent } from "./pointerDragEvents.js";
 /**
  * A behavior that when attached to a mesh will allow the mesh to be dragged around the screen based on pointer events
  */
@@ -12,13 +15,14 @@ export declare class PointerDragBehavior implements Behavior<AbstractMesh> {
      * Abstract mesh the behavior is set on
      */
     attachedNode: AbstractMesh;
-    private _dragPlane;
+    protected _dragPlane: Mesh;
     private _scene;
     private _pointerObserver;
     private _beforeRenderObserver;
     private static _PlaneScene;
     private _useAlternatePickedPointAboveMaxDragAngleDragSpeed;
     private _activeDragButton;
+    private _activePointerInfo;
     /**
      * The maximum tolerated angle between the drag plane and dragging pointer rays to trigger pointer events. Set to 0 to allow any angle (default: 0)
      */
@@ -36,7 +40,7 @@ export declare class PointerDragBehavior implements Behavior<AbstractMesh> {
      * @deprecated Please use currentDraggingPointerId instead
      */
     get currentDraggingPointerID(): number;
-    set currentDraggingPointerID(currentDraggingPointerID: number);
+    set currentDraggingPointerID(currentDraggingPointerId: number);
     /**
      * The id of the pointer that is currently interacting with the behavior (-1 when no pointer is active)
      */
@@ -61,40 +65,16 @@ export declare class PointerDragBehavior implements Behavior<AbstractMesh> {
     private _moving;
     /**
      *  Fires each time the attached mesh is dragged with the pointer
-     *  * delta between last drag position and current drag position in world space
-     *  * dragDistance along the drag axis
-     *  * dragPlaneNormal normal of the current drag plane used during the drag
-     *  * dragPlanePoint in world space where the drag intersects the drag plane
-     *
-     *  (if validatedDrag is used, the position of the attached mesh might not equal dragPlanePoint)
      */
-    onDragObservable: Observable<{
-        delta: Vector3;
-        dragPlanePoint: Vector3;
-        dragPlaneNormal: Vector3;
-        dragDistance: number;
-        pointerId: number;
-    }>;
+    onDragObservable: Observable<DragEvent>;
     /**
      *  Fires each time a drag begins (eg. mouse down on mesh)
-     *  * dragPlanePoint in world space where the drag intersects the drag plane
-     *
-     *  (if validatedDrag is used, the position of the attached mesh might not equal dragPlanePoint)
      */
-    onDragStartObservable: Observable<{
-        dragPlanePoint: Vector3;
-        pointerId: number;
-    }>;
+    onDragStartObservable: Observable<DragStartEndEvent>;
     /**
      *  Fires each time a drag ends (eg. mouse release after drag)
-     *  * dragPlanePoint in world space where the drag intersects the drag plane
-     *
-     *  (if validatedDrag is used, the position of the attached mesh might not equal dragPlanePoint)
      */
-    onDragEndObservable: Observable<{
-        dragPlanePoint: Vector3;
-        pointerId: number;
-    }>;
+    onDragEndObservable: Observable<DragStartEndEvent>;
     /**
      *  Fires each time behavior enabled state changes
      */
@@ -121,6 +101,16 @@ export declare class PointerDragBehavior implements Behavior<AbstractMesh> {
      * If set, the drag plane/axis will be rotated based on the attached mesh's world rotation (Default: true)
      */
     useObjectOrientationForDragging: boolean;
+    /**
+     * Normally a drag is canceled when the user presses another button on the same pointer. If this is set to true,
+     * the drag will continue even if another button is pressed on the same pointer.
+     */
+    allowOtherButtonsDuringDrag: boolean;
+    /**
+     * If set, the drag axis will be transformed by the inverse of this node's world matrix.
+     * Useful when the drag behavior is used with a gizmo that has an additionalTransformNode.
+     */
+    additionalTransformNode?: TransformNode;
     private _options;
     /**
      * Gets the options used by the behavior
@@ -147,10 +137,12 @@ export declare class PointerDragBehavior implements Behavior<AbstractMesh> {
         dragPlaneNormal?: Vector3;
     });
     /**
-     * Predicate to determine if it is valid to move the object to a new position when it is moved
-     * @param targetPosition
+     * Predicate to determine if it is valid to move the object to a new position when it is moved.
+     * In the case of rotation gizmo, target contains the angle.
+     * @param target destination position or desired angle delta
+     * @returns boolean for whether or not it is valid to move
      */
-    validateDrag: (targetPosition: Vector3) => boolean;
+    validateDrag: (target: Vector3) => boolean;
     /**
      *  The name of the behavior
      */

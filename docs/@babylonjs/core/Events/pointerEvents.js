@@ -1,4 +1,4 @@
-import { Vector2 } from "../Maths/math.vector.js";
+import { Vector2 } from "../Maths/math.vector.pure.js";
 /**
  * Gather the list of pointer event types as constants.
  */
@@ -86,6 +86,15 @@ export class PointerInfoPre extends PointerInfoBase {
  */
 export class PointerInfo extends PointerInfoBase {
     /**
+     * Defines the picking info associated with this PointerInfo object (if applicable)
+     */
+    get pickInfo() {
+        if (!this._pickInfo) {
+            this._generatePickInfo();
+        }
+        return this._pickInfo;
+    }
+    /**
      * Instantiates a PointerInfo to store pointer related info to the onPointerObservable event.
      * @param type Defines the type of event (PointerEventTypes)
      * @param event Defines the related dom event
@@ -98,21 +107,12 @@ export class PointerInfo extends PointerInfoBase {
         this._inputManager = inputManager;
     }
     /**
-     * Defines the picking info associated with this PointerInfo object (if applicable)
-     */
-    get pickInfo() {
-        if (!this._pickInfo) {
-            this._generatePickInfo();
-        }
-        return this._pickInfo;
-    }
-    /**
      * Generates the picking info if needed
      */
     /** @internal */
     _generatePickInfo() {
         if (this._inputManager) {
-            this._pickInfo = this._inputManager._pickMove(this.event.pointerId);
+            this._pickInfo = this._inputManager._pickMove(this.event);
             this._inputManager._setRayOnPointerInfo(this._pickInfo, this.event);
             this._inputManager = null;
         }

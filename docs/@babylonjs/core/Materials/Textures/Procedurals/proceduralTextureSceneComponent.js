@@ -1,4 +1,4 @@
-import { Tools } from "../../../Misc/tools.js";
+import { Tools } from "../../../Misc/tools.pure.js";
 import { SceneComponentConstants } from "../../../sceneComponent.js";
 /**
  * Defines the Procedural Texture scene component responsible to manage any Procedural Texture
@@ -15,7 +15,6 @@ export class ProceduralTextureSceneComponent {
          */
         this.name = SceneComponentConstants.NAME_PROCEDURALTEXTURE;
         this.scene = scene;
-        this.scene.proceduralTextures = new Array();
     }
     /**
      * Registers the component in a given scene

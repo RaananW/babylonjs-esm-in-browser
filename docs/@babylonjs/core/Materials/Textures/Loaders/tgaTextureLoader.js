@@ -1,5 +1,4 @@
 import { GetTGAHeader, UploadContent } from "../../../Misc/tga.js";
-import { Engine } from "../../../Engines/engine.js";
 /**
  * Implementation of the TGA Texture Loader.
  * @internal
@@ -13,17 +12,10 @@ export class _TGATextureLoader {
         this.supportCascades = false;
     }
     /**
-     * This returns if the loader support the current file information.
-     * @param extension defines the file extension of the file being loaded
-     * @returns true if the loader can load the specified file
-     */
-    canLoad(extension) {
-        return extension.endsWith(".tga");
-    }
-    /**
      * Uploads the cube texture data to the WebGL texture. It has already been bound.
      */
     loadCubeData() {
+        // eslint-disable-next-line no-throw-literal
         throw ".env not supported in Cube.";
     }
     /**
@@ -40,6 +32,4 @@ export class _TGATextureLoader {
         });
     }
 }
-// Register the loader.
-Engine._TextureLoaders.push(new _TGATextureLoader());
 //# sourceMappingURL=tgaTextureLoader.js.map

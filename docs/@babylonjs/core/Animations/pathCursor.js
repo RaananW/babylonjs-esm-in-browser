@@ -1,4 +1,4 @@
-import { Vector3 } from "../Maths/math.vector.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
 /**
  * A cursor which tracks a point on a path
  */
@@ -20,7 +20,7 @@ export class PathCursor {
         /**
          * The animation array of the path cursor
          */
-        this.animations = new Array();
+        this.animations = [];
     }
     /**
      * Gets the cursor point on the path
@@ -56,7 +56,7 @@ export class PathCursor {
      */
     move(step) {
         if (Math.abs(step) > 1) {
-            throw "step size should be less than 1.";
+            throw new Error("step size should be less than 1.");
         }
         this.value += step;
         this._ensureLimits();
@@ -81,7 +81,9 @@ export class PathCursor {
      * @returns This path cursor
      */
     _raiseOnChange() {
-        this._onchange.forEach((f) => f(this));
+        for (const f of this._onchange) {
+            f(this);
+        }
         return this;
     }
     /**

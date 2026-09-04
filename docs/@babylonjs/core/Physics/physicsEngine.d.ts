@@ -1,1 +1,1 @@
-export { PhysicsEngine } from "./v1/physicsEngine";
+export { PhysicsEngine } from "./v1/physicsEngine.js";

@@ -1,0 +1,293 @@
+import { IsDocumentAvailable } from "../Misc/domManagement.js";
+import { AbstractEngine } from "./abstractEngine.js";
+import { EngineStore } from "./engineStore.js";
+/** @internal */
+function DisableTouchAction(canvas) {
+    if (!canvas || !canvas.setAttribute) {
+        return;
+    }
+    canvas.setAttribute("touch-action", "none");
+    canvas.style.touchAction = "none";
+    canvas.style.webkitTapHighlightColor = "transparent";
+}
+/** @internal */
+export function _CommonInit(commonEngine, canvas, creationOptions) {
+    commonEngine._onCanvasFocus = () => {
+        commonEngine.onCanvasFocusObservable.notifyObservers(commonEngine);
+    };
+    commonEngine._onCanvasBlur = () => {
+        commonEngine.onCanvasBlurObservable.notifyObservers(commonEngine);
+    };
+    commonEngine._onCanvasContextMenu = (evt) => {
+        if (commonEngine.disableContextMenu) {
+            evt.preventDefault();
+        }
+    };
+    canvas.addEventListener("focus", commonEngine._onCanvasFocus);
+    canvas.addEventListener("blur", commonEngine._onCanvasBlur);
+    canvas.addEventListener("contextmenu", commonEngine._onCanvasContextMenu);
+    commonEngine._onBlur = () => {
+        if (commonEngine.disablePerformanceMonitorInBackground) {
+            commonEngine.performanceMonitor.disable();
+        }
+        commonEngine._windowIsBackground = true;
+    };
+    commonEngine._onFocus = () => {
+        if (commonEngine.disablePerformanceMonitorInBackground) {
+            commonEngine.performanceMonitor.enable();
+        }
+        commonEngine._windowIsBackground = false;
+    };
+    commonEngine._onCanvasPointerOut = (ev) => {
+        // Check that the element at the point of the pointer out isn't the canvas and if it isn't, notify observers
+        // Note: This is a workaround for a bug with Safari
+        if (document.elementFromPoint(ev.clientX, ev.clientY) !== canvas) {
+            commonEngine.onCanvasPointerOutObservable.notifyObservers(ev);
+        }
+    };
+    const hostWindow = commonEngine.getHostWindow(); // it calls IsWindowObjectExist()
+    if (hostWindow && typeof hostWindow.addEventListener === "function") {
+        hostWindow.addEventListener("blur", commonEngine._onBlur);
+        hostWindow.addEventListener("focus", commonEngine._onFocus);
+    }
+    canvas.addEventListener("pointerout", commonEngine._onCanvasPointerOut);
+    if (!creationOptions.doNotHandleTouchAction) {
+        DisableTouchAction(canvas);
+    }
+    // Create Audio Engine if needed.
+    if (!AbstractEngine.audioEngine && creationOptions.audioEngine && AbstractEngine.AudioEngineFactory) {
+        AbstractEngine.audioEngine = AbstractEngine.AudioEngineFactory(commonEngine.getRenderingCanvas(), commonEngine.getAudioContext(), commonEngine.getAudioDestination());
+    }
+    if (IsDocumentAvailable()) {
+        // Fullscreen
+        commonEngine._onFullscreenChange = () => {
+            commonEngine.isFullscreen = !!document.fullscreenElement;
+            // Pointer lock
+            if (commonEngine.isFullscreen && commonEngine._pointerLockRequested && canvas) {
+                RequestPointerlock(canvas);
+            }
+        };
+        document.addEventListener("fullscreenchange", commonEngine._onFullscreenChange, false);
+        document.addEventListener("webkitfullscreenchange", commonEngine._onFullscreenChange, false);
+        // Pointer lock
+        commonEngine._onPointerLockChange = () => {
+            commonEngine.isPointerLock = document.pointerLockElement === canvas;
+        };
+        document.addEventListener("pointerlockchange", commonEngine._onPointerLockChange, false);
+        document.addEventListener("webkitpointerlockchange", commonEngine._onPointerLockChange, false);
+    }
+    commonEngine.enableOfflineSupport = AbstractEngine.OfflineProviderFactory !== undefined;
+    commonEngine._deterministicLockstep = !!creationOptions.deterministicLockstep;
+    commonEngine._lockstepMaxSteps = creationOptions.lockstepMaxSteps || 0;
+    commonEngine._timeStep = creationOptions.timeStep || 1 / 60;
+}
+/** @internal */
+export function _CommonDispose(commonEngine, canvas) {
+    // Release audio engine
+    if (EngineStore.Instances.length === 1 && AbstractEngine.audioEngine) {
+        AbstractEngine.audioEngine.dispose();
+        AbstractEngine.audioEngine = null;
+    }
+    // Events
+    const hostWindow = commonEngine.getHostWindow(); // it calls IsWindowObjectExist()
+    if (hostWindow && typeof hostWindow.removeEventListener === "function") {
+        hostWindow.removeEventListener("blur", commonEngine._onBlur);
+        hostWindow.removeEventListener("focus", commonEngine._onFocus);
+    }
+    if (canvas) {
+        canvas.removeEventListener("focus", commonEngine._onCanvasFocus);
+        canvas.removeEventListener("blur", commonEngine._onCanvasBlur);
+        canvas.removeEventListener("pointerout", commonEngine._onCanvasPointerOut);
+        canvas.removeEventListener("contextmenu", commonEngine._onCanvasContextMenu);
+    }
+    if (IsDocumentAvailable()) {
+        document.removeEventListener("fullscreenchange", commonEngine._onFullscreenChange);
+        document.removeEventListener("mozfullscreenchange", commonEngine._onFullscreenChange);
+        document.removeEventListener("webkitfullscreenchange", commonEngine._onFullscreenChange);
+        document.removeEventListener("msfullscreenchange", commonEngine._onFullscreenChange);
+        document.removeEventListener("pointerlockchange", commonEngine._onPointerLockChange);
+        document.removeEventListener("mspointerlockchange", commonEngine._onPointerLockChange);
+        document.removeEventListener("mozpointerlockchange", commonEngine._onPointerLockChange);
+        document.removeEventListener("webkitpointerlockchange", commonEngine._onPointerLockChange);
+    }
+}
+/**
+ * Get Font size information
+ * @param font font name
+ * @returns an object containing ascent, height and descent
+ */
+export function GetFontOffset(font) {
+    const domFontOffset = GetFontOffsetFromDom(font);
+    if (domFontOffset) {
+        return domFontOffset;
+    }
+    const canvasFontOffset = GetFontOffsetFromCanvas(font);
+    if (canvasFontOffset) {
+        return canvasFontOffset;
+    }
+    return GetFallbackFontOffset(font);
+}
+function GetFontOffsetFromDom(font) {
+    if (!IsDocumentAvailable() || !document.body) {
+        return null;
+    }
+    const text = document.createElement("span");
+    text.textContent = "Hg";
+    text.style.font = font;
+    const block = document.createElement("div");
+    block.style.display = "inline-block";
+    block.style.width = "1px";
+    block.style.height = "0px";
+    block.style.verticalAlign = "bottom";
+    const div = document.createElement("div");
+    div.style.whiteSpace = "nowrap";
+    div.appendChild(text);
+    div.appendChild(block);
+    document.body.appendChild(div);
+    let fontAscent;
+    let fontHeight;
+    try {
+        fontHeight = block.getBoundingClientRect().top - text.getBoundingClientRect().top;
+        block.style.verticalAlign = "baseline";
+        fontAscent = block.getBoundingClientRect().top - text.getBoundingClientRect().top;
+    }
+    finally {
+        document.body.removeChild(div);
+    }
+    const offset = { ascent: fontAscent, height: fontHeight, descent: fontHeight - fontAscent };
+    return IsValidFontOffset(offset) ? offset : null;
+}
+function GetFontOffsetFromCanvas(font) {
+    let canvas = null;
+    try {
+        if (typeof OffscreenCanvas !== "undefined") {
+            canvas = new OffscreenCanvas(64, 64);
+        }
+        else if (IsDocumentAvailable() && typeof document.createElement === "function") {
+            canvas = document.createElement("canvas");
+            canvas.width = 64;
+            canvas.height = 64;
+        }
+        const context = canvas?.getContext("2d");
+        if (!context) {
+            return null;
+        }
+        context.font = font;
+        const metrics = context.measureText("Hg");
+        const ascent = Number(metrics.actualBoundingBoxAscent ?? metrics.fontBoundingBoxAscent);
+        const descent = Number(metrics.actualBoundingBoxDescent ?? metrics.fontBoundingBoxDescent);
+        const offset = { ascent, height: ascent + descent, descent };
+        return IsValidFontOffset(offset) ? offset : null;
+    }
+    catch {
+        return null;
+    }
+    finally {
+        const disposableCanvas = canvas;
+        if (typeof disposableCanvas?.dispose === "function") {
+            disposableCanvas.dispose();
+        }
+    }
+}
+function GetFallbackFontOffset(font) {
+    const size = Math.max(1, GetCssPixelFontSize(font));
+    const ascent = size * 0.8;
+    const descent = size * 0.2;
+    return { ascent, height: ascent + descent, descent };
+}
+function GetCssPixelFontSize(font) {
+    const match = /(?:^|\s)([0-9]+(?:\.[0-9]+)?)px(?:\/|\s|$)/.exec(String(font || ""));
+    return match ? Number(match[1]) : 16;
+}
+function IsValidFontOffset(offset) {
+    return Number.isFinite(offset.ascent) && Number.isFinite(offset.height) && Number.isFinite(offset.descent) && offset.height > 0;
+}
+/** @internal */
+export async function CreateImageBitmapFromSource(engine, imageSource, options) {
+    return await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => {
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises, github/no-then
+            image.decode().then(() => {
+                // eslint-disable-next-line @typescript-eslint/no-floating-promises, github/no-then
+                engine.createImageBitmap(image, options).then((imageBitmap) => {
+                    resolve(imageBitmap);
+                });
+            });
+        };
+        image.onerror = () => {
+            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+            reject(`Error loading image ${image.src}`);
+        };
+        image.src = imageSource;
+    });
+}
+/** @internal */
+export function ResizeImageBitmap(engine, image, bufferWidth, bufferHeight) {
+    const canvas = engine.createCanvas(bufferWidth, bufferHeight);
+    const context = canvas.getContext("2d");
+    if (!context) {
+        throw new Error("Unable to get 2d context for resizeImageBitmap");
+    }
+    context.drawImage(image, 0, 0);
+    // Create VertexData from map data
+    // Cast is due to wrong definition in lib.d.ts from ts 1.3 - https://github.com/Microsoft/TypeScript/issues/949
+    const buffer = context.getImageData(0, 0, bufferWidth, bufferHeight).data;
+    return buffer;
+}
+/**
+ * Ask the browser to promote the current element to fullscreen rendering mode
+ * @param element defines the DOM element to promote
+ */
+export function RequestFullscreen(element) {
+    const requestFunction = element.requestFullscreen || element.webkitRequestFullscreen;
+    if (!requestFunction) {
+        return;
+    }
+    void requestFunction.call(element);
+}
+/**
+ * Asks the browser to exit fullscreen mode
+ */
+export function ExitFullscreen() {
+    const anyDoc = document;
+    if (document.exitFullscreen) {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        document.exitFullscreen();
+    }
+    else if (anyDoc.webkitCancelFullScreen) {
+        anyDoc.webkitCancelFullScreen();
+    }
+}
+/**
+ * Ask the browser to promote the current element to pointerlock mode
+ * @param element defines the DOM element to promote
+ */
+export function RequestPointerlock(element) {
+    if (element.requestPointerLock) {
+        // In some browsers, requestPointerLock returns a promise.
+        // Handle possible rejections to avoid an unhandled top-level exception.
+        const promise = element.requestPointerLock();
+        if (promise instanceof Promise) {
+            promise
+                // eslint-disable-next-line github/no-then
+                .then(() => {
+                element.focus();
+            })
+                // eslint-disable-next-line github/no-then
+                .catch(() => { });
+        }
+        else {
+            element.focus();
+        }
+    }
+}
+/**
+ * Asks the browser to exit pointerlock mode
+ */
+export function ExitPointerlock() {
+    if (document.exitPointerLock) {
+        document.exitPointerLock();
+    }
+}
+//# sourceMappingURL=engine.common.js.map

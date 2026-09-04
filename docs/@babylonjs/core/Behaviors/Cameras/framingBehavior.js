@@ -2,8 +2,8 @@ import { ExponentialEase, EasingFunction } from "../../Animations/easing.js";
 import { Observable } from "../../Misc/observable.js";
 import { PointerEventTypes } from "../../Events/pointerEvents.js";
 import { PrecisionDate } from "../../Misc/precisionDate.js";
-import { Vector3, Vector2 } from "../../Maths/math.vector.js";
-import { Animation } from "../../Animations/animation.js";
+import { Vector3 } from "../../Maths/math.vector.pure.js";
+import { Animation } from "../../Animations/animation.pure.js";
 /**
  * The framing behavior (FramingBehavior) is designed to automatically position an ArcRotateCamera when its target is set to a mesh. It is also useful if you want to prevent the camera to go under a virtual horizontal plane.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/behaviors/cameraBehaviors#framing-behavior
@@ -27,6 +27,7 @@ export class FramingBehavior {
          * camera limits and sensibilities.
          */
         this.autoCorrectCameraLimitsAndSensibility = true;
+        this._attachedCamera = null;
         this._isPointerDown = false;
         this._lastInteractionTime = -Infinity;
         // Framing control
@@ -140,6 +141,12 @@ export class FramingBehavior {
         return this._framingTime;
     }
     /**
+     * Attached node of this behavior
+     */
+    get attachedNode() {
+        return this._attachedCamera;
+    }
+    /**
      * Initializes the behavior.
      */
     init() {
@@ -162,9 +169,9 @@ export class FramingBehavior {
                 this._isPointerDown = false;
             }
         });
-        this._onMeshTargetChangedObserver = camera.onMeshTargetChangedObservable.add((mesh) => {
-            if (mesh) {
-                this.zoomOnMesh(mesh, undefined, () => {
+        this._onMeshTargetChangedObserver = camera.onMeshTargetChangedObservable.add((transformNode) => {
+            if (transformNode && transformNode.getBoundingInfo) {
+                this.zoomOnMesh(transformNode, undefined, () => {
                     this.onTargetFramingAnimationEndObservable.notifyObservers();
                 });
             }
@@ -209,7 +216,7 @@ export class FramingBehavior {
     }
     /**
      * Targets the given mesh with its children and updates zoom level accordingly.
-     * @param mesh  The mesh to target.
+     * @param mesh The mesh to target.
      * @param focusOnOriginXZ Determines if the camera should focus on 0 in the X and Z axis instead of the mesh
      * @param onAnimationEnd Callback triggered at the end of the framing animation
      */
@@ -240,17 +247,21 @@ export class FramingBehavior {
      * @param maximumWorld Determines the bigger position of the bounding box extend
      * @param focusOnOriginXZ Determines if the camera should focus on 0 in the X and Z axis instead of the mesh
      * @param onAnimationEnd Callback triggered at the end of the framing animation
+     * @returns true if the zoom was done
      */
     zoomOnBoundingInfo(minimumWorld, maximumWorld, focusOnOriginXZ = false, onAnimationEnd = null) {
         let zoomTarget;
         if (!this._attachedCamera) {
-            return;
+            return false;
         }
         // Find target by interpolating from bottom of bounding box in world-space to top via framingPositionY
         const bottom = minimumWorld.y;
         const top = maximumWorld.y;
         const zoomTargetY = bottom + (top - bottom) * this._positionScale;
         const radiusWorld = maximumWorld.subtract(minimumWorld).scale(0.5);
+        if (!isFinite(zoomTargetY)) {
+            return false; // Abort mission as there is no target
+        }
         if (focusOnOriginXZ) {
             zoomTarget = new Vector3(0, zoomTargetY, 0);
         }
@@ -304,6 +315,7 @@ export class FramingBehavior {
         if (animatable) {
             this._animatables.push(animatable);
         }
+        return true;
     }
     /**
      * Calculates the lowest radius for the camera based on the bounding box of the mesh.
@@ -313,21 +325,11 @@ export class FramingBehavior {
      *		 to fully enclose the mesh in the viewing frustum.
      */
     _calculateLowerRadiusFromModelBoundingSphere(minimumWorld, maximumWorld) {
-        const size = maximumWorld.subtract(minimumWorld);
-        const boxVectorGlobalDiagonal = size.length();
-        const frustumSlope = this._getFrustumSlope();
-        // Formula for setting distance
-        // (Good explanation: http://stackoverflow.com/questions/2866350/move-camera-to-fit-3d-scene)
-        const radiusWithoutFraming = boxVectorGlobalDiagonal * 0.5;
-        // Horizon distance
-        const radius = radiusWithoutFraming * this._radiusScale;
-        const distanceForHorizontalFrustum = radius * Math.sqrt(1.0 + 1.0 / (frustumSlope.x * frustumSlope.x));
-        const distanceForVerticalFrustum = radius * Math.sqrt(1.0 + 1.0 / (frustumSlope.y * frustumSlope.y));
-        let distance = Math.max(distanceForHorizontalFrustum, distanceForVerticalFrustum);
         const camera = this._attachedCamera;
         if (!camera) {
             return 0;
         }
+        let distance = camera._calculateLowerRadiusFromModelBoundingSphere(minimumWorld, maximumWorld, this._radiusScale);
         if (camera.lowerRadiusLimit && this._mode === FramingBehavior.IgnoreBoundsSizeMode) {
             // Don't exceed the requested limit
             distance = distance < camera.lowerRadiusLimit ? camera.lowerRadiusLimit : distance;
@@ -357,36 +359,14 @@ export class FramingBehavior {
             if (!this._betaTransition) {
                 this._betaTransition = Animation.CreateAnimation("beta", Animation.ANIMATIONTYPE_FLOAT, 60, FramingBehavior.EasingFunction);
             }
-            const animatabe = Animation.TransitionTo("beta", defaultBeta, this._attachedCamera, this._attachedCamera.getScene(), 60, this._betaTransition, this._elevationReturnTime, () => {
+            const animatable = Animation.TransitionTo("beta", defaultBeta, this._attachedCamera, this._attachedCamera.getScene(), 60, this._betaTransition, this._elevationReturnTime, () => {
                 this._clearAnimationLocks();
                 this.stopAllAnimations();
             });
-            if (animatabe) {
-                this._animatables.push(animatabe);
+            if (animatable) {
+                this._animatables.push(animatable);
             }
         }
-    }
-    /**
-     * Returns the frustum slope based on the canvas ratio and camera FOV
-     * @returns The frustum slope represented as a Vector2 with X and Y slopes
-     */
-    _getFrustumSlope() {
-        // Calculate the viewport ratio
-        // Aspect Ratio is Height/Width.
-        const camera = this._attachedCamera;
-        if (!camera) {
-            return Vector2.Zero();
-        }
-        const engine = camera.getScene().getEngine();
-        const aspectRatio = engine.getAspectRatio(camera);
-        // Camera FOV is the vertical field of view (top-bottom) in radians.
-        // Slope of the frustum top/bottom planes in view space, relative to the forward vector.
-        const frustumSlopeY = Math.tan(camera.fov / 2);
-        // Slope of the frustum left/right planes in view space, relative to the forward vector.
-        // Provides the amount that one side (e.g. left) of the frustum gets wider for every unit
-        // along the forward vector.
-        const frustumSlopeX = frustumSlopeY * aspectRatio;
-        return new Vector2(frustumSlopeX, frustumSlopeY);
     }
     /**
      * Removes all animation locks. Allows new animations to be added to any of the arcCamera properties.

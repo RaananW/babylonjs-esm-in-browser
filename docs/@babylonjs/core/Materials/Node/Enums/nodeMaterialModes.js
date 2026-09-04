@@ -11,5 +11,9 @@ export var NodeMaterialModes;
     NodeMaterialModes[NodeMaterialModes["Particle"] = 2] = "Particle";
     /** For procedural texture */
     NodeMaterialModes[NodeMaterialModes["ProceduralTexture"] = 3] = "ProceduralTexture";
+    /** For gaussian splatting */
+    NodeMaterialModes[NodeMaterialModes["GaussianSplatting"] = 4] = "GaussianSplatting";
+    /** For SFE */
+    NodeMaterialModes[NodeMaterialModes["SFE"] = 5] = "SFE";
 })(NodeMaterialModes || (NodeMaterialModes = {}));
 //# sourceMappingURL=nodeMaterialModes.js.map

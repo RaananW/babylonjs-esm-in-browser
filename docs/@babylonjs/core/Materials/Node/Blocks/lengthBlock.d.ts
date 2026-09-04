@@ -1,27 +1,5 @@
-import { NodeMaterialBlock } from "../nodeMaterialBlock";
-import type { NodeMaterialBuildState } from "../nodeMaterialBuildState";
-import type { NodeMaterialConnectionPoint } from "../nodeMaterialBlockConnectionPoint";
 /**
- * Block used to get the length of a vector
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import lengthBlock.pure for tree-shakeable, side-effect-free usage.
  */
-export declare class LengthBlock extends NodeMaterialBlock {
-    /**
-     * Creates a new LengthBlock
-     * @param name defines the block name
-     */
-    constructor(name: string);
-    /**
-     * Gets the current class name
-     * @returns the class name
-     */
-    getClassName(): string;
-    /**
-     * Gets the value input component
-     */
-    get value(): NodeMaterialConnectionPoint;
-    /**
-     * Gets the output component
-     */
-    get output(): NodeMaterialConnectionPoint;
-    protected _buildBlock(state: NodeMaterialBuildState): this;
-}
+export * from "./lengthBlock.pure.js";

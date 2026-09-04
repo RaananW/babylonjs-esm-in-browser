@@ -1,9 +1,9 @@
-import type { RenderTargetTexture } from "../Materials/Textures/renderTargetTexture";
-import type { Viewport } from "../Maths/math.viewport";
-import type { Scene } from "../scene";
-import type { Nullable } from "../types";
-import { WebXRLayerWrapper } from "./webXRLayerWrapper";
-import { WebXRLayerRenderTargetTextureProvider } from "./webXRRenderTargetTextureProvider";
+import { type RenderTargetTexture } from "../Materials/Textures/renderTargetTexture.js";
+import { type Viewport } from "../Maths/math.viewport.js";
+import { type Scene } from "../scene.js";
+import { type Nullable } from "../types.js";
+import { WebXRLayerWrapper } from "./webXRLayerWrapper.js";
+import { WebXRWebGLRenderTargetTextureProvider } from "./webXRWebGLRenderTargetTextureProvider.js";
 /**
  * Wraps xr webgl layers.
  * @internal
@@ -20,7 +20,7 @@ export declare class WebXRWebGLLayerWrapper extends WebXRLayerWrapper {
  * Provides render target textures and other important rendering information for a given XRWebGLLayer.
  * @internal
  */
-export declare class WebXRWebGLLayerRenderTargetTextureProvider extends WebXRLayerRenderTargetTextureProvider {
+export declare class WebXRWebGLLayerRenderTargetTextureProvider extends WebXRWebGLRenderTargetTextureProvider {
     readonly layerWrapper: WebXRWebGLLayerWrapper;
     protected _framebufferDimensions: {
         framebufferWidth: number;

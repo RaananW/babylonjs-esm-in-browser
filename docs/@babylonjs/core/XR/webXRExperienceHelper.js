@@ -1,11 +1,12 @@
 import { Observable } from "../Misc/observable.js";
 import { WebXRSessionManager } from "./webXRSessionManager.js";
 import { WebXRCamera } from "./webXRCamera.js";
-import { WebXRState } from "./webXRTypes.js";
 import { WebXRFeatureName, WebXRFeaturesManager } from "./webXRFeaturesManager.js";
+import { IsWebGPUXREngineCompatible, WebGPUXREngineNotCompatibleErrorMessage, WebGPUXRNotSupportedErrorMessage } from "./webXRGraphicsBinding.js";
 import { Logger } from "../Misc/logger.js";
-import { UniversalCamera } from "../Cameras/universalCamera.js";
-import { Quaternion, Vector3 } from "../Maths/math.vector.js";
+import { UniversalCamera } from "../Cameras/universalCamera.pure.js";
+import { Quaternion, Vector3 } from "../Maths/math.vector.pure.js";
+import { AbstractEngine } from "../Engines/abstractEngine.js";
 /**
  * Base set of functionality needed to create an XR experience (WebXRSessionManager, Camera, StateManagement, etc.)
  * @see https://doc.babylonjs.com/features/featuresDeepDive/webXR/webXRExperienceHelpers
@@ -24,6 +25,9 @@ export class WebXRExperienceHelper {
         this._supported = false;
         this._spectatorMode = false;
         this._lastTimestamp = 0;
+        this._spectatorStateChangedObserver = null;
+        this._spectatorXRFrameObserver = null;
+        this._spectatorAfterRenderObserver = null;
         /**
          * Observers registered here will be triggered after the camera's initial transformation is set
          * This can be used to set a different ground level or an extra rotation.
@@ -39,10 +43,15 @@ export class WebXRExperienceHelper {
         /**
          * The current state of the XR experience (eg. transitioning, in XR or not in XR)
          */
-        this.state = WebXRState.NOT_IN_XR;
+        this.state = 3 /* WebXRState.NOT_IN_XR */;
         this.sessionManager = new WebXRSessionManager(_scene);
         this.camera = new WebXRCamera("webxr", _scene, this.sessionManager);
         this.featuresManager = new WebXRFeaturesManager(this.sessionManager);
+        this.sessionManager.onXRSessionInit.add(() => {
+            if (this._scene.getEngine().isWebGPU && !this.featuresManager.getEnabledFeature(WebXRFeatureName.LAYERS)?.attached) {
+                throw new Error("WebGPU XR could not attach the required WebXR Layers feature.");
+            }
+        });
         _scene.onDisposeObservable.addOnce(() => {
             this.dispose();
         });
@@ -52,16 +61,18 @@ export class WebXRExperienceHelper {
      * @param scene the scene to attach the experience helper to
      * @returns a promise for the experience helper
      */
-    static CreateAsync(scene) {
+    static async CreateAsync(scene) {
         const helper = new WebXRExperienceHelper(scene);
-        return helper.sessionManager
+        return await helper.sessionManager
             .initializeAsync()
+            // eslint-disable-next-line github/no-then
             .then(() => {
             helper._supported = true;
             return helper;
         })
+            // eslint-disable-next-line github/no-then
             .catch((e) => {
-            helper._setState(WebXRState.NOT_IN_XR);
+            helper._setState(3 /* WebXRState.NOT_IN_XR */);
             helper.dispose();
             throw e;
         });
@@ -70,13 +81,14 @@ export class WebXRExperienceHelper {
      * Disposes of the experience helper
      */
     dispose() {
-        var _a;
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.exitXRAsync();
+        this._clearSpectatorObservers();
         this.camera.dispose();
         this.onStateChangedObservable.clear();
         this.onInitialXRPoseSetObservable.clear();
         this.sessionManager.dispose();
-        (_a = this._spectatorCamera) === null || _a === void 0 ? void 0 : _a.dispose();
+        this._spectatorCamera?.dispose();
         if (this._nonVRCamera) {
             this._scene.activeCamera = this._nonVRCamera;
         }
@@ -89,65 +101,63 @@ export class WebXRExperienceHelper {
      * @param sessionCreationOptions optional XRSessionInit object to init the session with
      * @returns promise that resolves after xr mode has entered
      */
-    async enterXRAsync(sessionMode, referenceSpaceType, renderTarget = this.sessionManager.getWebXRRenderTarget(), sessionCreationOptions = {}) {
-        var _a, _b, _c;
+    async enterXRAsync(sessionMode, referenceSpaceType, renderTarget, sessionCreationOptions = {}) {
         if (!this._supported) {
+            // eslint-disable-next-line no-throw-literal
             throw "WebXR not supported in this browser or environment";
         }
-        this._setState(WebXRState.ENTERING_XR);
+        if (this._scene.getEngine().isWebGPU) {
+            if (!IsWebGPUXREngineCompatible(this._scene.getEngine())) {
+                throw new Error(WebGPUXREngineNotCompatibleErrorMessage);
+            }
+            if (!WebXRSessionManager.IsWebGPUXRSupported) {
+                throw new Error(WebGPUXRNotSupportedErrorMessage);
+            }
+            if (!this.featuresManager.getEnabledFeature(WebXRFeatureName.LAYERS)) {
+                throw new Error("WebGPU XR requires the WebXR Layers feature. Import and enable WebXRLayers before calling enterXRAsync.");
+            }
+            sessionCreationOptions = {
+                ...sessionCreationOptions,
+                requiredFeatures: sessionCreationOptions.requiredFeatures ? [...sessionCreationOptions.requiredFeatures] : undefined,
+                optionalFeatures: sessionCreationOptions.optionalFeatures ? [...sessionCreationOptions.optionalFeatures] : undefined,
+            };
+        }
+        renderTarget ?? (renderTarget = this.sessionManager.getWebXRRenderTarget());
+        this._setState(0 /* WebXRState.ENTERING_XR */);
         if (referenceSpaceType !== "viewer" && referenceSpaceType !== "local") {
             sessionCreationOptions.optionalFeatures = sessionCreationOptions.optionalFeatures || [];
             sessionCreationOptions.optionalFeatures.push(referenceSpaceType);
         }
         sessionCreationOptions = await this.featuresManager._extendXRSessionInitObject(sessionCreationOptions);
+        if (this._scene.getEngine().isWebGPU) {
+            const requiredFeatures = sessionCreationOptions.requiredFeatures ? [...sessionCreationOptions.requiredFeatures] : [];
+            if (!requiredFeatures.includes("layers")) {
+                requiredFeatures.push("layers");
+            }
+            sessionCreationOptions = {
+                ...sessionCreationOptions,
+                requiredFeatures,
+                optionalFeatures: sessionCreationOptions.optionalFeatures?.filter((feature) => feature !== "layers"),
+            };
+        }
         // we currently recommend "unbounded" space in AR (#7959)
         if (sessionMode === "immersive-ar" && referenceSpaceType !== "unbounded") {
             Logger.Warn("We recommend using 'unbounded' reference space type when using 'immersive-ar' session mode");
         }
-        // make sure that the session mode is supported
-        try {
-            await this.sessionManager.initializeSessionAsync(sessionMode, sessionCreationOptions);
-            await this.sessionManager.setReferenceSpaceTypeAsync(referenceSpaceType);
-            const baseLayer = await renderTarget.initializeXRLayerAsync(this.sessionManager.session);
-            const xrRenderState = {
-                // if maxZ is 0 it should be "Infinity", but it doesn't work with the WebXR API. Setting to a large number.
-                depthFar: this.camera.maxZ || 10000,
-                depthNear: this.camera.minZ,
-            };
-            // The layers feature will have already initialized the xr session's layers on session init.
-            if (!this.featuresManager.getEnabledFeature(WebXRFeatureName.LAYERS)) {
-                xrRenderState.baseLayer = baseLayer;
+        this._originalSceneAutoClear = this._scene.autoClear;
+        this._nonVRCamera = this._scene.activeCamera;
+        this._attachedToElement = !!this._nonVRCamera?.inputs?.attachedToElement;
+        let sceneStateChanged = false;
+        const sessionEndedObserver = this.sessionManager.onXRSessionEnded.add(() => {
+            // when using the back button and not the exit button (default on mobile), the session is ending but the EXITING state was not set
+            if (this.state !== 1 /* WebXRState.EXITING_XR */) {
+                this._setState(1 /* WebXRState.EXITING_XR */);
             }
-            this.sessionManager.updateRenderState(xrRenderState);
-            // run the render loop
-            this.sessionManager.runXRRenderLoop();
-            // Cache pre xr scene settings
-            this._originalSceneAutoClear = this._scene.autoClear;
-            this._nonVRCamera = this._scene.activeCamera;
-            this._attachedToElement = !!((_b = (_a = this._nonVRCamera) === null || _a === void 0 ? void 0 : _a.inputs) === null || _b === void 0 ? void 0 : _b.attachedToElement);
-            (_c = this._nonVRCamera) === null || _c === void 0 ? void 0 : _c.detachControl();
-            this._scene.activeCamera = this.camera;
-            // do not compensate when AR session is used
-            if (sessionMode !== "immersive-ar") {
-                this._nonXRToXRCamera();
-            }
-            else {
-                // Kept here, TODO - check if needed
-                this._scene.autoClear = false;
-                this.camera.compensateOnFirstFrame = false;
-                // reset the camera's position to the origin
-                this.camera.position.set(0, 0, 0);
-                this.camera.rotationQuaternion.set(0, 0, 0, 1);
-            }
-            this.sessionManager.onXRSessionEnded.addOnce(() => {
-                // when using the back button and not the exit button (default on mobile), the session is ending but the EXITING state was not set
-                if (this.state !== WebXRState.EXITING_XR) {
-                    this._setState(WebXRState.EXITING_XR);
-                }
+            if (sceneStateChanged) {
                 // Reset camera rigs output render target to ensure sessions render target is not drawn after it ends
-                this.camera.rigCameras.forEach((c) => {
+                for (const c of this.camera.rigCameras) {
                     c.outputRenderTarget = null;
-                });
+                }
                 // Restore scene settings
                 this._scene.autoClear = this._originalSceneAutoClear;
                 this._scene.activeCamera = this._nonVRCamera;
@@ -162,18 +172,64 @@ export class WebXRExperienceHelper {
                         this._nonVRCamera.position.copyFrom(this.camera.position);
                     }
                 }
-                this._setState(WebXRState.NOT_IN_XR);
-            });
+            }
+            this._setState(3 /* WebXRState.NOT_IN_XR */);
+        }, undefined, 
+        // Restore the scene before feature observers in case one of them throws during teardown.
+        true, undefined, true);
+        // make sure that the session mode is supported
+        try {
+            await this.sessionManager.initializeSessionAsync(sessionMode, sessionCreationOptions);
+            await this.sessionManager.setReferenceSpaceTypeAsync(referenceSpaceType);
+            const xrRenderState = {
+                // if maxZ is 0 it should be "Infinity", but it doesn't work with the WebXR API. Setting to a large number.
+                depthFar: this.camera.maxZ || 10000,
+                depthNear: this.camera.minZ,
+            };
+            // The layers feature will have already initialized the XR session's layers on session init.
+            // WebGPU-XR is layers-only, while WebGL can continue to use the legacy base-layer path.
+            if (!this._scene.getEngine().isWebGPU && !this.featuresManager.getEnabledFeature(WebXRFeatureName.LAYERS)) {
+                const baseLayer = await renderTarget.initializeXRLayerAsync(this.sessionManager.session);
+                xrRenderState.baseLayer = baseLayer;
+            }
+            this.sessionManager.updateRenderState(xrRenderState);
+            // run the render loop
+            this.sessionManager.runXRRenderLoop();
+            // Switch the scene to the XR camera.
+            sceneStateChanged = true;
+            this._nonVRCamera?.detachControl();
+            this._scene.activeCamera = this.camera;
+            // do not compensate when AR session is used
+            if (sessionMode !== "immersive-ar") {
+                this._nonXRToXRCamera();
+            }
+            else {
+                // Kept here, TODO - check if needed
+                this._scene.autoClear = false;
+                this.camera.compensateOnFirstFrame = false;
+                // reset the camera's position to the origin
+                this.camera.position.set(0, 0, 0);
+                this.camera.rotationQuaternion.set(0, 0, 0, 1);
+                this.onInitialXRPoseSetObservable.notifyObservers(this.camera);
+            }
+            // Vision Pro suspends the audio context when entering XR, so we resume it here if needed.
+            AbstractEngine.audioEngine?._resumeAudioContextOnStateChange();
             // Wait until the first frame arrives before setting state to in xr
             this.sessionManager.onXRFrameObservable.addOnce(() => {
-                this._setState(WebXRState.IN_XR);
+                this._setState(2 /* WebXRState.IN_XR */);
             });
             return this.sessionManager;
         }
         catch (e) {
-            console.log(e);
-            console.log(e.message);
-            this._setState(WebXRState.NOT_IN_XR);
+            if (this.sessionManager.inXRSession) {
+                await this.sessionManager.exitXRAsync();
+            }
+            if (!this.sessionManager.inXRSession) {
+                this.sessionManager.onXRSessionEnded.remove(sessionEndedObserver);
+            }
+            Logger.Log(e);
+            Logger.Log(e.message);
+            this._setState(this.sessionManager.inXRSession ? 0 /* WebXRState.ENTERING_XR */ : 3 /* WebXRState.NOT_IN_XR */);
             throw e;
         }
     }
@@ -181,13 +237,17 @@ export class WebXRExperienceHelper {
      * Exits XR mode and returns the scene to its original state
      * @returns promise that resolves after xr mode has exited
      */
-    exitXRAsync() {
-        // only exit if state is IN_XR
-        if (this.state !== WebXRState.IN_XR) {
-            return Promise.resolve();
+    async exitXRAsync() {
+        const isSessionStarting = this.state === 0 /* WebXRState.ENTERING_XR */ && this.sessionManager.inXRSession;
+        if (this.state !== 2 /* WebXRState.IN_XR */ && !isSessionStarting) {
+            return;
         }
-        this._setState(WebXRState.EXITING_XR);
-        return this.sessionManager.exitXRAsync();
+        const previousState = this.state;
+        this._setState(1 /* WebXRState.EXITING_XR */);
+        await this.sessionManager.exitXRAsync();
+        if (this.sessionManager.inXRSession) {
+            this._setState(previousState);
+        }
     }
     /**
      * Enable spectator mode for desktop VR experiences.
@@ -212,17 +272,26 @@ export class WebXRExperienceHelper {
             this._switchSpectatorMode();
         }
     }
+    _clearSpectatorObservers() {
+        this.sessionManager.onXRFrameObservable.remove(this._spectatorXRFrameObserver);
+        this._spectatorXRFrameObserver = null;
+        this._scene.onAfterRenderCameraObservable.remove(this._spectatorAfterRenderObserver);
+        this._spectatorAfterRenderObserver = null;
+        this.onStateChangedObservable.remove(this._spectatorStateChangedObserver);
+        this._spectatorStateChangedObserver = null;
+    }
     _switchSpectatorMode(options) {
-        const fps = (options === null || options === void 0 ? void 0 : options.fps) ? options.fps : 1000.0;
+        this._clearSpectatorObservers();
+        const fps = options?.fps ? options.fps : 1000.0;
         const refreshRate = (1.0 / fps) * 1000.0;
-        const cameraIndex = (options === null || options === void 0 ? void 0 : options.preferredCameraIndex) ? options === null || options === void 0 ? void 0 : options.preferredCameraIndex : 0;
+        const cameraIndex = options?.preferredCameraIndex ? options?.preferredCameraIndex : 0;
         const updateSpectatorCamera = () => {
             if (this._spectatorCamera) {
                 const delta = this.sessionManager.currentTimestamp - this._lastTimestamp;
                 if (delta >= refreshRate) {
                     this._lastTimestamp = this.sessionManager.currentTimestamp;
                     this._spectatorCamera.position.copyFrom(this.camera.rigCameras[cameraIndex].globalPosition);
-                    this._spectatorCamera.rotationQuaternion.copyFrom(this.camera.rigCameras[cameraIndex].absoluteRotation);
+                    this._spectatorCamera.rotationQuaternion?.copyFrom(this.camera.rigCameras[cameraIndex].absoluteRotation);
                 }
             }
         };
@@ -231,28 +300,35 @@ export class WebXRExperienceHelper {
                 throw new Error("the preferred camera index is beyond the length of rig camera array.");
             }
             const onStateChanged = () => {
-                if (this.state === WebXRState.IN_XR) {
+                if (this.state === 2 /* WebXRState.IN_XR */) {
+                    this._spectatorCamera?.dispose();
                     this._spectatorCamera = new UniversalCamera("webxr-spectator", Vector3.Zero(), this._scene);
                     this._spectatorCamera.rotationQuaternion = new Quaternion();
                     this._scene.activeCameras = [this.camera, this._spectatorCamera];
-                    this.sessionManager.onXRFrameObservable.add(updateSpectatorCamera);
-                    this._scene.onAfterRenderCameraObservable.add((camera) => {
+                    this._spectatorXRFrameObserver = this.sessionManager.onXRFrameObservable.add(updateSpectatorCamera);
+                    this._spectatorAfterRenderObserver = this._scene.onAfterRenderCameraObservable.add((camera) => {
                         if (camera === this.camera) {
                             // reset the dimensions object for correct resizing
                             this._scene.getEngine().framebufferDimensionsObject = null;
                         }
                     });
                 }
-                else if (this.state === WebXRState.EXITING_XR) {
-                    this.sessionManager.onXRFrameObservable.removeCallback(updateSpectatorCamera);
+                else if (this.state === 1 /* WebXRState.EXITING_XR */) {
+                    this.sessionManager.onXRFrameObservable.remove(this._spectatorXRFrameObserver);
+                    this._spectatorXRFrameObserver = null;
+                    this._scene.onAfterRenderCameraObservable.remove(this._spectatorAfterRenderObserver);
+                    this._spectatorAfterRenderObserver = null;
+                    this._spectatorCamera?.dispose();
+                    this._spectatorCamera = null;
                     this._scene.activeCameras = null;
                 }
             };
-            this.onStateChangedObservable.add(onStateChanged);
+            this._spectatorStateChangedObserver = this.onStateChangedObservable.add(onStateChanged);
             onStateChanged();
         }
         else {
-            this.sessionManager.onXRFrameObservable.removeCallback(updateSpectatorCamera);
+            this._spectatorCamera?.dispose();
+            this._spectatorCamera = null;
             this._scene.activeCameras = [this.camera];
         }
     }

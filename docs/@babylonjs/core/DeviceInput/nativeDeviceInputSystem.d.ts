@@ -1,6 +1,6 @@
-import type { IUIEvent } from "../Events/deviceInputEvents";
-import { DeviceType } from "./InputDevices/deviceEnums";
-import type { IDeviceInputSystem } from "./inputInterfaces";
+import { type IUIEvent } from "../Events/deviceInputEvents.js";
+import { DeviceType } from "./InputDevices/deviceEnums.js";
+import { type IDeviceInputSystem } from "./inputInterfaces.js";
 /** @internal */
 export declare class NativeDeviceInputSystem implements IDeviceInputSystem {
     private readonly _nativeInput;

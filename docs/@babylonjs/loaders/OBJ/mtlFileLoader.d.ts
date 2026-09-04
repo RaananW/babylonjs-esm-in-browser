@@ -1,7 +1,7 @@
-import type { Nullable } from "@babylonjs/core/types.js";
+import { type Nullable } from "@babylonjs/core/types.js";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial.js";
-import type { Scene } from "@babylonjs/core/scene.js";
-import type { AssetContainer } from "@babylonjs/core/assetContainer.js";
+import { type Scene } from "@babylonjs/core/scene.js";
+import { type AssetContainer } from "@babylonjs/core/assetContainer.js";
 /**
  * Class reading and parsing the MTL file bundled with the obj file.
  */

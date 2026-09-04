@@ -1,23 +1,34 @@
-import type { Nullable } from "../types";
-import type { Color4 } from "../Maths/math.color";
-import type { Camera } from "../Cameras/camera";
-import type { BaseTexture } from "../Materials/Textures/baseTexture";
-import type { ColorCurves } from "../Materials/colorCurves";
-import { ImageProcessingConfiguration } from "../Materials/imageProcessingConfiguration";
-import type { PostProcessOptions } from "./postProcess";
-import { PostProcess } from "./postProcess";
-import type { Engine } from "../Engines/engine";
-import "../Shaders/imageProcessing.fragment";
-import "../Shaders/postprocess.vertex";
+import { type Nullable } from "../types.js";
+import { type Color4 } from "../Maths/math.color.js";
+import { type Camera } from "../Cameras/camera.js";
+import { type BaseTexture } from "../Materials/Textures/baseTexture.js";
+import { type ColorCurves } from "../Materials/colorCurves.js";
+import { type ImageProcessingConfiguration } from "../Materials/imageProcessingConfiguration.js";
+import { type PostProcessOptions, PostProcess } from "./postProcess.pure.js";
+import { type AbstractEngine } from "../Engines/abstractEngine.js";
+import { ThinImageProcessingPostProcess } from "./thinImageProcessingPostProcess.js";
+/**
+ * Options used to create an `ImageProcessingPostProcess`.
+ */
+export type ImageProcessingPostProcessOptions = PostProcessOptions & {
+    /**
+     * The correlated color temperature, in Kelvin, of the illuminant to neutralize via white balance - see
+     * `ImageProcessingConfiguration.temperature`. Providing this (or `tint`) also enables white balance.
+     * Defaults to 6500 K.
+     */
+    temperature?: number;
+    /**
+     * The white balance tint offset to apply, on the green/magenta axis - see `ImageProcessingConfiguration.tint`.
+     * Providing this (or `temperature`) also enables white balance. Defaults to 0 (no tint offset).
+     */
+    tint?: number;
+};
 /**
  * ImageProcessingPostProcess
  * @see https://doc.babylonjs.com/features/featuresDeepDive/postProcesses/usePostProcesses#imageprocessing
  */
 export declare class ImageProcessingPostProcess extends PostProcess {
-    /**
-     * Default configuration related to image processing available in the PBR Material.
-     */
-    protected _imageProcessingConfiguration: ImageProcessingConfiguration;
+    protected get _imageProcessingConfiguration(): ImageProcessingConfiguration;
     /**
      * Gets the image processing configuration used either in this material.
      */
@@ -28,16 +39,6 @@ export declare class ImageProcessingPostProcess extends PostProcess {
      * If sets to null, the scene one is in use.
      */
     set imageProcessingConfiguration(value: ImageProcessingConfiguration);
-    /**
-     * Keep track of the image processing observer to allow dispose and replace.
-     */
-    private _imageProcessingObserver;
-    /**
-     * Attaches a new image processing configuration to the PBR Material.
-     * @param configuration
-     * @param doNotBuild
-     */
-    protected _attachImageProcessingConfiguration(configuration: Nullable<ImageProcessingConfiguration>, doNotBuild?: boolean): void;
     /**
      * If the post process is supported.
      */
@@ -106,6 +107,30 @@ export declare class ImageProcessingPostProcess extends PostProcess {
      * Sets contrast used in the effect.
      */
     set contrast(value: number);
+    /**
+     * Gets whether the white balance effect is enabled.
+     */
+    get whiteBalanceEnabled(): boolean;
+    /**
+     * Sets whether the white balance effect is enabled.
+     */
+    set whiteBalanceEnabled(value: boolean);
+    /**
+     * Gets the white balance correlated color temperature, in Kelvin, used in the effect.
+     */
+    get temperature(): number;
+    /**
+     * Sets the white balance correlated color temperature, in Kelvin, used in the effect.
+     */
+    set temperature(value: number);
+    /**
+     * Gets the white balance tint offset used in the effect.
+     */
+    get tint(): number;
+    /**
+     * Sets the white balance tint offset used in the effect.
+     */
+    set tint(value: number);
     /**
      * Gets Vignette stretch size.
      */
@@ -202,7 +227,6 @@ export declare class ImageProcessingPostProcess extends PostProcess {
      * Sets whether the dithering effect is enabled.
      */
     set ditheringEnabled(value: boolean);
-    private _fromLinearSpace;
     /**
      * Gets whether the input of the processing is in Gamma or Linear Space.
      */
@@ -211,11 +235,8 @@ export declare class ImageProcessingPostProcess extends PostProcess {
      * Sets whether the input of the processing is in Gamma or Linear Space.
      */
     set fromLinearSpace(value: boolean);
-    /**
-     * Defines cache preventing GC.
-     */
-    private _defines;
-    constructor(name: string, options: number | PostProcessOptions, camera?: Nullable<Camera>, samplingMode?: number, engine?: Engine, reusable?: boolean, textureType?: number, imageProcessingConfiguration?: ImageProcessingConfiguration);
+    protected _effectWrapper: ThinImageProcessingPostProcess;
+    constructor(name: string, options: number | ImageProcessingPostProcessOptions, camera?: Nullable<Camera>, samplingMode?: number, engine?: AbstractEngine, reusable?: boolean, textureType?: number, imageProcessingConfiguration?: ImageProcessingConfiguration);
     /**
      *  "ImageProcessingPostProcess"
      * @returns "ImageProcessingPostProcess"

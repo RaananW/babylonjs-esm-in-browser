@@ -1,2 +1,2 @@
-export * from "./legacy-glTF";
-export * from "./legacy-glTF2";
+export * from "./legacy-glTF.js";
+export * from "./legacy-glTF2.js";

@@ -1,4 +1,4 @@
-import { Vector3, Matrix } from "../Maths/math.vector.js";
+import { Vector3, Matrix } from "../Maths/math.vector.pure.js";
 /**
  * Class containing a set of static utilities functions for managing Pivots
  * @internal

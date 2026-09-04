@@ -1,39 +1,9 @@
-import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial.js";
-import { GLTFLoader } from "../glTFLoader.js";
-const NAME = "MSFT_minecraftMesh";
-/** @internal */
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export class MSFT_minecraftMesh {
-    /** @internal */
-    constructor(loader) {
-        /** @internal */
-        this.name = NAME;
-        this._loader = loader;
-        this.enabled = this._loader.isExtensionUsed(NAME);
-    }
-    /** @internal */
-    dispose() {
-        this._loader = null;
-    }
-    /** @internal */
-    loadMaterialPropertiesAsync(context, material, babylonMaterial) {
-        return GLTFLoader.LoadExtraAsync(context, material, this.name, (extraContext, extra) => {
-            if (extra) {
-                if (!(babylonMaterial instanceof PBRMaterial)) {
-                    throw new Error(`${extraContext}: Material type not supported`);
-                }
-                const promise = this._loader.loadMaterialPropertiesAsync(context, material, babylonMaterial);
-                if (babylonMaterial.needAlphaBlending()) {
-                    babylonMaterial.forceDepthWrite = true;
-                    babylonMaterial.separateCullingPass = true;
-                }
-                babylonMaterial.backFaceCulling = babylonMaterial.forceDepthWrite;
-                babylonMaterial.twoSidedLighting = true;
-                return promise;
-            }
-            return null;
-        });
-    }
-}
-GLTFLoader.RegisterExtension(NAME, (loader) => new MSFT_minecraftMesh(loader));
+/**
+ * Re-exports the pure implementation and applies the runtime registration side effect.
+ * Import "./MSFT_minecraftMesh.pure" for tree-shakeable, side-effect-free usage.
+ */
+export * from "./MSFT_minecraftMesh.types.js";
+export * from "./MSFT_minecraftMesh.pure.js";
+import { RegisterMSFT_minecraftMesh } from "./MSFT_minecraftMesh.pure.js";
+RegisterMSFT_minecraftMesh();
 //# sourceMappingURL=MSFT_minecraftMesh.js.map

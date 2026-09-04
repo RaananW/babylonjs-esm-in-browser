@@ -1,9 +1,9 @@
-import { EParameterType, ETextureWrapMode, ETextureFilterType, EComponentType } from "./glTFLoaderInterfaces.js";
-import { Vector2, Vector3, Vector4, Matrix } from "@babylonjs/core/Maths/math.vector.js";
-import { Color4 } from "@babylonjs/core/Maths/math.color.js";
-import { Effect } from "@babylonjs/core/Materials/effect.js";
-import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial.js";
-import { Texture } from "@babylonjs/core/Materials/Textures/texture.js";
+import { EParameterType, ETextureWrapMode, ETextureFilterType, EComponentType, } from "./glTFLoaderInterfaces.js";
+import { Vector2, Vector3, Vector4, Matrix } from "@babylonjs/core/Maths/math.vector.pure.js";
+import { Color4 } from "@babylonjs/core/Maths/math.color.pure.js";
+import { Effect } from "@babylonjs/core/Materials/effect.pure.js";
+import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial.pure.js";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture.pure.js";
 /**
  * Utils functions for GLTF
  * @internal
@@ -78,6 +78,7 @@ export class GLTFUtils {
      * @param uniform the name of the shader's uniform
      * @param value the value of the uniform
      * @param type the uniform's type (EParameterType FLOAT, VEC2, VEC3 or VEC4)
+     * @returns true if set, else false
      */
     static SetUniform(shaderMaterial, uniform, value, type) {
         switch (type) {
@@ -100,6 +101,7 @@ export class GLTFUtils {
     /**
      * Returns the wrap mode of the texture
      * @param mode the mode value
+     * @returns the wrap mode (TEXTURE_WRAP_ADDRESSMODE, MIRROR_ADDRESSMODE or CLAMP_ADDRESSMODE)
      */
     static GetWrapMode(mode) {
         switch (mode) {
@@ -116,6 +118,7 @@ export class GLTFUtils {
     /**
      * Returns the byte stride giving an accessor
      * @param accessor the GLTF accessor objet
+     * @returns the byte stride
      */
     static GetByteStrideFromType(accessor) {
         // Needs this function since "byteStride" isn't requiered in glTF format
@@ -140,6 +143,7 @@ export class GLTFUtils {
     /**
      * Returns the texture filter mode giving a mode value
      * @param mode the filter mode value
+     * @returns the filter mode (TODO - needs to be a type?)
      */
     static GetTextureFilterMode(mode) {
         switch (mode) {
@@ -179,6 +183,7 @@ export class GLTFUtils {
      * Returns a buffer from its accessor
      * @param gltfRuntime the GLTF runtime
      * @param accessor the GLTF accessor
+     * @returns an array buffer view
      */
     static GetBufferFromAccessor(gltfRuntime, accessor) {
         const bufferView = gltfRuntime.bufferViews[accessor.bufferView];
@@ -188,6 +193,7 @@ export class GLTFUtils {
     /**
      * Decodes a buffer view into a string
      * @param view the buffer view
+     * @returns a string
      */
     static DecodeBufferToText(view) {
         let result = "";
@@ -201,6 +207,7 @@ export class GLTFUtils {
      * Returns the default material of gltf. Related to
      * https://github.com/KhronosGroup/glTF/tree/master/specification/1.0#appendix-a-default-material
      * @param scene the Babylon.js scene
+     * @returns the default Babylon material
      */
     static GetDefaultMaterial(scene) {
         if (!GLTFUtils._DefaultMaterial) {

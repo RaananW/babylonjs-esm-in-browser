@@ -1,4 +1,4 @@
-import type { Nullable } from "../../types";
+import { type Nullable } from "../../types.js";
 /**
  * Class used to store a texture sampler data
  */
@@ -46,13 +46,13 @@ export declare class TextureSampler {
      */
     get comparisonFunction(): number;
     set comparisonFunction(value: number);
-    private _useMipMaps;
+    protected _useMipMaps: Nullable<boolean>;
     /**
      * Indicates to use the mip maps (if available on the texture).
      * Thanks to this flag, you can instruct the sampler to not sample the mipmaps even if they exist (and if the sampling mode is set to a value that normally samples the mipmaps!)
      */
-    get useMipMaps(): boolean;
-    set useMipMaps(value: boolean);
+    get useMipMaps(): Nullable<boolean>;
+    set useMipMaps(value: Nullable<boolean>);
     /** @internal */
     _cachedWrapU: Nullable<number>;
     /** @internal */
@@ -63,6 +63,10 @@ export declare class TextureSampler {
     _cachedAnisotropicFilteringLevel: Nullable<number>;
     /** @internal */
     _comparisonFunction: number;
+    /**
+     * General label used for debugging or storing a name.
+     */
+    label?: string;
     /**
      * Creates a Sampler instance
      */

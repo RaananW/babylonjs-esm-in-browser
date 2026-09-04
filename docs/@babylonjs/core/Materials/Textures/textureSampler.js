@@ -4,26 +4,6 @@
  */
 export class TextureSampler {
     /**
-     * Creates a Sampler instance
-     */
-    constructor() {
-        /**
-         * Gets the sampling mode of the texture
-         */
-        this.samplingMode = -1;
-        this._useMipMaps = true;
-        /** @internal */
-        this._cachedWrapU = null;
-        /** @internal */
-        this._cachedWrapV = null;
-        /** @internal */
-        this._cachedWrapR = null;
-        /** @internal */
-        this._cachedAnisotropicFilteringLevel = null;
-        /** @internal */
-        this._comparisonFunction = 0;
-    }
-    /**
      * | Value | Type               | Description |
      * | ----- | ------------------ | ----------- |
      * | 0     | CLAMP_ADDRESSMODE  |             |
@@ -91,6 +71,26 @@ export class TextureSampler {
     }
     set useMipMaps(value) {
         this._useMipMaps = value;
+    }
+    /**
+     * Creates a Sampler instance
+     */
+    constructor() {
+        /**
+         * Gets the sampling mode of the texture
+         */
+        this.samplingMode = -1;
+        this._useMipMaps = true;
+        /** @internal */
+        this._cachedWrapU = null;
+        /** @internal */
+        this._cachedWrapV = null;
+        /** @internal */
+        this._cachedWrapR = null;
+        /** @internal */
+        this._cachedAnisotropicFilteringLevel = null;
+        /** @internal */
+        this._comparisonFunction = 0;
     }
     /**
      * Sets all the parameters of the sampler

@@ -1,11 +1,10 @@
-import { PhysicsImpostor } from "../physicsImpostor";
-import type { IMotorEnabledJoint } from "../physicsJoint";
-import { PhysicsJoint } from "../physicsJoint";
-import type { AbstractMesh } from "../../../Meshes/abstractMesh";
-import { Vector3, Quaternion } from "../../../Maths/math.vector";
-import type { Nullable } from "../../../types";
-import { PhysicsRaycastResult } from "../../physicsRaycastResult";
-import type { IPhysicsEnginePlugin, PhysicsImpostorJoint } from "../IPhysicsEnginePlugin";
+import { PhysicsImpostor } from "../physicsImpostor.pure.js";
+import { type IMotorEnabledJoint, PhysicsJoint } from "../physicsJoint.js";
+import { type AbstractMesh } from "../../../Meshes/abstractMesh.js";
+import { Vector3, Quaternion } from "../../../Maths/math.vector.pure.js";
+import { type Nullable } from "../../../types.js";
+import { PhysicsRaycastResult } from "../../physicsRaycastResult.js";
+import { type IPhysicsEnginePlugin, type PhysicsImpostorJoint } from "../IPhysicsEnginePlugin.js";
 /** @internal */
 export declare class OimoJSPlugin implements IPhysicsEnginePlugin {
     private _useDeltaForWorldStep;

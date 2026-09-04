@@ -1,4 +1,3 @@
-export * from "./stereoscopicAnaglyphRigMode";
-export * from "./stereoscopicRigMode";
-export * from "./vrRigMode";
-export * from "./webVRRigMode";
+export * from "./stereoscopicAnaglyphRigMode.js";
+export * from "./stereoscopicRigMode.js";
+export * from "./vrRigMode.js";

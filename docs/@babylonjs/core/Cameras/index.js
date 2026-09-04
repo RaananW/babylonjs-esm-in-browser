@@ -1,4 +1,4 @@
-/* eslint-disable import/no-internal-modules */
+/* eslint-disable @typescript-eslint/no-restricted-imports */
 export * from "./Inputs/index.js";
 export * from "./cameraInputsManager.js";
 export * from "./camera.js";
@@ -19,4 +19,10 @@ export * from "./universalCamera.js";
 export * from "./virtualJoysticksCamera.js";
 export * from "./VR/index.js";
 export * from "./RigModes/index.js";
+export * from "./geospatialCamera.js";
+export * from "./inputMapper.js";
+export * from "./cameraMovement.js";
+export * from "./targetCameraMovement.js";
+export * from "./geospatialCameraMovement.js";
+export * from "./arcRotateCameraMovement.js";
 //# sourceMappingURL=index.js.map

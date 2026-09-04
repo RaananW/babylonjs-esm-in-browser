@@ -1,7 +1,6 @@
-import type { _IAnimationState } from "./animation";
-import { Animation } from "./animation";
-declare type Animatable = import("./animatable").Animatable;
-import type { Scene } from "../scene";
+import { type _IAnimationState, Animation } from "./animation.pure.js";
+import { type Animatable } from "./animatable.js";
+import { type Scene } from "../scene.js";
 /**
  * Defines a runtime animation
  */
@@ -14,7 +13,7 @@ export declare class RuntimeAnimation {
     /**
      * The animation used by the runtime animation
      */
-    private _animation;
+    _animation: Animation;
     /**
      * The target of the runtime animation
      */
@@ -72,24 +71,25 @@ export declare class RuntimeAnimation {
      */
     private _weight;
     /**
-     * The ratio offset of the runtime animation
+     * The absolute frame offset of the runtime animation
      */
-    private _ratioOffset;
+    private _absoluteFrameOffset;
     /**
-     * The previous delay of the runtime animation
+     * The previous elapsed time (since start of animation) of the runtime animation
      */
-    private _previousDelay;
+    private _previousElapsedTime;
+    private _yoyoDirection;
     /**
-     * The previous ratio of the runtime animation
+     * The previous absolute frame of the runtime animation (meaning, without taking into account the from/to values, only the elapsed time and the fps)
      */
-    private _previousRatio;
+    private _previousAbsoluteFrame;
     private _enableBlending;
     private _keys;
     private _minFrame;
     private _maxFrame;
-    private _minValue;
-    private _maxValue;
     private _targetIsArray;
+    /** @internal */
+    _coreRuntimeAnimation: RuntimeAnimation | null;
     /**
      * Gets the current frame of the runtime animation
      */
@@ -150,6 +150,7 @@ export declare class RuntimeAnimation {
      */
     setValue(currentValue: any, weight: number): void;
     private _getOriginalValues;
+    private _registerTargetForLateAnimationBinding;
     private _setValue;
     /**
      * Gets the loop pmode of the runtime animation
@@ -159,22 +160,22 @@ export declare class RuntimeAnimation {
     /**
      * Move the current animation to a given frame
      * @param frame defines the frame to move to
+     * @param weight defines the weight to apply to the animation (-1.0 by default)
      */
-    goToFrame(frame: number): void;
+    goToFrame(frame: number, weight?: number): void;
     /**
      * @internal Internal use only
      */
     _prepareForSpeedRatioChange(newSpeedRatio: number): void;
     /**
      * Execute the current animation
-     * @param delay defines the delay to add to the current frame
-     * @param from defines the lower bound of the animation range
-     * @param to defines the upper bound of the animation range
+     * @param elapsedTimeSinceAnimationStart defines the elapsed time (in milliseconds) since the animation was started
+     * @param from defines the lower frame of the animation range
+     * @param to defines the upper frame of the animation range
      * @param loop defines if the current animation must loop
      * @param speedRatio defines the current speed ratio
      * @param weight defines the weight of the animation (default is -1 so no weight)
      * @returns a boolean indicating if the animation is running
      */
-    animate(delay: number, from: number, to: number, loop: boolean, speedRatio: number, weight?: number): boolean;
+    animate(elapsedTimeSinceAnimationStart: number, from: number, to: number, loop: boolean, speedRatio: number, weight?: number): boolean;
 }
-export {};

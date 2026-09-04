@@ -40,6 +40,16 @@ export class KeyboardInfo {
  */
 export class KeyboardInfoPre extends KeyboardInfo {
     /**
+     * Defines whether the engine should skip the next onKeyboardObservable associated to this pre.
+     * @deprecated use skipOnKeyboardObservable property instead
+     */
+    get skipOnPointerObservable() {
+        return this.skipOnKeyboardObservable;
+    }
+    set skipOnPointerObservable(value) {
+        this.skipOnKeyboardObservable = value;
+    }
+    /**
      * Instantiates a new keyboard pre info.
      * This class is used to store keyboard related info for the onPreKeyboardObservable event.
      * @param type Defines the type of event (KeyboardEventTypes)
@@ -58,16 +68,6 @@ export class KeyboardInfoPre extends KeyboardInfo {
         this.type = type;
         this.event = event;
         this.skipOnKeyboardObservable = false;
-    }
-    /**
-     * Defines whether the engine should skip the next onKeyboardObservable associated to this pre.
-     * @deprecated use skipOnKeyboardObservable property instead
-     */
-    get skipOnPointerObservable() {
-        return this.skipOnKeyboardObservable;
-    }
-    set skipOnPointerObservable(value) {
-        this.skipOnKeyboardObservable = value;
     }
 }
 //# sourceMappingURL=keyboardEvents.js.map

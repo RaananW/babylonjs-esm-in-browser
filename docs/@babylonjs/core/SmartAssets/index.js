@@ -1,0 +1,3 @@
+export { DeserializeSmartAssetMap, ResolveAssetUrl, ReadJsonSourceAsync } from "./smartAssetSerializer.js";
+export { GetSmartAssetManager, AddSmartAssetManagerCreatedObserver, RegisterSmartAsset, RemoveSmartAssetAsync, GetAllSmartAssets, LoadSmartAssetAsync, LoadSmartAssetTextureAsync, UnloadSmartAssetAsync, ReloadSmartAssetAsync, FindSmartAssetKeyForObject, SerializeSmartAssetManagerMap, LoadAllSmartAssetsAsync, LoadSmartAssetMapAsync, GetSmartAssetTextureExtensions, } from "./smartAssetManager.pure.js";
+//# sourceMappingURL=index.js.map

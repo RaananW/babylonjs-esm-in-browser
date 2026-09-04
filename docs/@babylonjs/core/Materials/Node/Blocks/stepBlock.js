@@ -1,52 +1,8 @@
-import { NodeMaterialBlock } from "../nodeMaterialBlock.js";
-import { NodeMaterialBlockConnectionPointTypes } from "../Enums/nodeMaterialBlockConnectionPointTypes.js";
-import { NodeMaterialBlockTargets } from "../Enums/nodeMaterialBlockTargets.js";
-import { RegisterClass } from "../../../Misc/typeStore.js";
 /**
- * Block used to step a value
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import stepBlock.pure for tree-shakeable, side-effect-free usage.
  */
-export class StepBlock extends NodeMaterialBlock {
-    /**
-     * Creates a new StepBlock
-     * @param name defines the block name
-     */
-    constructor(name) {
-        super(name, NodeMaterialBlockTargets.Neutral);
-        this.registerInput("value", NodeMaterialBlockConnectionPointTypes.Float);
-        this.registerInput("edge", NodeMaterialBlockConnectionPointTypes.Float);
-        this.registerOutput("output", NodeMaterialBlockConnectionPointTypes.Float);
-    }
-    /**
-     * Gets the current class name
-     * @returns the class name
-     */
-    getClassName() {
-        return "StepBlock";
-    }
-    /**
-     * Gets the value operand input component
-     */
-    get value() {
-        return this._inputs[0];
-    }
-    /**
-     * Gets the edge operand input component
-     */
-    get edge() {
-        return this._inputs[1];
-    }
-    /**
-     * Gets the output component
-     */
-    get output() {
-        return this._outputs[0];
-    }
-    _buildBlock(state) {
-        super._buildBlock(state);
-        const output = this._outputs[0];
-        state.compilationString += this._declareOutput(output, state) + ` = step(${this.edge.associatedVariableName}, ${this.value.associatedVariableName});\r\n`;
-        return this;
-    }
-}
-RegisterClass("BABYLON.StepBlock", StepBlock);
+export * from "./stepBlock.pure.js";
+import { RegisterStepBlock } from "./stepBlock.pure.js";
+RegisterStepBlock();
 //# sourceMappingURL=stepBlock.js.map

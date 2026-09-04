@@ -1,2 +1,2 @@
-export * from "./database";
-export * from "./IOfflineProvider";
+export * from "./database.js";
+export * from "./IOfflineProvider.js";

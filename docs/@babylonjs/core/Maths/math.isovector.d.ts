@@ -1,4 +1,4 @@
-import { Vector3 } from "./math.vector";
+import { Vector3 } from "./math.vector.pure.js";
 /**
  * Class representing an isovector a vector containing 2 INTEGER coordinates
  * x axis is horizontal
@@ -6,9 +6,9 @@ import { Vector3 } from "./math.vector";
  * @internal
  */
 export declare class _IsoVector {
-    /** defines the first coordinate */
+    /** [0] defines the first coordinate */
     x: number;
-    /** defines the second coordinate */
+    /** [0] defines the second coordinate */
     y: number;
     /**
      * Creates a new isovector from the given x and y coordinates
@@ -16,9 +16,9 @@ export declare class _IsoVector {
      * @param y defines the second coordinate, must be an integer
      */
     constructor(
-    /** defines the first coordinate */
+    /** [0] defines the first coordinate */
     x?: number, 
-    /** defines the second coordinate */
+    /** [0] defines the second coordinate */
     y?: number);
     /**
      * Gets a new IsoVector copied from the IsoVector

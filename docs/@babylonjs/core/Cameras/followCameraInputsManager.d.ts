@@ -1,5 +1,5 @@
-import { CameraInputsManager } from "./cameraInputsManager";
-import type { FollowCamera } from "./followCamera";
+import { CameraInputsManager } from "./cameraInputsManager.js";
+import { type FollowCamera } from "./followCamera.js";
 /**
  * Default Inputs manager for the FollowCamera.
  * It groups all the default supported inputs for ease of use.

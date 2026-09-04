@@ -1,6 +1,6 @@
-import type { Nullable } from "../../../types";
-import type { InternalTexture } from "../../../Materials/Textures/internalTexture";
-import type { IInternalTextureLoader } from "../../../Materials/Textures/internalTextureLoader";
+import { type Nullable } from "../../../types.js";
+import { type InternalTexture } from "../../../Materials/Textures/internalTexture.js";
+import { type IInternalTextureLoader } from "./internalTextureLoader.js";
 /**
  * Implementation of the KTX Texture Loader.
  * @internal
@@ -10,13 +10,6 @@ export declare class _KTXTextureLoader implements IInternalTextureLoader {
      * Defines whether the loader supports cascade loading the different faces.
      */
     readonly supportCascades = false;
-    /**
-     * This returns if the loader support the current file information.
-     * @param extension defines the file extension of the file being loaded
-     * @param mimeType defines the optional mime type of the file being loaded
-     * @returns true if the loader can load the specified file
-     */
-    canLoad(extension: string, mimeType?: string): boolean;
     /**
      * Uploads the cube texture data to the WebGL texture. It has already been bound.
      * @param data contains the texture data

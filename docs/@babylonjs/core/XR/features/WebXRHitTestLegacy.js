@@ -1,8 +1,8 @@
 import { WebXRFeaturesManager, WebXRFeatureName } from "../webXRFeaturesManager.js";
 import { Observable } from "../../Misc/observable.js";
-import { Vector3, Matrix } from "../../Maths/math.vector.js";
+import { Vector3, Matrix } from "../../Maths/math.vector.pure.js";
 import { WebXRAbstractFeature } from "./WebXRAbstractFeature.js";
-import { Tools } from "../../Misc/tools.js";
+import { Tools } from "../../Misc/tools.pure.js";
 /**
  * The currently-working hit-test module.
  * Hit test (or Ray-casting) is used to interact with the real world.
@@ -16,7 +16,7 @@ export class WebXRHitTestLegacy extends WebXRAbstractFeature {
      */
     constructor(_xrSessionManager, 
     /**
-     * options to use when constructing this feature
+     * [Empty Object] options to use when constructing this feature
      */
     options = {}) {
         super(_xrSessionManager);
@@ -57,6 +57,7 @@ export class WebXRHitTestLegacy extends WebXRAbstractFeature {
             if (!this._onSelectEnabled) {
                 return;
             }
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             WebXRHitTestLegacy.XRHitTestWithSelectEvent(event, this._xrSessionManager.referenceSpace);
         };
         this.xrNativeFeatureName = "hit-test";
@@ -71,11 +72,10 @@ export class WebXRHitTestLegacy extends WebXRAbstractFeature {
      * @param filter filter function that will filter the results
      * @returns a promise that resolves with an array of native XR hit result in xr coordinates system
      */
-    static XRHitTestWithRay(xrSession, xrRay, referenceSpace, filter) {
-        return xrSession.requestHitTest(xrRay, referenceSpace).then((results) => {
-            const filterFunction = filter || ((result) => !!result.hitMatrix);
-            return results.filter(filterFunction);
-        });
+    static async XRHitTestWithRay(xrSession, xrRay, referenceSpace, filter) {
+        const results = await xrSession.requestHitTest(xrRay, referenceSpace);
+        const filterFunction = filter || ((result) => !!result.hitMatrix);
+        return results.filter(filterFunction);
     }
     /**
      * Execute a hit test on the current running session using a select event returned from a transient input (such as touch)
@@ -83,13 +83,13 @@ export class WebXRHitTestLegacy extends WebXRAbstractFeature {
      * @param referenceSpace the reference space to use for this hit test
      * @returns a promise that resolves with an array of native XR hit result in xr coordinates system
      */
-    static XRHitTestWithSelectEvent(event, referenceSpace) {
+    static async XRHitTestWithSelectEvent(event, referenceSpace) {
         const targetRayPose = event.frame.getPose(event.inputSource.targetRaySpace, referenceSpace);
         if (!targetRayPose) {
-            return Promise.resolve([]);
+            return [];
         }
         const targetRay = new XRRay(targetRayPose.transform);
-        return this.XRHitTestWithRay(event.frame.session, targetRay, referenceSpace);
+        return await this.XRHitTestWithRay(event.frame.session, targetRay, referenceSpace);
     }
     /**
      * attach this feature
@@ -143,6 +143,7 @@ export class WebXRHitTestLegacy extends WebXRAbstractFeature {
         this._direction.subtractInPlace(this._origin);
         this._direction.normalize();
         const ray = new XRRay({ x: this._origin.x, y: this._origin.y, z: this._origin.z, w: 0 }, { x: this._direction.x, y: this._direction.y, z: this._direction.z, w: 0 });
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises, github/no-then
         WebXRHitTestLegacy.XRHitTestWithRay(this._xrSessionManager.session, ray, this._xrSessionManager.referenceSpace).then(this._onHitTestResults);
     }
 }

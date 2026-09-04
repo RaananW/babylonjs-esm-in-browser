@@ -1,5 +1,5 @@
-import type { DeepImmutable } from "../types";
-import { Vector2, Vector3 } from "./math.vector";
+import { type DeepImmutable } from "../types.js";
+import { Vector2, Vector3 } from "./math.vector.pure.js";
 /**
  * Class used to store (r, theta) vector representation
  */
@@ -24,7 +24,7 @@ export declare class Polar {
     toString(): string;
     /**
      * Converts the current polar to an array
-     * @reutrns the current polar as an array
+     * @returns the current polar as an array
      */
     asArray(): number[];
     /**
@@ -214,6 +214,7 @@ export declare class Spherical {
     theta: number;
     phi: number;
     /**
+     * Creates a new Spherical object from the given spherical coordinates
      * @param radius spherical radius
      * @param theta angle from positive y axis to radial line from 0 to PI (vertical)
      * @param phi angle from positive x axis measured anticlockwise from -PI to PI (horizontal)
@@ -231,7 +232,7 @@ export declare class Spherical {
     toString(): string;
     /**
      * Converts the current spherical to an array
-     * @reutrns the current spherical as an array
+     * @returns the current spherical as an array
      */
     asArray(): number[];
     /**
@@ -392,7 +393,7 @@ export declare class Spherical {
      * @param ref the Vector3 to update
      * @returns the updated Vector3
      */
-    toVector3ToRef(ref: DeepImmutable<Vector3>): Vector3;
+    toVector3ToRef(ref: Vector3): Vector3;
     /**
      * Gets a Vector3 from the current spherical coordinates
      * @returns the (x, y,z) form of the current Spherical

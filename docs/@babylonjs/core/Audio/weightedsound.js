@@ -117,9 +117,11 @@ export class WeightedSound {
      * Suspend playback
      */
     pause() {
-        this.isPaused = true;
-        if (this._currentIndex !== undefined) {
-            this._sounds[this._currentIndex].pause();
+        if (this.isPlaying) {
+            this.isPaused = true;
+            if (this._currentIndex !== undefined) {
+                this._sounds[this._currentIndex].pause();
+            }
         }
     }
     /**
@@ -148,7 +150,7 @@ export class WeightedSound {
                 }
             }
         }
-        const sound = this._sounds[this._currentIndex];
+        const sound = this._sounds[this._currentIndex ?? 0];
         if (sound.isReady()) {
             sound.play(0, this.isPaused ? undefined : startOffset);
         }

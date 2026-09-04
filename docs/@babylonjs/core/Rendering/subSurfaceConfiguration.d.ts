@@ -1,7 +1,7 @@
-import type { Scene } from "../scene";
-import { Color3 } from "../Maths/math.color";
-import { SubSurfaceScatteringPostProcess } from "../PostProcesses/subSurfaceScatteringPostProcess";
-import type { PrePassEffectConfiguration } from "./prePassEffectConfiguration";
+import { type Scene } from "../scene.js";
+import { Color3, Color4 } from "../Maths/math.color.pure.js";
+import { SubSurfaceScatteringPostProcess } from "../PostProcesses/subSurfaceScatteringPostProcess.pure.js";
+import { type PrePassEffectConfiguration } from "./prePassEffectConfiguration.js";
 /**
  * Contains all parameters needed for the prepass to perform
  * screen space subsurface scattering
@@ -58,6 +58,11 @@ export declare class SubSurfaceConfiguration implements PrePassEffectConfigurati
      * Textures that should be present in the MRT for this effect to work
      */
     readonly texturesRequired: number[];
+    /**
+     * The clear color of the render targets.
+     * We need 1 for the alpha channel of the irradiance texture so that we early exit from the SSS post-process if the pixel should not be processed
+     */
+    clearColor: Color4;
     private _scene;
     /**
      * Builds a subsurface configuration object
@@ -105,6 +110,7 @@ export declare class SubSurfaceConfiguration implements PrePassEffectConfigurati
      * Returns the sampled radial distance, s.t. (u = 0 -> r = 0) and (u = 1 -> r = Inf).
      * @param u
      * @param rcpS
+     * @returns The sampled radial distance
      */
     private _sampleBurleyDiffusionProfile;
 }

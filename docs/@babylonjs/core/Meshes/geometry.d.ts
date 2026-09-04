@@ -1,16 +1,14 @@
-import type { Nullable, FloatArray, DataArray, IndicesArray } from "../types";
-import type { Scene } from "../scene";
-import type { Vector2 } from "../Maths/math.vector";
-import { Vector3 } from "../Maths/math.vector";
-import type { Engine } from "../Engines/engine";
-import type { IGetSetVerticesData } from "../Meshes/mesh.vertexData";
-import { VertexData } from "../Meshes/mesh.vertexData";
-import { VertexBuffer } from "../Buffers/buffer";
-import type { Effect } from "../Materials/effect";
-import { BoundingInfo } from "../Culling/boundingInfo";
-import type { DataBuffer } from "../Buffers/dataBuffer";
-import type { AbstractScene } from "../abstractScene";
-declare type Mesh = import("../Meshes/mesh").Mesh;
+import { type Nullable, type FloatArray, type DataArray, type IndicesArray } from "../types.js";
+import { type Scene } from "../scene.js";
+import { type Vector2, Vector3 } from "../Maths/math.vector.pure.js";
+import { type IGetSetVerticesData, VertexData } from "../Meshes/mesh.vertexData.js";
+import { VertexBuffer } from "../Buffers/buffer.pure.js";
+import { type Effect } from "../Materials/effect.js";
+import { BoundingInfo } from "../Culling/boundingInfo.js";
+import { type DataBuffer } from "../Buffers/dataBuffer.js";
+import { type Mesh } from "../Meshes/mesh.js";
+import { type AbstractEngine } from "../Engines/abstractEngine.js";
+import { type IAssetContainer } from "../IAssetContainer.js";
 /**
  * Class used to store geometry data (vertex buffers + index buffer)
  */
@@ -39,6 +37,7 @@ export declare class Geometry implements IGetSetVerticesData {
     private _engine;
     private _meshes;
     private _totalVertices;
+    private _totalIndices?;
     /** @internal */
     _loadedUniqueId: string;
     /** @internal */
@@ -66,7 +65,7 @@ export declare class Geometry implements IGetSetVerticesData {
     _positions: Nullable<Vector3[]>;
     private _positionsCache;
     /** @internal */
-    _parentContainer: Nullable<AbstractScene>;
+    _parentContainer: Nullable<IAssetContainer>;
     /**
      *  Gets or sets the Bias Vector to apply on the bounding elements (box/sphere), the max extend is computed as v += v * bias.x + bias.y, the min is computed as v -= v * bias.x + bias.y
      */
@@ -95,8 +94,9 @@ export declare class Geometry implements IGetSetVerticesData {
      * @param vertexData defines the VertexData used to get geometry data
      * @param updatable defines if geometry must be updatable (false by default)
      * @param mesh defines the mesh that will be associated with the geometry
+     * @param totalVertices defines the total number of vertices (optional)
      */
-    constructor(id: string, scene?: Scene, vertexData?: VertexData, updatable?: boolean, mesh?: Nullable<Mesh>);
+    constructor(id: string, scene?: Scene, vertexData?: VertexData, updatable?: boolean, mesh?: Nullable<Mesh>, totalVertices?: Nullable<number>);
     /**
      * Gets the current extend of the geometry
      */
@@ -113,7 +113,7 @@ export declare class Geometry implements IGetSetVerticesData {
      * Gets the hosting engine
      * @returns the hosting Engine
      */
-    getEngine(): Engine;
+    getEngine(): AbstractEngine;
     /**
      * Defines if the geometry is ready to use
      * @returns true if the geometry is ready to be used
@@ -192,6 +192,14 @@ export declare class Geometry implements IGetSetVerticesData {
      */
     getVerticesData(kind: string, copyWhenShared?: boolean, forceCopy?: boolean): Nullable<FloatArray>;
     /**
+     * Copies the requested vertex data kind into the given vertex data map. Float data is constructed if the map doesn't have the data.
+     * @param kind defines the data kind (Position, normal, etc...)
+     * @param vertexData defines the map that stores the resulting data
+     */
+    copyVerticesData(kind: string, vertexData: {
+        [kind: string]: Float32Array;
+    }): void;
+    /**
      * Returns a boolean defining if the vertex data for the requested `kind` is updatable
      * @param kind defines the data kind (Position, normal, etc...)
      * @returns true if the vertex buffer with the specified kind is updatable
@@ -229,12 +237,21 @@ export declare class Geometry implements IGetSetVerticesData {
      */
     updateIndices(indices: IndicesArray, offset?: number, gpuMemoryOnly?: boolean): void;
     /**
+     * Sets the index buffer for this geometry.
+     * @param indexBuffer Defines the index buffer to use for this geometry
+     * @param totalVertices Defines the total number of vertices used by the buffer
+     * @param totalIndices Defines the total number of indices in the index buffer
+     * @param is32Bits Defines if the indices are 32 bits. If null (default), the value is guessed from the number of vertices
+     */
+    setIndexBuffer(indexBuffer: DataBuffer, totalVertices: number, totalIndices: number, is32Bits?: Nullable<boolean>): void;
+    /**
      * Creates a new index buffer
      * @param indices defines the indices to store in the index buffer
      * @param totalVertices defines the total number of vertices (could be null)
      * @param updatable defines if the index buffer must be flagged as updatable (false by default)
+     * @param dontForceSubMeshRecreation defines a boolean indicating that we don't want to force the recreation of sub-meshes if we don't have to (false by default)
      */
-    setIndices(indices: IndicesArray, totalVertices?: Nullable<number>, updatable?: boolean): void;
+    setIndices(indices: IndicesArray, totalVertices?: Nullable<number>, updatable?: boolean, dontForceSubMeshRecreation?: boolean): void;
     /**
      * Return the total number of indices
      * @returns the total number of indices
@@ -349,4 +366,3 @@ export declare class Geometry implements IGetSetVerticesData {
      */
     static Parse(parsedVertexData: any, scene: Scene, rootUrl: string): Nullable<Geometry>;
 }
-export {};

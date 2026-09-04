@@ -1,47 +1,46 @@
-import { IsWindowObjectExist } from "../../Misc/domManagement.js";
-import { Tools } from "../../Misc/tools.js";
+import { Logger } from "../../Misc/logger.js";
+import { Tools } from "../../Misc/tools.pure.js";
 /** @internal */
 export class WebGPUTintWASM {
-    constructor() {
-        this._twgsl = null;
-    }
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     async initTwgsl(twgslOptions) {
+        if (WebGPUTintWASM._Twgsl) {
+            return;
+        }
         twgslOptions = twgslOptions || {};
         twgslOptions = {
-            ...WebGPUTintWASM._TWgslDefaultOptions,
+            ...WebGPUTintWASM._TwgslDefaultOptions,
             ...twgslOptions,
         };
         if (twgslOptions.twgsl) {
-            this._twgsl = twgslOptions.twgsl;
-            return Promise.resolve();
+            WebGPUTintWASM._Twgsl = twgslOptions.twgsl;
+            return;
         }
         if (twgslOptions.jsPath && twgslOptions.wasmPath) {
-            if (IsWindowObjectExist()) {
-                await Tools.LoadScriptAsync(twgslOptions.jsPath);
-            }
-            else {
-                importScripts(twgslOptions.jsPath);
-            }
+            await Tools.LoadBabylonScriptAsync(twgslOptions.jsPath);
         }
         if (self.twgsl) {
-            this._twgsl = await self.twgsl(twgslOptions.wasmPath);
-            return Promise.resolve();
+            // eslint-disable-next-line require-atomic-updates
+            WebGPUTintWASM._Twgsl = await self.twgsl(Tools.GetBabylonScriptURL(twgslOptions.wasmPath));
+            return;
         }
-        return Promise.reject("twgsl is not available.");
+        throw new Error("twgsl is not available.");
     }
-    convertSpirV2WGSL(code) {
-        const ccode = this._twgsl.convertSpirV2WGSL(code);
+    convertSpirV2WGSL(code, disableUniformityAnalysis = false) {
+        const ccode = WebGPUTintWASM._Twgsl.convertSpirV2WGSL(code, WebGPUTintWASM.DisableUniformityAnalysis || disableUniformityAnalysis);
         if (WebGPUTintWASM.ShowWGSLShaderCode) {
-            console.log(ccode);
-            console.log("***********************************************");
+            Logger.Log(ccode);
+            Logger.Log("***********************************************");
         }
-        return ccode;
+        return WebGPUTintWASM.DisableUniformityAnalysis || disableUniformityAnalysis ? "diagnostic(off, derivative_uniformity);\n" + ccode : ccode;
     }
 }
 // Default twgsl options.
-WebGPUTintWASM._TWgslDefaultOptions = {
-    jsPath: "https://preview.babylonjs.com/twgsl/twgsl.js",
-    wasmPath: "https://preview.babylonjs.com/twgsl/twgsl.wasm",
+WebGPUTintWASM._TwgslDefaultOptions = {
+    jsPath: `${Tools._DefaultCdnUrl}/twgsl/twgsl.js`,
+    wasmPath: `${Tools._DefaultCdnUrl}/twgsl/twgsl.wasm`,
 };
 WebGPUTintWASM.ShowWGSLShaderCode = false;
+WebGPUTintWASM.DisableUniformityAnalysis = false;
+WebGPUTintWASM._Twgsl = null;
 //# sourceMappingURL=webgpuTintWASM.js.map

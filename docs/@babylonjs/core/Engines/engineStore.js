@@ -1,3 +1,4 @@
+import { Observable } from "../Misc/observable.js";
 /**
  * The engine store class is responsible to hold all the instances of Engine and Scene created
  * during the life time of the application.
@@ -20,17 +21,20 @@ export class EngineStore {
     }
 }
 /** Gets the list of created engines */
-EngineStore.Instances = new Array();
+EngineStore.Instances = [];
+/**
+ * Notifies when an engine was disposed.
+ * Mainly used for static/cache cleanup
+ */
+EngineStore.OnEnginesDisposedObservable = new Observable();
 /** @internal */
 EngineStore._LastCreatedScene = null;
 /**
  * Gets or sets a global variable indicating if fallback texture must be used when a texture cannot be loaded
- * @ignorenaming
  */
 EngineStore.UseFallbackTexture = true;
 /**
  * Texture content used if a texture cannot loaded
- * @ignorenaming
  */
 EngineStore.FallbackTexture = "";
 //# sourceMappingURL=engineStore.js.map

@@ -1,5 +1,5 @@
-import { Scalar } from "./math.scalar.js";
-import { Vector2, Vector3, Quaternion, Matrix } from "./math.vector.js";
+import { Clamp, WithinEpsilon } from "./math.scalar.functions.js";
+import { Vector2, Vector3, Quaternion, Matrix } from "./math.vector.pure.js";
 import { Epsilon } from "./math.constants.js";
 /**
  * Defines potential orientation for back face culling
@@ -25,6 +25,9 @@ export class BezierCurve {
      * @returns the interpolated value
      */
     static Interpolate(t, x1, y1, x2, y2) {
+        if (t === 0) {
+            return 0;
+        }
         // Extract X (which is equal to time here)
         const f0 = 1 - 3 * x2 + 3 * x1;
         const f1 = 3 * x2 - 6 * x1;
@@ -71,7 +74,7 @@ export class Angle {
         return this._radians;
     }
     /**
-     * Gets a new Angle object valued with the gradient angle, in radians, of the line joining two points
+     * Gets a new Angle object with a value of the angle (in radians) between the line connecting the two points and the x-axis
      * @param a defines first point as the origin
      * @param b defines point
      * @returns a new Angle
@@ -80,6 +83,23 @@ export class Angle {
         const delta = b.subtract(a);
         const theta = Math.atan2(delta.y, delta.x);
         return new Angle(theta);
+    }
+    /**
+     * Gets the angle between the two vectors
+     * @param a defines first vector
+     * @param b defines vector
+     * @returns Returns an new Angle between 0 and PI
+     */
+    static BetweenTwoVectors(a, b) {
+        let product = a.lengthSquared() * b.lengthSquared();
+        if (product === 0) {
+            return new Angle(Math.PI / 2);
+        }
+        product = Math.sqrt(product);
+        let cosVal = a.dot(b) / product;
+        cosVal = Clamp(cosVal, -1, 1);
+        const angle = Math.acos(cosVal);
+        return new Angle(angle);
     }
     /**
      * Gets a new Angle object from the given float in radians
@@ -141,8 +161,8 @@ export class Arc2 {
         if (a3 - a2 < -180.0) {
             a3 += 360.0;
         }
-        this.orientation = a2 - a1 < 0 ? Orientation.CW : Orientation.CCW;
-        this.angle = Angle.FromDegrees(this.orientation === Orientation.CW ? a1 - a3 : a3 - a1);
+        this.orientation = a2 - a1 < 0 ? 0 /* Orientation.CW */ : 1 /* Orientation.CCW */;
+        this.angle = Angle.FromDegrees(this.orientation === 0 /* Orientation.CW */ ? a1 - a3 : a3 - a1);
     }
 }
 /**
@@ -197,7 +217,7 @@ export class Path2 {
         const endPoint = new Vector2(endX, endY);
         const arc = new Arc2(startPoint, midPoint, endPoint);
         let increment = arc.angle.radians() / numberOfSegments;
-        if (arc.orientation === Orientation.CW) {
+        if (arc.orientation === 0 /* Orientation.CW */) {
             increment *= -1;
         }
         let currentAngle = arc.startAngle.radians() + increment;
@@ -208,6 +228,110 @@ export class Path2 {
             currentAngle += increment;
         }
         return this;
+    }
+    /**
+     * Adds _numberOfSegments_ segments according to the quadratic curve definition to the current Path2.
+     * @param controlX control point x value
+     * @param controlY control point y value
+     * @param endX end point x value
+     * @param endY end point y value
+     * @param numberOfSegments (default: 36)
+     * @returns the updated Path2.
+     */
+    addQuadraticCurveTo(controlX, controlY, endX, endY, numberOfSegments = 36) {
+        if (this.closed) {
+            return this;
+        }
+        const equation = (t, val0, val1, val2) => {
+            const res = (1.0 - t) * (1.0 - t) * val0 + 2.0 * t * (1.0 - t) * val1 + t * t * val2;
+            return res;
+        };
+        const startPoint = this._points[this._points.length - 1];
+        for (let i = 0; i <= numberOfSegments; i++) {
+            const step = i / numberOfSegments;
+            const x = equation(step, startPoint.x, controlX, endX);
+            const y = equation(step, startPoint.y, controlY, endY);
+            this.addLineTo(x, y);
+        }
+        return this;
+    }
+    /**
+     * Adds _numberOfSegments_ segments according to the bezier curve definition to the current Path2.
+     * @param originTangentX tangent vector at the origin point x value
+     * @param originTangentY tangent vector at the origin point y value
+     * @param destinationTangentX tangent vector at the destination point x value
+     * @param destinationTangentY tangent vector at the destination point y value
+     * @param endX end point x value
+     * @param endY end point y value
+     * @param numberOfSegments (default: 36)
+     * @returns the updated Path2.
+     */
+    addBezierCurveTo(originTangentX, originTangentY, destinationTangentX, destinationTangentY, endX, endY, numberOfSegments = 36) {
+        if (this.closed) {
+            return this;
+        }
+        const equation = (t, val0, val1, val2, val3) => {
+            const res = (1.0 - t) * (1.0 - t) * (1.0 - t) * val0 + 3.0 * t * (1.0 - t) * (1.0 - t) * val1 + 3.0 * t * t * (1.0 - t) * val2 + t * t * t * val3;
+            return res;
+        };
+        const startPoint = this._points[this._points.length - 1];
+        for (let i = 0; i <= numberOfSegments; i++) {
+            const step = i / numberOfSegments;
+            const x = equation(step, startPoint.x, originTangentX, destinationTangentX, endX);
+            const y = equation(step, startPoint.y, originTangentY, destinationTangentY, endY);
+            this.addLineTo(x, y);
+        }
+        return this;
+    }
+    /**
+     * Defines if a given point is inside the polygon defines by the path
+     * @param point defines the point to test
+     * @returns true if the point is inside
+     */
+    isPointInside(point) {
+        let isInside = false;
+        const count = this._points.length;
+        for (let p = count - 1, q = 0; q < count; p = q++) {
+            let edgeLow = this._points[p];
+            let edgeHigh = this._points[q];
+            let edgeDx = edgeHigh.x - edgeLow.x;
+            let edgeDy = edgeHigh.y - edgeLow.y;
+            if (Math.abs(edgeDy) > Number.EPSILON) {
+                // Not parallel
+                if (edgeDy < 0) {
+                    edgeLow = this._points[q];
+                    edgeDx = -edgeDx;
+                    edgeHigh = this._points[p];
+                    edgeDy = -edgeDy;
+                }
+                if (point.y < edgeLow.y || point.y > edgeHigh.y) {
+                    continue;
+                }
+                if (point.y === edgeLow.y && point.x === edgeLow.x) {
+                    return true;
+                }
+                else {
+                    const perpEdge = edgeDy * (point.x - edgeLow.x) - edgeDx * (point.y - edgeLow.y);
+                    if (perpEdge === 0) {
+                        return true;
+                    }
+                    if (perpEdge < 0) {
+                        continue;
+                    }
+                    isInside = !isInside;
+                }
+            }
+            else {
+                // parallel or collinear
+                if (point.y !== edgeLow.y) {
+                    continue;
+                }
+                if ((edgeHigh.x <= point.x && point.x <= edgeLow.x) || (edgeLow.x <= point.x && point.x <= edgeHigh.x)) {
+                    return true;
+                }
+            }
+        }
+        return isInside;
     }
     /**
      * Closes the Path2.
@@ -231,6 +355,18 @@ export class Path2 {
         return result;
     }
     /**
+     * Gets the area of the polygon defined by the path
+     * @returns area value
+     */
+    area() {
+        const n = this._points.length;
+        let value = 0.0;
+        for (let p = n - 1, q = 0; q < n; p = q++) {
+            value += this._points[p].x * this._points[q].y - this._points[q].x * this._points[p].y;
+        }
+        return value * 0.5;
+    }
+    /**
      * Gets the points which construct the path
      * @returns the Path2 internal array of points.
      */
@@ -238,7 +374,7 @@ export class Path2 {
         return this._points;
     }
     /**
-     * Retreives the point at the distance aways from the starting point
+     * Retrieves the point at the distance aways from the starting point
      * @param normalizedLengthPosition the length along the path to retrieve the point from
      * @returns a new Vector2 located at a percentage of the Path2 total length on this path.
      */
@@ -578,7 +714,7 @@ export class Path3D {
     _getLastNonNullVector(index) {
         let i = 1;
         let nLVector = this._curve[index].subtract(this._curve[index - i]);
-        while (nLVector.length() === 0 && index > i + 1) {
+        while (nLVector.length() === 0 && index > i) {
             i++;
             nLVector = this._curve[index].subtract(this._curve[index - i]);
         }
@@ -595,14 +731,14 @@ export class Path3D {
         }
         if (va === undefined || va === null) {
             let point;
-            if (!Scalar.WithinEpsilon(Math.abs(vt.y) / tgl, 1.0, Epsilon)) {
+            if (!WithinEpsilon(Math.abs(vt.y) / tgl, 1.0, Epsilon)) {
                 // search for a point in the plane
                 point = new Vector3(0.0, -1.0, 0.0);
             }
-            else if (!Scalar.WithinEpsilon(Math.abs(vt.x) / tgl, 1.0, Epsilon)) {
+            else if (!WithinEpsilon(Math.abs(vt.x) / tgl, 1.0, Epsilon)) {
                 point = new Vector3(1.0, 0.0, 0.0);
             }
-            else if (!Scalar.WithinEpsilon(Math.abs(vt.z) / tgl, 1.0, Epsilon)) {
+            else if (!WithinEpsilon(Math.abs(vt.z) / tgl, 1.0, Epsilon)) {
                 point = new Vector3(0.0, 0.0, 1.0);
             }
             else {
@@ -671,7 +807,8 @@ export class Path3D {
      * @param subPosition
      * @param point the interpolated point
      * @param parentIndex the index of an existing curve point that is on, or else positionally the first behind, the interpolated point
-     * @param interpolateTNB
+     * @param interpolateTNB whether to compute the interpolated tangent, normal and binormal
+     * @returns the (updated) point at data
      */
     _setPointAtData(position, subPosition, point, parentIndex, interpolateTNB) {
         this._pointAtData.point = point;
@@ -712,17 +849,6 @@ export class Path3D {
  */
 export class Curve3 {
     /**
-     * A Curve3 object is a logical object, so not a mesh, to handle curves in the 3D geometric space.
-     * A Curve3 is designed from a series of successive Vector3.
-     * Tuto : https://doc.babylonjs.com/features/featuresDeepDive/mesh/drawCurves#curve3-object
-     * @param points points which make up the curve
-     */
-    constructor(points) {
-        this._length = 0.0;
-        this._points = points;
-        this._length = this._computeLength(points);
-    }
-    /**
      * Returns a Curve3 object along a Quadratic Bezier curve : https://doc.babylonjs.com/features/featuresDeepDive/mesh/drawCurves#quadratic-bezier-curve
      * @param v0 (Vector3) the origin point of the Quadratic Bezier
      * @param v1 (Vector3) the control point
@@ -732,7 +858,7 @@ export class Curve3 {
      */
     static CreateQuadraticBezier(v0, v1, v2, nbPoints) {
         nbPoints = nbPoints > 2 ? nbPoints : 3;
-        const bez = new Array();
+        const bez = [];
         const equation = (t, val0, val1, val2) => {
             const res = (1.0 - t) * (1.0 - t) * val0 + 2.0 * t * (1.0 - t) * val1 + t * t * val2;
             return res;
@@ -753,7 +879,7 @@ export class Curve3 {
      */
     static CreateCubicBezier(v0, v1, v2, v3, nbPoints) {
         nbPoints = nbPoints > 3 ? nbPoints : 4;
-        const bez = new Array();
+        const bez = [];
         const equation = (t, val0, val1, val2, val3) => {
             const res = (1.0 - t) * (1.0 - t) * (1.0 - t) * val0 + 3.0 * t * (1.0 - t) * (1.0 - t) * val1 + 3.0 * t * t * (1.0 - t) * val2 + t * t * t * val3;
             return res;
@@ -773,7 +899,7 @@ export class Curve3 {
      * @returns the created Curve3
      */
     static CreateHermiteSpline(p1, t1, p2, t2, nSeg) {
-        const hermite = new Array();
+        const hermite = [];
         const step = 1.0 / nSeg;
         for (let i = 0; i <= nSeg; i++) {
             hermite.push(Vector3.Hermite(p1, t1, p2, t2, i * step));
@@ -788,7 +914,7 @@ export class Curve3 {
      * @returns the created Curve3
      */
     static CreateCatmullRomSpline(points, nbPoints, closed) {
-        const catmullRom = new Array();
+        const catmullRom = [];
         const step = 1.0 / nbPoints;
         let amount = 0.0;
         if (closed) {
@@ -803,9 +929,9 @@ export class Curve3 {
             catmullRom.push(catmullRom[0]);
         }
         else {
-            const totalPoints = new Array();
+            const totalPoints = [];
             totalPoints.push(points[0].clone());
-            Array.prototype.push.apply(totalPoints, points);
+            totalPoints.push(...points);
             totalPoints.push(points[points.length - 1].clone());
             let i = 0;
             for (; i < totalPoints.length - 3; i++) {
@@ -832,7 +958,7 @@ export class Curve3 {
      * @returns the created Curve3
      */
     static ArcThru3Points(first, second, third, steps = 32, closed = false, fullCircle = false) {
-        const arc = new Array();
+        const arc = [];
         const vec1 = second.subtract(first);
         const vec2 = third.subtract(second);
         const vec3 = first.subtract(third);
@@ -841,10 +967,10 @@ export class Curve3 {
         if (len4 < Math.pow(10, -8)) {
             return new Curve3(arc); // colinear points arc is empty
         }
-        const len1_sq = vec1.lengthSquared();
-        const len2_sq = vec2.lengthSquared();
-        const len3_sq = vec3.lengthSquared();
-        const len4_sq = zAxis.lengthSquared();
+        const len1Sq = vec1.lengthSquared();
+        const len2Sq = vec2.lengthSquared();
+        const len3Sq = vec3.lengthSquared();
+        const len4Sq = zAxis.lengthSquared();
         const len1 = vec1.length();
         const len2 = vec2.length();
         const len3 = vec3.length();
@@ -852,9 +978,9 @@ export class Curve3 {
         const dot1 = Vector3.Dot(vec1, vec3);
         const dot2 = Vector3.Dot(vec1, vec2);
         const dot3 = Vector3.Dot(vec2, vec3);
-        const a = (-0.5 * len2_sq * dot1) / len4_sq;
-        const b = (-0.5 * len3_sq * dot2) / len4_sq;
-        const c = (-0.5 * len1_sq * dot3) / len4_sq;
+        const a = (-0.5 * len2Sq * dot1) / len4Sq;
+        const b = (-0.5 * len3Sq * dot2) / len4Sq;
+        const c = (-0.5 * len1Sq * dot3) / len4Sq;
         const center = first.scale(a).add(second.scale(b)).add(third.scale(c));
         const radiusVec = first.subtract(center);
         const xAxis = radiusVec.normalize();
@@ -869,7 +995,7 @@ export class Curve3 {
         else {
             const dStep = 1 / steps;
             let theta = 0;
-            let point = Vector3.Zero();
+            let point;
             do {
                 point = center.add(xAxis.scale(radius * Math.cos(theta)).add(yAxis.scale(radius * Math.sin(theta))));
                 arc.push(point);
@@ -881,6 +1007,17 @@ export class Curve3 {
             }
         }
         return new Curve3(arc);
+    }
+    /**
+     * A Curve3 object is a logical object, so not a mesh, to handle curves in the 3D geometric space.
+     * A Curve3 is designed from a series of successive Vector3.
+     * Tuto : https://doc.babylonjs.com/features/featuresDeepDive/mesh/drawCurves#curve3-object
+     * @param points points which make up the curve
+     */
+    constructor(points) {
+        this._length = 0.0;
+        this._points = points;
+        this._length = this._computeLength(points);
     }
     /**
      * @returns the Curve3 stored array of successive Vector3

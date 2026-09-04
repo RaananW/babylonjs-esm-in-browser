@@ -1,8 +1,8 @@
-import type { Nullable } from "../types";
-import { Color3 } from "../Maths/math.color";
-import { Texture } from "../Materials/Textures/texture";
-import type { LensFlareSystem } from "./lensFlareSystem";
-import { DrawWrapper } from "../Materials/drawWrapper";
+import { type Nullable } from "../types.js";
+import { Color3 } from "../Maths/math.color.pure.js";
+import { Texture } from "../Materials/Textures/texture.pure.js";
+import { type LensFlareSystem } from "./lensFlareSystem.js";
+import { DrawWrapper } from "../Materials/drawWrapper.js";
 /**
  * This represents one of the lens effect in a `lensFlareSystem`.
  * It controls one of the individual texture used in the effect.

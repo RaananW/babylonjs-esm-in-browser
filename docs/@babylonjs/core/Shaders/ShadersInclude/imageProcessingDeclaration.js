@@ -2,25 +2,39 @@
 import { ShaderStore } from "../../Engines/shaderStore.js";
 const name = "imageProcessingDeclaration";
 const shader = `#ifdef EXPOSURE
-uniform float exposureLinear;#endif
+uniform float exposureLinear;
+#endif
 #ifdef CONTRAST
-uniform float contrast;#endif
+uniform float contrast;
+#endif
+#ifdef WHITEBALANCE
+uniform mat3 whiteBalanceMatrix;
+#endif
 #if defined(VIGNETTE) || defined(DITHER)
-uniform vec2 vInverseScreenSize;#endif
+uniform vec2 vInverseScreenSize;
+#endif
 #ifdef VIGNETTE
-uniform vec4 vignetteSettings1;uniform vec4 vignetteSettings2;#endif
+uniform vec4 vignetteSettings1;uniform vec4 vignetteSettings2;
+#endif
 #ifdef COLORCURVES
-uniform vec4 vCameraColorCurveNegative;uniform vec4 vCameraColorCurveNeutral;uniform vec4 vCameraColorCurvePositive;#endif
+uniform vec4 vCameraColorCurveNegative;uniform vec4 vCameraColorCurveNeutral;uniform vec4 vCameraColorCurvePositive;
+#endif
 #ifdef COLORGRADING
 #ifdef COLORGRADING3D
-uniform highp sampler3D txColorTransform;#else
-uniform sampler2D txColorTransform;#endif
-uniform vec4 colorTransformSettings;#endif
+uniform highp sampler3D txColorTransform;
+#else
+uniform sampler2D txColorTransform;
+#endif
+uniform vec4 colorTransformSettings;
+#endif
 #ifdef DITHER
-uniform float ditherIntensity;#endif
+uniform float ditherIntensity;
+#endif
 `;
 // Sideeffect
-ShaderStore.IncludesShadersStore[name] = shader;
+if (!ShaderStore.IncludesShadersStore[name]) {
+    ShaderStore.IncludesShadersStore[name] = shader;
+}
 /** @internal */
 export const imageProcessingDeclaration = { name, shader };
 //# sourceMappingURL=imageProcessingDeclaration.js.map

@@ -1,14 +1,12 @@
-import type { Nullable } from "../../types";
-import type { BaseTexture } from "../../Materials/Textures/baseTexture";
-import type { UniformBuffer } from "../../Materials/uniformBuffer";
-import type { IAnimatable } from "../../Animations/animatable.interface";
-import type { EffectFallbacks } from "../effectFallbacks";
-import type { SubMesh } from "../../Meshes/subMesh";
-import { MaterialPluginBase } from "../materialPluginBase";
-import { MaterialDefines } from "../materialDefines";
-declare type Engine = import("../../Engines/engine").Engine;
-declare type Scene = import("../../scene").Scene;
-declare type PBRBaseMaterial = import("./pbrBaseMaterial").PBRBaseMaterial;
+import { type Nullable } from "../../types.js";
+import { type BaseTexture } from "../../Materials/Textures/baseTexture.js";
+import { type UniformBuffer } from "../../Materials/uniformBuffer.js";
+import { type IAnimatable } from "../../Animations/animatable.interface.js";
+import { type EffectFallbacks } from "../effectFallbacks.js";
+import { MaterialPluginBase } from "../materialPluginBase.pure.js";
+import { MaterialDefines } from "../materialDefines.js";
+import { type Scene } from "../../scene.js";
+import { type PBRBaseMaterial } from "./pbrBaseMaterial.js";
 /**
  * @internal
  */
@@ -18,7 +16,6 @@ export declare class MaterialIridescenceDefines extends MaterialDefines {
     IRIDESCENCE_TEXTUREDIRECTUV: number;
     IRIDESCENCE_THICKNESS_TEXTURE: boolean;
     IRIDESCENCE_THICKNESS_TEXTUREDIRECTUV: number;
-    IRIDESCENCE_USE_THICKNESS_FROM_MAINTEXTURE: boolean;
 }
 /**
  * Plugin that implements the iridescence (thin film) component of the PBR material
@@ -47,7 +44,7 @@ export declare class PBRIridescenceConfiguration extends MaterialPluginBase {
     /**
      * Defines if the iridescence is enabled in the material.
      */
-    isEnabled: boolean;
+    accessor isEnabled: boolean;
     /**
      * Defines the iridescence layer strength (between 0 and 1) it defaults to 1.
      */
@@ -68,26 +65,68 @@ export declare class PBRIridescenceConfiguration extends MaterialPluginBase {
     /**
      * Stores the iridescence intensity in a texture (red channel)
      */
-    texture: Nullable<BaseTexture>;
+    accessor texture: Nullable<BaseTexture>;
     private _thicknessTexture;
     /**
      * Stores the iridescence thickness in a texture (green channel)
      */
-    thicknessTexture: Nullable<BaseTexture>;
+    accessor thicknessTexture: Nullable<BaseTexture>;
     /** @internal */
     private _internalMarkAllSubMeshesAsTexturesDirty;
     /** @internal */
     _markAllSubMeshesAsTexturesDirty(): void;
+    /**
+     * Gets a boolean indicating that the plugin is compatible with a given shader language.
+     * @returns true if the plugin is compatible with the shader language
+     */
+    isCompatible(): boolean;
     constructor(material: PBRBaseMaterial, addToPluginList?: boolean);
+    /**
+     * Checks whether the iridescence textures are ready for the sub mesh.
+     * @param defines defines the material defines to inspect
+     * @param scene defines the scene to use for readiness checks
+     * @returns true if iridescence is ready
+     */
     isReadyForSubMesh(defines: MaterialIridescenceDefines, scene: Scene): boolean;
+    /**
+     * Updates shader defines for iridescence before attributes are processed.
+     * @param defines defines the material defines to update
+     * @param scene defines the scene to use for texture checks
+     */
     prepareDefinesBeforeAttributes(defines: MaterialIridescenceDefines, scene: Scene): void;
-    bindForSubMesh(uniformBuffer: UniformBuffer, scene: Scene, engine: Engine, subMesh: SubMesh): void;
+    /**
+     * Binds iridescence data for a sub mesh.
+     * @param uniformBuffer defines the uniform buffer to update
+     * @param scene defines the scene to use for texture binding
+     */
+    bindForSubMesh(uniformBuffer: UniformBuffer, scene: Scene): void;
+    /**
+     * Checks whether iridescence uses a texture.
+     * @param texture defines the texture to check
+     * @returns true if the texture is used by iridescence
+     */
     hasTexture(texture: BaseTexture): boolean;
+    /**
+     * Adds the active iridescence textures.
+     * @param activeTextures defines the list of active textures to update
+     */
     getActiveTextures(activeTextures: BaseTexture[]): void;
+    /**
+     * Adds the animatable iridescence textures.
+     * @param animatables defines the list of animatables to update
+     */
     getAnimatables(animatables: IAnimatable[]): void;
+    /**
+     * Disposes the iridescence textures.
+     * @param forceDisposeTextures defines whether to dispose the textures
+     */
     dispose(forceDisposeTextures?: boolean): void;
     getClassName(): string;
     addFallbacks(defines: MaterialIridescenceDefines, fallbacks: EffectFallbacks, currentRank: number): number;
+    /**
+     * Adds the iridescence sampler names.
+     * @param samplers defines the list of sampler names to update
+     */
     getSamplers(samplers: string[]): void;
     getUniforms(): {
         ubo?: Array<{
@@ -99,4 +138,3 @@ export declare class PBRIridescenceConfiguration extends MaterialPluginBase {
         fragment?: string;
     };
 }
-export {};

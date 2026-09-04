@@ -1,4 +1,4 @@
-import { ShaderLanguage } from "../Materials/shaderLanguage";
+import { ShaderLanguage } from "../Materials/shaderLanguage.js";
 /**
  * Defines the shader related stores and directory
  */

@@ -1,3 +1,4 @@
+import { Logger } from "../Misc/logger.js";
 import { CameraInputsManager } from "./cameraInputsManager.js";
 import { FollowCameraKeyboardMoveInput } from "./Inputs/followCameraKeyboardMoveInput.js";
 import { FollowCameraMouseWheelInput } from "./Inputs/followCameraMouseWheelInput.js";
@@ -44,7 +45,7 @@ export class FollowCameraInputsManager extends CameraInputsManager {
      * @returns the current input manager
      */
     addVRDeviceOrientation() {
-        console.warn("DeviceOrientation support not yet implemented for FollowCamera.");
+        Logger.Warn("DeviceOrientation support not yet implemented for FollowCamera.");
         return this;
     }
 }

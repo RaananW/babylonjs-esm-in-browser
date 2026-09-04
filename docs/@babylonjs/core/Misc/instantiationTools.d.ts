@@ -7,7 +7,7 @@ export declare class InstantiationTools {
      * to allow the loaders to instantiate them
      */
     static RegisteredExternalClasses: {
-        [key: string]: Object;
+        [key: string]: object;
     };
     /**
      * Tries to instantiate a new object from a given class name

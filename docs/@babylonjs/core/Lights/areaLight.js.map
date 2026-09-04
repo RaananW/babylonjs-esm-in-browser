@@ -1,0 +1,1 @@
+{"version":3,"file":"areaLight.js","sourceRoot":"","sources":["../../../../dev/core/src/Lights/areaLight.ts"],"names":[],"mappings":"AAAA,cAAc,kBAAkB,CAAC","sourcesContent":["export * from \"./areaLight.pure\";\nexport type * from \"./areaLight.types\";\n"]}

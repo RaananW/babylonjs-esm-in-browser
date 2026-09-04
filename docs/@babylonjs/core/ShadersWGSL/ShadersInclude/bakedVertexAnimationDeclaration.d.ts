@@ -1,5 +1,5 @@
 /** @internal */
-export declare const bakedVertexAnimationDeclaration: {
+export declare const bakedVertexAnimationDeclarationWGSL: {
     name: string;
     shader: string;
 };

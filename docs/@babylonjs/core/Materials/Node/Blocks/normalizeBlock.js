@@ -1,49 +1,8 @@
-import { NodeMaterialBlock } from "../nodeMaterialBlock.js";
-import { NodeMaterialBlockConnectionPointTypes } from "../Enums/nodeMaterialBlockConnectionPointTypes.js";
-import { NodeMaterialBlockTargets } from "../Enums/nodeMaterialBlockTargets.js";
-import { RegisterClass } from "../../../Misc/typeStore.js";
 /**
- * Block used to normalize a vector
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import normalizeBlock.pure for tree-shakeable, side-effect-free usage.
  */
-export class NormalizeBlock extends NodeMaterialBlock {
-    /**
-     * Creates a new NormalizeBlock
-     * @param name defines the block name
-     */
-    constructor(name) {
-        super(name, NodeMaterialBlockTargets.Neutral);
-        this.registerInput("input", NodeMaterialBlockConnectionPointTypes.AutoDetect);
-        this.registerOutput("output", NodeMaterialBlockConnectionPointTypes.BasedOnInput);
-        this._outputs[0]._typeConnectionSource = this._inputs[0];
-        this._inputs[0].excludedConnectionPointTypes.push(NodeMaterialBlockConnectionPointTypes.Float);
-        this._inputs[0].excludedConnectionPointTypes.push(NodeMaterialBlockConnectionPointTypes.Matrix);
-    }
-    /**
-     * Gets the current class name
-     * @returns the class name
-     */
-    getClassName() {
-        return "NormalizeBlock";
-    }
-    /**
-     * Gets the input component
-     */
-    get input() {
-        return this._inputs[0];
-    }
-    /**
-     * Gets the output component
-     */
-    get output() {
-        return this._outputs[0];
-    }
-    _buildBlock(state) {
-        super._buildBlock(state);
-        const output = this._outputs[0];
-        const input = this._inputs[0];
-        state.compilationString += this._declareOutput(output, state) + ` = normalize(${input.associatedVariableName});\r\n`;
-        return this;
-    }
-}
-RegisterClass("BABYLON.NormalizeBlock", NormalizeBlock);
+export * from "./normalizeBlock.pure.js";
+import { RegisterNormalizeBlock } from "./normalizeBlock.pure.js";
+RegisterNormalizeBlock();
 //# sourceMappingURL=normalizeBlock.js.map

@@ -1,5 +1,5 @@
-import type { Mesh } from "./mesh";
-import type { Nullable } from "../types";
+import { type Mesh } from "./mesh.js";
+import { type Nullable } from "../types.js";
 /**
  * Class used to represent a specific level of detail of a mesh
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/LOD

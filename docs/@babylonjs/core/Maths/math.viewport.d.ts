@@ -1,7 +1,8 @@
+import { type IViewportLike } from "./math.like.js";
 /**
  * Class used to represent a viewport on screen
  */
-export declare class Viewport {
+export declare class Viewport implements IViewportLike {
     /** viewport left coordinate */
     x: number;
     /** viewport top coordinate */

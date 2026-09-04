@@ -1,7 +1,9 @@
-import type { WebGPUBufferManager } from "./webgpuBufferManager";
-import type { QueryType } from "./webgpuConstants";
+import { type WebGPUEngine } from "../webgpuEngine.js";
+import { type WebGPUBufferManager } from "./webgpuBufferManager.js";
+import { type QueryType } from "./webgpuConstants.js";
 /** @internal */
 export declare class WebGPUQuerySet {
+    private _engine;
     private _device;
     private _bufferManager;
     private _count;
@@ -10,7 +12,7 @@ export declare class WebGPUQuerySet {
     private _queryBuffer;
     private _dstBuffers;
     get querySet(): GPUQuerySet;
-    constructor(count: number, type: QueryType, device: GPUDevice, bufferManager: WebGPUBufferManager, canUseMultipleBuffers?: boolean);
+    constructor(engine: WebGPUEngine, count: number, type: QueryType, device: GPUDevice, bufferManager: WebGPUBufferManager, canUseMultipleBuffers?: boolean, label?: string);
     private _getBuffer;
     readValues(firstQuery?: number, queryCount?: number): Promise<BigUint64Array | null>;
     readValue(firstQuery?: number): Promise<number | null>;

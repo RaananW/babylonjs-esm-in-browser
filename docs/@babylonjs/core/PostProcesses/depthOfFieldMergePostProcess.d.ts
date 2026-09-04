@@ -1,33 +1,8 @@
-import type { Nullable } from "../types";
-import type { Camera } from "../Cameras/camera";
-import type { Effect } from "../Materials/effect";
-import type { PostProcessOptions } from "./postProcess";
-import { PostProcess } from "./postProcess";
-import type { Engine } from "../Engines/engine";
-import "../Shaders/depthOfFieldMerge.fragment";
-/**
- * Options to be set when merging outputs from the default pipeline.
- */
-export declare class DepthOfFieldMergePostProcessOptions {
-    /**
-     * The original image to merge on top of
-     */
-    originalFromInput: PostProcess;
-    /**
-     * Parameters to perform the merge of the depth of field effect
-     */
-    depthOfField?: {
-        circleOfConfusion: PostProcess;
-        blurSteps: Array<PostProcess>;
-    };
-    /**
-     * Parameters to perform the merge of bloom effect
-     */
-    bloom?: {
-        blurred: PostProcess;
-        weight: number;
-    };
-}
+import { type Nullable } from "../types.js";
+import { type Camera } from "../Cameras/camera.js";
+import { type Effect } from "../Materials/effect.js";
+import { type PostProcessOptions, PostProcess } from "./postProcess.pure.js";
+import { type AbstractEngine } from "../Engines/abstractEngine.js";
 /**
  * The DepthOfFieldMergePostProcess merges blurred images with the original based on the values of the circle of confusion.
  */
@@ -52,7 +27,7 @@ export declare class DepthOfFieldMergePostProcess extends PostProcess {
      * @param textureType Type of textures used when performing the post process. (default: 0)
      * @param blockCompilation If compilation of the shader should not be done in the constructor. The updateEffect method can be used to compile the shader at a later time. (default: false)
      */
-    constructor(name: string, originalFromInput: PostProcess, circleOfConfusion: PostProcess, _blurSteps: Array<PostProcess>, options: number | PostProcessOptions, camera: Nullable<Camera>, samplingMode?: number, engine?: Engine, reusable?: boolean, textureType?: number, blockCompilation?: boolean);
+    constructor(name: string, originalFromInput: PostProcess, circleOfConfusion: PostProcess, _blurSteps: Array<PostProcess>, options: number | PostProcessOptions, camera: Nullable<Camera>, samplingMode?: number, engine?: AbstractEngine, reusable?: boolean, textureType?: number, blockCompilation?: boolean);
     /**
      * Updates the effect with the current post process compile time values and recompiles the shader.
      * @param defines Define statements that should be added at the beginning of the shader. (default: null)

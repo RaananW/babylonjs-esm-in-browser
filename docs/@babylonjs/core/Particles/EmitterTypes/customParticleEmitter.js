@@ -1,5 +1,7 @@
+import { Vector3, TmpVectors } from "../../Maths/math.vector.pure.js";
 import { DeepCopier } from "../../Misc/deepCopier.js";
-import { Vector3, TmpVectors } from "../../Maths/math.vector.js";
+/** Represents and empty generator function */
+export const EmptyGeneratorFunc = () => { };
 /**
  * Particle emitter emitting particles from a custom list of positions.
  */
@@ -12,12 +14,17 @@ export class CustomParticleEmitter {
          * Gets or sets the position generator that will create the initial position of each particle.
          * Index will be provided when used with GPU particle. Particle will be provided when used with CPU particles
          */
-        this.particlePositionGenerator = () => { };
+        this.particlePositionGenerator = EmptyGeneratorFunc;
         /**
          * Gets or sets the destination generator that will create the final destination of each particle.
          *  * Index will be provided when used with GPU particle. Particle will be provided when used with CPU particles
          */
-        this.particleDestinationGenerator = () => { };
+        this.particleDestinationGenerator = EmptyGeneratorFunc;
+        /**
+         * Gets or sets the direction generator that will create the initial direction of each particle.
+         *  * Index will be provided when used with GPU particle. Particle will be provided when used with CPU particles
+         */
+        this.particleDirectionGenerator = EmptyGeneratorFunc;
     }
     /**
      * Called by the particle System when the direction is computed for the created particle.
@@ -28,7 +35,10 @@ export class CustomParticleEmitter {
      */
     startDirectionFunction(worldMatrix, directionToUpdate, particle, isLocal) {
         const tmpVector = TmpVectors.Vector3[0];
-        if (this.particleDestinationGenerator) {
+        if (this.particleDirectionGenerator && this.particleDirectionGenerator !== EmptyGeneratorFunc) {
+            this.particleDirectionGenerator(-1, particle, tmpVector);
+        }
+        else if (this.particleDestinationGenerator && this.particleDestinationGenerator !== EmptyGeneratorFunc) {
             this.particleDestinationGenerator(-1, particle, tmpVector);
             // Get direction
             const diffVector = TmpVectors.Vector3[1];
@@ -53,7 +63,7 @@ export class CustomParticleEmitter {
      */
     startPositionFunction(worldMatrix, positionToUpdate, particle, isLocal) {
         const tmpVector = TmpVectors.Vector3[0];
-        if (this.particlePositionGenerator) {
+        if (this.particlePositionGenerator && this.particlePositionGenerator !== EmptyGeneratorFunc) {
             this.particlePositionGenerator(-1, particle, tmpVector);
         }
         else {
@@ -107,13 +117,21 @@ export class CustomParticleEmitter {
     serialize() {
         const serializationObject = {};
         serializationObject.type = this.getClassName();
+        serializationObject.particlePositionGenerator = this.particlePositionGenerator;
+        serializationObject.particleDestinationGenerator = this.particleDestinationGenerator;
         return serializationObject;
     }
     /**
      * Parse properties from a JSON object
      * @param serializationObject defines the JSON object
      */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    parse(serializationObject) { }
+    parse(serializationObject) {
+        if (serializationObject.particlePositionGenerator) {
+            this.particlePositionGenerator = serializationObject.particlePositionGenerator;
+        }
+        if (serializationObject.particleDestinationGenerator) {
+            this.particleDestinationGenerator = serializationObject.particleDestinationGenerator;
+        }
+    }
 }
 //# sourceMappingURL=customParticleEmitter.js.map

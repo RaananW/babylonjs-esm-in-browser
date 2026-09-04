@@ -1,6 +1,6 @@
-import type { Matrix } from "./math.vector";
-import type { DeepImmutable } from "../types";
-import { Plane } from "./math.plane";
+import { type Matrix, type Vector3 } from "./math.vector.js";
+import { type DeepImmutable } from "../types.js";
+import { Plane } from "./math.plane.js";
 /**
  * Represents a camera frustum
  */
@@ -53,4 +53,11 @@ export declare class Frustum {
      * @param frustumPlanes the resulting frustum planes
      */
     static GetPlanesToRef(transform: DeepImmutable<Matrix>, frustumPlanes: Plane[]): void;
+    /**
+     * Tests if a point is located between the frustum planes.
+     * @param point defines the point to test
+     * @param frustumPlanes defines the frustum planes to test
+     * @returns true if the point is located between the frustum planes
+     */
+    static IsPointInFrustum(point: Vector3, frustumPlanes: Array<DeepImmutable<Plane>>): boolean;
 }

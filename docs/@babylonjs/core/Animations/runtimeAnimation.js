@@ -1,22 +1,45 @@
-import { Quaternion, Vector3, Vector2, Matrix } from "../Maths/math.vector.js";
-import { Color3 } from "../Maths/math.color.js";
-import { Animation } from "./animation.js";
-import { Size } from "../Maths/math.size.js";
-// Static values to help the garbage collector
-// Quaternion
-const _staticOffsetValueQuaternion = Object.freeze(new Quaternion(0, 0, 0, 0));
-// Vector3
-const _staticOffsetValueVector3 = Object.freeze(Vector3.Zero());
-// Vector2
-const _staticOffsetValueVector2 = Object.freeze(Vector2.Zero());
-// Size
-const _staticOffsetValueSize = Object.freeze(Size.Zero());
-// Color3
-const _staticOffsetValueColor3 = Object.freeze(Color3.Black());
+import { Matrix } from "../Maths/math.vector.pure.js";
+import { Animation, _StaticOffsetValueColor3, _StaticOffsetValueColor4, _StaticOffsetValueQuaternion, _StaticOffsetValueSize, _StaticOffsetValueVector2, _StaticOffsetValueVector3, } from "./animation.pure.js";
 /**
  * Defines a runtime animation
  */
 export class RuntimeAnimation {
+    /**
+     * Gets the current frame of the runtime animation
+     */
+    get currentFrame() {
+        return this._currentFrame;
+    }
+    /**
+     * Gets the weight of the runtime animation
+     */
+    get weight() {
+        return this._weight;
+    }
+    /**
+     * Gets the current value of the runtime animation
+     */
+    get currentValue() {
+        return this._currentValue;
+    }
+    /**
+     * Gets or sets the target path of the runtime animation
+     */
+    get targetPath() {
+        return this._targetPath;
+    }
+    /**
+     * Gets the actual target of the runtime animation
+     */
+    get target() {
+        return this._currentActiveTarget;
+    }
+    /**
+     * Gets the additive state of the runtime animation
+     */
+    get isAdditive() {
+        return this._host && this._host.isAdditive;
+    }
     /**
      * Create a new RuntimeAnimation object
      * @param target defines the target of the animation
@@ -69,18 +92,21 @@ export class RuntimeAnimation {
          */
         this._weight = 1.0;
         /**
-         * The ratio offset of the runtime animation
+         * The absolute frame offset of the runtime animation
          */
-        this._ratioOffset = 0;
+        this._absoluteFrameOffset = 0;
         /**
-         * The previous delay of the runtime animation
+         * The previous elapsed time (since start of animation) of the runtime animation
          */
-        this._previousDelay = 0;
+        this._previousElapsedTime = 0;
+        this._yoyoDirection = 1;
         /**
-         * The previous ratio of the runtime animation
+         * The previous absolute frame of the runtime animation (meaning, without taking into account the from/to values, only the elapsed time and the fps)
          */
-        this._previousRatio = 0;
+        this._previousAbsoluteFrame = 0;
         this._targetIsArray = false;
+        /** @internal */
+        this._coreRuntimeAnimation = null;
         this._animation = animation;
         this._target = target;
         this._scene = scene;
@@ -100,11 +126,9 @@ export class RuntimeAnimation {
         this._keys = this._animation.getKeys();
         this._minFrame = this._keys[0].frame;
         this._maxFrame = this._keys[this._keys.length - 1].frame;
-        this._minValue = this._keys[0].value;
-        this._maxValue = this._keys[this._keys.length - 1].value;
         // Add a start key at frame 0 if missing
         if (this._minFrame !== 0) {
-            const newKey = { frame: 0, value: this._minValue };
+            const newKey = { frame: 0, value: this._keys[0].value };
             this._keys.splice(0, 0, newKey);
         }
         // Check data
@@ -126,54 +150,22 @@ export class RuntimeAnimation {
         // Cloning events locally
         const events = animation.getEvents();
         if (events && events.length > 0) {
-            events.forEach((e) => {
+            for (const e of events) {
                 this._events.push(e._clone());
-            });
+            }
         }
         this._enableBlending = target && target.animationPropertiesOverride ? target.animationPropertiesOverride.enableBlending : this._animation.enableBlending;
-    }
-    /**
-     * Gets the current frame of the runtime animation
-     */
-    get currentFrame() {
-        return this._currentFrame;
-    }
-    /**
-     * Gets the weight of the runtime animation
-     */
-    get weight() {
-        return this._weight;
-    }
-    /**
-     * Gets the current value of the runtime animation
-     */
-    get currentValue() {
-        return this._currentValue;
-    }
-    /**
-     * Gets or sets the target path of the runtime animation
-     */
-    get targetPath() {
-        return this._targetPath;
-    }
-    /**
-     * Gets the actual target of the runtime animation
-     */
-    get target() {
-        return this._currentActiveTarget;
-    }
-    /**
-     * Gets the additive state of the runtime animation
-     */
-    get isAdditive() {
-        return this._host && this._host.isAdditive;
     }
     _preparePath(target, targetIndex = 0) {
         const targetPropertyPath = this._animation.targetPropertyPath;
         if (targetPropertyPath.length > 1) {
-            let property = target[targetPropertyPath[0]];
-            for (let index = 1; index < targetPropertyPath.length - 1; index++) {
-                property = property[targetPropertyPath[index]];
+            let property = target;
+            for (let index = 0; index < targetPropertyPath.length - 1; index++) {
+                const name = targetPropertyPath[index];
+                property = property[name];
+                if (property === undefined) {
+                    throw new Error(`Invalid property (${name}) in property path (${targetPropertyPath.join(".")})`);
+                }
             }
             this._targetPath = targetPropertyPath[targetPropertyPath.length - 1];
             this._activeTargets[targetIndex] = property;
@@ -181,6 +173,9 @@ export class RuntimeAnimation {
         else {
             this._targetPath = targetPropertyPath[0];
             this._activeTargets[targetIndex] = target;
+        }
+        if (this._activeTargets[targetIndex][this._targetPath] === undefined) {
+            throw new Error(`Invalid property (${this._targetPath}) in property path (${targetPropertyPath.join(".")})`);
         }
     }
     /**
@@ -253,9 +248,37 @@ export class RuntimeAnimation {
     _getOriginalValues(targetIndex = 0) {
         let originalValue;
         const target = this._activeTargets[targetIndex];
-        if (target.getRestPose && this._targetPath === "_matrix") {
+        if (Animation.InheritOriginalValueFromActiveAnimations) {
+            // When another active animation is already driving the same target+property,
+            // inherit its _originalValue instead of snapshotting the live (mid-animation) value.
+            // This prevents the "stuck value" bug when overlapping animations interrupt each other.
+            const activeAnimatables = this._scene._activeAnimatables;
+            for (let animIndex = 0; animIndex < activeAnimatables.length; animIndex++) {
+                const runtimeAnimations = activeAnimatables[animIndex]._runtimeAnimations;
+                for (let rtIndex = 0; rtIndex < runtimeAnimations.length; rtIndex++) {
+                    const rtAnim = runtimeAnimations[rtIndex];
+                    if (rtAnim === this) {
+                        continue;
+                    }
+                    if (rtAnim._targetPath === this._targetPath) {
+                        for (let i = 0; i < rtAnim._activeTargets.length; i++) {
+                            if (rtAnim._activeTargets[i] === target && rtAnim._originalValue[i] !== undefined) {
+                                if (rtAnim._originalValue[i] && rtAnim._originalValue[i].clone) {
+                                    this._originalValue[targetIndex] = rtAnim._originalValue[i].clone();
+                                }
+                                else {
+                                    this._originalValue[targetIndex] = rtAnim._originalValue[i];
+                                }
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (target.getLocalMatrix && this._targetPath === "_matrix") {
             // For bones
-            originalValue = target.getRestPose();
+            originalValue = target.getLocalMatrix();
         }
         else {
             originalValue = target[this._targetPath];
@@ -265,6 +288,30 @@ export class RuntimeAnimation {
         }
         else {
             this._originalValue[targetIndex] = originalValue;
+        }
+    }
+    _registerTargetForLateAnimationBinding(runtimeAnimation, originalValue) {
+        const target = runtimeAnimation.target;
+        this._scene._registeredForLateAnimationBindings.pushNoDuplicate(target);
+        if (!target._lateAnimationHolders) {
+            target._lateAnimationHolders = {};
+        }
+        if (!target._lateAnimationHolders[runtimeAnimation.targetPath]) {
+            target._lateAnimationHolders[runtimeAnimation.targetPath] = {
+                totalWeight: 0,
+                totalAdditiveWeight: 0,
+                animations: [],
+                additiveAnimations: [],
+                originalValue: originalValue,
+            };
+        }
+        if (runtimeAnimation.isAdditive) {
+            target._lateAnimationHolders[runtimeAnimation.targetPath].additiveAnimations.push(runtimeAnimation);
+            target._lateAnimationHolders[runtimeAnimation.targetPath].totalAdditiveWeight += runtimeAnimation.weight;
+        }
+        else {
+            target._lateAnimationHolders[runtimeAnimation.targetPath].animations.push(runtimeAnimation);
+            target._lateAnimationHolders[runtimeAnimation.targetPath].totalWeight += runtimeAnimation.weight;
         }
     }
     _setValue(target, destination, currentValue, weight, targetIndex) {
@@ -308,7 +355,7 @@ export class RuntimeAnimation {
         }
         else {
             if (!this._currentValue) {
-                if (currentValue === null || currentValue === void 0 ? void 0 : currentValue.clone) {
+                if (currentValue?.clone) {
                     this._currentValue = currentValue.clone();
                 }
                 else {
@@ -323,10 +370,20 @@ export class RuntimeAnimation {
             }
         }
         if (weight !== -1.0) {
-            this._scene._registerTargetForLateAnimationBinding(this, this._originalValue[targetIndex]);
+            this._registerTargetForLateAnimationBinding(this, this._originalValue[targetIndex]);
         }
         else {
-            destination[this._targetPath] = this._currentValue;
+            if (this._animationState.loopMode === Animation.ANIMATIONLOOPMODE_RELATIVE_FROM_CURRENT) {
+                if (this._currentValue.addToRef) {
+                    this._currentValue.addToRef(this._originalValue[targetIndex], destination[this._targetPath]);
+                }
+                else {
+                    destination[this._targetPath] = this._originalValue[targetIndex] + this._currentValue;
+                }
+            }
+            else {
+                destination[this._targetPath] = this._currentValue;
+            }
         }
         if (target.markAsDirty) {
             target.markAsDirty(this._animation.targetProperty);
@@ -338,6 +395,17 @@ export class RuntimeAnimation {
      */
     _getCorrectLoopMode() {
         if (this._target && this._target.animationPropertiesOverride) {
+            // A morph target with no per-target override inherits the scene-level animationPropertiesOverride.
+            // That loop mode is meant for transform/bone animations: honoring it here would force the morph
+            // influence into (for example) RELATIVE mode and make it accumulate offset * repeatCount every loop.
+            // When the override is the inherited scene one, use the animation's own loop mode instead.
+            // An override set explicitly on the morph target is still respected.
+            const isMorphTarget = this._target.getClassName?.() === "MorphTarget";
+            // MorphTarget.animationPropertiesOverride getter inherits from the scene when no per-target override is set.
+            // Only bypass the override when it is truly inherited (ie. the target has no local override).
+            if (isMorphTarget && this._target._animationPropertiesOverride == null) {
+                return this._animation.loopMode;
+            }
             return this._target.animationPropertiesOverride.loopMode;
         }
         return this._animation.loopMode;
@@ -345,8 +413,9 @@ export class RuntimeAnimation {
     /**
      * Move the current animation to a given frame
      * @param frame defines the frame to move to
+     * @param weight defines the weight to apply to the animation (-1.0 by default)
      */
-    goToFrame(frame) {
+    goToFrame(frame, weight = -1) {
         const keys = this._animation.getKeys();
         if (frame < keys[0].frame) {
             frame = keys[0].frame;
@@ -366,26 +435,26 @@ export class RuntimeAnimation {
         }
         this._currentFrame = frame;
         const currentValue = this._animation._interpolate(frame, this._animationState);
-        this.setValue(currentValue, -1);
+        this.setValue(currentValue, weight);
     }
     /**
      * @internal Internal use only
      */
     _prepareForSpeedRatioChange(newSpeedRatio) {
-        const newRatio = (this._previousDelay * (this._animation.framePerSecond * newSpeedRatio)) / 1000.0;
-        this._ratioOffset = this._previousRatio - newRatio;
+        const newAbsoluteFrame = (this._previousElapsedTime * (this._animation.framePerSecond * newSpeedRatio)) / 1000.0;
+        this._absoluteFrameOffset = this._previousAbsoluteFrame - newAbsoluteFrame;
     }
     /**
      * Execute the current animation
-     * @param delay defines the delay to add to the current frame
-     * @param from defines the lower bound of the animation range
-     * @param to defines the upper bound of the animation range
+     * @param elapsedTimeSinceAnimationStart defines the elapsed time (in milliseconds) since the animation was started
+     * @param from defines the lower frame of the animation range
+     * @param to defines the upper frame of the animation range
      * @param loop defines if the current animation must loop
      * @param speedRatio defines the current speed ratio
      * @param weight defines the weight of the animation (default is -1 so no weight)
      * @returns a boolean indicating if the animation is running
      */
-    animate(delay, from, to, loop, speedRatio, weight = -1.0) {
+    animate(elapsedTimeSinceAnimationStart, from, to, loop, speedRatio, weight = -1.0) {
         const animation = this._animation;
         const targetPropertyPath = animation.targetPropertyPath;
         if (!targetPropertyPath || targetPropertyPath.length < 1) {
@@ -393,129 +462,165 @@ export class RuntimeAnimation {
             return false;
         }
         let returnValue = true;
-        // Check limits
-        if (from < this._minFrame || from > this._maxFrame) {
-            from = this._minFrame;
-        }
-        if (to < this._minFrame || to > this._maxFrame) {
-            to = this._maxFrame;
-        }
-        const range = to - from;
-        let offsetValue;
-        // Compute ratio which represents the frame delta between from and to
-        const ratio = (delay * (animation.framePerSecond * speedRatio)) / 1000.0 + this._ratioOffset;
-        let highLimitValue = 0;
-        this._previousDelay = delay;
-        this._previousRatio = ratio;
-        if (!loop && to >= from && ratio >= range) {
-            // If we are out of range and not looping get back to caller
-            returnValue = false;
-            highLimitValue = animation._getKeyValue(this._maxValue);
-        }
-        else if (!loop && from >= to && ratio <= range) {
-            returnValue = false;
-            highLimitValue = animation._getKeyValue(this._minValue);
-        }
-        else if (this._animationState.loopMode !== Animation.ANIMATIONLOOPMODE_CYCLE) {
-            const keyOffset = to.toString() + from.toString();
-            if (!this._offsetsCache[keyOffset]) {
-                this._animationState.repeatCount = 0;
-                this._animationState.loopMode = Animation.ANIMATIONLOOPMODE_CYCLE;
-                const fromValue = animation._interpolate(from, this._animationState);
-                const toValue = animation._interpolate(to, this._animationState);
-                this._animationState.loopMode = this._getCorrectLoopMode();
+        let currentFrame;
+        const events = this._events;
+        let frameRange;
+        if (!this._coreRuntimeAnimation) {
+            // Check limits
+            if (from < this._minFrame || from > this._maxFrame) {
+                from = this._minFrame;
+            }
+            if (to < this._minFrame || to > this._maxFrame) {
+                to = this._maxFrame;
+            }
+            frameRange = to - from;
+            let offsetValue;
+            // Compute the frame according to the elapsed time and the fps of the animation ("from" and "to" are not factored in!)
+            let absoluteFrame = (elapsedTimeSinceAnimationStart * (animation.framePerSecond * speedRatio)) / 1000.0 + this._absoluteFrameOffset;
+            let highLimitValue = 0;
+            // Apply the yoyo function if required
+            let yoyoLoop = false;
+            const yoyoMode = loop && this._animationState.loopMode === Animation.ANIMATIONLOOPMODE_YOYO;
+            if (yoyoMode) {
+                const position = (absoluteFrame - from) / frameRange;
+                // Apply the yoyo curve
+                const sin = Math.sin(position * Math.PI);
+                const yoyoPosition = Math.abs(sin);
+                // Map the yoyo position back to the range
+                absoluteFrame = yoyoPosition * frameRange + from;
+                const direction = sin >= 0 ? 1 : -1;
+                if (this._yoyoDirection !== direction) {
+                    yoyoLoop = true;
+                }
+                this._yoyoDirection = direction;
+            }
+            this._previousElapsedTime = elapsedTimeSinceAnimationStart;
+            this._previousAbsoluteFrame = absoluteFrame;
+            if (!loop && to >= from && ((absoluteFrame >= frameRange && speedRatio > 0) || (absoluteFrame <= 0 && speedRatio < 0))) {
+                // If we are out of range and not looping get back to caller
+                returnValue = false;
+                highLimitValue = animation.evaluate(to);
+            }
+            else if (!loop && from >= to && ((absoluteFrame <= frameRange && speedRatio < 0) || (absoluteFrame >= 0 && speedRatio > 0))) {
+                returnValue = false;
+                highLimitValue = animation.evaluate(from);
+            }
+            else if (this._animationState.loopMode !== Animation.ANIMATIONLOOPMODE_CYCLE) {
+                const keyOffset = to.toString() + from.toString();
+                if (!this._offsetsCache[keyOffset]) {
+                    this._animationState.repeatCount = 0;
+                    this._animationState.loopMode = Animation.ANIMATIONLOOPMODE_CYCLE; // force a specific codepath in animation._interpolate()!
+                    const fromValue = animation._interpolate(from, this._animationState);
+                    const toValue = animation._interpolate(to, this._animationState);
+                    this._animationState.loopMode = this._getCorrectLoopMode();
+                    switch (animation.dataType) {
+                        // Float
+                        case Animation.ANIMATIONTYPE_FLOAT:
+                            this._offsetsCache[keyOffset] = toValue - fromValue;
+                            break;
+                        // Quaternion
+                        case Animation.ANIMATIONTYPE_QUATERNION:
+                            this._offsetsCache[keyOffset] = toValue.subtract(fromValue);
+                            break;
+                        // Vector3
+                        case Animation.ANIMATIONTYPE_VECTOR3:
+                            this._offsetsCache[keyOffset] = toValue.subtract(fromValue);
+                            break;
+                        // Vector2
+                        case Animation.ANIMATIONTYPE_VECTOR2:
+                            this._offsetsCache[keyOffset] = toValue.subtract(fromValue);
+                            break;
+                        // Size
+                        case Animation.ANIMATIONTYPE_SIZE:
+                            this._offsetsCache[keyOffset] = toValue.subtract(fromValue);
+                            break;
+                        // Color3
+                        case Animation.ANIMATIONTYPE_COLOR3:
+                            this._offsetsCache[keyOffset] = toValue.subtract(fromValue);
+                            break;
+                        // Color4
+                        case Animation.ANIMATIONTYPE_COLOR4:
+                            this._offsetsCache[keyOffset] = toValue.subtract(fromValue);
+                            break;
+                        default:
+                            break;
+                    }
+                    this._highLimitsCache[keyOffset] = toValue;
+                }
+                highLimitValue = this._highLimitsCache[keyOffset];
+                offsetValue = this._offsetsCache[keyOffset];
+            }
+            if (offsetValue === undefined) {
                 switch (animation.dataType) {
                     // Float
                     case Animation.ANIMATIONTYPE_FLOAT:
-                        this._offsetsCache[keyOffset] = toValue - fromValue;
+                        offsetValue = 0;
                         break;
                     // Quaternion
                     case Animation.ANIMATIONTYPE_QUATERNION:
-                        this._offsetsCache[keyOffset] = toValue.subtract(fromValue);
+                        offsetValue = _StaticOffsetValueQuaternion;
                         break;
                     // Vector3
                     case Animation.ANIMATIONTYPE_VECTOR3:
-                        this._offsetsCache[keyOffset] = toValue.subtract(fromValue);
+                        offsetValue = _StaticOffsetValueVector3;
                         break;
                     // Vector2
                     case Animation.ANIMATIONTYPE_VECTOR2:
-                        this._offsetsCache[keyOffset] = toValue.subtract(fromValue);
+                        offsetValue = _StaticOffsetValueVector2;
                         break;
                     // Size
                     case Animation.ANIMATIONTYPE_SIZE:
-                        this._offsetsCache[keyOffset] = toValue.subtract(fromValue);
+                        offsetValue = _StaticOffsetValueSize;
                         break;
                     // Color3
                     case Animation.ANIMATIONTYPE_COLOR3:
-                        this._offsetsCache[keyOffset] = toValue.subtract(fromValue);
+                        offsetValue = _StaticOffsetValueColor3;
                         break;
-                    default:
+                    case Animation.ANIMATIONTYPE_COLOR4:
+                        offsetValue = _StaticOffsetValueColor4;
                         break;
                 }
-                this._highLimitsCache[keyOffset] = toValue;
             }
-            highLimitValue = this._highLimitsCache[keyOffset];
-            offsetValue = this._offsetsCache[keyOffset];
-        }
-        if (offsetValue === undefined) {
-            switch (animation.dataType) {
-                // Float
-                case Animation.ANIMATIONTYPE_FLOAT:
-                    offsetValue = 0;
-                    break;
-                // Quaternion
-                case Animation.ANIMATIONTYPE_QUATERNION:
-                    offsetValue = _staticOffsetValueQuaternion;
-                    break;
-                // Vector3
-                case Animation.ANIMATIONTYPE_VECTOR3:
-                    offsetValue = _staticOffsetValueVector3;
-                    break;
-                // Vector2
-                case Animation.ANIMATIONTYPE_VECTOR2:
-                    offsetValue = _staticOffsetValueVector2;
-                    break;
-                // Size
-                case Animation.ANIMATIONTYPE_SIZE:
-                    offsetValue = _staticOffsetValueSize;
-                    break;
-                // Color3
-                case Animation.ANIMATIONTYPE_COLOR3:
-                    offsetValue = _staticOffsetValueColor3;
-            }
-        }
-        // Compute value
-        let currentFrame;
-        if (this._host && this._host.syncRoot) {
-            const syncRoot = this._host.syncRoot;
-            const hostNormalizedFrame = (syncRoot.masterFrame - syncRoot.fromFrame) / (syncRoot.toFrame - syncRoot.fromFrame);
-            currentFrame = from + (to - from) * hostNormalizedFrame;
-        }
-        else {
-            if ((ratio > 0 && from > to) || (ratio < 0 && from < to)) {
-                currentFrame = returnValue && range !== 0 ? to + (ratio % range) : from;
+            // Compute value
+            if (this._host && this._host.syncRoot) {
+                // If we must sync with an animatable, calculate the current frame based on the frame of the root animatable
+                const syncRoot = this._host.syncRoot;
+                const hostNormalizedFrame = (syncRoot.masterFrame - syncRoot.fromFrame) / (syncRoot.toFrame - syncRoot.fromFrame);
+                currentFrame = from + frameRange * hostNormalizedFrame;
             }
             else {
-                currentFrame = returnValue && range !== 0 ? from + (ratio % range) : to;
-            }
-        }
-        const events = this._events;
-        // Reset event/state if looping
-        if ((speedRatio > 0 && this.currentFrame > currentFrame) || (speedRatio < 0 && this.currentFrame < currentFrame)) {
-            this._onLoop();
-            // Need to reset animation events
-            for (let index = 0; index < events.length; index++) {
-                if (!events[index].onlyOnce) {
-                    // reset event, the animation is looping
-                    events[index].isDone = false;
+                if ((absoluteFrame > 0 && from > to) || (absoluteFrame < 0 && from < to)) {
+                    currentFrame = returnValue && frameRange !== 0 ? to + (absoluteFrame % frameRange) : from;
+                }
+                else {
+                    currentFrame = returnValue && frameRange !== 0 ? from + (absoluteFrame % frameRange) : to;
                 }
             }
-            this._animationState.key = speedRatio > 0 ? 0 : animation.getKeys().length - 1;
+            // Reset event/state if looping
+            if ((!yoyoMode && ((speedRatio > 0 && this.currentFrame > currentFrame) || (speedRatio < 0 && this.currentFrame < currentFrame))) || (yoyoMode && yoyoLoop)) {
+                this._onLoop();
+                // Need to reset animation events
+                for (let index = 0; index < events.length; index++) {
+                    if (!events[index].onlyOnce) {
+                        // reset event, the animation is looping
+                        events[index].isDone = false;
+                    }
+                }
+                this._animationState.key = speedRatio > 0 ? 0 : animation.getKeys().length - 1;
+            }
+            this._currentFrame = currentFrame;
+            this._animationState.repeatCount = frameRange === 0 ? 0 : (absoluteFrame / frameRange) >> 0;
+            this._animationState.highLimitValue = highLimitValue;
+            this._animationState.offsetValue = offsetValue;
         }
-        this._currentFrame = currentFrame;
-        this._animationState.repeatCount = range === 0 ? 0 : (ratio / range) >> 0;
-        this._animationState.highLimitValue = highLimitValue;
-        this._animationState.offsetValue = offsetValue;
+        else {
+            frameRange = to - from;
+            currentFrame = this._coreRuntimeAnimation.currentFrame;
+            this._currentFrame = currentFrame;
+            this._animationState.repeatCount = this._coreRuntimeAnimation._animationState.repeatCount;
+            this._animationState.highLimitValue = this._coreRuntimeAnimation._animationState.highLimitValue;
+            this._animationState.offsetValue = this._coreRuntimeAnimation._animationState.offsetValue;
+        }
         const currentValue = animation._interpolate(currentFrame, this._animationState);
         // Set value
         this.setValue(currentValue, weight);
@@ -524,8 +629,8 @@ export class RuntimeAnimation {
             for (let index = 0; index < events.length; index++) {
                 // Make sure current frame has passed event frame and that event frame is within the current range
                 // Also, handle both forward and reverse animations
-                if ((range > 0 && currentFrame >= events[index].frame && events[index].frame >= from) ||
-                    (range < 0 && currentFrame <= events[index].frame && events[index].frame <= from)) {
+                if ((frameRange >= 0 && currentFrame >= events[index].frame && events[index].frame >= from) ||
+                    (frameRange < 0 && currentFrame <= events[index].frame && events[index].frame <= from)) {
                     const event = events[index];
                     if (!event.isDone) {
                         // If event should be done only once, remove it.
@@ -535,7 +640,7 @@ export class RuntimeAnimation {
                         }
                         event.isDone = true;
                         event.action(currentFrame);
-                    } // Don't do anything if the event has already be done.
+                    } // Don't do anything if the event has already been done.
                 }
             }
         }

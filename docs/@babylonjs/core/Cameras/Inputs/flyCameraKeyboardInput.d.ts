@@ -1,5 +1,5 @@
-import type { ICameraInput } from "../../Cameras/cameraInputsManager";
-import type { FlyCamera } from "../../Cameras/flyCamera";
+import { type ICameraInput } from "../../Cameras/cameraInputsManager.js";
+import { type FlyCamera } from "../../Cameras/flyCamera.js";
 /**
  * Listen to keyboard events to control the camera.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs

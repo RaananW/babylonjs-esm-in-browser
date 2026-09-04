@@ -1,10 +1,11 @@
-import type { Matrix } from "../../Maths/math.vector";
-import { Vector3 } from "../../Maths/math.vector";
-import type { Particle } from "../particle";
-import type { IParticleEmitterType } from "./IParticleEmitterType";
-import type { Nullable } from "../../types";
-import type { UniformBufferEffectCommonAccessor } from "../../Materials/uniformBufferEffectCommonAccessor";
-import type { UniformBuffer } from "../../Materials/uniformBuffer";
+import { type Nullable } from "../../types.js";
+import { type Matrix, Vector3 } from "../../Maths/math.vector.pure.js";
+import { type Particle } from "../particle.js";
+import { type UniformBufferEffectCommonAccessor } from "../../Materials/uniformBufferEffectCommonAccessor.js";
+import { type UniformBuffer } from "../../Materials/uniformBuffer.js";
+import { type IParticleEmitterType } from "./IParticleEmitterType.js";
+/** Represents and empty generator function */
+export declare const EmptyGeneratorFunc: () => void;
 /**
  * Particle emitter emitting particles from a custom list of positions.
  */
@@ -19,6 +20,11 @@ export declare class CustomParticleEmitter implements IParticleEmitterType {
      *  * Index will be provided when used with GPU particle. Particle will be provided when used with CPU particles
      */
     particleDestinationGenerator: (index: number, particle: Nullable<Particle>, outDestination: Vector3) => void;
+    /**
+     * Gets or sets the direction generator that will create the initial direction of each particle.
+     *  * Index will be provided when used with GPU particle. Particle will be provided when used with CPU particles
+     */
+    particleDirectionGenerator: (index: number, particle: Nullable<Particle>, outDestination: Vector3) => void;
     /**
      * Creates a new instance CustomParticleEmitter
      */

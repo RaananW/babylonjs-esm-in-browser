@@ -1,32 +1,14 @@
-import { Camera } from "../../Cameras/camera.js";
-import { UniversalCamera } from "../../Cameras/universalCamera.js";
-import { Matrix, Vector3 } from "../../Maths/math.vector.js";
-import { TargetCamera } from "../targetCamera.js";
-import { TransformNode } from "../../Meshes/transformNode.js";
+import { Camera } from "../../Cameras/camera.pure.js";
+import { UniversalCamera } from "../../Cameras/universalCamera.pure.js";
+import { Matrix, Vector3 } from "../../Maths/math.vector.pure.js";
+import { TargetCamera } from "../targetCamera.pure.js";
+import { TransformNode } from "../../Meshes/transformNode.pure.js";
 import { Viewport } from "../../Maths/math.viewport.js";
 /**
  * Camera used to simulate stereoscopic rendering on real screens (based on UniversalCamera)
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras
  */
 export class StereoscopicScreenUniversalCamera extends UniversalCamera {
-    /**
-     * Creates a new StereoscopicScreenUniversalCamera
-     * @param name defines camera name
-     * @param position defines initial position
-     * @param scene defines the hosting scene
-     * @param distanceToProjectionPlane defines distance between each color axis. The rig cameras will receive this as their negative z position!
-     * @param distanceBetweenEyes defines is stereoscopic is done side by side or over under
-     */
-    constructor(name, position, scene, distanceToProjectionPlane = 1, distanceBetweenEyes = 0.065) {
-        super(name, position, scene);
-        this._distanceBetweenEyes = distanceBetweenEyes;
-        this._distanceToProjectionPlane = distanceToProjectionPlane;
-        this.setCameraRigMode(Camera.RIG_MODE_STEREOSCOPIC_SIDEBYSIDE_PARALLEL, {
-            stereoHalfAngle: 0,
-        });
-        this._cameraRigParams.stereoHalfAngle = 0;
-        this._cameraRigParams.interaxialDistance = distanceBetweenEyes;
-    }
     set distanceBetweenEyes(newValue) {
         this._distanceBetweenEyes = newValue;
     }
@@ -46,11 +28,29 @@ export class StereoscopicScreenUniversalCamera extends UniversalCamera {
         return this._distanceToProjectionPlane;
     }
     /**
+     * Creates a new StereoscopicScreenUniversalCamera
+     * @param name defines camera name
+     * @param position defines initial position
+     * @param scene defines the hosting scene
+     * @param distanceToProjectionPlane defines distance between each color axis. The rig cameras will receive this as their negative z position!
+     * @param distanceBetweenEyes defines is stereoscopic is done side by side or over under
+     */
+    constructor(name, position, scene, distanceToProjectionPlane = 1, distanceBetweenEyes = 0.065) {
+        super(name, position, scene);
+        this._distanceBetweenEyes = distanceBetweenEyes;
+        this._distanceToProjectionPlane = distanceToProjectionPlane;
+        this.setCameraRigMode(Camera.RIG_MODE_STEREOSCOPIC_SIDEBYSIDE_PARALLEL, {
+            stereoHalfAngle: 0,
+        });
+        this._cameraRigParams.stereoHalfAngle = 0;
+        this._cameraRigParams.interaxialDistance = distanceBetweenEyes;
+    }
+    /**
      * Gets camera class name
      * @returns StereoscopicScreenUniversalCamera
      */
     getClassName() {
-        return "StereoscopicUniversalCamera";
+        return "StereoscopicScreenUniversalCamera";
     }
     /**
      * @internal
@@ -74,7 +74,7 @@ export class StereoscopicScreenUniversalCamera extends UniversalCamera {
             cam.maxZ = this.maxZ;
             cam.fov = this.fov;
             cam.upVector.copyFrom(this.upVector);
-            if (cam.rotationQuaternion) {
+            if (cam.rotationQuaternion && this.rotationQuaternion) {
                 cam.rotationQuaternion.copyFrom(this.rotationQuaternion);
             }
             else {

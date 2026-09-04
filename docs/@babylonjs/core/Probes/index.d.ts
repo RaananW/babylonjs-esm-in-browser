@@ -1,1 +1,1 @@
-export * from "./reflectionProbe";
+export * from "./reflectionProbe.js";

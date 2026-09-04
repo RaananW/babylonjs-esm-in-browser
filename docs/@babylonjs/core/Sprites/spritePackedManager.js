@@ -1,5 +1,5 @@
 import { SpriteManager } from "./spriteManager.js";
-import { Texture } from "../Materials/Textures/texture.js";
+import { Texture } from "../Materials/Textures/texture.pure.js";
 /**
  * Class used to manage multiple sprites of different sizes on the same spritesheet
  * @see https://doc.babylonjs.com/features/featuresDeepDive/sprites
@@ -15,12 +15,13 @@ export class SpritePackedManager extends SpriteManager {
      * @param epsilon defines the epsilon value to align texture (0.01 by default)
      * @param samplingMode defines the sampling mode to use with spritesheet
      * @param fromPacked set to true; do not alter
+     * @param options options for the sprite manager
      */
     constructor(
     /** defines the packed manager's name */
-    name, imgUrl, capacity, scene, spriteJSON = null, epsilon = 0.01, samplingMode = Texture.TRILINEAR_SAMPLINGMODE) {
+    name, imgUrl, capacity, scene, spriteJSON = null, epsilon = 0.01, samplingMode = Texture.TRILINEAR_SAMPLINGMODE, options) {
         //the cellSize parameter is not used when built from JSON which provides individual cell data, defaults to 64 if JSON load fails
-        super(name, imgUrl, capacity, 64, scene, epsilon, samplingMode, true, spriteJSON);
+        super(name, imgUrl, capacity, 64, scene, epsilon, samplingMode, true, spriteJSON, options);
         this.name = name;
     }
 }

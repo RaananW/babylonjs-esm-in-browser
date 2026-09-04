@@ -1,11 +1,11 @@
-import { Vector3, Vector2 } from "./math.vector";
+import { Vector3, Vector2 } from "./math.vector.pure.js";
 /**
  * Contains position and normal vectors for a vertex
  */
 export declare class PositionNormalVertex {
-    /** the position of the vertex (defaut: 0,0,0) */
+    /** [Vector3.Zero()] the position of the vertex (defaut: 0,0,0) */
     position: Vector3;
-    /** the normal of the vertex (defaut: 0,1,0) */
+    /** [Vector3.Up()] the normal of the vertex (defaut: 0,1,0) */
     normal: Vector3;
     /**
      * Creates a PositionNormalVertex
@@ -13,9 +13,9 @@ export declare class PositionNormalVertex {
      * @param normal the normal of the vertex (defaut: 0,1,0)
      */
     constructor(
-    /** the position of the vertex (defaut: 0,0,0) */
+    /** [Vector3.Zero()] the position of the vertex (defaut: 0,0,0) */
     position?: Vector3, 
-    /** the normal of the vertex (defaut: 0,1,0) */
+    /** [Vector3.Up()] the normal of the vertex (defaut: 0,1,0) */
     normal?: Vector3);
     /**
      * Clones the PositionNormalVertex
@@ -27,11 +27,11 @@ export declare class PositionNormalVertex {
  * Contains position, normal and uv vectors for a vertex
  */
 export declare class PositionNormalTextureVertex {
-    /** the position of the vertex (defaut: 0,0,0) */
+    /** [Vector3.Zero()] the position of the vertex (defaut: 0,0,0) */
     position: Vector3;
-    /** the normal of the vertex (defaut: 0,1,0) */
+    /** [Vector3.Up()] the normal of the vertex (defaut: 0,1,0) */
     normal: Vector3;
-    /** the uv of the vertex (default: 0,0) */
+    /** [Vector3.Zero()] the uv of the vertex (default: 0,0) */
     uv: Vector2;
     /**
      * Creates a PositionNormalTextureVertex
@@ -40,11 +40,11 @@ export declare class PositionNormalTextureVertex {
      * @param uv the uv of the vertex (default: 0,0)
      */
     constructor(
-    /** the position of the vertex (defaut: 0,0,0) */
+    /** [Vector3.Zero()] the position of the vertex (defaut: 0,0,0) */
     position?: Vector3, 
-    /** the normal of the vertex (defaut: 0,1,0) */
+    /** [Vector3.Up()] the normal of the vertex (defaut: 0,1,0) */
     normal?: Vector3, 
-    /** the uv of the vertex (default: 0,0) */
+    /** [Vector3.Zero()] the uv of the vertex (default: 0,0) */
     uv?: Vector2);
     /**
      * Clones the PositionNormalTextureVertex

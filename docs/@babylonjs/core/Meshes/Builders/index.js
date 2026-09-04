@@ -21,4 +21,6 @@ export * from "./goldbergBuilder.js";
 export * from "./decalBuilder.js";
 export * from "./icoSphereBuilder.js";
 export * from "./capsuleBuilder.js";
+export * from "./textBuilder.js";
+export * from "./greasedLineBuilder.js";
 //# sourceMappingURL=index.js.map

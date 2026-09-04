@@ -1,6 +1,5 @@
-import type { IDisposable } from "../scene";
-/** @ignore */
-interface WorkerInfo {
+import { type IDisposable } from "../scene.js";
+interface IWorkerInfo {
     workerPromise: Promise<Worker>;
     idle: boolean;
     timeoutId?: ReturnType<typeof setTimeout>;
@@ -9,7 +8,7 @@ interface WorkerInfo {
  * Helper class to push actions to a pool of workers.
  */
 export declare class WorkerPool implements IDisposable {
-    protected _workerInfos: Array<WorkerInfo>;
+    protected _workerInfos: Array<IWorkerInfo>;
     protected _pendingActions: ((worker: Worker, onComplete: () => void) => void)[];
     /**
      * Constructor
@@ -27,7 +26,7 @@ export declare class WorkerPool implements IDisposable {
      */
     push(action: (worker: Worker, onComplete: () => void) => void): void;
     protected _executeOnIdleWorker(action: (worker: Worker, onComplete: () => void) => void): boolean;
-    protected _execute(workerInfo: WorkerInfo, action: (worker: Worker, onComplete: () => void) => void): void;
+    protected _execute(workerInfo: IWorkerInfo, action: (worker: Worker, onComplete: () => void) => void): void;
 }
 /**
  * Options for AutoReleaseWorkerPool
@@ -53,6 +52,6 @@ export declare class AutoReleaseWorkerPool extends WorkerPool {
     private readonly _options;
     constructor(maxWorkers: number, createWorkerAsync: () => Promise<Worker>, options?: AutoReleaseWorkerPoolOptions);
     push(action: (worker: Worker, onComplete: () => void) => void): void;
-    protected _execute(workerInfo: WorkerInfo, action: (worker: Worker, onComplete: () => void) => void): void;
+    protected _execute(workerInfo: IWorkerInfo, action: (worker: Worker, onComplete: () => void) => void): void;
 }
 export {};

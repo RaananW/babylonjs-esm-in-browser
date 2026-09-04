@@ -1,0 +1,1 @@
+{"version":3,"file":"index.js","sourceRoot":"","sources":["../../../../dev/loaders/src/BVH/index.ts"],"names":[],"mappings":"AAAA,6DAA6D;AAC7D,cAAc,aAAa,CAAC;AAC5B,cAAc,iBAAiB,CAAC","sourcesContent":["/* eslint-disable @typescript-eslint/no-restricted-imports */\nexport * from \"./bvhLoader\";\nexport * from \"./bvhFileLoader\";\n"]}

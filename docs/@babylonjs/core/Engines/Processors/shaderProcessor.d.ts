@@ -1,40 +1,26 @@
-import type { ProcessingOptions } from "./shaderProcessingOptions";
-declare type WebRequest = import("../../Misc/webRequest").WebRequest;
-declare type LoadFileError = import("../../Misc/fileTools").LoadFileError;
-declare type IOfflineProvider = import("../../Offline/IOfflineProvider").IOfflineProvider;
-declare type IFileRequest = import("../../Misc/fileRequest").IFileRequest;
-declare type ThinEngine = import("../thinEngine").ThinEngine;
+import { type _IProcessingOptions } from "./shaderProcessingOptions.js";
+import { type WebRequest } from "../../Misc/webRequest.js";
+import { type LoadFileError } from "../../Misc/fileTools.js";
+import { type IOfflineProvider } from "../../Offline/IOfflineProvider.js";
+import { type IFileRequest } from "../../Misc/fileRequest.js";
+import { type AbstractEngine } from "../abstractEngine.js";
 /** @internal */
-export declare class ShaderProcessor {
-    static Initialize(options: ProcessingOptions): void;
-    static Process(sourceCode: string, options: ProcessingOptions, callback: (migratedCode: string, codeBeforeMigration: string) => void, engine: ThinEngine): void;
-    static PreProcess(sourceCode: string, options: ProcessingOptions, callback: (migratedCode: string, codeBeforeMigration: string) => void, engine: ThinEngine): void;
-    static Finalize(vertexCode: string, fragmentCode: string, options: ProcessingOptions): {
-        vertexCode: string;
-        fragmentCode: string;
-    };
-    private static _ProcessPrecision;
-    private static _ExtractOperation;
-    private static _BuildSubExpression;
-    private static _BuildExpression;
-    private static _MoveCursorWithinIf;
-    private static _MoveCursor;
-    private static _EvaluatePreProcessors;
-    private static _PreparePreProcessors;
-    private static _ProcessShaderConversion;
-    private static _ApplyPreProcessing;
-    private static _ProcessIncludes;
-    /**
-     * Loads a file from a url
-     * @param url url to load
-     * @param onSuccess callback called when the file successfully loads
-     * @param onProgress callback called while file is loading (if the server supports this mode)
-     * @param offlineProvider defines the offline provider for caching
-     * @param useArrayBuffer defines a boolean indicating that date must be returned as ArrayBuffer
-     * @param onError callback called when the file fails to load
-     * @returns a file request object
-     * @internal
-     */
-    static _FileToolsLoadFile(url: string, onSuccess: (data: string | ArrayBuffer, responseURL?: string) => void, onProgress?: (ev: ProgressEvent) => void, offlineProvider?: IOfflineProvider, useArrayBuffer?: boolean, onError?: (request?: WebRequest, exception?: LoadFileError) => void): IFileRequest;
-}
-export {};
+export declare function Initialize(options: _IProcessingOptions): void;
+/** @internal */
+export declare function Process(sourceCode: string, options: _IProcessingOptions, callback: (migratedCode: string, codeBeforeMigration: string) => void, engine?: AbstractEngine): void;
+/** @internal */
+export declare function PreProcess(sourceCode: string, options: _IProcessingOptions, callback: (migratedCode: string, codeBeforeMigration: string) => void, engine: AbstractEngine): void;
+/** @internal */
+export declare function Finalize(vertexCode: string, fragmentCode: string, options: _IProcessingOptions): {
+    vertexCode: string;
+    fragmentCode: string;
+};
+/** @internal */
+export declare function ProcessIncludes(sourceCode: string, options: _IProcessingOptions, callback: (data: any) => void): void;
+/**
+ * @deprecated Use direct imports from fileTools.pure instead. Kept for backwards compatibility.
+ * @internal
+ */
+export declare const _FunctionContainer: {
+    loadFile: (url: string, onSuccess: (data: string | ArrayBuffer, responseURL?: string) => void, onProgress?: (ev: ProgressEvent) => void, offlineProvider?: IOfflineProvider, useArrayBuffer?: boolean, onError?: (request?: WebRequest, exception?: LoadFileError) => void) => IFileRequest;
+};

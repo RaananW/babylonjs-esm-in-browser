@@ -1,16 +1,15 @@
-import type { Matrix } from "../../Maths/math.vector";
-import { Vector3 } from "../../Maths/math.vector";
-import type { Particle } from "../../Particles/particle";
-import type { IParticleEmitterType } from "./IParticleEmitterType";
-import type { UniformBufferEffectCommonAccessor } from "../../Materials/uniformBufferEffectCommonAccessor";
-import type { UniformBuffer } from "../../Materials/uniformBuffer";
+import { type Matrix, Vector3 } from "../../Maths/math.vector.pure.js";
+import { type Particle } from "../particle.js";
+import { type UniformBufferEffectCommonAccessor } from "../../Materials/uniformBufferEffectCommonAccessor.js";
+import { type UniformBuffer } from "../../Materials/uniformBuffer.js";
+import { type IParticleEmitterType } from "./IParticleEmitterType.js";
 /**
  * Particle emitter emitting particles from the inside of a cone.
  * It emits the particles alongside the cone volume from the base to the particle.
  * The emission direction might be randomized.
  */
 export declare class ConeParticleEmitter implements IParticleEmitterType {
-    /** defines how much to randomize the particle direction [0-1] (default is 0) */
+    /** [0] defines how much to randomize the particle direction [0-1] (default is 0) */
     directionRandomizer: number;
     private _radius;
     private _angle;
@@ -45,7 +44,7 @@ export declare class ConeParticleEmitter implements IParticleEmitterType {
      * @param directionRandomizer defines how much to randomize the particle direction [0-1] (default is 0)
      */
     constructor(radius?: number, angle?: number, 
-    /** defines how much to randomize the particle direction [0-1] (default is 0) */
+    /** [0] defines how much to randomize the particle direction [0-1] (default is 0) */
     directionRandomizer?: number);
     /**
      * Called by the particle System when the direction is computed for the created particle.
@@ -85,6 +84,68 @@ export declare class ConeParticleEmitter implements IParticleEmitterType {
     getEffectDefines(): string;
     /**
      * Returns the string "ConeParticleEmitter"
+     * @returns a string containing the class name
+     */
+    getClassName(): string;
+    /**
+     * Serializes the particle system to a JSON object.
+     * @returns the JSON object
+     */
+    serialize(): any;
+    /**
+     * Parse properties from a JSON object
+     * @param serializationObject defines the JSON object
+     */
+    parse(serializationObject: any): void;
+}
+export declare class ConeDirectedParticleEmitter extends ConeParticleEmitter {
+    /**
+     * [Up vector] The min limit of the emission direction.
+     */
+    direction1: Vector3;
+    /**
+     * [Up vector] The max limit of the emission direction.
+     */
+    direction2: Vector3;
+    constructor(radius?: number, angle?: number, 
+    /**
+     * [Up vector] The min limit of the emission direction.
+     */
+    direction1?: Vector3, 
+    /**
+     * [Up vector] The max limit of the emission direction.
+     */
+    direction2?: Vector3);
+    /**
+     * Called by the particle System when the direction is computed for the created particle.
+     * @param worldMatrix is the world matrix of the particle system
+     * @param directionToUpdate is the direction vector to update with the result
+     * @param particle is the particle we are computed the position for
+     * @param isLocal defines if the direction should be set in local space
+     */
+    startDirectionFunction(worldMatrix: Matrix, directionToUpdate: Vector3, particle: Particle, isLocal: boolean): void;
+    /**
+     * Clones the current emitter and returns a copy of it
+     * @returns the new emitter
+     */
+    clone(): ConeDirectedParticleEmitter;
+    /**
+     * Called by the GPUParticleSystem to setup the update shader
+     * @param uboOrEffect defines the update shader
+     */
+    applyToShader(uboOrEffect: UniformBufferEffectCommonAccessor): void;
+    /**
+     * Creates the structure of the ubo for this particle emitter
+     * @param ubo ubo to create the structure for
+     */
+    buildUniformLayout(ubo: UniformBuffer): void;
+    /**
+     * Returns a string to use to update the GPU particles update shader
+     * @returns a string containing the defines string
+     */
+    getEffectDefines(): string;
+    /**
+     * Returns the string "ConeDirectedParticleEmitter"
      * @returns a string containing the class name
      */
     getClassName(): string;

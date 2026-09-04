@@ -1,7 +1,6 @@
-import type { Observer } from "../Misc/observable";
-import { Observable } from "../Misc/observable";
-import type { Nullable } from "../types";
-import type { IDisposable } from "../scene";
+import { type Observer, Observable } from "../Misc/observable.js";
+import { type Nullable } from "../types.js";
+import { type IDisposable } from "../scene.js";
 /**
  * Construction options for a timer
  */
@@ -88,8 +87,9 @@ export declare enum TimerState {
  * A simple version of the timer. Will take options and start the timer immediately after calling it
  *
  * @param options options with which to initialize this timer
+ * @returns an observer that can be used to stop the timer
  */
-export declare function setAndStartTimer(options: ITimerOptions<any>): Nullable<Observer<any>>;
+export declare function setAndStartTimer<T = any>(options: ITimerOptions<T>): Nullable<Observer<T>>;
 /**
  * An advanced implementation of a timer class
  */

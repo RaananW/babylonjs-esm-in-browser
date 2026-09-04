@@ -1,10 +1,10 @@
-import type { Scene } from "../scene";
-import { Vector3 } from "../Maths/math.vector";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import { LensFlare } from "./lensFlare";
-import "../Shaders/lensFlare.fragment";
-import "../Shaders/lensFlare.vertex";
-import type { Viewport } from "../Maths/math.viewport";
+import { type Scene } from "../scene.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { LensFlare } from "./lensFlare.js";
+import { type Viewport } from "../Maths/math.viewport.js";
+import { ShaderLanguage } from "../Materials/shaderLanguage.js";
+import { Observable } from "../Misc/observable.js";
 /**
  * This represents a Lens Flare System or the shiny effect created by the light reflection on the  camera lenses.
  * It is usually composed of several `lensFlare`.
@@ -15,6 +15,11 @@ export declare class LensFlareSystem {
      * Define the name of the lens flare system
      */
     name: string;
+    /**
+     * Force all the lens flare systems to compile to glsl even on WebGPU engines.
+     * False by default. This is mostly meant for backward compatibility.
+     */
+    static ForceGLSL: boolean;
     /**
      * List of lens flares used in this system.
      */
@@ -37,6 +42,12 @@ export declare class LensFlareSystem {
     layerMask: number;
     /** Gets the scene */
     get scene(): Scene;
+    /** Shader language used by the system */
+    protected _shaderLanguage: ShaderLanguage;
+    /**
+     * Gets the shader language used in this system.
+     */
+    get shaderLanguage(): ShaderLanguage;
     /**
      * Define the id of the lens flare system in the scene.
      * (equal to name by default)
@@ -67,6 +78,10 @@ export declare class LensFlareSystem {
      * Define the name of the lens flare system
      */
     name: string, emitter: any, scene: Scene);
+    /** @internal */
+    _onShadersLoaded: Observable<void>;
+    private _shadersLoaded;
+    protected _initShaderSourceAsync(): Promise<void>;
     private _createIndexBuffer;
     /**
      * Define if the lens flare system is enabled.

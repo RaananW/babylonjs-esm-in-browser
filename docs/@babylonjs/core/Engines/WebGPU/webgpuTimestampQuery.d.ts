@@ -1,7 +1,10 @@
-import type { WebGPUBufferManager } from "./webgpuBufferManager";
-import { PerfCounter } from "../../Misc/perfCounter";
+import { type WebGPUBufferManager } from "./webgpuBufferManager.js";
+import { PerfCounter } from "../../Misc/perfCounter.js";
+import { type WebGPUEngine } from "../webgpuEngine.js";
+import { type WebGPUPerfCounter } from "./webgpuPerfCounter.js";
 /** @internal */
 export declare class WebGPUTimestampQuery {
+    private _engine;
     private _device;
     private _bufferManager;
     private _enabled;
@@ -9,17 +12,23 @@ export declare class WebGPUTimestampQuery {
     private _measureDuration;
     private _measureDurationState;
     get gpuFrameTimeCounter(): PerfCounter;
-    constructor(device: GPUDevice, bufferManager: WebGPUBufferManager);
+    constructor(engine: WebGPUEngine, device: GPUDevice, bufferManager: WebGPUBufferManager);
     get enable(): boolean;
     set enable(value: boolean);
     startFrame(commandEncoder: GPUCommandEncoder): void;
     endFrame(commandEncoder: GPUCommandEncoder): void;
+    startPass(descriptor: GPURenderPassDescriptor | GPUComputePassDescriptor, index: number): void;
+    endPass(index: number, gpuPerfCounter?: WebGPUPerfCounter): void;
+    dispose(): void;
 }
 /** @internal */
 export declare class WebGPUDurationMeasure {
     private _querySet;
-    constructor(device: GPUDevice, bufferManager: WebGPUBufferManager);
+    private _count;
+    constructor(engine: WebGPUEngine, device: GPUDevice, bufferManager: WebGPUBufferManager, count?: number, querySetLabel?: string);
     start(encoder: GPUCommandEncoder): void;
     stop(encoder: GPUCommandEncoder): Promise<number | null>;
+    startPass(descriptor: GPURenderPassDescriptor | GPUComputePassDescriptor, index: number): void;
+    stopPass(index: number): Promise<number | null>;
     dispose(): void;
 }

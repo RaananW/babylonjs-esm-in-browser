@@ -1,15 +1,23 @@
-import type { Nullable } from "../types";
-import type { WebXRLayerRenderTargetTextureProvider } from "./webXRRenderTargetTextureProvider";
-import type { WebXRSessionManager } from "./webXRSessionManager";
+import { type Nullable } from "../types.js";
+import { type WebXRLayerRenderTargetTextureProvider } from "./webXRRenderTargetTextureProvider.js";
+import { type WebXRSessionManager } from "./webXRSessionManager.js";
 /** Covers all supported subclasses of WebXR's XRCompositionLayer */
-export declare type WebXRCompositionLayerType = "XRProjectionLayer";
+export type WebXRCompositionLayerType = "XRProjectionLayer";
+/**
+ * The quad-layer type name.
+ */
+export type WebXRQuadLayerType = "XRQuadLayer";
 /** Covers all supported subclasses of WebXR's XRLayer */
-export declare type WebXRLayerType = "XRWebGLLayer" | WebXRCompositionLayerType;
+export type WebXRLayerType = "XRWebGLLayer" | WebXRCompositionLayerType | WebXRQuadLayerType;
+/** Covers the spatial composition-layer types supported by WebXRLayers. */
+export type WebXRSpatialLayerType = WebXRQuadLayerType | "XRCylinderLayer" | "XREquirectLayer" | "XRCubeLayer";
+/** Covers every native layer type supported by Babylon.js. */
+export type WebXRSupportedLayerType = WebXRLayerType | WebXRSpatialLayerType;
 /**
  * Wrapper over subclasses of XRLayer.
  * @internal
  */
-export declare class WebXRLayerWrapper {
+export declare class WebXRLayerWrapper<LayerTypeT extends WebXRSupportedLayerType = WebXRLayerType> {
     /** The width of the layer's framebuffer. */
     getWidth: () => number;
     /** The height of the layer's framebuffer. */
@@ -17,23 +25,40 @@ export declare class WebXRLayerWrapper {
     /** The XR layer that this WebXRLayerWrapper wraps. */
     readonly layer: XRLayer;
     /** The type of XR layer that is being wrapped. */
-    readonly layerType: WebXRLayerType;
+    readonly layerType: LayerTypeT;
     /** Create a render target provider for the wrapped layer. */
-    createRenderTargetTextureProvider: (xrSessionManager: WebXRSessionManager) => WebXRLayerRenderTargetTextureProvider;
+    private _createRenderTargetTextureProvider;
+    private _rttWrapper;
     /**
-     * Check if fixed foveation is supported on this device
+     * The render target provider created for this layer, or `null` until one is created.
+     */
+    get renderTargetTextureProvider(): Nullable<WebXRLayerRenderTargetTextureProvider<LayerTypeT>>;
+    /**
+     * Check if fixed foveation is supported by the wrapped XRWebGLLayer or XRProjectionLayer.
      */
     get isFixedFoveationSupported(): boolean;
     /**
-     * Get the fixed foveation currently set, as specified by the webxr specs
-     * If this returns null, then fixed foveation is not supported
+     * Gets the fixed foveation currently set, as specified by the WebXR specs.
+     * @returns The fixed foveation level, or `null` when fixed foveation is not supported.
      */
     get fixedFoveation(): Nullable<number>;
     /**
-     * Set the fixed foveation to the specified value, as specified by the webxr specs
-     * This value will be normalized to be between 0 and 1, 1 being max foveation, 0 being no foveation
+     * Sets the fixed foveation level, as specified by the WebXR specs.
+     * The value is normalized between 0 and 1, where 1 is maximum foveation and 0 is no foveation.
+     * Unsupported native layers ignore the assignment, matching the WebXR fixed-foveation contract.
+     * @param value The fixed foveation level, or `null` to use no foveation.
      */
     set fixedFoveation(value: Nullable<number>);
+    /**
+     * Create a render target provider for the wrapped layer.
+     * @param xrSessionManager The XR Session Manager
+     * @returns A new render target texture provider for the wrapped layer.
+     */
+    createRenderTargetTextureProvider(xrSessionManager: WebXRSessionManager): WebXRLayerRenderTargetTextureProvider<LayerTypeT>;
+    /**
+     * Disposes the render target provider created for this layer.
+     */
+    dispose(): void;
     protected constructor(
     /** The width of the layer's framebuffer. */
     getWidth: () => number, 
@@ -42,7 +67,7 @@ export declare class WebXRLayerWrapper {
     /** The XR layer that this WebXRLayerWrapper wraps. */
     layer: XRLayer, 
     /** The type of XR layer that is being wrapped. */
-    layerType: WebXRLayerType, 
+    layerType: LayerTypeT, 
     /** Create a render target provider for the wrapped layer. */
-    createRenderTargetTextureProvider: (xrSessionManager: WebXRSessionManager) => WebXRLayerRenderTargetTextureProvider);
+    _createRenderTargetTextureProvider: (xrSessionManager: WebXRSessionManager) => WebXRLayerRenderTargetTextureProvider<LayerTypeT>);
 }

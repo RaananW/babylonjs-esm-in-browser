@@ -1,7 +1,5 @@
-import { WebGLHardwareTexture } from "../Engines/WebGL/webGLHardwareTexture.js";
-import { InternalTexture, InternalTextureSource } from "../Materials/Textures/internalTexture.js";
 import { MultiviewRenderTarget } from "../Materials/Textures/MultiviewRenderTarget.js";
-import { RenderTargetTexture } from "../Materials/Textures/renderTargetTexture.js";
+import { RenderTargetTexture } from "../Materials/Textures/renderTargetTexture.pure.js";
 /**
  * Provides render target textures and other important rendering information for a given XRLayer.
  * @internal
@@ -13,52 +11,47 @@ export class WebXRLayerRenderTargetTextureProvider {
         this._renderTargetTextures = new Array();
         this._engine = _scene.getEngine();
     }
-    _createInternalTexture(textureSize, texture) {
-        const internalTexture = new InternalTexture(this._engine, InternalTextureSource.Unknown, true);
-        internalTexture.width = textureSize.width;
-        internalTexture.height = textureSize.height;
-        internalTexture._hardwareTexture = new WebGLHardwareTexture(texture, this._engine._gl);
-        internalTexture.isReady = true;
-        return internalTexture;
-    }
-    _createRenderTargetTexture(width, height, framebuffer, colorTexture, depthStencilTexture, multiview) {
-        if (!this._engine) {
-            throw new Error("Engine is disposed");
-        }
+    /**
+     * Creates the render target texture "shell" (with the correct multiview type and MSAA sample count)
+     * without attaching any graphics-API-specific resource. Subclasses attach their own textures.
+     * @param width the width of the render target
+     * @param height the height of the render target
+     * @param multiview whether the render target should be a multiview render target
+     * @returns the created (but not yet registered) render target texture
+     */
+    _createRenderTargetTextureShell(width, height, multiview) {
         const textureSize = { width, height };
-        // Create render target texture from the internal texture
         const renderTargetTexture = multiview ? new MultiviewRenderTarget(this._scene, textureSize) : new RenderTargetTexture("XR renderTargetTexture", textureSize, this._scene);
-        const renderTargetWrapper = renderTargetTexture.renderTarget;
-        renderTargetWrapper._samples = renderTargetTexture.samples;
-        // Set the framebuffer, make sure it works in all scenarios - emulator, no layers and layers
-        if (framebuffer || !colorTexture) {
-            renderTargetWrapper._framebuffer = framebuffer;
+        renderTargetTexture.renderTarget._samples = renderTargetTexture.samples;
+        return renderTargetTexture;
+    }
+    /**
+     * Builds a render target texture from already-wrapped internal textures, without referencing any
+     * graphics-API-specific type. A GPU-based backend (e.g. WebGPU / XRGPUBinding) wraps its native
+     * textures with the engine and calls this hook; the WebGL backend has its own typed entry point.
+     * @param width the width of the render target
+     * @param height the height of the render target
+     * @param colorTexture the internal texture to use as the color attachment, if any
+     * @param depthStencilTexture the internal texture to use as the depth/stencil attachment, if any
+     * @param multiview whether the render target should be a multiview render target
+     * @returns the created render target texture
+     */
+    _createRenderTargetTextureInternal(width, height, colorTexture, depthStencilTexture, multiview) {
+        if (multiview) {
+            // The multiview color/depth array wiring is not implemented on this API-agnostic hook yet.
+            // The WebGL provider still owns the array path via its own _createRenderTargetTexture.
+            throw new Error("Multiview render targets are not yet supported by the API-agnostic render target creation path.");
         }
-        // Create internal texture
+        const renderTargetTexture = this._createRenderTargetTextureShell(width, height, multiview);
+        const renderTargetWrapper = renderTargetTexture.renderTarget;
         if (colorTexture) {
-            if (multiview) {
-                renderTargetWrapper._colorTextureArray = colorTexture;
-            }
-            else {
-                const internalTexture = this._createInternalTexture(textureSize, colorTexture);
-                renderTargetWrapper.setTexture(internalTexture, 0);
-                renderTargetTexture._texture = internalTexture;
-            }
+            renderTargetWrapper.setTexture(colorTexture, 0);
+            renderTargetTexture._texture = colorTexture;
         }
         if (depthStencilTexture) {
-            if (multiview) {
-                renderTargetWrapper._depthStencilTextureArray = depthStencilTexture;
-            }
-            else {
-                renderTargetWrapper._depthStencilTexture = this._createInternalTexture(textureSize, depthStencilTexture);
-            }
+            renderTargetWrapper._depthStencilTexture = depthStencilTexture;
         }
         renderTargetTexture.disableRescaling();
-        // Firefox reality fails if skipInitialClear is set to true, so make sure only modern XR implementations set it.
-        if (typeof XRWebGLBinding !== "undefined") {
-            // WebXR pre-clears textures
-            renderTargetTexture.skipInitialClear = true;
-        }
         this._renderTargetTextures.push(renderTargetTexture);
         return renderTargetTexture;
     }
@@ -70,7 +63,9 @@ export class WebXRLayerRenderTargetTextureProvider {
         return this._framebufferDimensions;
     }
     dispose() {
-        this._renderTargetTextures.forEach((rtt) => rtt.dispose());
+        for (const rtt of this._renderTargetTextures) {
+            rtt.dispose();
+        }
         this._renderTargetTextures.length = 0;
     }
 }

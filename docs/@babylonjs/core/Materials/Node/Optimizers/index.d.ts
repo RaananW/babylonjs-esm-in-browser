@@ -1,1 +1,1 @@
-export * from "./nodeMaterialOptimizer";
+export * from "./nodeMaterialOptimizer.js";

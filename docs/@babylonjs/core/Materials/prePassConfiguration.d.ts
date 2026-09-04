@@ -1,7 +1,7 @@
-import type { Matrix } from "../Maths/math.vector";
-import type { Mesh } from "../Meshes/mesh";
-import type { Scene } from "../scene";
-import type { Effect } from "../Materials/effect";
+import { type Matrix } from "../Maths/math.vector.js";
+import { type Mesh } from "../Meshes/mesh.js";
+import { type Scene } from "../scene.js";
+import { type Effect } from "../Materials/effect.js";
 /**
  * Configuration needed for prepass-capable materials
  */

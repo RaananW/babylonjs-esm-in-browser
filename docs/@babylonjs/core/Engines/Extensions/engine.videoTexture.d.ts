@@ -1,14 +1,6 @@
-import type { InternalTexture } from "../../Materials/Textures/internalTexture";
-import type { Nullable } from "../../types";
-import type { ExternalTexture } from "../../Materials/Textures/externalTexture";
-declare module "../../Engines/thinEngine" {
-    interface ThinEngine {
-        /**
-         * Update a video texture
-         * @param texture defines the texture to update
-         * @param video defines the video element to use
-         * @param invertY defines if data must be stored with Y axis inverted
-         */
-        updateVideoTexture(texture: Nullable<InternalTexture>, video: HTMLVideoElement | Nullable<ExternalTexture>, invertY: boolean): void;
-    }
-}
+export * from "./engine.videoTexture.types.js";
+/**
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import engine.videoTexture.pure for tree-shakeable, side-effect-free usage.
+ */
+export * from "./engine.videoTexture.pure.js";

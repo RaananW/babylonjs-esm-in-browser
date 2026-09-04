@@ -1,20 +1,20 @@
-import { Observable } from "../Misc/observable";
-import type { Nullable } from "../types";
-import type { Camera } from "../Cameras/camera";
-import type { Scene } from "../scene";
-import type { ISize } from "../Maths/math.size";
-import { Color4 } from "../Maths/math.color";
-import { Engine } from "../Engines/engine";
-import type { SubMesh } from "../Meshes/subMesh";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import type { Mesh } from "../Meshes/mesh";
-import type { PostProcess } from "../PostProcesses/postProcess";
-import type { BaseTexture } from "../Materials/Textures/baseTexture";
-import { RenderTargetTexture } from "../Materials/Textures/renderTargetTexture";
-import type { Effect } from "../Materials/effect";
-import { Material } from "../Materials/material";
-import "../Shaders/glowMapGeneration.fragment";
-import "../Shaders/glowMapGeneration.vertex";
+import { Observable } from "../Misc/observable.js";
+import { type Nullable } from "../types.js";
+import { type Camera } from "../Cameras/camera.js";
+import { type Scene } from "../scene.js";
+import { type ISize } from "../Maths/math.size.js";
+import { type Color4 } from "../Maths/math.color.js";
+import { type AbstractEngine } from "../Engines/abstractEngine.js";
+import { type SubMesh } from "../Meshes/subMesh.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { type Mesh } from "../Meshes/mesh.js";
+import { type PostProcess } from "../PostProcesses/postProcess.js";
+import { type BaseTexture } from "../Materials/Textures/baseTexture.js";
+import { RenderTargetTexture } from "../Materials/Textures/renderTargetTexture.pure.js";
+import { type Effect } from "../Materials/effect.js";
+import { type Material } from "../Materials/material.js";
+import { type ShaderLanguage } from "../Materials/shaderLanguage.js";
+import { ThinEffectLayer } from "./thinEffectLayer.js";
 /**
  * Effect layer options. This helps customizing the behaviour
  * of the effect layer.
@@ -42,9 +42,17 @@ export interface IEffectLayerOptions {
      */
     renderingGroupId: number;
     /**
-     * The type of the main texture. Default: TEXTURETYPE_UNSIGNED_INT
+     * The type of the main texture. Default: TEXTURETYPE_UNSIGNED_BYTE
      */
     mainTextureType: number;
+    /**
+     * The format of the main texture. Default: TEXTUREFORMAT_RGBA
+     */
+    mainTextureFormat: number;
+    /**
+     * Whether or not to generate a stencil buffer. Default: false
+     */
+    generateStencilBuffer: boolean;
 }
 /**
  * The effect layer Helps adding post process effect blended with the main pass.
@@ -55,34 +63,58 @@ export interface IEffectLayerOptions {
  * customized per effects.
  */
 export declare abstract class EffectLayer {
-    private _vertexBuffers;
-    private _indexBuffer;
     private _effectLayerOptions;
-    private _mergeDrawWrapper;
+    protected _mainTextureCreatedSize: ISize;
     protected _scene: Scene;
-    protected _engine: Engine;
+    protected _engine: AbstractEngine;
     protected _maxSize: number;
     protected _mainTextureDesiredSize: ISize;
     protected _mainTexture: RenderTargetTexture;
-    protected _shouldRender: boolean;
+    protected get _shouldRender(): boolean;
+    protected set _shouldRender(value: boolean);
     protected _postProcesses: PostProcess[];
     protected _textures: BaseTexture[];
-    protected _emissiveTextureAndColor: {
+    protected get _emissiveTextureAndColor(): {
         texture: Nullable<BaseTexture>;
         color: Color4;
     };
+    protected set _emissiveTextureAndColor(value: {
+        texture: Nullable<BaseTexture>;
+        color: Color4;
+    });
+    protected get _effectIntensity(): {
+        [meshUniqueId: number]: number;
+    };
+    protected set _effectIntensity(value: {
+        [meshUniqueId: number]: number;
+    });
+    protected readonly _thinEffectLayer: ThinEffectLayer;
+    private readonly _internalThinEffectLayer;
+    /**
+     * Force all the effect layers to compile to glsl even on WebGPU engines.
+     * False by default. This is mostly meant for backward compatibility.
+     */
+    static get ForceGLSL(): boolean;
+    static set ForceGLSL(value: boolean);
+    /**
+     * The unique id of the layer
+     */
+    readonly uniqueId: number;
     /**
      * The name of the layer
      */
-    name: string;
+    get name(): string;
+    set name(value: string);
     /**
      * The clear color of the texture used to generate the glow map.
      */
-    neutralColor: Color4;
+    get neutralColor(): Color4;
+    set neutralColor(value: Color4);
     /**
      * Specifies whether the highlight layer is enabled or not.
      */
-    isEnabled: boolean;
+    get isEnabled(): boolean;
+    set isEnabled(value: boolean);
     /**
      * Gets the camera attached to the layer.
      */
@@ -95,7 +127,8 @@ export declare abstract class EffectLayer {
     /**
      * Specifies if the bounding boxes should be rendered normally or if they should undergo the effect of the layer
      */
-    disableBoundingBoxesFromEffectLayer: boolean;
+    get disableBoundingBoxesFromEffectLayer(): boolean;
+    set disableBoundingBoxesFromEffectLayer(value: boolean);
     /**
      * An event triggered when the effect layer has been disposed.
      */
@@ -128,11 +161,15 @@ export declare abstract class EffectLayer {
      * Gets the main texture where the effect is rendered
      */
     get mainTexture(): RenderTargetTexture;
+    protected get _shaderLanguage(): ShaderLanguage;
+    /**
+     * Gets the shader language used in this material.
+     */
+    get shaderLanguage(): ShaderLanguage;
     /**
      * @internal
      */
     static _SceneComponentInitialization: (scene: Scene) => void;
-    private _materialForRendering;
     /**
      * Sets a specific material to be used to render a mesh/a list of meshes in the layer
      * @param mesh mesh or array of meshes
@@ -140,13 +177,29 @@ export declare abstract class EffectLayer {
      */
     setMaterialForRendering(mesh: AbstractMesh | AbstractMesh[], material?: Material): void;
     /**
+     * Gets the intensity of the effect for a specific mesh.
+     * @param mesh The mesh to get the effect intensity for
+     * @returns The intensity of the effect for the mesh
+     */
+    getEffectIntensity(mesh: AbstractMesh): number;
+    /**
+     * Sets the intensity of the effect for a specific mesh.
+     * @param mesh The mesh to set the effect intensity for
+     * @param intensity The intensity of the effect for the mesh
+     */
+    setEffectIntensity(mesh: AbstractMesh, intensity: number): void;
+    /**
      * Instantiates a new effect Layer and references it in the scene.
      * @param name The name of the layer
      * @param scene The scene to use the layer in
+     * @param forceGLSL Use the GLSL code generation for the shader (even on WebGPU). Default is false
+     * @param thinEffectLayer The thin instance of the effect layer (optional)
      */
     constructor(
     /** The Friendly of the effect in the scene */
-    name: string, scene?: Scene);
+    name: string, scene?: Scene, forceGLSL?: boolean, thinEffectLayer?: ThinEffectLayer);
+    protected get _shadersLoaded(): boolean;
+    protected set _shadersLoaded(value: boolean);
     /**
      * Get the effect name of the layer.
      * @returns The effect name
@@ -206,14 +259,6 @@ export declare abstract class EffectLayer {
      */
     protected _init(options: Partial<IEffectLayerOptions>): void;
     /**
-     * Generates the index buffer of the full screen quad blending to the main canvas.
-     */
-    private _generateIndexBuffer;
-    /**
-     * Generates the vertex buffer of the full screen quad blending to the main canvas.
-     */
-    private _generateVertexBuffer;
-    /**
      * Sets the main texture desired size which is the closest power of two
      * of the engine canvas size.
      */
@@ -235,6 +280,13 @@ export declare abstract class EffectLayer {
      * @returns true if ready otherwise, false
      */
     protected _isReady(subMesh: SubMesh, useInstances: boolean, emissiveTexture: Nullable<BaseTexture>): boolean;
+    protected _importShadersAsync(): Promise<void>;
+    protected _arePostProcessAndMergeReady(): boolean;
+    /**
+     * Checks if the layer is ready to be used.
+     * @returns true if the layer is ready to be used
+     */
+    isLayerReady(): boolean;
     /**
      * Renders the glowing part of the scene by blending the blurred glowing meshes on top of the rendered scene.
      */
@@ -269,14 +321,9 @@ export declare abstract class EffectLayer {
      */
     protected _shouldRenderEmissiveTextureForMesh(): boolean;
     /**
-     * Renders the submesh passed in parameter to the generation map.
-     * @param subMesh
-     * @param enableAlphaMode
-     */
-    protected _renderSubMesh(subMesh: SubMesh, enableAlphaMode?: boolean): void;
-    /**
      * Defines whether the current material of the mesh should be use to render the effect.
      * @param mesh defines the current mesh to render
+     * @returns true if the mesh material should be use
      */
     protected _useMeshMaterial(mesh: AbstractMesh): boolean;
     /**

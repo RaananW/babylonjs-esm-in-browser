@@ -1,9 +1,9 @@
 import { Observable } from "../Misc/observable.js";
-import { AbstractMesh } from "../Meshes/abstractMesh.js";
-import { Quaternion, Vector3 } from "../Maths/math.vector.js";
-import { WebXRMotionControllerManager } from "./motionController/webXRMotionControllerManager.js";
-import { Tools } from "../Misc/tools.js";
-let idCount = 0;
+import { Quaternion, Vector3 } from "../Maths/math.vector.pure.js";
+import { WebXRMotionControllerManager } from "./motionController/webXRMotionControllerManager.pure.js";
+import { Tools } from "../Misc/tools.pure.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
+let IdCount = 0;
 /**
  * Represents an XR controller
  */
@@ -39,28 +39,32 @@ export class WebXRInputSource {
          * Observers registered here will trigger when a motion controller profile was assigned to this xr controller
          */
         this.onMotionControllerInitObservable = new Observable();
-        this._uniqueId = `controller-${idCount++}-${inputSource.targetRayMode}-${inputSource.handedness}`;
-        this.pointer = new AbstractMesh(`${this._uniqueId}-pointer`, _scene);
+        this._uniqueId = `controller-${IdCount++}-${inputSource.targetRayMode}-${inputSource.handedness}`;
+        this.pointer = new Mesh(`${this._uniqueId}-pointer`, _scene);
         this.pointer.rotationQuaternion = new Quaternion();
         if (this.inputSource.gripSpace) {
-            this.grip = new AbstractMesh(`${this._uniqueId}-grip`, this._scene);
+            this.grip = new Mesh(`${this._uniqueId}-grip`, this._scene);
             this.grip.rotationQuaternion = new Quaternion();
         }
         this._tmpVector.set(0, 0, this._scene.useRightHandedSystem ? -1.0 : 1.0);
         // for now only load motion controllers if gamepad object available
         if (this.inputSource.gamepad && this.inputSource.targetRayMode === "tracked-pointer") {
+            // eslint-disable-next-line github/no-then
             WebXRMotionControllerManager.GetMotionControllerWithXRInput(inputSource, _scene, this._options.forceControllerProfile).then((motionController) => {
                 this.motionController = motionController;
                 this.onMotionControllerInitObservable.notifyObservers(motionController);
                 // should the model be loaded?
-                if (!this._options.doNotLoadControllerMesh && !this.motionController._doNotLoadControllerMesh) {
+                if (!this._options.doNotLoadControllerMesh && !this.inputSource.skipRendering && !this.motionController._doNotLoadControllerMesh) {
+                    // eslint-disable-next-line @typescript-eslint/no-floating-promises, github/no-then
                     this.motionController.loadModel().then((success) => {
-                        var _a;
                         if (success && this.motionController && this.motionController.rootMesh) {
                             if (this._options.renderingGroupId) {
                                 // anything other than 0?
                                 this.motionController.rootMesh.renderingGroupId = this._options.renderingGroupId;
-                                this.motionController.rootMesh.getChildMeshes(false).forEach((mesh) => (mesh.renderingGroupId = this._options.renderingGroupId));
+                                const childMeshes = this.motionController.rootMesh.getChildMeshes(false);
+                                for (const mesh of childMeshes) {
+                                    mesh.renderingGroupId = this._options.renderingGroupId;
+                                }
                             }
                             this.onMeshLoadedObservable.notifyObservers(this.motionController.rootMesh);
                             this.motionController.rootMesh.parent = this.grip || this.pointer;
@@ -68,7 +72,7 @@ export class WebXRInputSource {
                         }
                         // make sure to dispose is the controller is already disposed
                         if (this._disposed) {
-                            (_a = this.motionController) === null || _a === void 0 ? void 0 : _a.dispose();
+                            this.motionController?.dispose();
                         }
                     });
                 }
@@ -117,14 +121,15 @@ export class WebXRInputSource {
      * @param xrFrame xr frame to update the pose with
      * @param referenceSpace reference space to use
      * @param xrCamera the xr camera, used for parenting
+     * @param xrSessionManager the session manager used to get the world reference system
      */
-    updateFromXRFrame(xrFrame, referenceSpace, xrCamera) {
+    updateFromXRFrame(xrFrame, referenceSpace, xrCamera, xrSessionManager) {
         const pose = xrFrame.getPose(this.inputSource.targetRaySpace, referenceSpace);
         this._lastXRPose = pose;
         // Update the pointer mesh
         if (pose) {
             const pos = pose.transform.position;
-            this.pointer.position.set(pos.x, pos.y, pos.z);
+            this.pointer.position.set(pos.x, pos.y, pos.z).scaleInPlace(xrSessionManager.worldScalingFactor);
             const orientation = pose.transform.orientation;
             this.pointer.rotationQuaternion.set(orientation.x, orientation.y, orientation.z, orientation.w);
             if (!this._scene.useRightHandedSystem) {
@@ -133,6 +138,7 @@ export class WebXRInputSource {
                 this.pointer.rotationQuaternion.w *= -1;
             }
             this.pointer.parent = xrCamera.parent;
+            this.pointer.scaling.setAll(xrSessionManager.worldScalingFactor);
         }
         // Update the grip mesh if it exists
         if (this.inputSource.gripSpace && this.grip) {
@@ -140,7 +146,7 @@ export class WebXRInputSource {
             if (pose) {
                 const pos = pose.transform.position;
                 const orientation = pose.transform.orientation;
-                this.grip.position.set(pos.x, pos.y, pos.z);
+                this.grip.position.set(pos.x, pos.y, pos.z).scaleInPlace(xrSessionManager.worldScalingFactor);
                 this.grip.rotationQuaternion.set(orientation.x, orientation.y, orientation.z, orientation.w);
                 if (!this._scene.useRightHandedSystem) {
                     this.grip.position.z *= -1;
@@ -149,6 +155,7 @@ export class WebXRInputSource {
                 }
             }
             this.grip.parent = xrCamera.parent;
+            this.grip.scaling.setAll(xrSessionManager.worldScalingFactor);
         }
         if (this.motionController) {
             // either update buttons only or also position, if in gamepad mode

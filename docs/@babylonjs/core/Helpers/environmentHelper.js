@@ -1,50 +1,35 @@
 import { Observable } from "../Misc/observable.js";
-import { ArcRotateCamera } from "../Cameras/arcRotateCamera.js";
-import { Vector3 } from "../Maths/math.vector.js";
-import { Color3, Color4 } from "../Maths/math.color.js";
-import { Mesh } from "../Meshes/mesh.js";
-import { BaseTexture } from "../Materials/Textures/baseTexture.js";
-import { Texture } from "../Materials/Textures/texture.js";
-import { MirrorTexture } from "../Materials/Textures/mirrorTexture.js";
-import { CubeTexture } from "../Materials/Textures/cubeTexture.js";
-import { BackgroundMaterial } from "../Materials/Background/backgroundMaterial.js";
+import { ArcRotateCamera } from "../Cameras/arcRotateCamera.pure.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { Color3, Color4 } from "../Maths/math.color.pure.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
+import { BaseTexture } from "../Materials/Textures/baseTexture.pure.js";
+import { Texture } from "../Materials/Textures/texture.pure.js";
+import { MirrorTexture } from "../Materials/Textures/mirrorTexture.pure.js";
+import { CubeTexture, CubeTextureCreateFromPrefilteredData } from "../Materials/Textures/cubeTexture.pure.js";
+import { BackgroundMaterial } from "../Materials/Background/backgroundMaterial.pure.js";
 
-import { CreatePlane } from "../Meshes/Builders/planeBuilder.js";
-import { CreateBox } from "../Meshes/Builders/boxBuilder.js";
+import { CreatePlane } from "../Meshes/Builders/planeBuilder.pure.js";
+import { CreateBox } from "../Meshes/Builders/boxBuilder.pure.js";
 import { Plane } from "../Maths/math.plane.js";
+import { Tools } from "../Misc/tools.pure.js";
 /**
- * The Environment helper class can be used to add a fully featured none expensive background to your scene.
+ * The EnvironmentHelper class can be used to add a fully featured non-expensive background to your scene.
  * It includes by default a skybox and a ground relying on the BackgroundMaterial.
- * It also helps with the default setup of your imageProcessing configuration.
+ * It also helps with the default setup of your ImageProcessingConfiguration.
  */
 export class EnvironmentHelper {
     /**
-     * constructor
-     * @param options Defines the options we want to customize the helper
-     * @param scene The scene to add the material to
-     */
-    constructor(options, scene) {
-        this._errorHandler = (message, exception) => {
-            this.onErrorObservable.notifyObservers({ message: message, exception: exception });
-        };
-        this._options = {
-            ...EnvironmentHelper._GetDefaultOptions(),
-            ...options,
-        };
-        this._scene = scene;
-        this.onErrorObservable = new Observable();
-        this._setupBackground();
-        this._setupImageProcessing();
-    }
-    /**
      * Creates the default options for the helper.
+     * @param scene The scene the environment helper belongs to.
+     * @returns default options for the helper.
      */
-    static _GetDefaultOptions() {
+    static _GetDefaultOptions(scene) {
         return {
             createGround: true,
             groundSize: 15,
-            groundTexture: this._GroundTextureCDNUrl,
-            groundColor: new Color3(0.2, 0.2, 0.3).toLinearSpace().scale(3),
+            groundTexture: Tools.GetAssetUrl(this._GroundTextureCDNUrl),
+            groundColor: new Color3(0.2, 0.2, 0.3).toLinearSpace(scene.getEngine().useExactSrgbConversions).scale(3),
             groundOpacity: 0.9,
             enableGroundShadow: true,
             groundShadowLevel: 0.5,
@@ -58,13 +43,13 @@ export class EnvironmentHelper {
             groundYBias: 0.00001,
             createSkybox: true,
             skyboxSize: 20,
-            skyboxTexture: this._SkyboxTextureCDNUrl,
-            skyboxColor: new Color3(0.2, 0.2, 0.3).toLinearSpace().scale(3),
+            skyboxTexture: Tools.GetAssetUrl(this._SkyboxTextureCDNUrl),
+            skyboxColor: new Color3(0.2, 0.2, 0.3).toLinearSpace(scene.getEngine().useExactSrgbConversions).scale(3),
             backgroundYRotation: 0,
             sizeAuto: true,
             rootPosition: Vector3.Zero(),
             setupImageProcessing: true,
-            environmentTexture: this._EnvironmentTextureCDNUrl,
+            environmentTexture: Tools.GetAssetUrl(this._EnvironmentTextureCDNUrl),
             cameraExposure: 0.8,
             cameraContrast: 1.2,
             toneMappingEnabled: true,
@@ -129,8 +114,26 @@ export class EnvironmentHelper {
         return this._groundMaterial;
     }
     /**
-     * Updates the background according to the new options
-     * @param options
+     * constructor
+     * @param options Defines the options we want to customize the helper
+     * @param scene The scene to add the material to
+     */
+    constructor(options, scene) {
+        this._errorHandler = (message, exception) => {
+            this.onErrorObservable.notifyObservers({ message: message, exception: exception });
+        };
+        this._options = {
+            ...EnvironmentHelper._GetDefaultOptions(scene),
+            ...options,
+        };
+        this._scene = scene;
+        this.onErrorObservable = new Observable();
+        this._setupBackground();
+        this._setupImageProcessing();
+    }
+    /**
+     * Updates the environment according to the new options
+     * @param options options to configure the helper (IEnvironmentHelperOptions)
      */
     updateOptions(options) {
         const newOptions = {
@@ -166,6 +169,10 @@ export class EnvironmentHelper {
             }
         }
         if (this._groundMirror && !newOptions.enableGroundMirror) {
+            const index = this._scene.customRenderTargets.indexOf(this._groundMirror);
+            if (index !== -1) {
+                this._scene.customRenderTargets.splice(index, 1);
+            }
             this._groundMirror.dispose();
             this._groundMirror = null;
         }
@@ -215,7 +222,7 @@ export class EnvironmentHelper {
             this._scene.environmentTexture = this._options.environmentTexture;
             return;
         }
-        const environmentTexture = CubeTexture.CreateFromPrefilteredData(this._options.environmentTexture, this._scene);
+        const environmentTexture = CubeTextureCreateFromPrefilteredData(this._options.environmentTexture, this._scene);
         this._scene.environmentTexture = environmentTexture;
     }
     /**
@@ -247,6 +254,7 @@ export class EnvironmentHelper {
     }
     /**
      * Get the scene sizes according to the setup.
+     * @returns the different ground and skybox sizes.
      */
     _getSceneSize() {
         let groundSize = this._options.groundSize;
@@ -265,9 +273,9 @@ export class EnvironmentHelper {
                 groundSize = this._scene.activeCamera.upperRadiusLimit * 2;
                 skyboxSize = groundSize;
             }
-            const sceneDiagonalLenght = sceneDiagonal.length();
-            if (sceneDiagonalLenght > groundSize) {
-                groundSize = sceneDiagonalLenght * 2;
+            const sceneDiagonalLength = sceneDiagonal.length();
+            if (sceneDiagonalLength > groundSize) {
+                groundSize = sceneDiagonalLength * 2;
                 skyboxSize = groundSize;
             }
             // 10 % bigger.
@@ -286,6 +294,7 @@ export class EnvironmentHelper {
         if (!this._ground || this._ground.isDisposed()) {
             this._ground = CreatePlane("BackgroundPlane", { size: sceneSize.groundSize }, this._scene);
             this._ground.rotation.x = Math.PI / 2; // Face up by default.
+            this._ground.isPickable = false;
             this._ground.parent = this._rootMesh;
             this._ground.onDisposeObservable.add(() => {
                 this._ground = null;
@@ -349,8 +358,11 @@ export class EnvironmentHelper {
                     }
                 }
             }
+            if (this._scene.frameGraph) {
+                this._scene.customRenderTargets.push(this._groundMirror);
+            }
         }
-        const gammaGround = this._options.groundColor.toGammaSpace();
+        const gammaGround = this._options.groundColor.toGammaSpace(this._scene.getEngine().useExactSrgbConversions);
         this._groundMirror.clearColor = new Color4(gammaGround.r, gammaGround.g, gammaGround.b, 1);
         this._groundMirror.adaptiveBlurKernel = this._options.groundMirrorBlurKernel;
     }
@@ -373,6 +385,7 @@ export class EnvironmentHelper {
     _setupSkybox(sceneSize) {
         if (!this._skybox || this._skybox.isDisposed()) {
             this._skybox = CreateBox("BackgroundSkybox", { size: sceneSize.skyboxSize, sideOrientation: Mesh.BACKSIDE }, this._scene);
+            this._skybox.isPickable = false;
             this._skybox.onDisposeObservable.add(() => {
                 this._skybox = null;
             });
@@ -429,13 +442,13 @@ export class EnvironmentHelper {
 /**
  * Default ground texture URL.
  */
-EnvironmentHelper._GroundTextureCDNUrl = "https://assets.babylonjs.com/environments/backgroundGround.png";
+EnvironmentHelper._GroundTextureCDNUrl = "https://assets.babylonjs.com/core/environments/backgroundGround.png";
 /**
  * Default skybox texture URL.
  */
-EnvironmentHelper._SkyboxTextureCDNUrl = "https://assets.babylonjs.com/environments/backgroundSkybox.dds";
+EnvironmentHelper._SkyboxTextureCDNUrl = "https://assets.babylonjs.com/core/environments/backgroundSkybox.dds";
 /**
  * Default environment texture URL.
  */
-EnvironmentHelper._EnvironmentTextureCDNUrl = "https://assets.babylonjs.com/environments/environmentSpecular.env";
+EnvironmentHelper._EnvironmentTextureCDNUrl = "https://assets.babylonjs.com/core/environments/environmentSpecular.env";
 //# sourceMappingURL=environmentHelper.js.map

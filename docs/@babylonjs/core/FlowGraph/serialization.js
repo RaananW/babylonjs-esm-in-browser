@@ -1,0 +1,218 @@
+import { Logger } from "../Misc/logger.js";
+import { Color3, Color4 } from "../Maths/math.color.pure.js";
+import { Matrix, Quaternion, Vector2, Vector3, Vector4 } from "../Maths/math.vector.pure.js";
+import { FlowGraphInteger } from "./CustomTypes/flowGraphInteger.pure.js";
+import { getRichTypeByFlowGraphType } from "./flowGraphRichTypes.pure.js";
+import { FlowGraphMatrix2D, FlowGraphMatrix3D } from "./CustomTypes/flowGraphMatrix.js";
+function IsVectorClassName(className) {
+    return (className === "Vector2" /* FlowGraphTypes.Vector2 */ ||
+        className === "Vector3" /* FlowGraphTypes.Vector3 */ ||
+        className === "Vector4" /* FlowGraphTypes.Vector4 */ ||
+        className === "Quaternion" /* FlowGraphTypes.Quaternion */ ||
+        className === "Color3" /* FlowGraphTypes.Color3 */ ||
+        className === "Color4" /* FlowGraphTypes.Color4 */);
+}
+function IsMatrixClassName(className) {
+    return className === "Matrix" /* FlowGraphTypes.Matrix */ || className === "Matrix2D" /* FlowGraphTypes.Matrix2D */ || className === "Matrix3D" /* FlowGraphTypes.Matrix3D */;
+}
+function IsAnimationGroupClassName(className) {
+    return className === "AnimationGroup";
+}
+/**
+ * Resolves a serialized node reference (`{ id, name, className, uniqueId }`) to an actual scene node.
+ * Matching prefers `id` (falling back to `name`), then narrows by class name, then by `uniqueId`.
+ * Because `uniqueId` is reassigned every time a scene is built, it is only used as a tie-breaker so
+ * that references still resolve after a scene is reloaded (e.g. an editor preview).
+ * @param serializedReference the serialized reference to resolve
+ * @param scene the scene to resolve the reference against
+ * @returns the matching node, or undefined when none is found
+ */
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export function GetSceneNodeFromSerializedReference(serializedReference, scene) {
+    if (!serializedReference || (!serializedReference.id && !serializedReference.name)) {
+        return undefined;
+    }
+    const nodes = scene.getNodes().filter((node) => (serializedReference.id ? node.id === serializedReference.id : node.name === serializedReference.name));
+    if (nodes.length === 0) {
+        return undefined;
+    }
+    const className = serializedReference.type ?? serializedReference.className;
+    const classMatches = className ? nodes.filter((node) => node.getClassName() === className) : [];
+    const candidates = classMatches.length > 0 ? classMatches : nodes;
+    return (serializedReference.uniqueId ? candidates.find((node) => node.uniqueId === serializedReference.uniqueId) : undefined) ?? candidates[0];
+}
+function ParseVector(className, value, flipHandedness = false) {
+    if (className === "Vector2" /* FlowGraphTypes.Vector2 */) {
+        return Vector2.FromArray(value);
+    }
+    else if (className === "Vector3" /* FlowGraphTypes.Vector3 */) {
+        if (flipHandedness) {
+            value[2] *= -1;
+        }
+        return Vector3.FromArray(value);
+    }
+    else if (className === "Vector4" /* FlowGraphTypes.Vector4 */) {
+        return Vector4.FromArray(value);
+    }
+    else if (className === "Quaternion" /* FlowGraphTypes.Quaternion */) {
+        if (flipHandedness) {
+            value[2] *= -1;
+            value[3] *= -1;
+        }
+        return Quaternion.FromArray(value);
+    }
+    else if (className === "Color3" /* FlowGraphTypes.Color3 */) {
+        return new Color3(value[0], value[1], value[2]);
+    }
+    else if (className === "Color4" /* FlowGraphTypes.Color4 */) {
+        return new Color4(value[0], value[1], value[2], value[3]);
+    }
+    else {
+        throw new Error(`Unknown vector class name ${className}`);
+    }
+}
+/**
+ * The default function that serializes values in a context object to a serialization object
+ * @param key the key where the value should be stored in the serialization object
+ * @param value the value to store
+ * @param serializationObject the object where the value will be stored
+ */
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export function defaultValueSerializationFunction(key, value, serializationObject) {
+    const className = value?.getClassName?.() ?? "";
+    if (IsVectorClassName(className) || IsMatrixClassName(className)) {
+        serializationObject[key] = {
+            value: value.asArray(),
+            className,
+        };
+    }
+    else if (className === "FlowGraphInteger" /* FlowGraphTypes.Integer */) {
+        serializationObject[key] = {
+            value: value.value,
+            className,
+        };
+    }
+    else {
+        if (className && (value.id || value.name)) {
+            serializationObject[key] = {
+                id: value.id,
+                name: value.name,
+                className,
+                uniqueId: value.uniqueId,
+            };
+        }
+        else {
+            if (typeof value !== "object" || value === null) {
+                serializationObject[key] = value;
+            }
+            else {
+                // Skip known non-serializable keys immediately to avoid
+                // expensive JSON.stringify attempts on large object trees
+                // (e.g. pathConverter holds the entire glTF parse tree).
+                if (key === "pathConverter") {
+                    return;
+                }
+                // Quick check: if any own property is a function, the object
+                // is not JSON-safe and stringify would be wasteful.
+                const hasFunction = Object.values(value).some((v) => typeof v === "function");
+                if (hasFunction) {
+                    return;
+                }
+                // Plain object (e.g. parsed event config) — store it if JSON-safe.
+                try {
+                    serializationObject[key] = JSON.parse(JSON.stringify(value));
+                }
+                catch {
+                    Logger.Warn(`FlowGraph serialization: value for key "${key}" is not JSON-serializable and was skipped.`);
+                }
+            }
+        }
+    }
+}
+/**
+ * The default function that parses values stored in a serialization object
+ * @param key the key to the value that will be parsed
+ * @param serializationObject the object that will be parsed
+ * @param assetsContainer the assets container that will be used to find the objects
+ * @param scene
+ * @returns
+ */
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export function defaultValueParseFunction(key, serializationObject, assetsContainer, scene) {
+    const intermediateValue = serializationObject[key];
+    let finalValue;
+    const className = intermediateValue?.type ?? intermediateValue?.className;
+    const sceneNode = GetSceneNodeFromSerializedReference(intermediateValue, scene);
+    if (sceneNode) {
+        finalValue = sceneNode;
+    }
+    else if (IsVectorClassName(className)) {
+        finalValue = ParseVector(className, intermediateValue.value);
+    }
+    else if (IsAnimationGroupClassName(className)) {
+        // do not use the scene.getAnimationGroupByName because it is possible that two AGs will have the same name
+        const ags = scene.animationGroups.filter((ag) => ag.name === intermediateValue.name);
+        // uniqueId changes on each load. this is used for the glTF loader, that uses serialization after the scene was loaded.
+        finalValue = ags.length === 1 ? ags[0] : ags.find((ag) => ag.uniqueId === intermediateValue.uniqueId);
+    }
+    else if (className === "Matrix" /* FlowGraphTypes.Matrix */) {
+        finalValue = Matrix.FromArray(intermediateValue.value);
+    }
+    else if (className === "Matrix2D" /* FlowGraphTypes.Matrix2D */) {
+        finalValue = new FlowGraphMatrix2D(intermediateValue.value);
+    }
+    else if (className === "Matrix3D" /* FlowGraphTypes.Matrix3D */) {
+        finalValue = new FlowGraphMatrix3D(intermediateValue.value);
+    }
+    else if (className === "FlowGraphInteger" /* FlowGraphTypes.Integer */) {
+        finalValue = FlowGraphInteger.FromValue(intermediateValue.value);
+    }
+    else if (className === "number" /* FlowGraphTypes.Number */ || className === "string" /* FlowGraphTypes.String */ || className === "boolean" /* FlowGraphTypes.Boolean */) {
+        finalValue = intermediateValue.value[0];
+    }
+    else if (intermediateValue && intermediateValue.value !== undefined) {
+        finalValue = intermediateValue.value;
+    }
+    else {
+        if (Array.isArray(intermediateValue)) {
+            // Check if this is an event configuration array (objects with id/eventData)
+            // versus a plain array of primitives (e.g. variable name lists)
+            if (intermediateValue.length > 0 && typeof intermediateValue[0] === "object" && intermediateValue[0] !== null && "eventData" in intermediateValue[0]) {
+                // configuration data of an event
+                finalValue = intermediateValue.reduce((acc, val) => {
+                    if (!val.eventData) {
+                        return acc;
+                    }
+                    acc[val.id] = {
+                        type: getRichTypeByFlowGraphType(val.type),
+                    };
+                    if (typeof val.value !== "undefined") {
+                        acc[val.id].value = defaultValueParseFunction("value", val, assetsContainer, scene);
+                    }
+                    return acc;
+                }, {});
+            }
+            else {
+                // Plain array of primitives — return as-is
+                finalValue = intermediateValue;
+            }
+        }
+        else {
+            finalValue = intermediateValue;
+        }
+    }
+    return finalValue;
+}
+/**
+ * Given a name of a flow graph block class, return if this
+ * class needs to be created with a path converter. Used in
+ * parsing.
+ * @param className the name of the flow graph block class
+ * @returns a boolean indicating if the class needs a path converter
+ */
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export function needsPathConverter(className) {
+    // I am not using the ClassName property here because it was causing a circular dependency
+    return className === "FlowGraphJsonPointerParserBlock" /* FlowGraphBlockNames.JsonPointerParser */;
+}
+//# sourceMappingURL=serialization.js.map

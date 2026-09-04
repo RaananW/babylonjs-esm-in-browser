@@ -1,9 +1,8 @@
 import { KhronosTextureContainer } from "../../../Misc/khronosTextureContainer.js";
 import { KhronosTextureContainer2 } from "../../../Misc/khronosTextureContainer2.js";
-import { Engine } from "../../../Engines/engine.js";
 import { Logger } from "../../../Misc/logger.js";
 
-function mapSRGBToLinear(format) {
+function MapSRGBToLinear(format) {
     switch (format) {
         case 35916:
             return 33776;
@@ -19,6 +18,32 @@ function mapSRGBToLinear(format) {
             return 37494;
         case 37840:
             return 37808;
+        case 37841:
+            return 37809;
+        case 37842:
+            return 37810;
+        case 37843:
+            return 37811;
+        case 37844:
+            return 37812;
+        case 37845:
+            return 37813;
+        case 37846:
+            return 37814;
+        case 37847:
+            return 37815;
+        case 37848:
+            return 37816;
+        case 37849:
+            return 37817;
+        case 37850:
+            return 37818;
+        case 37851:
+            return 37819;
+        case 37852:
+            return 37820;
+        case 37853:
+            return 37821;
         case 36493:
             return 36492;
     }
@@ -37,16 +62,6 @@ export class _KTXTextureLoader {
         this.supportCascades = false;
     }
     /**
-     * This returns if the loader support the current file information.
-     * @param extension defines the file extension of the file being loaded
-     * @param mimeType defines the optional mime type of the file being loaded
-     * @returns true if the loader can load the specified file
-     */
-    canLoad(extension, mimeType) {
-        // The ".ktx2" file extension is still up for debate: https://github.com/KhronosGroup/KTX-Specification/issues/18
-        return extension.endsWith(".ktx") || extension.endsWith(".ktx2") || mimeType === "image/ktx" || mimeType === "image/ktx2";
-    }
-    /**
      * Uploads the cube texture data to the WebGL texture. It has already been bound.
      * @param data contains the texture data
      * @param texture defines the BabylonJS internal texture
@@ -61,6 +76,15 @@ export class _KTXTextureLoader {
         texture._invertVScale = !texture.invertY;
         const engine = texture.getEngine();
         const ktx = new KhronosTextureContainer(data, 6);
+        const mappedFormat = MapSRGBToLinear(ktx.glInternalFormat);
+        if (mappedFormat !== null) {
+            texture.format = mappedFormat;
+            texture._useSRGBBuffer = engine._getUseSRGBBuffer(true, !texture.generateMipMaps);
+            texture._gammaSpace = true;
+        }
+        else {
+            texture.format = ktx.glInternalFormat;
+        }
         const loadMipmap = ktx.numberOfMipmapLevels > 1 && texture.generateMipMaps;
         engine._unpackFlipY(true);
         ktx.uploadLevels(texture, texture.generateMipMaps);
@@ -86,10 +110,10 @@ export class _KTXTextureLoader {
             // Need to invert vScale as invertY via UNPACK_FLIP_Y_WEBGL is not supported by compressed texture
             texture._invertVScale = !texture.invertY;
             const ktx = new KhronosTextureContainer(data, 1);
-            const mappedFormat = mapSRGBToLinear(ktx.glInternalFormat);
-            if (mappedFormat) {
+            const mappedFormat = MapSRGBToLinear(ktx.glInternalFormat);
+            if (mappedFormat !== null) {
                 texture.format = mappedFormat;
-                texture._useSRGBBuffer = texture.getEngine()._getUseSRGBBuffer(true, texture.generateMipMaps);
+                texture._useSRGBBuffer = texture.getEngine()._getUseSRGBBuffer(true, !texture.generateMipMaps);
                 texture._gammaSpace = true;
             }
             else {
@@ -101,7 +125,8 @@ export class _KTXTextureLoader {
         }
         else if (KhronosTextureContainer2.IsValid(data)) {
             const ktx2 = new KhronosTextureContainer2(texture.getEngine());
-            ktx2.uploadAsync(data, texture, options).then(() => {
+            // eslint-disable-next-line github/no-then
+            ktx2._uploadAsync(data, texture, options).then(() => {
                 callback(texture.width, texture.height, texture.generateMipMaps, true, () => { }, false);
             }, (error) => {
                 Logger.Warn(`Failed to load KTX2 texture data: ${error.message}`);
@@ -114,6 +139,4 @@ export class _KTXTextureLoader {
         }
     }
 }
-// Register the loader.
-Engine._TextureLoaders.unshift(new _KTXTextureLoader());
 //# sourceMappingURL=ktxTextureLoader.js.map

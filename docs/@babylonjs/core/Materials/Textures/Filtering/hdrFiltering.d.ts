@@ -1,8 +1,5 @@
-import type { BaseTexture } from "../baseTexture";
-import type { ThinEngine } from "../../../Engines/thinEngine";
-import type { Nullable } from "../../../types";
-import "../../../Shaders/hdrFiltering.vertex";
-import "../../../Shaders/hdrFiltering.fragment";
+import { type BaseTexture } from "../baseTexture.js";
+import { type AbstractEngine } from "../../../Engines/abstractEngine.js";
 /**
  * Options for texture filtering
  */
@@ -40,7 +37,7 @@ export declare class HDRFiltering {
      * @param engine Thin engine
      * @param options Options
      */
-    constructor(engine: ThinEngine, options?: IHDRFilteringOptions);
+    constructor(engine: AbstractEngine, options?: IHDRFilteringOptions);
     private _createRenderTarget;
     private _prefilterInternal;
     private _createEffect;
@@ -56,9 +53,8 @@ export declare class HDRFiltering {
      * This has to be done once the map is loaded, and has not been prefiltered by a third party software.
      * See http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf for more information
      * @param texture Texture to filter
-     * @param onFinished Callback when filtering is done
      * @returns Promise called when prefiltering is done
      */
-    prefilter(texture: BaseTexture, onFinished?: Nullable<() => void>): Promise<void>;
+    prefilter(texture: BaseTexture): Promise<void>;
 }
 export {};

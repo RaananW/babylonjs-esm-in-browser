@@ -1,24 +1,23 @@
-import type { Matrix } from "../../Maths/math.vector";
-import { Vector3 } from "../../Maths/math.vector";
-import type { Particle } from "../../Particles/particle";
-import type { IParticleEmitterType } from "./IParticleEmitterType";
-import type { UniformBufferEffectCommonAccessor } from "../../Materials/uniformBufferEffectCommonAccessor";
-import type { UniformBuffer } from "../../Materials/uniformBuffer";
+import { type Matrix, Vector3 } from "../../Maths/math.vector.pure.js";
+import { type Particle } from "../../Particles/particle.js";
+import { type IParticleEmitterType } from "./IParticleEmitterType.js";
+import { type UniformBufferEffectCommonAccessor } from "../../Materials/uniformBufferEffectCommonAccessor.js";
+import { type UniformBuffer } from "../../Materials/uniformBuffer.js";
 /**
  * Particle emitter emitting particles from the inside of a hemisphere.
  * It emits the particles alongside the hemisphere radius. The emission direction might be randomized.
  */
 export declare class HemisphericParticleEmitter implements IParticleEmitterType {
     /**
-     * The radius of the emission hemisphere.
+     * [1] The radius of the emission hemisphere.
      */
     radius: number;
     /**
-     * The range of emission [0-1] 0 Surface only, 1 Entire Radius.
+     * [1] The range of emission [0-1] 0 Surface only, 1 Entire Radius.
      */
     radiusRange: number;
     /**
-     * How much to randomize the particle direction [0-1].
+     * [0] How much to randomize the particle direction [0-1].
      */
     directionRandomizer: number;
     /**
@@ -29,15 +28,15 @@ export declare class HemisphericParticleEmitter implements IParticleEmitterType 
      */
     constructor(
     /**
-     * The radius of the emission hemisphere.
+     * [1] The radius of the emission hemisphere.
      */
     radius?: number, 
     /**
-     * The range of emission [0-1] 0 Surface only, 1 Entire Radius.
+     * [1] The range of emission [0-1] 0 Surface only, 1 Entire Radius.
      */
     radiusRange?: number, 
     /**
-     * How much to randomize the particle direction [0-1].
+     * [0] How much to randomize the particle direction [0-1].
      */
     directionRandomizer?: number);
     /**

@@ -1,6 +1,6 @@
-import { PerfCounter } from "../Misc/perfCounter";
-import type { IDisposable } from "../scene";
-import type { Engine } from "../Engines/engine";
+import { PerfCounter } from "../Misc/perfCounter.js";
+import { type IDisposable } from "../scene.js";
+import { type AbstractEngine } from "../Engines/abstractEngine.js";
 /**
  * This class can be used to get instrumentation data from a Babylon engine
  * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/optimize_your_scene#engineinstrumentation
@@ -9,7 +9,7 @@ export declare class EngineInstrumentation implements IDisposable {
     /**
      * Define the instrumented engine.
      */
-    engine: Engine;
+    engine: AbstractEngine;
     private _captureGPUFrameTime;
     private _captureShaderCompilationTime;
     private _shaderCompilationTime;
@@ -17,6 +17,7 @@ export declare class EngineInstrumentation implements IDisposable {
     private _onEndFrameObserver;
     private _onBeforeShaderCompilationObserver;
     private _onAfterShaderCompilationObserver;
+    private _disposed;
     /**
      * Gets the perf counter used for GPU frame time
      */
@@ -51,7 +52,7 @@ export declare class EngineInstrumentation implements IDisposable {
     /**
      * Define the instrumented engine.
      */
-    engine: Engine);
+    engine: AbstractEngine);
     /**
      * Dispose and release associated resources.
      */

@@ -1,7 +1,29 @@
-import type { Nullable } from "../types";
-import { Observable } from "../Misc/observable";
-import type { IComputePipelineContext } from "./IComputePipelineContext";
-declare type Engine = import("../Engines/engine").Engine;
+import { type Nullable } from "../types.js";
+import { Observable } from "../Misc/observable.js";
+import { type IComputePipelineContext } from "./IComputePipelineContext.js";
+import { type AbstractEngine } from "../Engines/abstractEngine.js";
+/**
+ * Defines the route to the shader code. The priority is as follows:
+ *  * object: `{ computeSource: "compute shader code string"}` for directly passing the shader code
+ *  * object: `{ computeElement: "vertexShaderCode" }`, used with shader code in script tags
+ *  * object: `{ compute: "custom" }`, used with `Effect.ShadersStore["customVertexShader"]` and `Effect.ShadersStore["customFragmentShader"]`
+ *  * string: `"./COMMON_NAME"`, used with external files COMMON_NAME.vertex.fx and COMMON_NAME.fragment.fx in index.html folder.
+ */
+export type IComputeShaderPath = {
+    /**
+     * Directly pass the shader code
+     */
+    computeSource?: string;
+    /**
+     * Used with Effect.ShadersStore. If the `vertex` is set to `"custom`, then
+     * Babylon.js will read from Effect.ShadersStore["customVertexShader"]
+     */
+    compute?: string;
+    /**
+     * Used with shader code in script tags
+     */
+    computeElement?: string;
+};
 /**
  * Options to be used when creating a compute effect.
  */
@@ -26,6 +48,10 @@ export interface IComputeEffectCreationOptions {
      * If provided, will be called with the shader code so that this code can be updated before it is compiled by the GPU
      */
     processFinalCode?: Nullable<(code: string) => string>;
+    /**
+     * If true, the engine should create an explicit pipeline layout for the compute effect instead of using an automatic layout.
+     */
+    useExplicitComputePipelineLayout?: boolean;
 }
 /**
  * Effect wrapping a compute shader and let execute (dispatch) the shader
@@ -39,7 +65,7 @@ export declare class ComputeEffect {
     /**
      * Name of the effect.
      */
-    name: any;
+    name: IComputeShaderPath | string;
     /**
      * String container all the define statements that should be set on the shader.
      */
@@ -84,6 +110,8 @@ export declare class ComputeEffect {
     _pipelineContext: Nullable<IComputePipelineContext>;
     /** @internal */
     _computeSourceCode: string;
+    /** @internal */
+    _useExplicitComputePipelineLayout: boolean;
     private _rawComputeSourceCode;
     private _entryPoint;
     private _shaderLanguage;
@@ -97,7 +125,7 @@ export declare class ComputeEffect {
      * @param engine The engine the effect is created for
      * @param key Effect Key identifying uniquely compiled shader variants
      */
-    constructor(baseName: any, options: IComputeEffectCreationOptions, engine: Engine, key?: string);
+    constructor(baseName: IComputeShaderPath | string, options: IComputeEffectCreationOptions, engine: AbstractEngine, key?: string);
     private _useFinalCode;
     /**
      * Unique key for this effect
@@ -113,7 +141,7 @@ export declare class ComputeEffect {
      * The engine the effect was initialized with.
      * @returns the engine.
      */
-    getEngine(): Engine;
+    getEngine(): AbstractEngine;
     /**
      * The pipeline context for this effect
      * @returns the associated pipeline context
@@ -144,7 +172,6 @@ export declare class ComputeEffect {
      * @internal
      */
     _prepareEffect(): void;
-    private _getShaderCodeAndErrorLine;
     private _processCompilationErrors;
     /**
      * Release all associated resources.
@@ -157,4 +184,3 @@ export declare class ComputeEffect {
      */
     static RegisterShader(name: string, computeShader: string): void;
 }
-export {};

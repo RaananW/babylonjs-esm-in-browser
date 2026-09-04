@@ -1,13 +1,13 @@
-import { Observable } from "../../Misc/observable";
-import type { ICameraInput } from "../../Cameras/cameraInputsManager";
-import type { FreeCamera } from "../../Cameras/freeCamera";
+import { Observable } from "../../Misc/observable.js";
+import { type ICameraInput } from "../../Cameras/cameraInputsManager.js";
+import { type FreeCamera } from "../../Cameras/freeCamera.js";
 /**
  * Manage the mouse inputs to control the movement of a free camera.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs
  */
 export declare class FreeCameraMouseInput implements ICameraInput<FreeCamera> {
     /**
-     * Define if touch is enabled in the mouse input
+     * [true] Define if touch is enabled in the mouse input
      */
     touchEnabled: boolean;
     /**
@@ -41,6 +41,20 @@ export declare class FreeCameraMouseInput implements ICameraInput<FreeCamera> {
     private _currentActiveButton;
     private _activePointerId;
     private _contextMenuBind;
+    /** Reused conditions object for `resolveInteraction` to avoid per-move allocations. */
+    private readonly _pointerConditions;
+    /**
+     * Applies a pointer-drag delta as camera rotation, but only if the camera's configurable
+     * input map resolves the current pointer interaction to "rotate". The map is consulted with
+     * the currently active mouse button so consumers can remap or disable pointer-driven rotation.
+     * The applied scale comes from the resolved entry's `sensitivity`/`sensitivityX`/`sensitivityY`,
+     * falling back to the legacy `angularSensibility` for backward compatibility. The rotation is
+     * still written to `camera.cameraRotation` (not the movement accumulators) so existing code that
+     * reads `cameraRotation` immediately after a pointer event keeps working.
+     * @param offsetX Horizontal pointer delta (already handedness-adjusted).
+     * @param offsetY Vertical pointer delta (already handedness-adjusted).
+     */
+    private _applyPointerRotation;
     /**
      * Manage the mouse inputs to control the movement of a free camera.
      * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs
@@ -48,7 +62,7 @@ export declare class FreeCameraMouseInput implements ICameraInput<FreeCamera> {
      */
     constructor(
     /**
-     * Define if touch is enabled in the mouse input
+     * [true] Define if touch is enabled in the mouse input
      */
     touchEnabled?: boolean);
     /**
@@ -59,7 +73,7 @@ export declare class FreeCameraMouseInput implements ICameraInput<FreeCamera> {
     /**
      * Called on JS contextmenu event.
      * Override this method to provide functionality.
-     * @param evt
+     * @param evt the context menu event
      */
     onContextMenu(evt: PointerEvent): void;
     /**

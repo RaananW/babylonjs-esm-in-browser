@@ -9,18 +9,28 @@ export class StencilState {
     reset() {
         this.enabled = false;
         this.mask = 0xff;
-        this.func = StencilState.ALWAYS;
         this.funcRef = 1;
         this.funcMask = 0xff;
+        this.func = StencilState.ALWAYS;
         this.opStencilFail = StencilState.KEEP;
         this.opDepthFail = StencilState.KEEP;
         this.opStencilDepthPass = StencilState.REPLACE;
+        this.backFunc = StencilState.ALWAYS;
+        this.backOpStencilFail = StencilState.KEEP;
+        this.backOpDepthFail = StencilState.KEEP;
+        this.backOpStencilDepthPass = StencilState.REPLACE;
     }
     get stencilFunc() {
         return this.func;
     }
     set stencilFunc(value) {
         this.func = value;
+    }
+    get stencilBackFunc() {
+        return this.backFunc;
+    }
+    set stencilBackFunc(value) {
+        this.backFunc = value;
     }
     get stencilFuncRef() {
         return this.funcRef;
@@ -51,6 +61,24 @@ export class StencilState {
     }
     set stencilOpStencilDepthPass(value) {
         this.opStencilDepthPass = value;
+    }
+    get stencilBackOpStencilFail() {
+        return this.backOpStencilFail;
+    }
+    set stencilBackOpStencilFail(value) {
+        this.backOpStencilFail = value;
+    }
+    get stencilBackOpDepthFail() {
+        return this.backOpDepthFail;
+    }
+    set stencilBackOpDepthFail(value) {
+        this.backOpDepthFail = value;
+    }
+    get stencilBackOpStencilDepthPass() {
+        return this.backOpStencilDepthPass;
+    }
+    set stencilBackOpStencilDepthPass(value) {
+        this.backOpStencilDepthPass = value;
     }
     get stencilMask() {
         return this.mask;

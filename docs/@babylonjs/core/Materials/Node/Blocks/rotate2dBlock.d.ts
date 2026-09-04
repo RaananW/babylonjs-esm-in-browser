@@ -1,32 +1,5 @@
-import { NodeMaterialBlock } from "../nodeMaterialBlock";
-import type { NodeMaterialBuildState } from "../nodeMaterialBuildState";
-import type { NodeMaterialConnectionPoint } from "../nodeMaterialBlockConnectionPoint";
 /**
- * Block used to rotate a 2d vector by a given angle
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import rotate2dBlock.pure for tree-shakeable, side-effect-free usage.
  */
-export declare class Rotate2dBlock extends NodeMaterialBlock {
-    /**
-     * Creates a new Rotate2dBlock
-     * @param name defines the block name
-     */
-    constructor(name: string);
-    /**
-     * Gets the current class name
-     * @returns the class name
-     */
-    getClassName(): string;
-    /**
-     * Gets the input vector
-     */
-    get input(): NodeMaterialConnectionPoint;
-    /**
-     * Gets the input angle
-     */
-    get angle(): NodeMaterialConnectionPoint;
-    /**
-     * Gets the output component
-     */
-    get output(): NodeMaterialConnectionPoint;
-    autoConfigure(): void;
-    protected _buildBlock(state: NodeMaterialBuildState): this;
-}
+export * from "./rotate2dBlock.pure.js";

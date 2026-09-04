@@ -1,4 +1,4 @@
-import type { Scene } from "../../scene";
+import { type Scene } from "../../scene.js";
 /**
  * Defines the general structure of what is necessary for a collection strategy.
  */
@@ -19,7 +19,7 @@ export interface IPerfViewerCollectionStrategy {
 /**
  * Initializer callback for a strategy
  */
-export declare type PerfStrategyInitialization = (scene: Scene) => IPerfViewerCollectionStrategy;
+export type PerfStrategyInitialization = (scene: Scene) => IPerfViewerCollectionStrategy;
 /**
  * Defines the predefined strategies used in the performance viewer.
  */

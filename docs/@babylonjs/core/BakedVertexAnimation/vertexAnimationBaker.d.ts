@@ -1,7 +1,8 @@
-import type { AnimationRange } from "../Animations/animationRange";
-import { RawTexture } from "../Materials/Textures/rawTexture";
-import type { Mesh } from "../Meshes/mesh";
-import type { Scene } from "../scene";
+import { type AnimationRange } from "../Animations/animationRange.js";
+import { RawTexture } from "../Materials/Textures/rawTexture.js";
+import { type Mesh } from "../Meshes/mesh.js";
+import { type Scene } from "../scene.js";
+import { Skeleton } from "../Bones/skeleton.js";
 /**
  * Class to bake vertex animation textures.
  * @since 5.0
@@ -9,12 +10,20 @@ import type { Scene } from "../scene";
 export declare class VertexAnimationBaker {
     private _scene;
     private _mesh;
+    private _skeleton;
     /**
      * Create a new VertexAnimationBaker object which can help baking animations into a texture.
      * @param scene Defines the scene the VAT belongs to
-     * @param mesh Defines the mesh the VAT belongs to
+     * @param meshOrSkeleton Defines the skeleton or the mesh from which to retrieve the skeleton from.
      */
-    constructor(scene: Scene, mesh: Mesh);
+    constructor(scene: Scene, meshOrSkeleton: Mesh | Skeleton);
+    /**
+     *
+     * @param ranges Defines the ranges in the animation that will be baked.
+     * @param halfFloat If true, the vertex data will be returned as half-float (Uint16Array), otherwise as full float (Float32Array).
+     * @returns The array of matrix transforms for each vertex (columns) and frame (rows), as a Float32Array or Uint16Array.
+     */
+    bakeVertexDataSync(ranges: AnimationRange[], halfFloat: boolean): Float32Array | Uint16Array;
     /**
      * Bakes the animation into the texture. This should be called once, when the
      * scene starts, so the VAT is generated and associated to the mesh.
@@ -28,14 +37,16 @@ export declare class VertexAnimationBaker {
      * @param vertexData The array to save data to.
      * @param frameIndex Current frame in the skeleton animation to render.
      * @param textureIndex Current index of the texture data.
+     * @returns A promise that resolves when the animation frame is done.
      */
-    private _executeAnimationFrame;
+    private _executeAnimationFrameAsync;
     /**
      * Builds a vertex animation texture given the vertexData in an array.
-     * @param vertexData The vertex animation data. You can generate it with bakeVertexData().
+     * @param vertexData The vertex animation data. You can generate it with bakeVertexData(). You can pass in a Float32Array to return a full precision texture, or a Uint16Array to return a half-float texture.
+     * If you pass in a Uint16Array, make sure your device supports half-float textures
      * @returns The vertex animation texture to be used with BakedVertexAnimationManager.
      */
-    textureFromBakedVertexData(vertexData: Float32Array): RawTexture;
+    textureFromBakedVertexData(vertexData: Float32Array | Uint16Array): RawTexture;
     /**
      * Serializes our vertexData to an object, with a nice string for the vertexData.
      * @param vertexData The vertex array data.

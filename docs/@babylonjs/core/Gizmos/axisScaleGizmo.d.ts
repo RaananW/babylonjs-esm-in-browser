@@ -1,18 +1,16 @@
-import type { Observer } from "../Misc/observable";
-import { Observable } from "../Misc/observable";
-import type { Nullable } from "../types";
-import type { PointerInfo } from "../Events/pointerEvents";
-import type { Vector3 } from "../Maths/math.vector";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import type { Node } from "../node";
-import { Mesh } from "../Meshes/mesh";
-import { StandardMaterial } from "../Materials/standardMaterial";
-import { PointerDragBehavior } from "../Behaviors/Meshes/pointerDragBehavior";
-import type { IGizmo } from "./gizmo";
-import { Gizmo } from "./gizmo";
-import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer";
-import type { ScaleGizmo } from "./scaleGizmo";
-import { Color3 } from "../Maths/math.color";
+import { type Observer, Observable } from "../Misc/observable.js";
+import { type Nullable } from "../types.js";
+import { type PointerInfo } from "../Events/pointerEvents.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { type Node } from "../node.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
+import { StandardMaterial } from "../Materials/standardMaterial.pure.js";
+import { PointerDragBehavior } from "../Behaviors/Meshes/pointerDragBehavior.js";
+import { type IGizmo, Gizmo } from "./gizmo.js";
+import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer.js";
+import { type ScaleGizmo } from "./scaleGizmo.js";
+import { Color3 } from "../Maths/math.color.pure.js";
 /**
  * Interface for axis scale gizmo
  */
@@ -21,9 +19,11 @@ export interface IAxisScaleGizmo extends IGizmo {
     dragBehavior: PointerDragBehavior;
     /** Drag distance in babylon units that the gizmo will snap to when dragged */
     snapDistance: number;
+    /** Incremental snap scaling. When true, with a snapDistance of 0.1, scaling will be 1.1,1.2,1.3 instead of, when false: 1.1,1.21,1.33,... */
+    incrementalSnap: boolean;
     /**
      * Event that fires each time the gizmo snaps to a new location.
-     * * snapDistance is the the change in distance
+     * * snapDistance is the change in distance
      */
     onSnapObservable: Observable<{
         snapDistance: number;
@@ -58,7 +58,7 @@ export declare class AxisScaleGizmo extends Gizmo implements IAxisScaleGizmo {
     snapDistance: number;
     /**
      * Event that fires each time the gizmo snaps to a new location.
-     * * snapDistance is the the change in distance
+     * * snapDistance is the change in distance
      */
     onSnapObservable: Observable<{
         snapDistance: number;
@@ -75,6 +75,14 @@ export declare class AxisScaleGizmo extends Gizmo implements IAxisScaleGizmo {
      * The magnitude of the drag strength (scaling factor)
      */
     dragScale: number;
+    /**
+     * The minimal absolute scale per component. can be positive or negative but never smaller.
+     */
+    static MinimumAbsoluteScale: number;
+    /**
+     * Incremental snap scaling (default is false). When true, with a snapDistance of 0.1, scaling will be 1.1,1.2,1.3 instead of, when false: 1.1,1.21,1.33,...
+     */
+    incrementalSnap: boolean;
     protected _isEnabled: boolean;
     protected _parent: Nullable<ScaleGizmo>;
     protected _gizmoMesh: Mesh;
@@ -82,6 +90,8 @@ export declare class AxisScaleGizmo extends Gizmo implements IAxisScaleGizmo {
     protected _hoverMaterial: StandardMaterial;
     protected _disableMaterial: StandardMaterial;
     protected _dragging: boolean;
+    private _tmpVector;
+    private _incrementalStartupValue;
     /** Default material used to render when gizmo is not disabled or hovered */
     get coloredMaterial(): StandardMaterial;
     /** Material used to render when gizmo is hovered with mouse*/
@@ -95,13 +105,17 @@ export declare class AxisScaleGizmo extends Gizmo implements IAxisScaleGizmo {
      * @param gizmoLayer The utility layer the gizmo will be added to
      * @param parent
      * @param thickness display gizmo axis thickness
+     * @param hoverColor The color of the gizmo when hovering over and dragging
+     * @param disableColor The Color of the gizmo when its disabled
      */
-    constructor(dragAxis: Vector3, color?: Color3, gizmoLayer?: UtilityLayerRenderer, parent?: Nullable<ScaleGizmo>, thickness?: number);
+    constructor(dragAxis: Vector3, color?: Color3, gizmoLayer?: UtilityLayerRenderer, parent?: Nullable<ScaleGizmo>, thickness?: number, hoverColor?: Color3, disableColor?: Color3);
     /**
+     * @internal
      * Create Geometry for Gizmo
      * @param parentMesh
      * @param thickness
      * @param isCollider
+     * @returns the gizmo mesh
      */
     protected _createGizmoMesh(parentMesh: AbstractMesh, thickness: number, isCollider?: boolean): {
         arrowMesh: Mesh;

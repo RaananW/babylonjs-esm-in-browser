@@ -1,5 +1,5 @@
-import { Vector3 } from "../Maths/math.vector";
-import type { Path2 } from "../Maths/math.path";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { type Path2 } from "../Maths/math.path.js";
 /**
  * A cursor which tracks a point on a path
  */

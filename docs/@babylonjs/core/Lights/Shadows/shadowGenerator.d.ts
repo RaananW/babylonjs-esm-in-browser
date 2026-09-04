@@ -1,22 +1,20 @@
-import type { SmartArray } from "../../Misc/smartArray";
-import type { Nullable } from "../../types";
-import type { Scene } from "../../scene";
-import { Matrix, Vector3 } from "../../Maths/math.vector";
-import type { SubMesh } from "../../Meshes/subMesh";
-import type { AbstractMesh } from "../../Meshes/abstractMesh";
-import type { Mesh } from "../../Meshes/mesh";
-import type { IShadowLight } from "../../Lights/shadowLight";
-import type { MaterialDefines } from "../../Materials/materialDefines";
-import type { Effect } from "../../Materials/effect";
-import { RenderTargetTexture } from "../../Materials/Textures/renderTargetTexture";
-import { PostProcess } from "../../PostProcesses/postProcess";
-import { Observable } from "../../Misc/observable";
-import type { UniformBuffer } from "../../Materials/uniformBuffer";
-import type { Camera } from "../../Cameras/camera";
-import "../../Shaders/shadowMap.fragment";
-import "../../Shaders/shadowMap.vertex";
-import "../../Shaders/depthBoxBlur.fragment";
-import "../../Shaders/ShadersInclude/shadowMapFragmentSoftTransparentShadow";
+import { type SmartArray } from "../../Misc/smartArray.js";
+import { type Nullable } from "../../types.js";
+import { type Scene } from "../../scene.js";
+import { Matrix, Vector3 } from "../../Maths/math.vector.pure.js";
+import { type SubMesh } from "../../Meshes/subMesh.js";
+import { type AbstractMesh } from "../../Meshes/abstractMesh.js";
+import { type Mesh } from "../../Meshes/mesh.js";
+import { type IShadowLight } from "../../Lights/shadowLight.js";
+import { type MaterialDefines } from "../../Materials/materialDefines.js";
+import { type Effect } from "../../Materials/effect.js";
+import { RenderTargetTexture } from "../../Materials/Textures/renderTargetTexture.pure.js";
+import { PostProcess } from "../../PostProcesses/postProcess.pure.js";
+import { Observable } from "../../Misc/observable.js";
+import { type UniformBuffer } from "../../Materials/uniformBuffer.js";
+import { type Camera } from "../../Cameras/camera.js";
+import { type BaseTexture } from "../../Materials/Textures/baseTexture.js";
+import { ShaderLanguage } from "../../Materials/shaderLanguage.js";
 /**
  * Defines the options associated with the creation of a custom shader for a shadow generator.
  */
@@ -48,6 +46,11 @@ export interface ICustomShaderOptions {
 export interface IShadowGenerator {
     /** Gets or set the id of the shadow generator. It will be the one from the light if not defined */
     id: string;
+    /**
+     * Specifies if the `ShadowGenerator` should be serialized, `true` to skip serialization.
+     * Note a `ShadowGenerator` will not be serialized if its light has `doNotSerialize=true`
+     */
+    doNotSerialize?: boolean;
     /**
      * Gets the main RTT containing the shadow map (usually storing depth from the light point of view).
      * @returns The render target texture if present otherwise, null
@@ -116,12 +119,19 @@ export interface IShadowGenerator {
  * Default implementation IShadowGenerator.
  * This is the main object responsible of generating shadows in the framework.
  * Documentation: https://doc.babylonjs.com/features/featuresDeepDive/lights/shadows
+ * @see [WebGL](https://playground.babylonjs.com/#IFYDRS#0)
+ * @see [WebGPU](https://playground.babylonjs.com/#IFYDRS#835)
  */
 export declare class ShadowGenerator implements IShadowGenerator {
     /**
      * Name of the shadow generator class
      */
     static CLASSNAME: string;
+    /**
+     * Force all the shadow generators to compile to glsl even on WebGPU engines.
+     * False by default. This is mostly meant for backward compatibility.
+     */
+    static ForceGLSL: boolean;
     /**
      * Shadow generator mode None: no filtering applied.
      */
@@ -220,6 +230,11 @@ export declare class ShadowGenerator implements IShadowGenerator {
      * Can be used to update internal effect state (that you can get from the onAfterShadowMapRenderObservable)
      */
     onAfterShadowMapRenderMeshObservable: Observable<Mesh>;
+    /**
+     * Specifies if the `ShadowGenerator` should be serialized, `true` to skip serialization.
+     * Note a `ShadowGenerator` will not be serialized if its light has `doNotSerialize=true`
+     */
+    doNotSerialize: boolean;
     protected _bias: number;
     /**
      * Gets the bias: offset applied on the depth preventing acnea (in light direction).
@@ -413,7 +428,7 @@ export declare class ShadowGenerator implements IShadowGenerator {
      */
     setDarkness(darkness: number): ShadowGenerator;
     protected _transparencyShadow: boolean;
-    /** Gets or sets the ability to have transparent shadow  */
+    /** Gets or sets the ability to have transparent shadow */
     get transparencyShadow(): boolean;
     set transparencyShadow(value: boolean);
     /**
@@ -476,6 +491,12 @@ export declare class ShadowGenerator implements IShadowGenerator {
      * @returns the light generating the shadow
      */
     getLight(): IShadowLight;
+    /** Shader language used by the generator */
+    protected _shaderLanguage: ShaderLanguage;
+    /**
+     * Gets the shader language used in this generator.
+     */
+    get shaderLanguage(): ShaderLanguage;
     /**
      * If true the shadow map is generated by rendering the back face of the mesh instead of the front face.
      * This can help with self-shadowing as the geometry making up the back of objects is slightly offset.
@@ -485,7 +506,10 @@ export declare class ShadowGenerator implements IShadowGenerator {
     protected _camera: Nullable<Camera>;
     protected _getCamera(): Nullable<Camera>;
     protected _scene: Scene;
+    protected _useRedTextureType: boolean;
     protected _lightDirection: Vector3;
+    protected _usefullFloatFirst: boolean;
+    protected _forceGLSL: boolean;
     protected _viewMatrix: Matrix;
     protected _projectionMatrix: Matrix;
     protected _transformMatrix: Matrix;
@@ -506,15 +530,45 @@ export declare class ShadowGenerator implements IShadowGenerator {
     protected _useUBO: boolean;
     protected _sceneUBOs: UniformBuffer[];
     protected _currentSceneUBO: UniformBuffer;
+    protected _opacityTexture: Nullable<BaseTexture>;
     /**
      * @internal
      */
     static _SceneComponentInitialization: (scene: Scene) => void;
     /**
+     * @internal
+     * Used by the scene component parser to parse cascaded shadow generators without a direct import
+     * (avoids circular dependency between shadowGeneratorSceneComponent and cascadedShadowGenerator).
+     */
+    static _CascadedShadowGeneratorParser: ((parsedShadowGenerator: any, scene: Scene) => ShadowGenerator) | null;
+    /**
      * Gets or sets the size of the texture what stores the shadows
      */
     get mapSize(): number;
     set mapSize(size: number);
+    /**
+     * Gets or sets the light that is casting the shadows
+     */
+    get light(): IShadowLight;
+    set light(light: IShadowLight);
+    /**
+     * Gets or sets a value indicating whether the shadow map should use full float texture type (instead of half float, which is the default).
+     * Use this option when you need more precision (for self shadowing, for instance).
+     */
+    get useFloat32TextureType(): boolean;
+    set useFloat32TextureType(useFloat32TextureType: boolean);
+    /**
+     * Gets or sets the camera associated with this shadow generator.
+     * When null, the scene's active camera is used at render time.
+     */
+    get camera(): Nullable<Camera>;
+    set camera(camera: Nullable<Camera>);
+    /**
+     * Gets or sets a value indicating whether the shadow map should use a red-channel-only texture format.
+     * Using a single-channel format reduces memory usage when color data is not needed.
+     */
+    get useRedTextureFormat(): boolean;
+    set useRedTextureFormat(useRedTextureFormat: boolean);
     /**
      * Creates a ShadowGenerator object.
      * A ShadowGenerator is the required tool to use the shadows.
@@ -524,11 +578,16 @@ export declare class ShadowGenerator implements IShadowGenerator {
      * @param light The light object generating the shadows.
      * @param usefullFloatFirst By default the generator will try to use half float textures but if you need precision (for self shadowing for instance), you can use this option to enforce full float texture.
      * @param camera Camera associated with this shadow generator (default: null). If null, takes the scene active camera at the time we need to access it
+     * @param useRedTextureType Forces the generator to use a Red instead of a RGBA type for the shadow map texture format (default: false)
+     * @param forceGLSL defines a boolean indicating if the shader must be compiled in GLSL even if we are using WebGPU
      */
-    constructor(mapSize: number, light: IShadowLight, usefullFloatFirst?: boolean, camera?: Nullable<Camera>);
+    constructor(mapSize: number, light: IShadowLight, usefullFloatFirst?: boolean, camera?: Nullable<Camera>, useRedTextureType?: boolean, forceGLSL?: boolean);
+    private _createInstance;
     protected _initializeGenerator(): void;
     protected _createTargetRenderTexture(): void;
     protected _initializeShadowMap(): void;
+    private _shadersLoaded;
+    private _initShaderSourceAsync;
     protected _initializeBlurRTTAndPostProcesses(): void;
     protected _renderForShadowMap(opaqueSubMeshes: SmartArray<SubMesh>, alphaTestSubMeshes: SmartArray<SubMesh>, transparentSubMeshes: SmartArray<SubMesh>, depthOnlySubMeshes: SmartArray<SubMesh>): void;
     protected _bindCustomEffectForRenderSubMeshForShadowMap(subMesh: SubMesh, effect: Effect, mesh: AbstractMesh): void;
@@ -574,6 +633,14 @@ export declare class ShadowGenerator implements IShadowGenerator {
      */
     bindShadowLight(lightIndex: string, effect: Effect): void;
     /**
+     * Gets the view matrix used to render the shadow map.
+     */
+    get viewMatrix(): Matrix;
+    /**
+     * Gets the projection matrix used to render the shadow map.
+     */
+    get projectionMatrix(): Matrix;
+    /**
      * Gets the transformation matrix used to project the meshes into the map from the light point of view.
      * (eq to shadow projection matrix * light transform matrix)
      * @returns The transform matrix used to create the shadow map
@@ -589,9 +656,10 @@ export declare class ShadowGenerator implements IShadowGenerator {
     protected _disposeSceneUBOs(): void;
     /**
      * Disposes the ShadowGenerator.
+     * @param clearObservables Defines whether to clear the observables or not (true by default).
      * Returns nothing.
      */
-    dispose(): void;
+    dispose(clearObservables?: boolean): void;
     /**
      * Serializes the shadow generator setup to a json object.
      * @returns The serialized JSON object

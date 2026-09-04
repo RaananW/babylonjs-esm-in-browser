@@ -3,15 +3,6 @@
  */
 export class Deferred {
     /**
-     * Constructor for this deferred object.
-     */
-    constructor() {
-        this.promise = new Promise((resolve, reject) => {
-            this._resolve = resolve;
-            this._reject = reject;
-        });
-    }
-    /**
      * The resolve method of the promise associated with this deferred object.
      */
     get resolve() {
@@ -22,6 +13,15 @@ export class Deferred {
      */
     get reject() {
         return this._reject;
+    }
+    /**
+     * Constructor for this deferred object.
+     */
+    constructor() {
+        this.promise = new Promise((resolve, reject) => {
+            this._resolve = resolve;
+            this._reject = reject;
+        });
     }
 }
 //# sourceMappingURL=deferred.js.map

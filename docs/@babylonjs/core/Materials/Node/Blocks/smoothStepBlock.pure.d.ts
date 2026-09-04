@@ -1,0 +1,41 @@
+/** This file must only contain pure code and pure imports */
+import { NodeMaterialBlock } from "../nodeMaterialBlock.js";
+import { type NodeMaterialBuildState } from "../nodeMaterialBuildState.js";
+import { type NodeMaterialConnectionPoint } from "../nodeMaterialBlockConnectionPoint.js";
+/**
+ * Block used to smooth step a value
+ */
+export declare class SmoothStepBlock extends NodeMaterialBlock {
+    /**
+     * Creates a new SmoothStepBlock
+     * @param name defines the block name
+     */
+    constructor(name: string);
+    /**
+     * Gets the current class name
+     * @returns the class name
+     */
+    getClassName(): string;
+    /**
+     * Gets the value operand input component
+     */
+    get value(): NodeMaterialConnectionPoint;
+    /**
+     * Gets the first edge operand input component
+     */
+    get edge0(): NodeMaterialConnectionPoint;
+    /**
+     * Gets the second edge operand input component
+     */
+    get edge1(): NodeMaterialConnectionPoint;
+    /**
+     * Gets the output component
+     */
+    get output(): NodeMaterialConnectionPoint;
+    protected _buildBlock(state: NodeMaterialBuildState): this;
+}
+/**
+ * Register side effects for smoothStepBlock.
+ * Safe to call multiple times; only the first call has an effect.
+ */
+export declare function RegisterSmoothStepBlock(): void;

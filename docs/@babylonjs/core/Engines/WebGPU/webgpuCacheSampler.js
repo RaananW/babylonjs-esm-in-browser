@@ -1,45 +1,48 @@
-import * as WebGPUConstants from "./webgpuConstants.js";
 
-const filterToBits = [
-    0 | (0 << 1) | (0 << 2),
-    0 | (0 << 1) | (0 << 2),
-    1 | (1 << 1) | (0 << 2),
-    1 | (1 << 1) | (1 << 2),
-    0 | (0 << 1) | (0 << 2),
-    0 | (1 << 1) | (0 << 2),
-    0 | (1 << 1) | (1 << 2),
-    0 | (1 << 1) | (0 << 2),
-    0 | (0 << 1) | (1 << 2),
-    1 | (0 << 1) | (0 << 2),
-    1 | (0 << 1) | (1 << 2),
-    1 | (1 << 1) | (0 << 2),
+/**
+ * Note: we don't make a difference between mipmaps enabled or not when computing these bits (so, TEXTURE_NEAREST_NEAREST and TEXTURE_NEAREST_NEAREST_MIPNEAREST have the same bits, for example).
+ * There's another bit in the hash code for that (see FilterNoMipToBits).
+ */
+const FilterToBits = [
+    0 | (0 << 1) | (0 << 2), // not used
+    0 | (0 << 1) | (0 << 2), // TEXTURE_NEAREST_SAMPLINGMODE / TEXTURE_NEAREST_NEAREST
+    1 | (1 << 1) | (0 << 2), // TEXTURE_BILINEAR_SAMPLINGMODE / TEXTURE_LINEAR_LINEAR
+    1 | (1 << 1) | (1 << 2), // TEXTURE_TRILINEAR_SAMPLINGMODE / TEXTURE_LINEAR_LINEAR_MIPLINEAR
+    0 | (0 << 1) | (0 << 2), // TEXTURE_NEAREST_NEAREST_MIPNEAREST
+    0 | (1 << 1) | (0 << 2), // TEXTURE_NEAREST_LINEAR_MIPNEAREST
+    0 | (1 << 1) | (1 << 2), // TEXTURE_NEAREST_LINEAR_MIPLINEAR
+    0 | (1 << 1) | (0 << 2), // TEXTURE_NEAREST_LINEAR
+    0 | (0 << 1) | (1 << 2), // TEXTURE_NEAREST_NEAREST_MIPLINEAR
+    1 | (0 << 1) | (0 << 2), // TEXTURE_LINEAR_NEAREST_MIPNEAREST
+    1 | (0 << 1) | (1 << 2), // TEXTURE_LINEAR_NEAREST_MIPLINEAR
+    1 | (1 << 1) | (0 << 2), // TEXTURE_LINEAR_LINEAR_MIPNEAREST
     1 | (0 << 1) | (0 << 2), // TEXTURE_LINEAR_NEAREST
 ];
 // subtract 0x01FF from the comparison function value before indexing this array!
-const comparisonFunctionToBits = [
-    (0 << 3) | (0 << 4) | (0 << 5) | (0 << 6),
-    (0 << 3) | (0 << 4) | (0 << 5) | (1 << 6),
-    (0 << 3) | (0 << 4) | (1 << 5) | (0 << 6),
-    (0 << 3) | (0 << 4) | (1 << 5) | (1 << 6),
-    (0 << 3) | (1 << 4) | (0 << 5) | (0 << 6),
-    (0 << 3) | (1 << 4) | (0 << 5) | (1 << 6),
-    (0 << 3) | (1 << 4) | (1 << 5) | (0 << 6),
-    (0 << 3) | (1 << 4) | (1 << 5) | (1 << 6),
+const ComparisonFunctionToBits = [
+    (0 << 3) | (0 << 4) | (0 << 5) | (0 << 6), // undefined
+    (0 << 3) | (0 << 4) | (0 << 5) | (1 << 6), // NEVER
+    (0 << 3) | (0 << 4) | (1 << 5) | (0 << 6), // LESS
+    (0 << 3) | (0 << 4) | (1 << 5) | (1 << 6), // EQUAL
+    (0 << 3) | (1 << 4) | (0 << 5) | (0 << 6), // LEQUAL
+    (0 << 3) | (1 << 4) | (0 << 5) | (1 << 6), // GREATER
+    (0 << 3) | (1 << 4) | (1 << 5) | (0 << 6), // NOTEQUAL
+    (0 << 3) | (1 << 4) | (1 << 5) | (1 << 6), // GEQUAL
     (1 << 3) | (0 << 4) | (0 << 5) | (0 << 6), // ALWAYS
 ];
-const filterNoMipToBits = [
-    0 << 7,
-    1 << 7,
-    1 << 7,
-    0 << 7,
-    0 << 7,
-    0 << 7,
-    0 << 7,
-    1 << 7,
-    0 << 7,
-    0 << 7,
-    0 << 7,
-    0 << 7,
+const FilterNoMipToBits = [
+    0 << 7, // not used
+    1 << 7, // TEXTURE_NEAREST_SAMPLINGMODE / TEXTURE_NEAREST_NEAREST
+    1 << 7, // TEXTURE_BILINEAR_SAMPLINGMODE / TEXTURE_LINEAR_LINEAR
+    0 << 7, // TEXTURE_TRILINEAR_SAMPLINGMODE / TEXTURE_LINEAR_LINEAR_MIPLINEAR
+    0 << 7, // TEXTURE_NEAREST_NEAREST_MIPNEAREST
+    0 << 7, // TEXTURE_NEAREST_LINEAR_MIPNEAREST
+    0 << 7, // TEXTURE_NEAREST_LINEAR_MIPLINEAR
+    1 << 7, // TEXTURE_NEAREST_LINEAR
+    0 << 7, // TEXTURE_NEAREST_NEAREST_MIPLINEAR
+    0 << 7, // TEXTURE_LINEAR_NEAREST_MIPNEAREST
+    0 << 7, // TEXTURE_LINEAR_NEAREST_MIPLINEAR
+    0 << 7, // TEXTURE_LINEAR_LINEAR_MIPNEAREST
     1 << 7, // TEXTURE_LINEAR_NEAREST
 ];
 /** @internal */
@@ -50,15 +53,14 @@ export class WebGPUCacheSampler {
         this.disabled = false;
     }
     static GetSamplerHashCode(sampler) {
-        var _a, _b, _c;
         // The WebGPU spec currently only allows values 1 and 4 for anisotropy
-        const anisotropy = sampler._cachedAnisotropicFilteringLevel && sampler._cachedAnisotropicFilteringLevel > 1 ? 4 : 1;
-        const code = filterToBits[sampler.samplingMode] +
-            comparisonFunctionToBits[(sampler._comparisonFunction || 0x0202) - 0x0200 + 1] +
-            filterNoMipToBits[sampler.samplingMode] + // handle the lodMinClamp = lodMaxClamp = 0 case when no filter used for mip mapping
-            (((_a = sampler._cachedWrapU) !== null && _a !== void 0 ? _a : 1) << 8) +
-            (((_b = sampler._cachedWrapV) !== null && _b !== void 0 ? _b : 1) << 10) +
-            (((_c = sampler._cachedWrapR) !== null && _c !== void 0 ? _c : 1) << 12) +
+        const anisotropy = sampler._cachedAnisotropicFilteringLevel ? sampler._cachedAnisotropicFilteringLevel : 1;
+        const code = FilterToBits[sampler.samplingMode] +
+            ComparisonFunctionToBits[(sampler._comparisonFunction || 0x0202) - 0x0200 + 1] +
+            FilterNoMipToBits[sampler.samplingMode] + // handle the lodMinClamp = lodMaxClamp = 0 case when no filter used for mip mapping
+            ((sampler._cachedWrapU ?? 1) << 8) +
+            ((sampler._cachedWrapV ?? 1) << 10) +
+            ((sampler._cachedWrapR ?? 1) << 12) +
             ((sampler.useMipMaps ? 1 : 0) << 14) + // need to factor this in because _getSamplerFilterDescriptor depends on samplingMode AND useMipMaps!
             (anisotropy << 15);
         return code;
@@ -68,120 +70,126 @@ export class WebGPUCacheSampler {
         const useMipMaps = sampler.useMipMaps;
         switch (sampler.samplingMode) {
             case 11:
-                magFilter = WebGPUConstants.FilterMode.Linear;
-                minFilter = WebGPUConstants.FilterMode.Linear;
-                mipmapFilter = WebGPUConstants.FilterMode.Nearest;
+                magFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
+                minFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
+                mipmapFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
                 if (!useMipMaps) {
                     lodMinClamp = lodMaxClamp = 0;
                 }
                 break;
+            /* case 3: */ // same value as below
             case 3:
-            case 3:
-                magFilter = WebGPUConstants.FilterMode.Linear;
-                minFilter = WebGPUConstants.FilterMode.Linear;
+                magFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
+                minFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
                 if (!useMipMaps) {
-                    mipmapFilter = WebGPUConstants.FilterMode.Nearest;
+                    mipmapFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
                     lodMinClamp = lodMaxClamp = 0;
                 }
                 else {
-                    mipmapFilter = WebGPUConstants.FilterMode.Linear;
+                    mipmapFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
                 }
                 break;
             case 8:
-                magFilter = WebGPUConstants.FilterMode.Nearest;
-                minFilter = WebGPUConstants.FilterMode.Nearest;
+                magFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
+                minFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
                 if (!useMipMaps) {
-                    mipmapFilter = WebGPUConstants.FilterMode.Nearest;
+                    mipmapFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
                     lodMinClamp = lodMaxClamp = 0;
                 }
                 else {
-                    mipmapFilter = WebGPUConstants.FilterMode.Linear;
+                    mipmapFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
                 }
                 break;
             case 4:
-                magFilter = WebGPUConstants.FilterMode.Nearest;
-                minFilter = WebGPUConstants.FilterMode.Nearest;
-                mipmapFilter = WebGPUConstants.FilterMode.Nearest;
+                magFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
+                minFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
+                mipmapFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
                 if (!useMipMaps) {
                     lodMinClamp = lodMaxClamp = 0;
                 }
                 break;
             case 5:
-                magFilter = WebGPUConstants.FilterMode.Nearest;
-                minFilter = WebGPUConstants.FilterMode.Linear;
-                mipmapFilter = WebGPUConstants.FilterMode.Nearest;
+                magFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
+                minFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
+                mipmapFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
                 if (!useMipMaps) {
                     lodMinClamp = lodMaxClamp = 0;
                 }
                 break;
             case 6:
-                magFilter = WebGPUConstants.FilterMode.Nearest;
-                minFilter = WebGPUConstants.FilterMode.Linear;
+                magFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
+                minFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
                 if (!useMipMaps) {
-                    mipmapFilter = WebGPUConstants.FilterMode.Nearest;
+                    mipmapFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
                     lodMinClamp = lodMaxClamp = 0;
                 }
                 else {
-                    mipmapFilter = WebGPUConstants.FilterMode.Linear;
+                    mipmapFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
                 }
                 break;
             case 7:
-                magFilter = WebGPUConstants.FilterMode.Nearest;
-                minFilter = WebGPUConstants.FilterMode.Linear;
-                mipmapFilter = WebGPUConstants.FilterMode.Nearest;
+                magFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
+                minFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
+                mipmapFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
                 lodMinClamp = lodMaxClamp = 0;
                 break;
+            /* case 1: */ // same value as below
             case 1:
-            case 1:
-                magFilter = WebGPUConstants.FilterMode.Nearest;
-                minFilter = WebGPUConstants.FilterMode.Nearest;
-                mipmapFilter = WebGPUConstants.FilterMode.Nearest;
+                magFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
+                minFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
+                mipmapFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
                 lodMinClamp = lodMaxClamp = 0;
                 break;
             case 9:
-                magFilter = WebGPUConstants.FilterMode.Linear;
-                minFilter = WebGPUConstants.FilterMode.Nearest;
-                mipmapFilter = WebGPUConstants.FilterMode.Nearest;
+                magFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
+                minFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
+                mipmapFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
                 if (!useMipMaps) {
                     lodMinClamp = lodMaxClamp = 0;
                 }
                 break;
             case 10:
-                magFilter = WebGPUConstants.FilterMode.Linear;
-                minFilter = WebGPUConstants.FilterMode.Nearest;
+                magFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
+                minFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
                 if (!useMipMaps) {
-                    mipmapFilter = WebGPUConstants.FilterMode.Nearest;
+                    mipmapFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
                     lodMinClamp = lodMaxClamp = 0;
                 }
                 else {
-                    mipmapFilter = WebGPUConstants.FilterMode.Linear;
+                    mipmapFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
                 }
                 break;
+            /* case 2: */ // same value as below
             case 2:
-            case 2:
-                magFilter = WebGPUConstants.FilterMode.Linear;
-                minFilter = WebGPUConstants.FilterMode.Linear;
-                mipmapFilter = WebGPUConstants.FilterMode.Nearest;
-                lodMinClamp = lodMaxClamp = 0;
+                magFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
+                minFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
+                // In WebGL, if sampling mode is TEXTURE_BILINEAR_SAMPLINGMODE and anisotropy is greater than 1, anisotropy is enabled for the sampler
+                if (anisotropy > 1) {
+                    mipmapFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
+                }
+                else {
+                    mipmapFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
+                    lodMinClamp = lodMaxClamp = 0;
+                }
                 break;
             case 12:
-                magFilter = WebGPUConstants.FilterMode.Linear;
-                minFilter = WebGPUConstants.FilterMode.Nearest;
-                mipmapFilter = WebGPUConstants.FilterMode.Nearest;
+                magFilter = "linear" /* WebGPUConstants.FilterMode.Linear */;
+                minFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
+                mipmapFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
                 lodMinClamp = lodMaxClamp = 0;
                 break;
             default:
-                magFilter = WebGPUConstants.FilterMode.Nearest;
-                minFilter = WebGPUConstants.FilterMode.Nearest;
-                mipmapFilter = WebGPUConstants.FilterMode.Nearest;
+                magFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
+                minFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
+                mipmapFilter = "nearest" /* WebGPUConstants.FilterMode.Nearest */;
                 lodMinClamp = lodMaxClamp = 0;
                 break;
         }
         if (anisotropy > 1 && (lodMinClamp !== 0 || lodMaxClamp !== 0)) {
             return {
-                magFilter: WebGPUConstants.FilterMode.Linear,
-                minFilter: WebGPUConstants.FilterMode.Linear,
-                mipmapFilter: WebGPUConstants.FilterMode.Linear,
+                magFilter: "linear" /* WebGPUConstants.FilterMode.Linear */,
+                minFilter: "linear" /* WebGPUConstants.FilterMode.Linear */,
+                mipmapFilter: "linear" /* WebGPUConstants.FilterMode.Linear */,
                 anisotropyEnabled: true,
             };
         }
@@ -196,13 +204,13 @@ export class WebGPUCacheSampler {
     static _GetWrappingMode(mode) {
         switch (mode) {
             case 1:
-                return WebGPUConstants.AddressMode.Repeat;
+                return "repeat" /* WebGPUConstants.AddressMode.Repeat */;
             case 0:
-                return WebGPUConstants.AddressMode.ClampToEdge;
+                return "clamp-to-edge" /* WebGPUConstants.AddressMode.ClampToEdge */;
             case 2:
-                return WebGPUConstants.AddressMode.MirrorRepeat;
+                return "mirror-repeat" /* WebGPUConstants.AddressMode.MirrorRepeat */;
         }
-        return WebGPUConstants.AddressMode.Repeat;
+        return "repeat" /* WebGPUConstants.AddressMode.Repeat */;
     }
     static _GetSamplerWrappingDescriptor(sampler) {
         return {
@@ -211,11 +219,20 @@ export class WebGPUCacheSampler {
             addressModeW: this._GetWrappingMode(sampler._cachedWrapR),
         };
     }
-    static _GetSamplerDescriptor(sampler) {
-        // The WebGPU spec currently only allows values 1 and 4 for anisotropy
-        const anisotropy = sampler.useMipMaps && sampler._cachedAnisotropicFilteringLevel && sampler._cachedAnisotropicFilteringLevel > 1 ? 4 : 1;
+    static _GetSamplerDescriptor(sampler, label) {
+        // The check with 2 is to be iso with the WebGL implementation
+        let anisotropy = (sampler.useMipMaps || sampler.samplingMode === 2) && sampler._cachedAnisotropicFilteringLevel
+            ? sampler._cachedAnisotropicFilteringLevel
+            : 1;
+        // To be iso with the WebGL implementation
+        if (sampler.samplingMode !== 11 &&
+            sampler.samplingMode !== 3 &&
+            sampler.samplingMode !== 2) {
+            anisotropy = 1;
+        }
         const filterDescriptor = this._GetSamplerFilterDescriptor(sampler, anisotropy);
         return {
+            label,
             ...filterDescriptor,
             ...this._GetSamplerWrappingDescriptor(sampler),
             compare: sampler._comparisonFunction ? WebGPUCacheSampler.GetCompareFunction(sampler._comparisonFunction) : undefined,
@@ -225,28 +242,28 @@ export class WebGPUCacheSampler {
     static GetCompareFunction(compareFunction) {
         switch (compareFunction) {
             case 519:
-                return WebGPUConstants.CompareFunction.Always;
+                return "always" /* WebGPUConstants.CompareFunction.Always */;
             case 514:
-                return WebGPUConstants.CompareFunction.Equal;
+                return "equal" /* WebGPUConstants.CompareFunction.Equal */;
             case 516:
-                return WebGPUConstants.CompareFunction.Greater;
+                return "greater" /* WebGPUConstants.CompareFunction.Greater */;
             case 518:
-                return WebGPUConstants.CompareFunction.GreaterEqual;
+                return "greater-equal" /* WebGPUConstants.CompareFunction.GreaterEqual */;
             case 513:
-                return WebGPUConstants.CompareFunction.Less;
+                return "less" /* WebGPUConstants.CompareFunction.Less */;
             case 515:
-                return WebGPUConstants.CompareFunction.LessEqual;
+                return "less-equal" /* WebGPUConstants.CompareFunction.LessEqual */;
             case 512:
-                return WebGPUConstants.CompareFunction.Never;
+                return "never" /* WebGPUConstants.CompareFunction.Never */;
             case 517:
-                return WebGPUConstants.CompareFunction.NotEqual;
+                return "not-equal" /* WebGPUConstants.CompareFunction.NotEqual */;
             default:
-                return WebGPUConstants.CompareFunction.Less;
+                return "less" /* WebGPUConstants.CompareFunction.Less */;
         }
     }
-    getSampler(sampler, bypassCache = false, hash = 0) {
+    getSampler(sampler, bypassCache = false, hash = 0, label) {
         if (this.disabled) {
-            return this._device.createSampler(WebGPUCacheSampler._GetSamplerDescriptor(sampler));
+            return this._device.createSampler(WebGPUCacheSampler._GetSamplerDescriptor(sampler, label));
         }
         if (bypassCache) {
             hash = 0;
@@ -256,7 +273,7 @@ export class WebGPUCacheSampler {
         }
         let gpuSampler = bypassCache ? undefined : this._samplers[hash];
         if (!gpuSampler) {
-            gpuSampler = this._device.createSampler(WebGPUCacheSampler._GetSamplerDescriptor(sampler));
+            gpuSampler = this._device.createSampler(WebGPUCacheSampler._GetSamplerDescriptor(sampler, label));
             if (!bypassCache) {
                 this._samplers[hash] = gpuSampler;
             }

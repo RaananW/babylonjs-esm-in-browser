@@ -4,14 +4,14 @@ import * as Validation from "../glTF/glTFValidation.js";
  * This is the entry point for the UMD module.
  * The entry point for a future ESM package should be index.ts
  */
-const globalObject = typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : undefined;
-if (typeof globalObject !== "undefined") {
-    globalObject.BABYLON = globalObject.BABYLON || {};
+const GlobalObject = typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : undefined;
+if (typeof GlobalObject !== "undefined") {
+    GlobalObject.BABYLON = GlobalObject.BABYLON || {};
     for (const key in FileLoader) {
-        globalObject.BABYLON[key] = FileLoader[key];
+        GlobalObject.BABYLON[key] = FileLoader[key];
     }
     for (const key in Validation) {
-        globalObject.BABYLON[key] = Validation[key];
+        GlobalObject.BABYLON[key] = Validation[key];
     }
 }
 export * from "../glTF/glTFFileLoader.js";

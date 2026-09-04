@@ -1,35 +1,9 @@
-import { ThinEngine } from "../../Engines/thinEngine.js";
-/** @internal */
-export var ComputeBindingType;
-(function (ComputeBindingType) {
-    ComputeBindingType[ComputeBindingType["Texture"] = 0] = "Texture";
-    ComputeBindingType[ComputeBindingType["StorageTexture"] = 1] = "StorageTexture";
-    ComputeBindingType[ComputeBindingType["UniformBuffer"] = 2] = "UniformBuffer";
-    ComputeBindingType[ComputeBindingType["StorageBuffer"] = 3] = "StorageBuffer";
-    ComputeBindingType[ComputeBindingType["TextureWithoutSampler"] = 4] = "TextureWithoutSampler";
-    ComputeBindingType[ComputeBindingType["Sampler"] = 5] = "Sampler";
-})(ComputeBindingType || (ComputeBindingType = {}));
-ThinEngine.prototype.createComputeEffect = function (baseName, options) {
-    throw new Error("createComputeEffect: This engine does not support compute shaders!");
-};
-ThinEngine.prototype.createComputePipelineContext = function () {
-    throw new Error("createComputePipelineContext: This engine does not support compute shaders!");
-};
-ThinEngine.prototype.createComputeContext = function () {
-    return undefined;
-};
-ThinEngine.prototype.computeDispatch = function (effect, context, bindings, x, y, z, bindingsMapping) {
-    throw new Error("computeDispatch: This engine does not support compute shaders!");
-};
-ThinEngine.prototype.areAllComputeEffectsReady = function () {
-    return true;
-};
-ThinEngine.prototype.releaseComputeEffects = function () { };
-ThinEngine.prototype._prepareComputePipelineContext = function (pipelineContext, computeSourceCode, rawComputeSourceCode, defines, entryPoint) { };
-ThinEngine.prototype._rebuildComputeEffects = function () { };
-ThinEngine.prototype._executeWhenComputeStateIsCompiled = function (pipelineContext, action) {
-    action();
-};
-ThinEngine.prototype._releaseComputeEffect = function (effect) { };
-ThinEngine.prototype._deleteComputePipelineContext = function (pipelineContext) { };
+export * from "./engine.computeShader.types.js";
+/**
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import engine.computeShader.pure for tree-shakeable, side-effect-free usage.
+ */
+export * from "./engine.computeShader.pure.js";
+import { RegisterEnginesExtensionsEngineComputeShader } from "./engine.computeShader.pure.js";
+RegisterEnginesExtensionsEngineComputeShader();
 //# sourceMappingURL=engine.computeShader.js.map

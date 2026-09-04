@@ -1,4 +1,3 @@
-import { ShaderLanguage } from "../Materials/shaderLanguage.js";
 /**
  * Defines the shader related stores and directory
  */
@@ -8,24 +7,24 @@ export class ShaderStore {
      * @param shaderLanguage the shader language
      * @returns the path to the shaders repository
      */
-    static GetShadersRepository(shaderLanguage = ShaderLanguage.GLSL) {
-        return shaderLanguage === ShaderLanguage.GLSL ? ShaderStore.ShadersRepository : ShaderStore.ShadersRepositoryWGSL;
+    static GetShadersRepository(shaderLanguage = 0 /* ShaderLanguage.GLSL */) {
+        return shaderLanguage === 0 /* ShaderLanguage.GLSL */ ? ShaderStore.ShadersRepository : ShaderStore.ShadersRepositoryWGSL;
     }
     /**
      * Gets the shaders store of a given shader language
      * @param shaderLanguage the shader language
      * @returns the shaders store
      */
-    static GetShadersStore(shaderLanguage = ShaderLanguage.GLSL) {
-        return shaderLanguage === ShaderLanguage.GLSL ? ShaderStore.ShadersStore : ShaderStore.ShadersStoreWGSL;
+    static GetShadersStore(shaderLanguage = 0 /* ShaderLanguage.GLSL */) {
+        return shaderLanguage === 0 /* ShaderLanguage.GLSL */ ? ShaderStore.ShadersStore : ShaderStore.ShadersStoreWGSL;
     }
     /**
      * Gets the include shaders store of a given shader language
      * @param shaderLanguage the shader language
      * @returns the include shaders store
      */
-    static GetIncludesShadersStore(shaderLanguage = ShaderLanguage.GLSL) {
-        return shaderLanguage === ShaderLanguage.GLSL ? ShaderStore.IncludesShadersStore : ShaderStore.IncludesShadersStoreWGSL;
+    static GetIncludesShadersStore(shaderLanguage = 0 /* ShaderLanguage.GLSL */) {
+        return shaderLanguage === 0 /* ShaderLanguage.GLSL */ ? ShaderStore.IncludesShadersStore : ShaderStore.IncludesShadersStoreWGSL;
     }
 }
 /**

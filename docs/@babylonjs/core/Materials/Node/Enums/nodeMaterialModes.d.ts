@@ -9,5 +9,9 @@ export declare enum NodeMaterialModes {
     /** For particle system */
     Particle = 2,
     /** For procedural texture */
-    ProceduralTexture = 3
+    ProceduralTexture = 3,
+    /** For gaussian splatting */
+    GaussianSplatting = 4,
+    /** For SFE */
+    SFE = 5
 }

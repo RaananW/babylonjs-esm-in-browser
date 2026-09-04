@@ -1,7 +1,7 @@
-import type { Nullable } from "../../types";
-import type { ArcRotateCamera } from "../../Cameras/arcRotateCamera";
-import type { ICameraInput } from "../../Cameras/cameraInputsManager";
-import type { IWheelEvent } from "../../Events/deviceInputEvents";
+import { type Nullable } from "../../types.js";
+import { type ArcRotateCamera } from "../../Cameras/arcRotateCamera.js";
+import { type ICameraInput } from "../../Cameras/cameraInputsManager.js";
+import { type IWheelEvent } from "../../Events/deviceInputEvents.js";
 /**
  * Manage the mouse wheel inputs to control an arc rotate camera.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs
@@ -32,6 +32,8 @@ export declare class ArcRotateCameraMouseWheelInput implements ICameraInput<ArcR
     private _wheel;
     private _observer;
     private _hitPlane;
+    private _viewOffset;
+    private _globalOffset;
     protected _computeDeltaFromMouseWheelLegacyEvent(mouseWheelDelta: number, radius: number): number;
     /**
      * Attach the input controls to a specific dom element to get the input from.
@@ -60,6 +62,21 @@ export declare class ArcRotateCameraMouseWheelInput implements ICameraInput<ArcR
     private _updateHitPlane;
     private _getPosition;
     private _inertialPanning;
+    /**
+     * Decaying accumulator for radius motion in the `zoomToMouseLocation` path.
+     *
+     * Units: world-space radius units. On each frame, this value is *subtracted* from
+     * `camera.radius` and then multiplied by a framerate-independent decay factor (via
+     * `CameraMovement.getFrameIndependentDecay`). New input from `_zoomToMouse(delta)`
+     * is added on top each frame, scaled by the matching framerate-independent input
+     * factor so the steady-state and total-glide-distance match legacy at 60fps at any
+     * actual refresh rate.
+     *
+     * Replaces the use of the legacy `camera.inertialRadiusOffset` for this code path
+     * so the coupled radius + pan motion can be decayed with framerate-independent
+     * semantics without disturbing the public `inertialRadiusOffset` back-compat surface.
+     */
+    private _zoomToMouseRadiusOffset;
     private _zoomToMouse;
     private _zeroIfClose;
 }

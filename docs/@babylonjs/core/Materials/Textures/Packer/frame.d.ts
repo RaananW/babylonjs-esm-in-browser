@@ -1,4 +1,4 @@
-import type { Vector2 } from "../../../Maths/math.vector";
+import { type Vector2 } from "../../../Maths/math.vector.js";
 /**
  * Defines the basic options interface of a TexturePacker Frame
  */

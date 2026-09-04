@@ -28,6 +28,8 @@ export interface EngineFeatures {
     supportMSAA: boolean;
     /** Indicates that SSAO2 is supported */
     supportSSAO2: boolean;
+    /** Indicates that IBL Shadows are supported */
+    supportIBLShadows: boolean;
     /** Indicates that some additional texture formats are supported (like TEXTUREFORMAT_R for eg) */
     supportExtendedTextureFormats: boolean;
     /** Indicates that the switch/case construct is supported in shaders */
@@ -46,6 +48,8 @@ export interface EngineFeatures {
     supportRenderPasses: boolean;
     /**  Indicates that the engine supports sprite instancing */
     supportSpriteInstancing: boolean;
+    /** Indicates that the stride and (byte) offset of a vertex buffer must always be a multiple of 4 bytes */
+    forceVertexBufferStrideAndOffsetMultiple4Bytes: boolean;
     /** @internal */
-    _collectUbosUpdatedInFrame: boolean;
+    _checkNonFloatVertexBuffersDontRecreatePipelineContext: boolean;
 }

@@ -1,7 +1,6 @@
-import type { IMinimalMotionControllerObject, MotionControllerHandedness } from "./webXRAbstractMotionController";
-import { WebXRAbstractMotionController } from "./webXRAbstractMotionController";
-import type { AbstractMesh } from "../../Meshes/abstractMesh";
-import type { Scene } from "../../scene";
+import { type IMinimalMotionControllerObject, type MotionControllerHandedness, WebXRAbstractMotionController } from "./webXRAbstractMotionController.js";
+import { type AbstractMesh } from "../../Meshes/abstractMesh.js";
+import { type Scene } from "../../scene.js";
 /**
  * A generic trigger-only motion controller for WebXR
  */

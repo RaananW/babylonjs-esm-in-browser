@@ -1,2 +1,3 @@
-export * from "./nativeDataStream";
-export * from "./validatedNativeDataStream";
+export * from "./nativeDataStream.js";
+export * from "./validatedNativeDataStream.js";
+export * from "./Extensions/nativeEngine.cubeTexture.js";

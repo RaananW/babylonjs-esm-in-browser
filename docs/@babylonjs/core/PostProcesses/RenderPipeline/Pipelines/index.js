@@ -3,4 +3,27 @@ export * from "./lensRenderingPipeline.js";
 export * from "./ssao2RenderingPipeline.js";
 export * from "./ssaoRenderingPipeline.js";
 export * from "./standardRenderingPipeline.js";
+export * from "./ssrRenderingPipeline.js";
+export * from "./taaRenderingPipeline.js";
+export * from "./fsr1RenderingPipeline.js";
+// SSAO2 shaders
+import "../../../Shaders/ssao2.fragment.js";
+import "../../../Shaders/ssaoCombine.fragment.js";
+import "../../../ShadersWGSL/ssao2.fragment.js";
+import "../../../ShadersWGSL/ssaoCombine.fragment.js";
+// SSR shaders
+import "../../../Shaders/screenSpaceReflection2.fragment.js";
+import "../../../Shaders/screenSpaceReflection2Blur.fragment.js";
+import "../../../Shaders/screenSpaceReflection2BlurCombiner.fragment.js";
+import "../../../ShadersWGSL/screenSpaceReflection2.fragment.js";
+import "../../../ShadersWGSL/screenSpaceReflection2Blur.fragment.js";
+import "../../../ShadersWGSL/screenSpaceReflection2BlurCombiner.fragment.js";
+// TAA shaders
+import "../../../Shaders/taa.fragment.js";
+import "../../../ShadersWGSL/taa.fragment.js";
+// FSR 1 shaders
+import "../../../Shaders/fsr1Upscale.fragment.js";
+import "../../../Shaders/fsr1Sharpen.fragment.js";
+import "../../../ShadersWGSL/fsr1Upscale.fragment.js";
+import "../../../ShadersWGSL/fsr1Sharpen.fragment.js";
 //# sourceMappingURL=index.js.map

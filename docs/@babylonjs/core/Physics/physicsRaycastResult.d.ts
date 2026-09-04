@@ -1,19 +1,28 @@
-import { Vector3 } from "../Maths/math.vector";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { CastingResult } from "./castingResult.js";
+import { type PhysicsBody } from "./v2/physicsBody.js";
+/**
+ * Interface for query parameters in the raycast function.
+ * @see the "Collision Filtering" section in https://github.com/eoineoineoin/glTF/tree/MSFT_RigidBodies/extensions/2.0/Vendor/MSFT_collision_primitives
+ */
+export interface IRaycastQuery {
+    /** Membership mask */
+    membership?: number;
+    /** CollideWith mask */
+    collideWith?: number;
+    /** Should trigger collisions be considered in the query? */
+    shouldHitTriggers?: boolean;
+    /** Ignores the body passed if it is in the query */
+    ignoreBody?: PhysicsBody;
+}
 /**
  * Holds the data for the raycast result
  * @see https://doc.babylonjs.com/features/featuresDeepDive/physics/usingPhysicsEngine
  */
-export declare class PhysicsRaycastResult {
-    private _hasHit;
+export declare class PhysicsRaycastResult extends CastingResult {
     private _hitDistance;
-    private _hitNormalWorld;
-    private _hitPointWorld;
     private _rayFromWorld;
     private _rayToWorld;
-    /**
-     * Gets if there was a hit
-     */
-    get hasHit(): boolean;
     /**
      * Gets the distance from the hit
      */
@@ -35,14 +44,8 @@ export declare class PhysicsRaycastResult {
      */
     get rayToWorld(): Vector3;
     /**
-     * Sets the hit data (normal & point in world space)
-     * @param hitNormalWorld defines the normal in world space
-     * @param hitPointWorld defines the point in world space
-     */
-    setHitData(hitNormalWorld: IXYZ, hitPointWorld: IXYZ): void;
-    /**
      * Sets the distance from the start point to the hit point
-     * @param distance
+     * @param distance defines the distance to set
      */
     setHitDistance(distance: number): void;
     /**
@@ -56,21 +59,3 @@ export declare class PhysicsRaycastResult {
      */
     reset(from?: Vector3, to?: Vector3): void;
 }
-/**
- * Interface for the size containing width and height
- */
-interface IXYZ {
-    /**
-     * X
-     */
-    x: number;
-    /**
-     * Y
-     */
-    y: number;
-    /**
-     * Z
-     */
-    z: number;
-}
-export {};

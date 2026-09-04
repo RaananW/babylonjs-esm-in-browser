@@ -1,10 +1,9 @@
-import type { DeepImmutable } from "../types";
-import type { Matrix } from "../Maths/math.vector";
-import { Vector3 } from "../Maths/math.vector";
-import { BoundingBox } from "./boundingBox";
-import { BoundingSphere } from "./boundingSphere";
-import type { Plane } from "../Maths/math.plane";
-declare type Collider = import("../Collisions/collider").Collider;
+import { type DeepImmutable } from "../types.js";
+import { type Matrix, Vector3 } from "../Maths/math.vector.pure.js";
+import { BoundingBox } from "./boundingBox.js";
+import { BoundingSphere } from "./boundingSphere.js";
+import { type Plane } from "../Maths/math.plane.js";
+import { type Collider } from "../Collisions/collider.js";
 /**
  * Interface for cullable objects
  * @see https://doc.babylonjs.com/features/featuresDeepDive/materials/using/materials_introduction#back-face-culling
@@ -79,7 +78,7 @@ export declare class BoundingInfo implements ICullable {
     centerOn(center: DeepImmutable<Vector3>, extend: DeepImmutable<Vector3>): BoundingInfo;
     /**
      * Grows the bounding info to include the given point.
-     * @param point The point that will be included in the current bounding info
+     * @param point The point that will be included in the current bounding info (in local space)
      * @returns the current bounding info
      */
     encapsulate(point: Vector3): BoundingInfo;
@@ -138,4 +137,3 @@ export declare class BoundingInfo implements ICullable {
      */
     intersects(boundingInfo: DeepImmutable<BoundingInfo>, precise: boolean): boolean;
 }
-export {};

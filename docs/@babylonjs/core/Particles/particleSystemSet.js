@@ -1,9 +1,9 @@
-import { Color3 } from "../Maths/math.color.js";
-import { CreateSphere } from "../Meshes/Builders/sphereBuilder.js";
-import { GPUParticleSystem } from "./gpuParticleSystem.js";
+import { Color3 } from "../Maths/math.color.pure.js";
+import { CreateSphere } from "../Meshes/Builders/sphereBuilder.pure.js";
+import { GPUParticleSystem } from "./gpuParticleSystem.pure.js";
 import { EngineStore } from "../Engines/engineStore.js";
-import { ParticleSystem } from "../Particles/particleSystem.js";
-import { StandardMaterial } from "../Materials/standardMaterial.js";
+import { ParticleSystem } from "../Particles/particleSystem.pure.js";
+import { StandardMaterial } from "../Materials/standardMaterial.pure.js";
 /** Internal class used to store shapes for emitters */
 class ParticleSystemSetEmitterCreationOptions {
 }
@@ -16,7 +16,7 @@ export class ParticleSystemSet {
         /**
          * Gets the particle system list
          */
-        this.systems = new Array();
+        this.systems = [];
     }
     /**
      * Gets or sets the emitter node used with this set
@@ -103,7 +103,9 @@ export class ParticleSystemSet {
         const result = {};
         result.systems = [];
         for (const system of this.systems) {
-            result.systems.push(system.serialize(serializeTexture));
+            if (!system.doNotSerialize) {
+                result.systems.push(system.serialize(serializeTexture));
+            }
         }
         if (this._emitterNode) {
             result.emitter = this._emitterCreationOptions;
@@ -142,6 +144,7 @@ export class ParticleSystemSet {
 }
 /**
  * Gets or sets base Assets URL
+ * Only used when parsing particle systems from JSON, not part of the core assets
  */
 ParticleSystemSet.BaseAssetsUrl = "https://assets.babylonjs.com/particles";
 //# sourceMappingURL=particleSystemSet.js.map

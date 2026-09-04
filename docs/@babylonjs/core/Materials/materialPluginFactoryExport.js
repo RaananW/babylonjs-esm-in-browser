@@ -1,12 +1,12 @@
 import { DetailMapConfiguration } from "./material.detailMapConfiguration.js";
 import { PBRAnisotropicConfiguration } from "./PBR/pbrAnisotropicConfiguration.js";
-import { PBRBaseMaterial } from "./PBR/pbrBaseMaterial.js";
+import { PBRBaseMaterial } from "./PBR/pbrBaseMaterial.pure.js";
 import { PBRBRDFConfiguration } from "./PBR/pbrBRDFConfiguration.js";
 import { PBRClearCoatConfiguration } from "./PBR/pbrClearCoatConfiguration.js";
 import { PBRIridescenceConfiguration } from "./PBR/pbrIridescenceConfiguration.js";
 import { PBRSheenConfiguration } from "./PBR/pbrSheenConfiguration.js";
 import { PBRSubSurfaceConfiguration } from "./PBR/pbrSubSurfaceConfiguration.js";
-import { StandardMaterial } from "./standardMaterial.js";
+import { StandardMaterial } from "./standardMaterial.pure.js";
 /**
  * Creates an instance of the anisotropic plugin
  * @param material parent material the plugin will be created for

@@ -1,22 +1,12 @@
 import { EngineStore } from "../Engines/engineStore.js";
-import { Mesh } from "../Meshes/mesh.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
 import { Observable } from "./observable.js";
+import { _IsSideEffectImplemented } from "./devTools.js";
 /**
  * Defines the root class used to create scene optimization to use with SceneOptimizer
- * @description More details at https://doc.babylonjs.com/features/featuresDeepDive/scene/sceneOptimizer
+ * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/sceneOptimizer
  */
 export class SceneOptimization {
-    /**
-     * Creates the SceneOptimization object
-     * @param priority defines the priority of this optimization (0 by default which means first in the list)
-     */
-    constructor(
-    /**
-     * Defines the priority of this optimization (0 by default which means first in the list)
-     */
-    priority = 0) {
-        this.priority = priority;
-    }
     /**
      * Gets a string describing the action executed by the current optimization
      * @returns description string
@@ -33,12 +23,30 @@ export class SceneOptimization {
     apply(scene, optimizer) {
         return true;
     }
+    /**
+     * Creates the SceneOptimization object
+     * @param priority defines the priority of this optimization (0 by default which means first in the list)
+     */
+    constructor(
+    /**
+     * [0] Defines the priority of this optimization (0 by default which means first in the list)
+     */
+    priority = 0) {
+        this.priority = priority;
+    }
 }
 /**
  * Defines an optimization used to reduce the size of render target textures
- * @description More details at https://doc.babylonjs.com/features/featuresDeepDive/scene/sceneOptimizer
+ * @see https://doc.babylonjs.com/features/featuresDeepDive/scene/sceneOptimizer
  */
 export class TextureOptimization extends SceneOptimization {
+    /**
+     * Gets a string describing the action executed by the current optimization
+     * @returns description string
+     */
+    getDescription() {
+        return "Reducing render target texture size to " + this.maximumSize;
+    }
     /**
      * Creates the TextureOptimization object
      * @param priority defines the priority of this optimization (0 by default which means first in the list)
@@ -47,28 +55,21 @@ export class TextureOptimization extends SceneOptimization {
      */
     constructor(
     /**
-     * Defines the priority of this optimization (0 by default which means first in the list)
+     * [0] Defines the priority of this optimization (0 by default which means first in the list)
      */
     priority = 0, 
     /**
-     * Defines the maximum sized allowed for textures (1024 is the default value). If a texture is bigger, it will be scaled down using a factor defined by the step parameter
+     * [1024] Defines the maximum sized allowed for textures (1024 is the default value). If a texture is bigger, it will be scaled down using a factor defined by the step parameter
      */
     maximumSize = 1024, 
     /**
-     * Defines the factor (0.5 by default) used to scale down textures bigger than maximum sized allowed.
+     * [0.5] Defines the factor (0.5 by default) used to scale down textures bigger than maximum sized allowed.
      */
     step = 0.5) {
         super(priority);
         this.priority = priority;
         this.maximumSize = maximumSize;
         this.step = step;
-    }
-    /**
-     * Gets a string describing the action executed by the current optimization
-     * @returns description string
-     */
-    getDescription() {
-        return "Reducing render target texture size to " + this.maximumSize;
     }
     /**
      * This function will be called by the SceneOptimizer when its priority is reached in order to apply the change required by the current optimization
@@ -99,6 +100,13 @@ export class TextureOptimization extends SceneOptimization {
  */
 export class HardwareScalingOptimization extends SceneOptimization {
     /**
+     * Gets a string describing the action executed by the current optimization
+     * @returns description string
+     */
+    getDescription() {
+        return "Setting hardware scaling level to " + this._currentScale;
+    }
+    /**
      * Creates the HardwareScalingOptimization object
      * @param priority defines the priority of this optimization (0 by default which means first in the list)
      * @param maximumScale defines the maximum scale to use (2 by default)
@@ -106,15 +114,15 @@ export class HardwareScalingOptimization extends SceneOptimization {
      */
     constructor(
     /**
-     * Defines the priority of this optimization (0 by default which means first in the list)
+     * [0] Defines the priority of this optimization (0 by default which means first in the list)
      */
     priority = 0, 
     /**
-     * Defines the maximum scale to use (2 by default)
+     * [2] Defines the maximum scale to use (2 by default)
      */
     maximumScale = 2, 
     /**
-     * Defines the step to use between two passes (0.5 by default)
+     * [0.25] Defines the step to use between two passes (0.5 by default)
      */
     step = 0.25) {
         super(priority);
@@ -123,13 +131,6 @@ export class HardwareScalingOptimization extends SceneOptimization {
         this.step = step;
         this._currentScale = -1;
         this._directionOffset = 1;
-    }
-    /**
-     * Gets a string describing the action executed by the current optimization
-     * @returns description string
-     */
-    getDescription() {
-        return "Setting hardware scaling level to " + this._currentScale;
     }
     /**
      * This function will be called by the SceneOptimizer when its priority is reached in order to apply the change required by the current optimization
@@ -145,6 +146,7 @@ export class HardwareScalingOptimization extends SceneOptimization {
             }
         }
         this._currentScale += this._directionOffset * this.step;
+        this._currentScale = Math.min(this.maximumScale, this._currentScale);
         scene.getEngine().setHardwareScalingLevel(this._currentScale);
         return this._directionOffset === 1 ? this._currentScale >= this.maximumScale : this._currentScale <= this.maximumScale;
     }
@@ -316,6 +318,9 @@ export class MergeMeshesOptimization extends SceneOptimization {
             if (mesh.skeleton || mesh.hasLODLevels) {
                 return false;
             }
+            if (mesh.getTotalVertices() === 0) {
+                return false;
+            }
             return true;
         };
     }
@@ -349,7 +354,7 @@ export class MergeMeshesOptimization extends SceneOptimization {
         const globalPool = scene.meshes.slice(0);
         let globalLength = globalPool.length;
         for (let index = 0; index < globalLength; index++) {
-            const currentPool = new Array();
+            const currentPool = [];
             const current = globalPool[index];
             // Checks
             if (!this._canBeMerged(current)) {
@@ -381,7 +386,7 @@ export class MergeMeshesOptimization extends SceneOptimization {
         }
         // Call the octree system optimization if it is defined.
         const sceneAsAny = scene;
-        if (sceneAsAny.createOrUpdateSelectionOctree) {
+        if (_IsSideEffectImplemented(sceneAsAny.createOrUpdateSelectionOctree)) {
             if (updateSelectionTree != undefined) {
                 if (updateSelectionTree) {
                     sceneAsAny.createOrUpdateSelectionOctree();
@@ -407,11 +412,11 @@ export class SceneOptimizerOptions {
      */
     constructor(
     /**
-     * Defines the target frame rate to reach (60 by default)
+     * [60] Defines the target frame rate to reach (60 by default)
      */
     targetFrameRate = 60, 
     /**
-     * Defines the interval between two checks (2000ms by default)
+     * [2000] Defines the interval between two checks (2000ms by default)
      */
     trackerDuration = 2000) {
         this.targetFrameRate = targetFrameRate;
@@ -419,7 +424,7 @@ export class SceneOptimizerOptions {
         /**
          * Gets the list of optimizations to apply
          */
-        this.optimizations = new Array();
+        this.optimizations = [];
     }
     /**
      * Add a new optimization
@@ -523,57 +528,6 @@ export class SceneOptimizerOptions {
  */
 export class SceneOptimizer {
     /**
-     * Creates a new SceneOptimizer
-     * @param scene defines the scene to work on
-     * @param options defines the options to use with the SceneOptimizer
-     * @param autoGeneratePriorities defines if priorities must be generated and not read from SceneOptimization property (true by default)
-     * @param improvementMode defines if the scene optimizer must run the maximum optimization while staying over a target frame instead of trying to reach the target framerate (false by default)
-     */
-    constructor(scene, options, autoGeneratePriorities = true, improvementMode = false) {
-        this._isRunning = false;
-        this._currentPriorityLevel = 0;
-        this._targetFrameRate = 60;
-        this._trackerDuration = 2000;
-        this._currentFrameRate = 0;
-        this._improvementMode = false;
-        /**
-         * Defines an observable called when the optimizer reaches the target frame rate
-         */
-        this.onSuccessObservable = new Observable();
-        /**
-         * Defines an observable called when the optimizer enables an optimization
-         */
-        this.onNewOptimizationAppliedObservable = new Observable();
-        /**
-         * Defines an observable called when the optimizer is not able to reach the target frame rate
-         */
-        this.onFailureObservable = new Observable();
-        if (!options) {
-            this._options = new SceneOptimizerOptions();
-        }
-        else {
-            this._options = options;
-        }
-        if (this._options.targetFrameRate) {
-            this._targetFrameRate = this._options.targetFrameRate;
-        }
-        if (this._options.trackerDuration) {
-            this._trackerDuration = this._options.trackerDuration;
-        }
-        if (autoGeneratePriorities) {
-            let priority = 0;
-            for (const optim of this._options.optimizations) {
-                optim.priority = priority++;
-            }
-        }
-        this._improvementMode = improvementMode;
-        this._scene = scene || EngineStore.LastCreatedScene;
-        this._sceneDisposeObserver = this._scene.onDisposeObservable.add(() => {
-            this._sceneDisposeObserver = null;
-            this.dispose();
-        });
-    }
-    /**
      * Gets or sets a boolean indicating if the optimizer is in improvement mode
      */
     get isInImprovementMode() {
@@ -623,6 +577,57 @@ export class SceneOptimizer {
      */
     get optimizations() {
         return this._options.optimizations;
+    }
+    /**
+     * Creates a new SceneOptimizer
+     * @param scene defines the scene to work on
+     * @param options defines the options to use with the SceneOptimizer
+     * @param autoGeneratePriorities defines if priorities must be generated and not read from SceneOptimization property (true by default)
+     * @param improvementMode defines if the scene optimizer must run the maximum optimization while staying over a target frame instead of trying to reach the target framerate (false by default)
+     */
+    constructor(scene, options, autoGeneratePriorities = true, improvementMode = false) {
+        this._isRunning = false;
+        this._currentPriorityLevel = 0;
+        this._targetFrameRate = 60;
+        this._trackerDuration = 2000;
+        this._currentFrameRate = 0;
+        this._improvementMode = false;
+        /**
+         * Defines an observable called when the optimizer reaches the target frame rate
+         */
+        this.onSuccessObservable = new Observable();
+        /**
+         * Defines an observable called when the optimizer enables an optimization
+         */
+        this.onNewOptimizationAppliedObservable = new Observable();
+        /**
+         * Defines an observable called when the optimizer is not able to reach the target frame rate
+         */
+        this.onFailureObservable = new Observable();
+        if (!options) {
+            this._options = new SceneOptimizerOptions();
+        }
+        else {
+            this._options = options;
+        }
+        if (this._options.targetFrameRate) {
+            this._targetFrameRate = this._options.targetFrameRate;
+        }
+        if (this._options.trackerDuration) {
+            this._trackerDuration = this._options.trackerDuration;
+        }
+        if (autoGeneratePriorities) {
+            let priority = 0;
+            for (const optim of this._options.optimizations) {
+                optim.priority = priority++;
+            }
+        }
+        this._improvementMode = improvementMode;
+        this._scene = scene || EngineStore.LastCreatedScene;
+        this._sceneDisposeObserver = this._scene.onDisposeObservable.add(() => {
+            this._sceneDisposeObserver = null;
+            this.dispose();
+        });
     }
     /**
      * Stops the current optimizer
@@ -712,6 +717,8 @@ export class SceneOptimizer {
      * @param onFailure defines a callback to call on failure
      * @returns the new SceneOptimizer object
      */
+    // This function i s not technically Async
+    // eslint-disable-next-line no-restricted-syntax
     static OptimizeAsync(scene, options, onSuccess, onFailure) {
         const optimizer = new SceneOptimizer(scene, options || SceneOptimizerOptions.ModerateDegradationAllowed(), false);
         if (onSuccess) {

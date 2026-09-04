@@ -1,35 +1,53 @@
 // Do not edit.
 import { ShaderStore } from "../../Engines/shaderStore.js";
 const name = "pbrBlockFinalColorComposition";
-const shader = `vec4 finalColor=vec4(#ifndef UNLIT
+const shader = `vec4 finalColor=vec4(
+#ifndef UNLIT
 #ifdef REFLECTION
-finalIrradiance +#endif
+finalIrradiance +
+#endif
 #ifdef SPECULARTERM
-finalSpecularScaled +#endif
+finalSpecularScaled +
+#endif
 #ifdef SHEEN
-finalSheenScaled +#endif
+finalSheenScaled +
+#endif
 #ifdef CLEARCOAT
-finalClearCoatScaled +#endif
+finalClearCoatScaled +
+#endif
 #ifdef REFLECTION
-finalRadianceScaled +#if defined(SHEEN) && defined(ENVIRONMENTBRDF)
-sheenOut.finalSheenRadianceScaled +#endif
+finalRadianceScaled +
+#if defined(SHEEN) && defined(ENVIRONMENTBRDF)
+sheenOut.finalSheenRadianceScaled +
+#endif
 #ifdef CLEARCOAT
-clearcoatOut.finalClearCoatRadianceScaled +#endif
+clearcoatOut.finalClearCoatRadianceScaled +
+#endif
 #endif
 #ifdef SS_REFRACTION
-subSurfaceOut.finalRefraction +#endif
+subSurfaceOut.finalRefraction +
 #endif
-finalAmbient +finalDiffuse,alpha);#ifdef LIGHTMAP
+#endif
+finalAmbient +
+finalDiffuse,
+alpha);
+#ifdef LIGHTMAP
 #ifndef LIGHTMAPEXCLUDED
 #ifdef USELIGHTMAPASSHADOWMAP
-finalColor.rgb*=lightmapColor.rgb;#else
-finalColor.rgb+=lightmapColor.rgb;#endif
+finalColor.rgb*=lightmapColor.rgb;
+#else
+finalColor.rgb+=lightmapColor.rgb;
 #endif
 #endif
-finalColor.rgb+=finalEmissive;#define CUSTOM_FRAGMENT_BEFORE_FOG
-finalColor=max(finalColor,0.0);`;
+#endif
+finalColor.rgb+=finalEmissive;
+#define CUSTOM_FRAGMENT_BEFORE_FOG
+finalColor=max(finalColor,0.0);
+`;
 // Sideeffect
-ShaderStore.IncludesShadersStore[name] = shader;
+if (!ShaderStore.IncludesShadersStore[name]) {
+    ShaderStore.IncludesShadersStore[name] = shader;
+}
 /** @internal */
 export const pbrBlockFinalColorComposition = { name, shader };
 //# sourceMappingURL=pbrBlockFinalColorComposition.js.map

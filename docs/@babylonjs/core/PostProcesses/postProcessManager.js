@@ -1,5 +1,6 @@
-import { VertexBuffer } from "../Buffers/buffer.js";
+import { VertexBuffer } from "../Buffers/buffer.pure.js";
 
+import { Observable } from "../Misc/observable.js";
 /**
  * PostProcessManager is used to manage one or more post processes or post process pipelines
  * See https://doc.babylonjs.com/features/featuresDeepDive/postProcesses/usePostProcesses
@@ -11,6 +12,11 @@ export class PostProcessManager {
      */
     constructor(scene) {
         this._vertexBuffers = {};
+        this._activePostProcesses = [];
+        /**
+         * Observable raised before post processes are rendered.
+         */
+        this.onBeforeRenderObservable = new Observable();
         this._scene = scene;
     }
     _prepareBuffers() {
@@ -37,6 +43,17 @@ export class PostProcessManager {
         indices.push(3);
         this._indexBuffer = this._scene.getEngine().createIndexBuffer(indices);
     }
+    _getActivePostProcesses(source) {
+        const activePostProcesses = this._activePostProcesses;
+        activePostProcesses.length = 0;
+        for (let index = 0; index < source.length; index++) {
+            const postProcess = source[index];
+            if (postProcess) {
+                activePostProcesses.push(postProcess);
+            }
+        }
+        return activePostProcesses;
+    }
     /**
      * Rebuilds the vertex buffers of the manager.
      * @internal
@@ -62,9 +79,7 @@ export class PostProcessManager {
         if (!camera) {
             return false;
         }
-        postProcesses = postProcesses || camera._postProcesses.filter((pp) => {
-            return pp != null;
-        });
+        postProcesses = postProcesses || this._getActivePostProcesses(camera._postProcesses);
         if (!postProcesses || postProcesses.length === 0 || !this._scene.postProcessesEnabled) {
             return false;
         }
@@ -80,13 +95,13 @@ export class PostProcessManager {
      * @param faceIndex defines the face to render to if a cubemap is defined as the target
      * @param lodLevel defines which lod of the texture to render to
      * @param doNotBindFrambuffer If set to true, assumes that the framebuffer has been bound previously
+     * @param numPostsProcesses The number of post processes to render. Defaults to the length of the postProcesses array.
      */
-    directRender(postProcesses, targetTexture = null, forceFullscreenViewport = false, faceIndex = 0, lodLevel = 0, doNotBindFrambuffer = false) {
-        var _a;
+    directRender(postProcesses, targetTexture = null, forceFullscreenViewport = false, faceIndex = 0, lodLevel = 0, doNotBindFrambuffer = false, numPostsProcesses = postProcesses.length) {
         const engine = this._scene.getEngine();
-        for (let index = 0; index < postProcesses.length; index++) {
+        for (let index = 0; index < numPostsProcesses; index++) {
             if (index < postProcesses.length - 1) {
-                postProcesses[index + 1].activate(this._scene.activeCamera, targetTexture === null || targetTexture === void 0 ? void 0 : targetTexture.texture);
+                postProcesses[index + 1].activate(this._scene.activeCamera || this._scene, targetTexture?.texture);
             }
             else {
                 if (targetTexture) {
@@ -95,7 +110,7 @@ export class PostProcessManager {
                 else if (!doNotBindFrambuffer) {
                     engine.restoreDefaultFramebuffer();
                 }
-                (_a = engine._debugInsertMarker) === null || _a === void 0 ? void 0 : _a.call(engine, `post process ${postProcesses[index].name} output`);
+                engine._debugInsertMarker?.(`post process ${postProcesses[index].name} output`);
             }
             const pp = postProcesses[index];
             const effect = pp.apply();
@@ -123,14 +138,12 @@ export class PostProcessManager {
      * @internal
      */
     _finalizeFrame(doNotPresent, targetTexture, faceIndex, postProcesses, forceFullscreenViewport = false) {
-        var _a;
         const camera = this._scene.activeCamera;
         if (!camera) {
             return;
         }
-        postProcesses = postProcesses || camera._postProcesses.filter((pp) => {
-            return pp != null;
-        });
+        this.onBeforeRenderObservable.notifyObservers(this);
+        postProcesses = postProcesses || this._getActivePostProcesses(camera._postProcesses);
         if (postProcesses.length === 0 || !this._scene.postProcessesEnabled) {
             return;
         }
@@ -138,7 +151,7 @@ export class PostProcessManager {
         for (let index = 0, len = postProcesses.length; index < len; index++) {
             const pp = postProcesses[index];
             if (index < len - 1) {
-                pp._outputTexture = postProcesses[index + 1].activate(camera, targetTexture === null || targetTexture === void 0 ? void 0 : targetTexture.texture);
+                pp._outputTexture = postProcesses[index + 1].activate(camera, targetTexture?.texture);
             }
             else {
                 if (targetTexture) {
@@ -149,7 +162,7 @@ export class PostProcessManager {
                     engine.restoreDefaultFramebuffer();
                     pp._outputTexture = null;
                 }
-                (_a = engine._debugInsertMarker) === null || _a === void 0 ? void 0 : _a.call(engine, `post process ${postProcesses[index].name} output`);
+                engine._debugInsertMarker?.(`post process ${postProcesses[index].name} output`);
             }
             if (doNotPresent) {
                 break;

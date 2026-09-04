@@ -1,11 +1,14 @@
-import { ShaderLanguage } from "../../Materials/shaderLanguage.js";
+const VaryingRegex = /(flat\s)?\s*varying\s*.*/;
 /** @internal */
 export class WebGL2ShaderProcessor {
     constructor() {
-        this.shaderLanguage = ShaderLanguage.GLSL;
+        this.shaderLanguage = 0 /* ShaderLanguage.GLSL */;
     }
     attributeProcessor(attribute) {
         return attribute.replace("attribute", "in");
+    }
+    varyingCheck(varying, _isFragment) {
+        return VaryingRegex.test(varying);
     }
     varyingProcessor(varying, isFragment) {
         return varying.replace("varying", isFragment ? "in" : "out");
@@ -18,15 +21,26 @@ export class WebGL2ShaderProcessor {
         // Replace instructions
         code = code.replace(/texture2D\s*\(/g, "texture(");
         if (isFragment) {
+            const hasOutput = code.search(/layout *\(location *= *0\) *out/g) !== -1;
+            const hasDualSourceBlending = defines.indexOf("#define DUAL_SOURCE_BLENDING") !== -1;
+            const outputDeclaration = hasDualSourceBlending
+                ? "layout(location = 0, index = 0) out vec4 glFragColor;\nlayout(location = 0, index = 1) out vec4 glFragColor2;\n"
+                : "layout(location = 0) out vec4 glFragColor;\n";
+            if (hasDualSourceBlending) {
+                code = "#extension GL_EXT_blend_func_extended : require\n" + code;
+            }
             code = code.replace(/texture2DLodEXT\s*\(/g, "textureLod(");
             code = code.replace(/textureCubeLodEXT\s*\(/g, "textureLod(");
             code = code.replace(/textureCube\s*\(/g, "texture(");
             code = code.replace(/gl_FragDepthEXT/g, "gl_FragDepth");
             code = code.replace(/gl_FragColor/g, "glFragColor");
             code = code.replace(/gl_FragData/g, "glFragData");
-            code = code.replace(/void\s+?main\s*\(/g, (hasDrawBuffersExtension ? "" : "out vec4 glFragColor;\n") + "void main(");
+            code = code.replace(/void\s+?main\s*\(/g, (hasDrawBuffersExtension || hasOutput ? "" : outputDeclaration) + "void main(");
         }
         else {
+            if (defines.indexOf("#define VERTEXOUTPUT_INVARIANT") >= 0) {
+                code = "invariant gl_Position;\n" + code;
+            }
             const hasMultiviewExtension = defines.indexOf("#define MULTIVIEW") !== -1;
             if (hasMultiviewExtension) {
                 return "#extension GL_OVR_multiview2 : require\nlayout (num_views = 2) in;\n" + code;

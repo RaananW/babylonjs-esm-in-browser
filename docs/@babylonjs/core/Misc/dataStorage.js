@@ -1,3 +1,4 @@
+import { Logger } from "./logger.js";
 /**
  * Class for storing data to local storage if available or in-memory storage otherwise
  */
@@ -8,7 +9,7 @@ export class DataStorage {
             localStorage.removeItem("test");
             return localStorage;
         }
-        catch (_a) {
+        catch {
             const inMemoryStorage = {};
             return {
                 getItem: (key) => {
@@ -74,6 +75,30 @@ export class DataStorage {
      */
     static WriteNumber(key, value) {
         this._Storage.setItem(key, value.toString());
+    }
+    /**
+     * Reads a JSON value from the data storage
+     * @param key The key to read
+     * @param defaultValue The value if the key doesn't exist
+     * @returns The JSON value
+     */
+    static ReadJson(key, defaultValue) {
+        const value = this._Storage.getItem(key);
+        try {
+            return value !== null ? JSON.parse(value) : defaultValue;
+        }
+        catch (e) {
+            Logger.Warn(`Failed to parse JSON from storage for key "${key}". Returning default value.`, e);
+            return defaultValue;
+        }
+    }
+    /**
+     * Writes a JSON value to the data storage
+     * @param key The key to write
+     * @param value The JSON value to write
+     */
+    static WriteJson(key, value) {
+        this._Storage.setItem(key, JSON.stringify(value));
     }
 }
 DataStorage._Storage = DataStorage._GetStorage();

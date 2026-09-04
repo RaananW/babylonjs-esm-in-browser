@@ -5,37 +5,6 @@ import { InternalDeviceSourceManager } from "../internalDeviceSourceManager.js";
  * Class to keep track of devices
  */
 export class DeviceSourceManager {
-    /**
-     * Default constructor
-     * @param engine - Used to get canvas (if applicable)
-     */
-    constructor(engine) {
-        const numberOfDeviceTypes = Object.keys(DeviceType).length / 2;
-        this._devices = new Array(numberOfDeviceTypes);
-        this._firstDevice = new Array(numberOfDeviceTypes);
-        this._engine = engine;
-        if (!this._engine._deviceSourceManager) {
-            this._engine._deviceSourceManager = new InternalDeviceSourceManager(engine);
-        }
-        this._engine._deviceSourceManager._refCount++;
-        // Observables
-        this.onDeviceConnectedObservable = new Observable((observer) => {
-            for (const devices of this._devices) {
-                if (devices) {
-                    for (const device of devices) {
-                        if (device) {
-                            this.onDeviceConnectedObservable.notifyObserver(observer, device);
-                        }
-                    }
-                }
-            }
-        });
-        this.onDeviceDisconnectedObservable = new Observable();
-        this._engine._deviceSourceManager.registerManager(this);
-        this._onDisposeObserver = engine.onDisposeObservable.add(() => {
-            this.dispose();
-        });
-    }
     // Public Functions
     /**
      * Gets a DeviceSource, given a type and slot
@@ -70,6 +39,37 @@ export class DeviceSourceManager {
         });
     }
     /**
+     * Default constructor
+     * @param engine - Used to get canvas (if applicable)
+     */
+    constructor(engine) {
+        const numberOfDeviceTypes = Object.keys(DeviceType).length / 2;
+        this._devices = new Array(numberOfDeviceTypes);
+        this._firstDevice = new Array(numberOfDeviceTypes);
+        this._engine = engine;
+        if (!this._engine._deviceSourceManager) {
+            this._engine._deviceSourceManager = new InternalDeviceSourceManager(engine);
+        }
+        this._engine._deviceSourceManager._refCount++;
+        // Observables
+        this.onDeviceConnectedObservable = new Observable((observer) => {
+            for (const devices of this._devices) {
+                if (devices) {
+                    for (const device of devices) {
+                        if (device) {
+                            this.onDeviceConnectedObservable.notifyObserver(observer, device);
+                        }
+                    }
+                }
+            }
+        });
+        this.onDeviceDisconnectedObservable = new Observable();
+        this._engine._deviceSourceManager.registerManager(this);
+        this._onDisposeObserver = engine.onDisposeObservable.add(() => {
+            this.dispose();
+        });
+    }
+    /**
      * Dispose of DeviceSourceManager
      */
     dispose() {
@@ -92,7 +92,7 @@ export class DeviceSourceManager {
      */
     _addDevice(deviceSource) {
         if (!this._devices[deviceSource.deviceType]) {
-            this._devices[deviceSource.deviceType] = new Array();
+            this._devices[deviceSource.deviceType] = [];
         }
         if (!this._devices[deviceSource.deviceType][deviceSource.deviceSlot]) {
             this._devices[deviceSource.deviceType][deviceSource.deviceSlot] = deviceSource;
@@ -106,10 +106,9 @@ export class DeviceSourceManager {
      * @internal
      */
     _removeDevice(deviceType, deviceSlot) {
-        var _a, _b;
-        const deviceSource = (_a = this._devices[deviceType]) === null || _a === void 0 ? void 0 : _a[deviceSlot]; // Grab local reference to use before removing from devices
+        const deviceSource = this._devices[deviceType]?.[deviceSlot]; // Grab local reference to use before removing from devices
         this.onDeviceDisconnectedObservable.notifyObservers(deviceSource);
-        if ((_b = this._devices[deviceType]) === null || _b === void 0 ? void 0 : _b[deviceSlot]) {
+        if (this._devices[deviceType]?.[deviceSlot]) {
             delete this._devices[deviceType][deviceSlot];
         }
         // Even if we don't delete a device, we should still check for the first device as things may have gotten out of sync.
@@ -122,8 +121,7 @@ export class DeviceSourceManager {
      * @internal
      */
     _onInputChanged(deviceType, deviceSlot, eventData) {
-        var _a, _b;
-        (_b = (_a = this._devices[deviceType]) === null || _a === void 0 ? void 0 : _a[deviceSlot]) === null || _b === void 0 ? void 0 : _b.onInputChangedObservable.notifyObservers(eventData);
+        this._devices[deviceType]?.[deviceSlot]?.onInputChangedObservable.notifyObservers(eventData);
     }
     // Private Functions
     _updateFirstDevices(type) {

@@ -1,0 +1,1 @@
+{"version":3,"file":"index.js","sourceRoot":"","sources":["../../../../../dev/core/src/Maths/ThinMaths/index.ts"],"names":[],"mappings":"AAAA,cAAc,mBAAmB,CAAC;AAClC,cAAc,6BAA6B,CAAC","sourcesContent":["export * from \"./thinMath.matrix\";\r\nexport * from \"./thinMath.matrix.functions\";\r\n"]}

@@ -1,19 +1,6 @@
-import type { Nullable } from "@babylonjs/core/types.js";
-import type { Material } from "@babylonjs/core/Materials/material.js";
-import type { IMaterial } from "../glTFLoaderInterfaces";
-import type { IGLTFLoaderExtension } from "../glTFLoaderExtension";
-import { GLTFLoader } from "../glTFLoader";
-/** @internal */
-export declare class MSFT_minecraftMesh implements IGLTFLoaderExtension {
-    /** @internal */
-    readonly name = "MSFT_minecraftMesh";
-    /** @internal */
-    enabled: boolean;
-    private _loader;
-    /** @internal */
-    constructor(loader: GLTFLoader);
-    /** @internal */
-    dispose(): void;
-    /** @internal */
-    loadMaterialPropertiesAsync(context: string, material: IMaterial, babylonMaterial: Material): Nullable<Promise<void>>;
-}
+/**
+ * Re-exports the pure implementation and applies the runtime registration side effect.
+ * Import "./MSFT_minecraftMesh.pure" for tree-shakeable, side-effect-free usage.
+ */
+export * from "./MSFT_minecraftMesh.types.js";
+export * from "./MSFT_minecraftMesh.pure.js";

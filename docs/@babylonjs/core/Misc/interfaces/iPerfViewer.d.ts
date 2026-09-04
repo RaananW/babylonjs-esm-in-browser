@@ -1,4 +1,4 @@
-import type { DynamicFloat32Array } from "../PerformanceViewer/dynamicFloat32Array";
+import { type DynamicFloat32Array } from "../PerformanceViewer/dynamicFloat32Array.js";
 /**
  * Defines the shape of a collection of datasets that our graphing service uses for drawing purposes.
  */

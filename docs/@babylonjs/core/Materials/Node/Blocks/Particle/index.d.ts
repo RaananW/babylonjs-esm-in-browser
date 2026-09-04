@@ -1,3 +1,3 @@
-export * from "./particleTextureBlock";
-export * from "./particleRampGradientBlock";
-export * from "./particleBlendMultiplyBlock";
+export * from "./particleTextureBlock.js";
+export * from "./particleRampGradientBlock.js";
+export * from "./particleBlendMultiplyBlock.js";

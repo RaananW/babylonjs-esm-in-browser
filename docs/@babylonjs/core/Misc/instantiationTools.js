@@ -19,7 +19,7 @@ export class InstantiationTools {
         }
         Logger.Warn(className + " not found, you may have missed an import.");
         const arr = className.split(".");
-        let fn = window || this;
+        let fn = typeof window !== "undefined" ? window : typeof globalThis !== "undefined" ? globalThis : this;
         for (let i = 0, len = arr.length; i < len; i++) {
             fn = fn[arr[i]];
         }

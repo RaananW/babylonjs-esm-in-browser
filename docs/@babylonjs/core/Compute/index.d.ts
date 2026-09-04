@@ -1,2 +1,2 @@
-export * from "./computeEffect";
-export * from "./computeShader";
+export * from "./computeEffect.js";
+export * from "./computeShader.js";

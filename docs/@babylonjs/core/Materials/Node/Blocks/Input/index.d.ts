@@ -1,2 +1,3 @@
-export * from "./inputBlock";
-export * from "./animatedInputBlockTypes";
+export * from "./inputBlock.js";
+export * from "./animatedInputBlockTypes.js";
+export * from "./prePassTextureBlock.js";

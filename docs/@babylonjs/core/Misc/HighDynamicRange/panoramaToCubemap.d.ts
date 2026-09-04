@@ -1,4 +1,4 @@
-import type { Nullable } from "../../types";
+import { type Nullable } from "../../types.js";
 /**
  * CubeMap information grouping all the data for each faces as well as the cubemap size.
  */
@@ -73,9 +73,11 @@ export declare class PanoramaToCubeMapTools {
      * @param inputWidth The width of the input panorama.
      * @param inputHeight The height of the input panorama.
      * @param size The willing size of the generated cubemap (each faces will be size * size pixels)
+     * @param supersample enable supersampling the cubemap
+     * @param invertY defines if the Y axis must be inverted
      * @returns The cubemap data
      */
-    static ConvertPanoramaToCubemap(float32Array: Float32Array, inputWidth: number, inputHeight: number, size: number): CubeMapInfo;
+    static ConvertPanoramaToCubemap(float32Array: Float32Array, inputWidth: number, inputHeight: number, size: number, supersample?: boolean, invertY?: boolean): CubeMapInfo;
     private static CreateCubemapTexture;
     private static CalcProjectionSpherical;
 }

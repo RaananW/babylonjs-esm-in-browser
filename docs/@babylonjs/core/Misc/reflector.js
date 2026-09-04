@@ -18,13 +18,13 @@ export class Reflector {
         this._webSocket.onmessage = (event) => {
             const message = event.data;
             if (message.startsWith(Reflector._SERVER_PREFIX)) {
-                const serverMessage = message.substr(Reflector._SERVER_PREFIX.length);
-                Logger.Log(`[Reflector] Received server message: ${serverMessage.substr(0, 64)}`);
+                const serverMessage = message.substring(Reflector._SERVER_PREFIX.length);
+                Logger.Log(`[Reflector] Received server message: ${serverMessage.substring(0, 64)}`);
                 this._handleServerMessage(serverMessage);
                 return;
             }
             else {
-                Logger.Log(`[Reflector] Received client message: ${message.substr(0, 64)}`);
+                Logger.Log(`[Reflector] Received client message: ${message.substring(0, 64)}`);
                 this._handleClientMessage();
             }
         };
@@ -41,6 +41,7 @@ export class Reflector {
     _handleServerMessage(message) {
         switch (message) {
             case "connected": {
+                // eslint-disable-next-line @typescript-eslint/no-floating-promises, github/no-then
                 SceneSerializer.SerializeAsync(this._scene).then((serialized) => {
                     this._webSocket.send(`load|${JSON.stringify(serialized)}`);
                 });

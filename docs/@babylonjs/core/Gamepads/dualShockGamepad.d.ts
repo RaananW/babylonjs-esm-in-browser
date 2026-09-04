@@ -1,5 +1,5 @@
-import { Observable } from "../Misc/observable";
-import { Gamepad } from "./gamepad";
+import { Observable } from "../Misc/observable.js";
+import { Gamepad } from "./gamepad.js";
 /**
  * Defines supported buttons for DualShock compatible gamepads
  */
@@ -124,7 +124,7 @@ export declare class DualShockPad extends Gamepad {
      */
     ondpadup(callback: (dPadReleased: DualShockDpad) => void): void;
     private _setButtonValue;
-    private _setDPadValue;
+    private _setDpadValue;
     /**
      * Gets the value of the `Cross` button
      */

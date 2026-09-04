@@ -17,9 +17,10 @@ export interface TwgslOptions {
 }
 /** @internal */
 export declare class WebGPUTintWASM {
-    private static readonly _TWgslDefaultOptions;
+    private static readonly _TwgslDefaultOptions;
     static ShowWGSLShaderCode: boolean;
-    private _twgsl;
+    static DisableUniformityAnalysis: boolean;
+    private static _Twgsl;
     initTwgsl(twgslOptions?: TwgslOptions): Promise<void>;
-    convertSpirV2WGSL(code: Uint32Array): string;
+    convertSpirV2WGSL(code: Uint32Array, disableUniformityAnalysis?: boolean): string;
 }

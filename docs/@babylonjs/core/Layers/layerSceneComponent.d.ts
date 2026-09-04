@@ -1,15 +1,6 @@
-import type { Scene } from "../scene";
-import type { ISceneComponent } from "../sceneComponent";
-import type { Layer } from "./layer";
-import type { AbstractScene } from "../abstractScene";
-declare module "../abstractScene" {
-    interface AbstractScene {
-        /**
-         * The list of layers (background and foreground) of the scene
-         */
-        layers: Array<Layer>;
-    }
-}
+import { type Scene } from "../scene.js";
+import { type ISceneComponent } from "../sceneComponent.js";
+import { type IAssetContainer } from "../IAssetContainer.js";
 /**
  * Defines the layer scene component responsible to manage any layers
  * in a given scene.
@@ -55,11 +46,11 @@ export declare class LayerSceneComponent implements ISceneComponent {
      * Adds all the elements from the container to the scene
      * @param container the container holding the elements
      */
-    addFromContainer(container: AbstractScene): void;
+    addFromContainer(container: IAssetContainer): void;
     /**
      * Removes all the elements in the container from the scene
      * @param container contains the elements to remove
      * @param dispose if the removed element should be disposed (default: false)
      */
-    removeFromContainer(container: AbstractScene, dispose?: boolean): void;
+    removeFromContainer(container: IAssetContainer, dispose?: boolean): void;
 }

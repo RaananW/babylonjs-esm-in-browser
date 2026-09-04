@@ -1,9 +1,9 @@
-import type { Nullable } from "../types";
-import type { Ray } from "../Culling/ray";
-import { Vector3 } from "../Maths/math.vector";
-import type { Color3 } from "../Maths/math.color";
-import type { Scene } from "../scene";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
+import { type Nullable } from "../types.js";
+import { type Ray } from "../Culling/ray.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { type Color3 } from "../Maths/math.color.js";
+import { type Scene } from "../scene.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
 /**
  * As raycast might be hard to debug, the RayHelper can help rendering the different rays
  * in order to better appreciate the issue one might have.
@@ -11,7 +11,7 @@ import type { AbstractMesh } from "../Meshes/abstractMesh";
  */
 export declare class RayHelper {
     /**
-     * Defines the ray we are currently tryin to visualize.
+     * Defines the ray we are currently trying to visualize.
      */
     ray: Nullable<Ray>;
     private _renderPoints;
@@ -25,7 +25,7 @@ export declare class RayHelper {
     private _meshSpaceOrigin;
     /**
      * Helper function to create a colored helper in a scene in one line.
-     * @param ray Defines the ray we are currently tryin to visualize
+     * @param ray Defines the ray we are currently trying to visualize
      * @param scene Defines the scene the ray is used in
      * @param color Defines the color we want to see the ray in
      * @returns The newly created ray helper.
@@ -36,7 +36,7 @@ export declare class RayHelper {
      * As raycast might be hard to debug, the RayHelper can help rendering the different rays
      * in order to better appreciate the issue one might have.
      * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/interactions/picking_collisions#debugging
-     * @param ray Defines the ray we are currently tryin to visualize
+     * @param ray Defines the ray we are currently trying to visualize
      */
     constructor(ray: Ray);
     /**

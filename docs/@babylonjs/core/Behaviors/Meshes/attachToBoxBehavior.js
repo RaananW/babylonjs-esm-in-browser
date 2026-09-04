@@ -1,4 +1,4 @@
-import { Vector3, Matrix, Quaternion } from "../../Maths/math.vector.js";
+import { Vector3, Matrix, Quaternion } from "../../Maths/math.vector.pure.js";
 /**
  * @internal
  */
@@ -15,21 +15,27 @@ class FaceDirectionInfo {
  */
 export class AttachToBoxBehavior {
     /**
+     * Attached node of this behavior
+     */
+    get attachedNode() {
+        return this._target;
+    }
+    /**
      * Creates the AttachToBoxBehavior, used to attach UI to the closest face of the box to a camera
      * @param _ui The transform node that should be attached to the mesh
      */
     constructor(_ui) {
         this._ui = _ui;
         /**
-         *  The name of the behavior
+         *  ["AttachToBoxBehavior"] The name of the behavior
          */
         this.name = "AttachToBoxBehavior";
         /**
-         * The distance away from the face of the mesh that the UI should be attached to (default: 0.15)
+         * [0.15] The distance away from the face of the mesh that the UI should be attached to (default: 0.15)
          */
         this.distanceAwayFromFace = 0.15;
         /**
-         * The distance from the bottom of the face that the UI should be attached to (default: 0.15)
+         * [0.15] The distance from the bottom of the face that the UI should be attached to (default: 0.15)
          */
         this.distanceAwayFromBottomOfFace = 0.15;
         this._faceVectors = [
@@ -44,7 +50,7 @@ export class AttachToBoxBehavior {
         this._tmpVector = new Vector3();
         this._zeroVector = Vector3.Zero();
         this._lookAtTmpMatrix = new Matrix();
-        /* Does nothing */
+        this._target = null;
     }
     /**
      *  Initializes the behavior
@@ -54,14 +60,14 @@ export class AttachToBoxBehavior {
     }
     _closestFace(targetDirection) {
         // Go over each face and calculate the angle between the face's normal and targetDirection
-        this._faceVectors.forEach((v) => {
+        for (const v of this._faceVectors) {
             if (!this._target.rotationQuaternion) {
                 this._target.rotationQuaternion = Quaternion.RotationYawPitchRoll(this._target.rotation.y, this._target.rotation.x, this._target.rotation.z);
             }
             this._target.rotationQuaternion.toRotationMatrix(this._tmpMatrix);
             Vector3.TransformCoordinatesToRef(v.direction, this._tmpMatrix, v.rotatedDirection);
             v.diff = Vector3.GetAngleBetweenVectors(v.rotatedDirection, targetDirection, Vector3.Cross(v.rotatedDirection, targetDirection));
-        });
+        }
         // Return the face information of the one with the normal closest to target direction
         return this._faceVectors.reduce((min, p) => {
             if (min.ignore) {
@@ -107,7 +113,7 @@ export class AttachToBoxBehavior {
             // Get camera up direction
             Vector3.TransformCoordinatesToRef(Vector3.Up(), this._tmpMatrix, this._tmpVector);
             // Ignore faces to not select a parallel face for the up vector of the UI
-            this._faceVectors.forEach((v) => {
+            for (const v of this._faceVectors) {
                 if (facing.direction.x && v.direction.x) {
                     v.ignore = true;
                 }
@@ -117,12 +123,12 @@ export class AttachToBoxBehavior {
                 if (facing.direction.z && v.direction.z) {
                     v.ignore = true;
                 }
-            });
+            }
             const facingUp = this._closestFace(this._tmpVector);
             // Unignore faces
-            this._faceVectors.forEach((v) => {
+            for (const v of this._faceVectors) {
                 v.ignore = false;
-            });
+            }
             // Position the app bar on that face
             this._ui.position.copyFrom(target.position);
             if (facing.direction.x) {
@@ -161,6 +167,7 @@ export class AttachToBoxBehavior {
      */
     detach() {
         this._scene.onBeforeRenderObservable.remove(this._onRenderObserver);
+        this._target = null;
     }
 }
 //# sourceMappingURL=attachToBoxBehavior.js.map

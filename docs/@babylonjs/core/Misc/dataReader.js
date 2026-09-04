@@ -19,11 +19,10 @@ export class DataReader {
      * @param byteLength The byte length to load
      * @returns A promise that resolves when the load is complete
      */
-    loadAsync(byteLength) {
-        return this.buffer.readAsync(this.byteOffset, byteLength).then((data) => {
-            this._dataView = new DataView(data.buffer, data.byteOffset, data.byteLength);
-            this._dataByteOffset = 0;
-        });
+    async loadAsync(byteLength) {
+        const data = await this.buffer.readAsync(this.byteOffset, byteLength);
+        this._dataView = new DataView(data.buffer, data.byteOffset, data.byteLength);
+        this._dataByteOffset = 0;
     }
     /**
      * Read a unsigned 32-bit integer from the currently loaded data range.

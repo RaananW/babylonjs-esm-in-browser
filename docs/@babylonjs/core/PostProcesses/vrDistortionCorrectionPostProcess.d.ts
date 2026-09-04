@@ -1,8 +1,7 @@
-import type { Camera } from "../Cameras/camera";
-import type { VRCameraMetrics } from "../Cameras/VR/vrCameraMetrics";
-import { PostProcess } from "./postProcess";
-import "../Shaders/vrDistortionCorrection.fragment";
-import type { Nullable } from "../types";
+import { type Camera } from "../Cameras/camera.js";
+import { type VRCameraMetrics } from "../Cameras/VR/vrCameraMetrics.js";
+import { PostProcess } from "./postProcess.pure.js";
+import { type Nullable } from "../types.js";
 /**
  * VRDistortionCorrectionPostProcess used for mobile VR
  */
@@ -27,4 +26,5 @@ export declare class VRDistortionCorrectionPostProcess extends PostProcess {
      * @param vrMetrics All the required metrics for the VR camera
      */
     constructor(name: string, camera: Nullable<Camera>, isRightEye: boolean, vrMetrics: VRCameraMetrics);
+    protected _gatherImports(useWebGPU: boolean, list: Promise<any>[]): void;
 }

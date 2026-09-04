@@ -1,11 +1,11 @@
 import { Observable } from "../Misc/observable.js";
 import { IsWindowObjectExist } from "../Misc/domManagement.js";
-import { PoseEnabledControllerHelper } from "../Gamepads/Controllers/poseEnabledController.js";
 import { Xbox360Pad } from "./xboxGamepad.js";
 import { Gamepad, GenericPad } from "./gamepad.js";
-import { Engine } from "../Engines/engine.js";
 import { DualShockPad } from "./dualShockGamepad.js";
-import { Tools } from "../Misc/tools.js";
+import { Tools } from "../Misc/tools.pure.js";
+import { AbstractEngine } from "../Engines/abstractEngine.js";
+import { RegisterGamepadSceneComponent } from "./gamepadSceneComponent.pure.js";
 /**
  * Manager for handling gamepads
  */
@@ -24,6 +24,8 @@ export class GamepadManager {
          * observable to be triggered when the gamepad controller has been disconnected
          */
         this.onGamepadDisconnectedObservable = new Observable();
+        this._hostWindow = null;
+        RegisterGamepadSceneComponent(GamepadManager);
         if (!IsWindowObjectExist()) {
             this._gamepadEventSupported = false;
         }
@@ -67,7 +69,9 @@ export class GamepadManager {
                     const disconnectedGamepad = this._babylonGamepads[i];
                     disconnectedGamepad._isConnected = false;
                     this.onGamepadDisconnectedObservable.notifyObservers(disconnectedGamepad);
-                    disconnectedGamepad.dispose && disconnectedGamepad.dispose();
+                    if (disconnectedGamepad.dispose) {
+                        disconnectedGamepad.dispose();
+                    }
                     break;
                 }
             }
@@ -82,6 +86,7 @@ export class GamepadManager {
             if (this._gamepadEventSupported) {
                 const hostWindow = this._scene ? this._scene.getEngine().getHostWindow() : window;
                 if (hostWindow) {
+                    this._hostWindow = hostWindow;
                     hostWindow.addEventListener("gamepadconnected", this._onGamepadConnectedEvent, false);
                     hostWindow.addEventListener("gamepaddisconnected", this._onGamepadDisconnectedEvent, false);
                 }
@@ -116,17 +121,18 @@ export class GamepadManager {
     dispose() {
         if (this._gamepadEventSupported) {
             if (this._onGamepadConnectedEvent) {
-                window.removeEventListener("gamepadconnected", this._onGamepadConnectedEvent);
+                this._hostWindow?.removeEventListener("gamepadconnected", this._onGamepadConnectedEvent);
             }
             if (this._onGamepadDisconnectedEvent) {
-                window.removeEventListener("gamepaddisconnected", this._onGamepadDisconnectedEvent);
+                this._hostWindow?.removeEventListener("gamepaddisconnected", this._onGamepadDisconnectedEvent);
             }
+            this._hostWindow = null;
             this._onGamepadConnectedEvent = null;
             this._onGamepadDisconnectedEvent = null;
         }
-        this._babylonGamepads.forEach((gamepad) => {
+        for (const gamepad of this._babylonGamepads) {
             gamepad.dispose();
-        });
+        }
         this.onGamepadConnectedObservable.clear();
         this.onGamepadDisconnectedObservable.clear();
         this._oneGamepadConnected = false;
@@ -150,10 +156,6 @@ export class GamepadManager {
         else if (dualShock) {
             newGamepad = new DualShockPad(gamepad.id, gamepad.index, gamepad);
         }
-        // if pose is supported, use the (WebVR) pose enabled controller
-        else if (gamepad.pose) {
-            newGamepad = PoseEnabledControllerHelper.InitiateController(gamepad);
-        }
         else {
             newGamepad = new GenericPad(gamepad.id, gamepad.index, gamepad);
         }
@@ -164,9 +166,7 @@ export class GamepadManager {
         if (!this._isMonitoring) {
             this._isMonitoring = true;
             //back-comp
-            if (!this._scene) {
-                this._checkGamepadsStatus();
-            }
+            this._checkGamepadsStatus();
         }
     }
     _stopMonitoringGamepads() {
@@ -184,15 +184,15 @@ export class GamepadManager {
             try {
                 gamepad.update();
             }
-            catch (_a) {
+            catch {
                 if (this._loggedErrors.indexOf(gamepad.index) === -1) {
                     Tools.Warn(`Error updating gamepad ${gamepad.id}`);
                     this._loggedErrors.push(gamepad.index);
                 }
             }
         }
-        if (this._isMonitoring && !this._scene) {
-            Engine.QueueNewFrame(() => {
+        if (this._isMonitoring) {
+            AbstractEngine.QueueNewFrame(() => {
                 this._checkGamepadsStatus();
             });
         }

@@ -1,7 +1,7 @@
-import type { IDisposable } from "../scene";
-import type { IActionEvent } from "./actionEvent";
-import type { IAction } from "./action";
-import type { Nullable } from "../types";
+import { type IDisposable } from "../scene.js";
+import { type IActionEvent } from "./actionEvent.js";
+import { type IAction } from "./action.js";
+import { type Nullable } from "../types.js";
 /**
  * Abstract class used to decouple action Manager from scene and meshes.
  * Do not instantiate.
@@ -20,6 +20,10 @@ export declare abstract class AbstractActionManager implements IDisposable {
      * Gets or sets a boolean indicating that the manager is recursive meaning that it can trigger action from children
      */
     isRecursive: boolean;
+    /**
+     * Gets or sets a boolean indicating if this ActionManager should be disposed once the last Mesh using it is disposed
+     */
+    disposeWhenUnowned: boolean;
     /**
      * Releases all associated resources
      */
@@ -76,7 +80,7 @@ export declare abstract class AbstractActionManager implements IDisposable {
      * @param action defines the action to be unregistered
      * @returns a boolean indicating whether the action has been unregistered
      */
-    abstract unregisterAction(action: IAction): Boolean;
+    abstract unregisterAction(action: IAction): boolean;
     /**
      * Does exist one action manager with at least one trigger
      **/

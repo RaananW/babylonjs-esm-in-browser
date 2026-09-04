@@ -1,12 +1,32 @@
 import { DeepCopier } from "../../Misc/deepCopier.js";
-import { Vector3, TmpVectors } from "../../Maths/math.vector.js";
-import { Scalar } from "../../Maths/math.scalar.js";
-import { VertexBuffer } from "../../Buffers/buffer.js";
+import { Vector3, TmpVectors } from "../../Maths/math.vector.pure.js";
+import { RandomRange } from "../../Maths/math.scalar.functions.js";
+import { VertexBuffer } from "../../Buffers/buffer.pure.js";
 /**
  * Particle emitter emitting particles from the inside of a box.
  * It emits the particles randomly between 2 given directions.
  */
 export class MeshParticleEmitter {
+    /** Defines the mesh to use as source */
+    get mesh() {
+        return this._mesh;
+    }
+    set mesh(value) {
+        if (this._mesh === value) {
+            return;
+        }
+        this._mesh = value;
+        if (value) {
+            this._indices = value.getIndices();
+            this._positions = value.getVerticesData(VertexBuffer.PositionKind);
+            this._normals = value.getVerticesData(VertexBuffer.NormalKind);
+        }
+        else {
+            this._indices = null;
+            this._positions = null;
+            this._normals = null;
+        }
+    }
     /**
      * Creates a new instance MeshParticleEmitter
      * @param mesh defines the mesh to use as source
@@ -31,26 +51,6 @@ export class MeshParticleEmitter {
         this.useMeshNormalsForDirection = true;
         this.mesh = mesh;
     }
-    /** Defines the mesh to use as source */
-    get mesh() {
-        return this._mesh;
-    }
-    set mesh(value) {
-        if (this._mesh === value) {
-            return;
-        }
-        this._mesh = value;
-        if (value) {
-            this._indices = value.getIndices();
-            this._positions = value.getVerticesData(VertexBuffer.PositionKind);
-            this._normals = value.getVerticesData(VertexBuffer.NormalKind);
-        }
-        else {
-            this._indices = null;
-            this._positions = null;
-            this._normals = null;
-        }
-    }
     /**
      * Called by the particle System when the direction is computed for the created particle.
      * @param worldMatrix is the world matrix of the particle system
@@ -63,9 +63,9 @@ export class MeshParticleEmitter {
             Vector3.TransformNormalToRef(this._storedNormal, worldMatrix, directionToUpdate);
             return;
         }
-        const randX = Scalar.RandomRange(this.direction1.x, this.direction2.x);
-        const randY = Scalar.RandomRange(this.direction1.y, this.direction2.y);
-        const randZ = Scalar.RandomRange(this.direction1.z, this.direction2.z);
+        const randX = RandomRange(this.direction1.x, this.direction2.x);
+        const randY = RandomRange(this.direction1.y, this.direction2.y);
+        const randZ = RandomRange(this.direction1.z, this.direction2.z);
         if (isLocal) {
             directionToUpdate.copyFromFloats(randX, randY, randZ);
             return;
@@ -83,7 +83,7 @@ export class MeshParticleEmitter {
         if (!this._indices || !this._positions) {
             return;
         }
-        const randomFaceIndex = (3 * Math.random() * (this._indices.length / 3)) | 0;
+        const randomFaceIndex = 3 * ((Math.random() * (this._indices.length / 3)) | 0);
         const bu = Math.random();
         const bv = Math.random() * (1.0 - bu);
         const bw = 1.0 - bu - bv;
@@ -159,12 +159,11 @@ export class MeshParticleEmitter {
      * @returns the JSON object
      */
     serialize() {
-        var _a;
         const serializationObject = {};
         serializationObject.type = this.getClassName();
         serializationObject.direction1 = this.direction1.asArray();
         serializationObject.direction2 = this.direction2.asArray();
-        serializationObject.meshId = (_a = this.mesh) === null || _a === void 0 ? void 0 : _a.id;
+        serializationObject.meshId = this.mesh?.id;
         serializationObject.useMeshNormalsForDirection = this.useMeshNormalsForDirection;
         return serializationObject;
     }

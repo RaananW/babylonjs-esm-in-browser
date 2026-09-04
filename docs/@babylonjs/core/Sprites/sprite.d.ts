@@ -1,12 +1,12 @@
-import { Vector3 } from "../Maths/math.vector";
-import type { Nullable } from "../types";
-import type { ActionManager } from "../Actions/actionManager";
-import type { ISpriteManager, SpriteManager } from "./spriteManager";
-import { Color4 } from "../Maths/math.color";
-import { Observable } from "../Misc/observable";
-import type { IAnimatable } from "../Animations/animatable.interface";
-import { ThinSprite } from "./thinSprite";
-declare type Animation = import("../Animations/animation").Animation;
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { type Nullable } from "../types.js";
+import { type ActionManager } from "../Actions/actionManager.js";
+import { type ISpriteManager, type SpriteManager } from "./spriteManager.js";
+import { Color4 } from "../Maths/math.color.pure.js";
+import { Observable } from "../Misc/observable.js";
+import { type IAnimatable } from "../Animations/animatable.interface.js";
+import { ThinSprite } from "./thinSprite.js";
+import { type Animation } from "../Animations/animation.js";
 /**
  * Class used to represent a sprite
  * @see https://doc.babylonjs.com/features/featuresDeepDive/sprites
@@ -99,4 +99,3 @@ export declare class Sprite extends ThinSprite implements IAnimatable {
      */
     static Parse(parsedSprite: any, manager: SpriteManager): Sprite;
 }
-export {};

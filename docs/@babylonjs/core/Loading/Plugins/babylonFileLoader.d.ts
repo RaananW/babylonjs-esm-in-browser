@@ -1,13 +1,15 @@
-/** @internal */
-export declare var _BabylonLoaderRegistered: boolean;
 /**
- * Helps setting up some configuration for the babylon file loader.
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import babylonFileLoader.pure for tree-shakeable, side-effect-free usage.
  */
-export declare class BabylonFileLoaderConfiguration {
-    /**
-     * The loader does not allow injecting custom physics engine into the plugins.
-     * Unfortunately in ES6, we need to manually inject them into the plugin.
-     * So you could set this variable to your engine import to make it work.
-     */
-    static LoaderInjectedPhysicsEngine: any;
-}
+export * from "./babylonFileLoader.pure.js";
+import "../../Cameras/universalCamera.js";
+import "../../Cameras/arcRotateCamera.js";
+import "../../Lights/hemisphericLight.js";
+import "../../Lights/pointLight.js";
+import "../../Lights/directionalLight.js";
+import "../../Lights/spotLight.js";
+import "../../Materials/standardMaterial.js";
+import "../../Materials/PBR/pbrMaterial.js";
+import "../../Materials/Background/backgroundMaterial.js";
+import "../../Materials/multiMaterial.js";

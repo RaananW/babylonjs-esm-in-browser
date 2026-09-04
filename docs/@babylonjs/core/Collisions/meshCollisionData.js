@@ -1,4 +1,4 @@
-import { Vector3 } from "../Maths/math.vector.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
 /**
  * @internal
  */

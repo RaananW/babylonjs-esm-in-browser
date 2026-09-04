@@ -1,6 +1,6 @@
 import { Observable } from "../Misc/observable.js";
 import { WebXRInputSource } from "./webXRInputSource.js";
-import { WebXRMotionControllerManager } from "./motionController/webXRMotionControllerManager.js";
+import { WebXRMotionControllerManager } from "./motionController/webXRMotionControllerManager.pure.js";
 /**
  * XR input used to track XR inputs such as controllers/rays
  */
@@ -27,6 +27,7 @@ export class WebXRInput {
          * XR controllers being tracked
          */
         this.controllers = [];
+        this._currentXRSession = null;
         /**
          * Event when a controller has been connected/added
          */
@@ -40,18 +41,21 @@ export class WebXRInput {
         };
         // Remove controllers when exiting XR
         this._sessionEndedObserver = this.xrSessionManager.onXRSessionEnded.add(() => {
+            this._currentXRSession?.removeEventListener("inputsourceschange", this._onInputSourcesChange);
+            this._currentXRSession = null;
             this._addAndRemoveControllers([], this.controllers.map((c) => {
                 return c.inputSource;
             }));
         });
         this._sessionInitObserver = this.xrSessionManager.onXRSessionInit.add((session) => {
+            this._currentXRSession = session;
             session.addEventListener("inputsourceschange", this._onInputSourcesChange);
         });
         this._frameObserver = this.xrSessionManager.onXRFrameObservable.add((frame) => {
             // Update controller pose info
-            this.controllers.forEach((controller) => {
-                controller.updateFromXRFrame(frame, this.xrSessionManager.referenceSpace, this.xrCamera);
-            });
+            for (const controller of this.controllers) {
+                controller.updateFromXRFrame(frame, this.xrSessionManager.referenceSpace, this.xrCamera, this.xrSessionManager);
+            }
         });
         if (this._options.customControllersRepositoryURL) {
             WebXRMotionControllerManager.BaseRepositoryUrl = this._options.customControllersRepositoryURL;
@@ -60,6 +64,7 @@ export class WebXRInput {
         if (WebXRMotionControllerManager.UseOnlineRepository) {
             // pre-load the profiles list to load the controllers quicker afterwards
             try {
+                // eslint-disable-next-line github/no-then
                 WebXRMotionControllerManager.UpdateProfilesList().catch(() => {
                     WebXRMotionControllerManager.UseOnlineRepository = false;
                 });
@@ -89,27 +94,29 @@ export class WebXRInput {
         // Remove and dispose of controllers to be disposed
         const keepControllers = [];
         const removedControllers = [];
-        this.controllers.forEach((c) => {
+        for (const c of this.controllers) {
             if (removeInputs.indexOf(c.inputSource) === -1) {
                 keepControllers.push(c);
             }
             else {
                 removedControllers.push(c);
             }
-        });
+        }
         this.controllers = keepControllers;
-        removedControllers.forEach((c) => {
+        for (const c of removedControllers) {
             this.onControllerRemovedObservable.notifyObservers(c);
             c.dispose();
-        });
+        }
     }
     /**
      * Disposes of the object
      */
     dispose() {
-        this.controllers.forEach((c) => {
+        this._currentXRSession?.removeEventListener("inputsourceschange", this._onInputSourcesChange);
+        this._currentXRSession = null;
+        for (const c of this.controllers) {
             c.dispose();
-        });
+        }
         this.xrSessionManager.onXRFrameObservable.remove(this._frameObserver);
         this.xrSessionManager.onXRSessionInit.remove(this._sessionInitObserver);
         this.xrSessionManager.onXRSessionEnded.remove(this._sessionEndedObserver);

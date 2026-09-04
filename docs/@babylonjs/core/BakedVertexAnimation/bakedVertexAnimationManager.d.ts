@@ -1,8 +1,8 @@
-import type { Nullable } from "../types";
-import type { Scene } from "../scene";
-import type { BaseTexture } from "../Materials/Textures/baseTexture";
-import { Vector4 } from "../Maths/math.vector";
-import type { Effect } from "../Materials/effect";
+import { type Nullable } from "../types.js";
+import { type Scene } from "../scene.js";
+import { type BaseTexture } from "../Materials/Textures/baseTexture.js";
+import { Vector4 } from "../Maths/math.vector.pure.js";
+import { type Effect } from "../Materials/effect.js";
 /**
  * Interface for baked vertex animation texture, see BakedVertexAnimationManager
  * @since 5.0
@@ -60,12 +60,12 @@ export declare class BakedVertexAnimationManager implements IBakedVertexAnimatio
     /**
      * The vertex animation texture
      */
-    texture: Nullable<BaseTexture>;
+    accessor texture: Nullable<BaseTexture>;
     private _isEnabled;
     /**
      * Enable or disable the vertex animation manager
      */
-    isEnabled: boolean;
+    accessor isEnabled: boolean;
     /**
      * The animation parameters for the mesh. See setAnimationParameters()
      */

@@ -1,39 +1,9 @@
-import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial.js";
-import { GLTFLoader } from "../glTFLoader.js";
-const NAME = "MSFT_sRGBFactors";
-/** @internal */
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export class MSFT_sRGBFactors {
-    /** @internal */
-    constructor(loader) {
-        /** @internal */
-        this.name = NAME;
-        this._loader = loader;
-        this.enabled = this._loader.isExtensionUsed(NAME);
-    }
-    /** @internal */
-    dispose() {
-        this._loader = null;
-    }
-    /** @internal */
-    loadMaterialPropertiesAsync(context, material, babylonMaterial) {
-        return GLTFLoader.LoadExtraAsync(context, material, this.name, (extraContext, extra) => {
-            if (extra) {
-                if (!(babylonMaterial instanceof PBRMaterial)) {
-                    throw new Error(`${extraContext}: Material type not supported`);
-                }
-                const promise = this._loader.loadMaterialPropertiesAsync(context, material, babylonMaterial);
-                if (!babylonMaterial.albedoTexture) {
-                    babylonMaterial.albedoColor.toLinearSpaceToRef(babylonMaterial.albedoColor);
-                }
-                if (!babylonMaterial.reflectivityTexture) {
-                    babylonMaterial.reflectivityColor.toLinearSpaceToRef(babylonMaterial.reflectivityColor);
-                }
-                return promise;
-            }
-            return null;
-        });
-    }
-}
-GLTFLoader.RegisterExtension(NAME, (loader) => new MSFT_sRGBFactors(loader));
+/**
+ * Re-exports the pure implementation and applies the runtime registration side effect.
+ * Import "./MSFT_sRGBFactors.pure" for tree-shakeable, side-effect-free usage.
+ */
+export * from "./MSFT_sRGBFactors.types.js";
+export * from "./MSFT_sRGBFactors.pure.js";
+import { RegisterMSFT_sRGBFactors } from "./MSFT_sRGBFactors.pure.js";
+RegisterMSFT_sRGBFactors();
 //# sourceMappingURL=MSFT_sRGBFactors.js.map

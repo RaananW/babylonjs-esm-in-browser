@@ -1,5 +1,5 @@
-import { Vector3 } from "../Maths/math.vector.js";
-import { Color4 } from "../Maths/math.color.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { Color4 } from "../Maths/math.color.pure.js";
 import { Observable } from "../Misc/observable.js";
 import { ThinSprite } from "./thinSprite.js";
 /**
@@ -7,6 +7,22 @@ import { ThinSprite } from "./thinSprite.js";
  * @see https://doc.babylonjs.com/features/featuresDeepDive/sprites
  */
 export class Sprite extends ThinSprite {
+    /**
+     * Gets or sets the sprite size
+     */
+    get size() {
+        return this.width;
+    }
+    set size(value) {
+        this.width = value;
+        this.height = value;
+    }
+    /**
+     * Gets the manager of this sprite
+     */
+    get manager() {
+        return this._manager;
+    }
     /**
      * Creates a new Sprite
      * @param name defines the name
@@ -41,22 +57,6 @@ export class Sprite extends ThinSprite {
         this._manager = manager;
         this._manager.sprites.push(this);
         this.uniqueId = this._manager.scene.getUniqueId();
-    }
-    /**
-     * Gets or sets the sprite size
-     */
-    get size() {
-        return this.width;
-    }
-    set size(value) {
-        this.width = value;
-        this.height = value;
-    }
-    /**
-     * Gets the manager of this sprite
-     */
-    get manager() {
-        return this._manager;
     }
     /**
      * Returns the string "Sprite"
@@ -164,10 +164,10 @@ export class Sprite extends ThinSprite {
         sprite.isPickable = parsedSprite.isPickable;
         sprite.isVisible = parsedSprite.isVisible;
         sprite.useAlphaForPicking = parsedSprite.useAlphaForPicking;
-        sprite.fromIndex = parsedSprite.fromIndex;
-        sprite.toIndex = parsedSprite.toIndex;
-        sprite.loopAnimation = parsedSprite.loopAnimation;
-        sprite.delay = parsedSprite.delay;
+        sprite._fromIndex = parsedSprite.fromIndex;
+        sprite._toIndex = parsedSprite.toIndex;
+        sprite._loopAnimation = parsedSprite.loopAnimation;
+        sprite._delay = parsedSprite.delay;
         if (parsedSprite.animationStarted) {
             sprite.playAnimation(sprite.fromIndex, sprite.toIndex, sprite.loopAnimation, sprite.delay);
         }

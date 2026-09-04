@@ -1,52 +1,8 @@
-import { NodeMaterialBlock } from "../nodeMaterialBlock.js";
-import { NodeMaterialBlockConnectionPointTypes } from "../Enums/nodeMaterialBlockConnectionPointTypes.js";
-import { NodeMaterialBlockTargets } from "../Enums/nodeMaterialBlockTargets.js";
-import { RegisterClass } from "../../../Misc/typeStore.js";
 /**
- * Block used to compute arc tangent of 2 values
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import arcTan2Block.pure for tree-shakeable, side-effect-free usage.
  */
-export class ArcTan2Block extends NodeMaterialBlock {
-    /**
-     * Creates a new ArcTan2Block
-     * @param name defines the block name
-     */
-    constructor(name) {
-        super(name, NodeMaterialBlockTargets.Neutral);
-        this.registerInput("x", NodeMaterialBlockConnectionPointTypes.Float);
-        this.registerInput("y", NodeMaterialBlockConnectionPointTypes.Float);
-        this.registerOutput("output", NodeMaterialBlockConnectionPointTypes.Float);
-    }
-    /**
-     * Gets the current class name
-     * @returns the class name
-     */
-    getClassName() {
-        return "ArcTan2Block";
-    }
-    /**
-     * Gets the x operand input component
-     */
-    get x() {
-        return this._inputs[0];
-    }
-    /**
-     * Gets the y operand input component
-     */
-    get y() {
-        return this._inputs[1];
-    }
-    /**
-     * Gets the output component
-     */
-    get output() {
-        return this._outputs[0];
-    }
-    _buildBlock(state) {
-        super._buildBlock(state);
-        const output = this._outputs[0];
-        state.compilationString += this._declareOutput(output, state) + ` = atan(${this.x.associatedVariableName}, ${this.y.associatedVariableName});\r\n`;
-        return this;
-    }
-}
-RegisterClass("BABYLON.ArcTan2Block", ArcTan2Block);
+export * from "./arcTan2Block.pure.js";
+import { RegisterArcTan2Block } from "./arcTan2Block.pure.js";
+RegisterArcTan2Block();
 //# sourceMappingURL=arcTan2Block.js.map

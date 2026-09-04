@@ -1,8 +1,8 @@
-import type { Nullable } from "../types";
-import type { RenderTargetTexture } from "../Materials/Textures/renderTargetTexture";
-import type { Camera } from "../Cameras/camera";
-import { DepthRenderer } from "../Rendering/depthRenderer";
-import { MinMaxReducer } from "./minMaxReducer";
+import { type Nullable } from "../types.js";
+import { type RenderTargetTexture } from "../Materials/Textures/renderTargetTexture.js";
+import { type Camera } from "../Cameras/camera.js";
+import { DepthRenderer } from "../Rendering/depthRenderer.pure.js";
+import { MinMaxReducer } from "./minMaxReducer.pure.js";
 /**
  * This class is a small wrapper around the MinMaxReducer class to compute the min/max values of a depth texture
  */

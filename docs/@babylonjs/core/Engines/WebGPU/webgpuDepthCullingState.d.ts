@@ -1,6 +1,6 @@
-import type { Nullable } from "../../types";
-import type { WebGPUCacheRenderPipeline } from "./webgpuCacheRenderPipeline";
-import { DepthCullingState } from "../../States/depthCullingState";
+import { type Nullable } from "../../types.js";
+import { type WebGPUCacheRenderPipeline } from "./webgpuCacheRenderPipeline.js";
+import { DepthCullingState } from "../../States/depthCullingState.js";
 /**
  * @internal
  **/

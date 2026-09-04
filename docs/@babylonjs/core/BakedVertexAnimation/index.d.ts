@@ -1,2 +1,2 @@
-export * from "./bakedVertexAnimationManager";
-export * from "./vertexAnimationBaker";
+export * from "./bakedVertexAnimationManager.js";
+export * from "./vertexAnimationBaker.js";

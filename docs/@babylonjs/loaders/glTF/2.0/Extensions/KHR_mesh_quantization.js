@@ -1,22 +1,9 @@
-import { GLTFLoader } from "../glTFLoader.js";
-const NAME = "KHR_mesh_quantization";
 /**
- * [Specification](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md)
+ * Re-exports the pure implementation and applies the runtime registration side effect.
+ * Import "./KHR_mesh_quantization.pure" for tree-shakeable, side-effect-free usage.
  */
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export class KHR_mesh_quantization {
-    /**
-     * @internal
-     */
-    constructor(loader) {
-        /**
-         * The name of this extension.
-         */
-        this.name = NAME;
-        this.enabled = loader.isExtensionUsed(NAME);
-    }
-    /** @internal */
-    dispose() { }
-}
-GLTFLoader.RegisterExtension(NAME, (loader) => new KHR_mesh_quantization(loader));
+export * from "./KHR_mesh_quantization.types.js";
+export * from "./KHR_mesh_quantization.pure.js";
+import { RegisterKHR_mesh_quantization } from "./KHR_mesh_quantization.pure.js";
+RegisterKHR_mesh_quantization();
 //# sourceMappingURL=KHR_mesh_quantization.js.map

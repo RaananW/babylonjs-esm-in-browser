@@ -1,8 +1,8 @@
-import type { Nullable } from "../../types";
-import type { Camera } from "../../Cameras/camera";
-import type { ICameraInput } from "../../Cameras/cameraInputsManager";
-import type { PointerTouch } from "../../Events/pointerEvents";
-import type { IPointerEvent } from "../../Events/deviceInputEvents";
+import { type Nullable } from "../../types.js";
+import { type Camera } from "../../Cameras/camera.js";
+import { type ICameraInput } from "../../Cameras/cameraInputsManager.js";
+import { type PointerTouch } from "../../Events/pointerEvents.js";
+import { type IPointerEvent } from "../../Events/deviceInputEvents.js";
 /**
  * Base class for Camera Pointer Inputs.
  * See FollowCameraPointersInput in src/Cameras/Inputs/followCameraPointersInput.ts
@@ -25,7 +25,10 @@ export declare abstract class BaseCameraPointersInput implements ICameraInput<Ca
      * https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/buttons
      */
     protected _buttonsPressed: number;
-    private _currentActiveButton;
+    /**
+     * Which pointer ID is currently down (only for mouse events, not used for touch events)
+     */
+    private _currentMousePointerIdDown;
     private _contextMenuBind;
     /**
      * Defines the buttons associated with the input to handle camera move.
@@ -53,48 +56,49 @@ export declare abstract class BaseCameraPointersInput implements ICameraInput<Ca
     /**
      * Called on pointer POINTERDOUBLETAP event.
      * Override this method to provide functionality on POINTERDOUBLETAP event.
-     * @param type
+     * @param type type of event
+     * @param evt the pointer event that triggered the double tap (carries button / buttons state)
      */
-    onDoubleTap(type: string): void;
+    onDoubleTap(type: string, evt?: IPointerEvent): void;
     /**
      * Called on pointer POINTERMOVE event if only a single touch is active.
      * Override this method to provide functionality.
-     * @param point
-     * @param offsetX
-     * @param offsetY
+     * @param point The current position of the pointer
+     * @param offsetX The offsetX of the pointer when the event occurred
+     * @param offsetY The offsetY of the pointer when the event occurred
      */
     onTouch(point: Nullable<PointerTouch>, offsetX: number, offsetY: number): void;
     /**
      * Called on pointer POINTERMOVE event if multiple touches are active.
      * Override this method to provide functionality.
-     * @param _pointA
-     * @param _pointB
-     * @param previousPinchSquaredDistance
-     * @param pinchSquaredDistance
-     * @param previousMultiTouchPanPosition
-     * @param multiTouchPanPosition
+     * @param _pointA First point in the pair
+     * @param _pointB Second point in the pair
+     * @param previousPinchSquaredDistance Sqr Distance between the points the last time this event was fired (by this input)
+     * @param pinchSquaredDistance Sqr Distance between the points this time
+     * @param previousMultiTouchPanPosition Previous center point between the points
+     * @param multiTouchPanPosition Current center point between the points
      */
     onMultiTouch(_pointA: Nullable<PointerTouch>, _pointB: Nullable<PointerTouch>, previousPinchSquaredDistance: number, pinchSquaredDistance: number, previousMultiTouchPanPosition: Nullable<PointerTouch>, multiTouchPanPosition: Nullable<PointerTouch>): void;
     /**
      * Called on JS contextmenu event.
      * Override this method to provide functionality.
-     * @param evt
+     * @param evt the event to be handled
      */
     onContextMenu(evt: PointerEvent): void;
     /**
      * Called each time a new POINTERDOWN event occurs. Ie, for each button
      * press.
      * Override this method to provide functionality.
-     * @param evt
+     * @param _evt Defines the event to track
      */
-    onButtonDown(evt: IPointerEvent): void;
+    onButtonDown(_evt: IPointerEvent): void;
     /**
      * Called each time a new POINTERUP event occurs. Ie, for each button
      * release.
      * Override this method to provide functionality.
-     * @param evt
+     * @param _evt Defines the event to track
      */
-    onButtonUp(evt: IPointerEvent): void;
+    onButtonUp(_evt: IPointerEvent): void;
     /**
      * Called when window becomes inactive.
      * Override this method to provide functionality.

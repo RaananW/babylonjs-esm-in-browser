@@ -1,0 +1,37 @@
+/** This file must only contain pure code and pure imports */
+import { NodeMaterialBlock } from "../nodeMaterialBlock.js";
+import { type NodeMaterialBuildState } from "../nodeMaterialBuildState.js";
+import { type NodeMaterialConnectionPoint } from "../nodeMaterialBlockConnectionPoint.js";
+/**
+ * Block used to scale a vector by a float
+ */
+export declare class ScaleBlock extends NodeMaterialBlock {
+    /**
+     * Creates a new ScaleBlock
+     * @param name defines the block name
+     */
+    constructor(name: string);
+    /**
+     * Gets the current class name
+     * @returns the class name
+     */
+    getClassName(): string;
+    /**
+     * Gets the input component
+     */
+    get input(): NodeMaterialConnectionPoint;
+    /**
+     * Gets the factor input component
+     */
+    get factor(): NodeMaterialConnectionPoint;
+    /**
+     * Gets the output component
+     */
+    get output(): NodeMaterialConnectionPoint;
+    protected _buildBlock(state: NodeMaterialBuildState): this;
+}
+/**
+ * Register side effects for scaleBlock.
+ * Safe to call multiple times; only the first call has an effect.
+ */
+export declare function RegisterScaleBlock(): void;

@@ -1,6 +1,6 @@
 import { Logger } from "../Misc/logger.js";
-import { SerializationHelper } from "../Misc/decorators.js";
-import { Camera } from "./camera.js";
+import { SerializationHelper } from "../Misc/decorators.serialization.js";
+import { Camera } from "./camera.pure.js";
 /**
  * @ignore
  * This is a list of all the different input types that are available in the application.

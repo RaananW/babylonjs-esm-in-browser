@@ -1,31 +1,5 @@
-import { NodeMaterialBlock } from "../nodeMaterialBlock";
-import type { NodeMaterialBuildState } from "../nodeMaterialBuildState";
-import type { Scene } from "../../../scene";
 /**
- * Custom block created from user-defined json
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import customBlock.pure for tree-shakeable, side-effect-free usage.
  */
-export declare class CustomBlock extends NodeMaterialBlock {
-    private _options;
-    private _code;
-    /**
-     * Gets or sets the options for this custom block
-     */
-    get options(): any;
-    set options(options: any);
-    /**
-     * Creates a new CustomBlock
-     * @param name defines the block name
-     */
-    constructor(name: string);
-    /**
-     * Gets the current class name
-     * @returns the class name
-     */
-    getClassName(): string;
-    protected _buildBlock(state: NodeMaterialBuildState): this;
-    protected _dumpPropertiesCode(): string;
-    serialize(): any;
-    _deserialize(serializationObject: any, scene: Scene, rootUrl: string): void;
-    private _deserializeOptions;
-    private _findInputByName;
-}
+export * from "./customBlock.pure.js";

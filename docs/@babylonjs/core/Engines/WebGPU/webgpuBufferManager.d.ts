@@ -1,14 +1,17 @@
-import type { DataBuffer } from "../../Buffers/dataBuffer";
-import { WebGPUDataBuffer } from "../../Meshes/WebGPU/webgpuDataBuffer";
-import type { Nullable } from "../../types";
+import { type DataBuffer } from "../../Buffers/dataBuffer.js";
+import { WebGPUDataBuffer } from "../../Meshes/WebGPU/webgpuDataBuffer.js";
+import { type Nullable } from "../../types.js";
+import { type WebGPUEngine } from "../webgpuEngine.js";
 /** @internal */
 export declare class WebGPUBufferManager {
+    private _engine;
     private _device;
     private _deferredReleaseBuffers;
     private static _IsGPUBuffer;
-    constructor(device: GPUDevice);
-    createRawBuffer(viewOrSize: ArrayBufferView | number, flags: GPUBufferUsageFlags, mappedAtCreation?: boolean): GPUBuffer;
-    createBuffer(viewOrSize: ArrayBufferView | number, flags: GPUBufferUsageFlags): WebGPUDataBuffer;
+    private static _FlagsToString;
+    constructor(engine: WebGPUEngine, device: GPUDevice);
+    createRawBuffer(viewOrSize: ArrayBufferView | number, flags: GPUBufferUsageFlags, mappedAtCreation?: boolean, label?: string): GPUBuffer;
+    createBuffer(viewOrSize: ArrayBufferView | number, flags: GPUBufferUsageFlags, label?: string): WebGPUDataBuffer;
     setRawData(buffer: GPUBuffer, dstByteOffset: number, src: ArrayBufferView, srcByteOffset: number, byteLength: number): void;
     setSubData(dataBuffer: WebGPUDataBuffer, dstByteOffset: number, src: ArrayBufferView, srcByteOffset?: number, byteLength?: number): void;
     private _getHalfFloatAsFloatRGBAArrayBuffer;

@@ -1,31 +1,5 @@
-import { NodeMaterialBlock } from "../nodeMaterialBlock";
-import type { NodeMaterialBuildState } from "../nodeMaterialBuildState";
-import type { NodeMaterialConnectionPoint } from "../nodeMaterialBlockConnectionPoint";
 /**
- * Block used to step a value
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import stepBlock.pure for tree-shakeable, side-effect-free usage.
  */
-export declare class StepBlock extends NodeMaterialBlock {
-    /**
-     * Creates a new StepBlock
-     * @param name defines the block name
-     */
-    constructor(name: string);
-    /**
-     * Gets the current class name
-     * @returns the class name
-     */
-    getClassName(): string;
-    /**
-     * Gets the value operand input component
-     */
-    get value(): NodeMaterialConnectionPoint;
-    /**
-     * Gets the edge operand input component
-     */
-    get edge(): NodeMaterialConnectionPoint;
-    /**
-     * Gets the output component
-     */
-    get output(): NodeMaterialConnectionPoint;
-    protected _buildBlock(state: NodeMaterialBuildState): this;
-}
+export * from "./stepBlock.pure.js";

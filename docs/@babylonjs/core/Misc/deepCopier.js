@@ -1,27 +1,34 @@
 import { Logger } from "./logger.js";
-const CloneValue = (source, destinationObject) => {
+const CloneValue = (source, destinationObject, shallowCopyValues) => {
     if (!source) {
         return null;
     }
     if (source.getClassName && source.getClassName() === "Mesh") {
         return null;
     }
-    if (source.getClassName && source.getClassName() === "SubMesh") {
+    if (source.getClassName && (source.getClassName() === "SubMesh" || source.getClassName() === "PhysicsBody")) {
         return source.clone(destinationObject);
     }
     else if (source.clone) {
         return source.clone();
+    }
+    else if (Array.isArray(source)) {
+        return source.slice();
+    }
+    else if (shallowCopyValues && typeof source === "object") {
+        return { ...source };
     }
     return null;
 };
 function GetAllPropertyNames(obj) {
     const props = [];
     do {
-        Object.getOwnPropertyNames(obj).forEach(function (prop) {
+        const propNames = Object.getOwnPropertyNames(obj);
+        for (const prop of propNames) {
             if (props.indexOf(prop) === -1) {
                 props.push(prop);
             }
-        });
+        }
     } while ((obj = Object.getPrototypeOf(obj)));
     return props;
 }
@@ -35,8 +42,10 @@ export class DeepCopier {
      * @param destination defines the target object
      * @param doNotCopyList defines a list of properties to avoid
      * @param mustCopyList defines a list of properties to copy (even if they start with _)
+     * @param shallowCopyValues defines wether properties referencing objects (none cloneable) must be shallow copied (false by default)
+     * @remarks shallowCopyValues will not instantite the copied values which makes it only usable for "JSON objects"
      */
-    static DeepCopy(source, destination, doNotCopyList, mustCopyList) {
+    static DeepCopy(source, destination, doNotCopyList, mustCopyList, shallowCopyValues = false) {
         const properties = GetAllPropertyNames(source);
         for (const prop of properties) {
             if (prop[0] === "_" && (!mustCopyList || mustCopyList.indexOf(prop) === -1)) {
@@ -55,12 +64,15 @@ export class DeepCopier {
             }
             try {
                 if (typeOfSourceValue === "object") {
-                    if (sourceValue instanceof Array) {
+                    if (sourceValue instanceof Uint8Array) {
+                        destination[prop] = Uint8Array.from(sourceValue);
+                    }
+                    else if (sourceValue instanceof Array) {
                         destination[prop] = [];
                         if (sourceValue.length > 0) {
                             if (typeof sourceValue[0] == "object") {
                                 for (let index = 0; index < sourceValue.length; index++) {
-                                    const clonedValue = CloneValue(sourceValue[index], destination);
+                                    const clonedValue = CloneValue(sourceValue[index], destination, shallowCopyValues);
                                     if (destination[prop].indexOf(clonedValue) === -1) {
                                         // Test if auto inject was not done
                                         destination[prop].push(clonedValue);
@@ -73,7 +85,7 @@ export class DeepCopier {
                         }
                     }
                     else {
-                        destination[prop] = CloneValue(sourceValue, destination);
+                        destination[prop] = CloneValue(sourceValue, destination, shallowCopyValues);
                     }
                 }
                 else {

@@ -1,12 +1,12 @@
-import type { Scene } from "../../scene";
-import { VertexData } from "../mesh.vertexData";
-import type { Nullable } from "../../types";
-import type { PolyhedronData } from "../geodesicMesh";
-import { GoldbergMesh } from "../goldbergMesh";
+import { type Scene } from "../../scene.js";
+import { VertexData } from "../mesh.vertexData.js";
+import { type Nullable } from "../../types.js";
+import { type PolyhedronData } from "../geodesicMesh.js";
+import { GoldbergMesh } from "../goldbergMesh.pure.js";
 /**
  * Defines the set of data required to create goldberg vertex data.
  */
-export declare type GoldbergVertexDataOption = {
+export type GoldbergVertexDataOption = {
     /**
      * the size of the Goldberg, optional default 1
      */
@@ -31,7 +31,7 @@ export declare type GoldbergVertexDataOption = {
 /**
  * Defines the set of data required to create a goldberg mesh.
  */
-export declare type GoldbergCreationOption = {
+export type GoldbergCreationOption = {
     /**
      * number of horizontal steps along an isogrid
      */

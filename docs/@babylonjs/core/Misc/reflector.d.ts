@@ -1,4 +1,4 @@
-import type { Scene } from "../scene";
+import { type Scene } from "../scene.js";
 /**
  * Class used to connect with the reflector zone of the sandbox via the reflector bridge
  * @since 5.0.0

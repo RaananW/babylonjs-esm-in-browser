@@ -1,4 +1,4 @@
-import "./sceneUboDeclaration";
+import "./sceneUboDeclaration.js";
 /** @internal */
 export declare const geometryUboDeclaration: {
     name: string;

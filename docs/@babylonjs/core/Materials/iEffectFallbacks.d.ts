@@ -1,4 +1,4 @@
-declare type Effect = import("./effect").Effect;
+import { type Effect } from "./effect.js";
 /**
  * Interface used to define common properties for effect fallbacks
  */
@@ -19,4 +19,3 @@ export interface IEffectFallbacks {
      */
     hasMoreFallbacks: boolean;
 }
-export {};

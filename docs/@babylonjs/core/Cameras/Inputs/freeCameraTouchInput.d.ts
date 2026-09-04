@@ -1,12 +1,12 @@
-import type { ICameraInput } from "../../Cameras/cameraInputsManager";
-import type { FreeCamera } from "../../Cameras/freeCamera";
+import { type ICameraInput } from "../../Cameras/cameraInputsManager.js";
+import { type FreeCamera } from "../../Cameras/freeCamera.js";
 /**
  * Manage the touch inputs to control the movement of a free camera.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs
  */
 export declare class FreeCameraTouchInput implements ICameraInput<FreeCamera> {
     /**
-     * Define if mouse events can be treated as touch events
+     * [false] Define if mouse events can be treated as touch events
      */
     allowMouse: boolean;
     /**
@@ -41,7 +41,7 @@ export declare class FreeCameraTouchInput implements ICameraInput<FreeCamera> {
      */
     constructor(
     /**
-     * Define if mouse events can be treated as touch events
+     * [false] Define if mouse events can be treated as touch events
      */
     allowMouse?: boolean);
     /**

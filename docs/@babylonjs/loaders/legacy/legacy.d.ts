@@ -1,6 +1,8 @@
-export * from "../index";
-export * from "./legacy-glTF";
-export * from "./legacy-glTF1";
-export * from "./legacy-glTF2";
-export * from "./legacy-objFileLoader";
-export * from "./legacy-stlFileLoader";
+export * from "../index.js";
+export * from "./legacy-bvhFileLoader.js";
+export * from "./legacy-dynamic.js";
+export * from "./legacy-glTF.js";
+export * from "./legacy-glTF1.js";
+export { GLTF2 } from "./legacy-glTF2.js";
+export * from "./legacy-objFileLoader.js";
+export * from "./legacy-stlFileLoader.js";

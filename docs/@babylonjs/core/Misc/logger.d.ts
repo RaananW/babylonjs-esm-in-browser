@@ -48,15 +48,15 @@ export declare class Logger {
     /**
      * Log a message to the console
      */
-    static Log: (message: string, limit?: number) => void;
+    static Log: (message: string | any[], limit?: number) => void;
     /**
      * Write a warning message to the console
      */
-    static Warn: (message: string, limit?: number) => void;
+    static Warn: (message: string | any[], limit?: number) => void;
     /**
      * Write an error message to the console
      */
-    static Error: (message: string, limit?: number) => void;
+    static Error: (message: string | any[], limit?: number) => void;
     /**
      * Gets current log cache (list of logs)
      */
@@ -66,7 +66,8 @@ export declare class Logger {
      */
     static ClearLogCache(): void;
     /**
-     * Sets the current log level (MessageLogLevel / WarningLogLevel / ErrorLogLevel)
+     * Sets the current log level. This property is a bit field, allowing you to combine different levels (MessageLogLevel / WarningLogLevel / ErrorLogLevel).
+     * Use NoneLogLevel to disable logging and AllLogLevel for a quick way to enable all levels.
      */
     static set LogLevels(level: number);
 }

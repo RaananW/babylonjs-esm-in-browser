@@ -1,11 +1,11 @@
-import type { Engine } from "../../Engines/engine";
-import { DeviceType } from "./deviceEnums";
-import type { Nullable } from "../../types";
-import { Observable } from "../../Misc/observable";
-import type { DeviceSource } from "./deviceSource";
-import type { IObservableManager, DeviceSourceType } from "../internalDeviceSourceManager";
-import type { IDisposable } from "../../scene";
-import type { IUIEvent } from "../../Events/deviceInputEvents";
+import { DeviceType } from "./deviceEnums.js";
+import { type Nullable } from "../../types.js";
+import { Observable } from "../../Misc/observable.js";
+import { type DeviceSource } from "./deviceSource.js";
+import { type IObservableManager, type DeviceSourceType } from "../internalDeviceSourceManager.js";
+import { type IDisposable } from "../../scene.js";
+import { type AbstractEngine } from "../../Engines/abstractEngine.js";
+import { type IUIEvent } from "../../Events/deviceInputEvents.js";
 /**
  * Class to keep track of devices
  */
@@ -39,7 +39,7 @@ export declare class DeviceSourceManager implements IDisposable, IObservableMana
      * Default constructor
      * @param engine - Used to get canvas (if applicable)
      */
-    constructor(engine: Engine);
+    constructor(engine: AbstractEngine);
     /**
      * Dispose of DeviceSourceManager
      */

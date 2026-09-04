@@ -5,6 +5,7 @@ export * from "./webXRGenericMotionController.js";
 export * from "./webXRMicrosoftMixedRealityController.js";
 export * from "./webXRMotionControllerManager.js";
 export * from "./webXROculusTouchMotionController.js";
+export * from "./webXROculusHandController.js";
 export * from "./webXRHTCViveMotionController.js";
 export * from "./webXRProfiledMotionController.js";
 //# sourceMappingURL=index.js.map

@@ -1,7 +1,7 @@
-import type { Scene } from "../../scene";
-import type { IPerfCustomEvent, IPerfDatasets, IPerfMetadata } from "../interfaces/iPerfViewer";
-import { Observable } from "../observable";
-import type { PerfStrategyInitialization } from "./performanceViewerCollectionStrategies";
+import { type Scene } from "../../scene.js";
+import { type IPerfCustomEvent, type IPerfDatasets, type IPerfMetadata } from "../interfaces/iPerfViewer.js";
+import { Observable } from "../observable.js";
+import { type PerfStrategyInitialization } from "./performanceViewerCollectionStrategies.js";
 /**
  * Callback strategy and optional category for data collection
  */

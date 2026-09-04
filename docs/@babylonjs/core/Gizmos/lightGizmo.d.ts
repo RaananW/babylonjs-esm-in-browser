@@ -1,16 +1,14 @@
-import type { Nullable } from "../types";
-import { Vector3 } from "../Maths/math.vector";
-import { Mesh } from "../Meshes/mesh";
-import type { IGizmo } from "./gizmo";
-import { Gizmo } from "./gizmo";
-import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer";
-import type { Node } from "../node";
-import { StandardMaterial } from "../Materials/standardMaterial";
-import type { Light } from "../Lights/light";
-import { TransformNode } from "../Meshes/transformNode";
-import type { PointerInfo } from "../Events/pointerEvents";
-import type { Observer } from "../Misc/observable";
-import { Observable } from "../Misc/observable";
+import { type Nullable } from "../types.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
+import { type IGizmo, Gizmo } from "./gizmo.js";
+import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer.js";
+import { type Node } from "../node.js";
+import { StandardMaterial } from "../Materials/standardMaterial.pure.js";
+import { type Light } from "../Lights/light.js";
+import { TransformNode } from "../Meshes/transformNode.pure.js";
+import { type PointerInfo } from "../Events/pointerEvents.js";
+import { type Observer, Observable } from "../Misc/observable.js";
 /**
  * Interface for light gizmo
  */
@@ -60,6 +58,11 @@ export declare class LightGizmo extends Gizmo implements ILightGizmo {
     get material(): StandardMaterial;
     /**
      * @internal
+     * returns mesh forward
+     */
+    protected _getMeshForward(): Vector3;
+    /**
+     * @internal
      * Updates the gizmo to match the attached mesh's position/rotation
      */
     protected _update(): void;
@@ -68,6 +71,7 @@ export declare class LightGizmo extends Gizmo implements ILightGizmo {
      * Creates the lines for a light mesh
      * @param levels
      * @param scene
+     * @returns the light lines mesh
      */
     private static _CreateLightLines;
     /**

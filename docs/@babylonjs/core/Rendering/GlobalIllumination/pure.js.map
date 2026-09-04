@@ -1,0 +1,1 @@
+{"version":3,"file":"pure.js","sourceRoot":"","sources":["../../../../../dev/core/src/Rendering/GlobalIllumination/pure.ts"],"names":[],"mappings":"AAAA,6DAA6D;AAC7D,cAAc,SAAS,CAAC;AACxB,cAAc,qBAAqB,CAAC","sourcesContent":["/** Pure barrel — re-exports only side-effect-free modules */\nexport * from \"./giRSM\";\nexport * from \"./giRSMManager.pure\";\n"]}

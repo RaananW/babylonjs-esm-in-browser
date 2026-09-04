@@ -1,5 +1,5 @@
-import type { ShaderLanguage } from "../../Materials/shaderLanguage";
-import type { ShaderProcessingContext } from "../Processors/shaderProcessingOptions";
+import { type ShaderLanguage } from "../../Materials/shaderLanguage.js";
+import { type _IShaderProcessingContext } from "../Processors/shaderProcessingOptions.js";
 /** @internal */
 export interface WebGPUBindingInfo {
     groupIndex: number;
@@ -10,6 +10,7 @@ export interface WebGPUTextureDescription {
     autoBindSampler?: boolean;
     isTextureArray: boolean;
     isStorageTexture: boolean;
+    storageTextureAccess?: GPUStorageTextureAccess;
     textures: Array<WebGPUBindingInfo>;
     sampleType?: GPUTextureSampleType;
 }
@@ -31,7 +32,7 @@ export interface WebGPUBindGroupLayoutEntryInfo {
 /**
  * @internal
  */
-export declare class WebGPUShaderProcessingContext implements ShaderProcessingContext {
+export declare class WebGPUShaderProcessingContext implements _IShaderProcessingContext {
     /** @internal */
     static _SimplifiedKnownBindings: boolean;
     protected static _SimplifiedKnownUBOs: {
@@ -76,9 +77,12 @@ export declare class WebGPUShaderProcessingContext implements ShaderProcessingCo
     samplerNames: string[];
     attributeNamesFromEffect: string[];
     attributeLocationsFromEffect: number[];
+    vertexBufferKindToNumberOfComponents: {
+        [kind: string]: number;
+    };
     private _attributeNextLocation;
     private _varyingNextLocation;
-    constructor(shaderLanguage: ShaderLanguage);
+    constructor(shaderLanguage: ShaderLanguage, pureMode?: boolean);
     private _findStartingGroupBinding;
     getAttributeNextLocation(dataType: string, arrayLength?: number): number;
     getVaryingNextLocation(dataType: string, arrayLength?: number): number;

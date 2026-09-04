@@ -1,4 +1,5 @@
 import type * as GLTF2 from "babylonjs-gltf2interface";
+import { type Nullable } from "@babylonjs/core/types.js";
 /**
  * Configuration for glTF validation
  */
@@ -13,10 +14,15 @@ export interface IGLTFValidationConfiguration {
  */
 export declare class GLTFValidation {
     /**
-     * The configuration. Defaults to `{ url: "https://preview.babylonjs.com/gltf_validator.js" }`.
+     * The configuration. Defaults to `{ url: "https://cdn.babylonjs.com/gltf_validator.js" }`.
      */
     static Configuration: IGLTFValidationConfiguration;
     private static _LoadScriptPromise;
+    /**
+     * The most recent validation results.
+     * @internal - Used for back-compat in Sandbox with Inspector V2.
+     */
+    static _LastResults: Nullable<GLTF2.IGLTFValidationResults>;
     /**
      * Validate a glTF asset using the glTF-Validator.
      * @param data The JSON of a glTF or the array buffer of a binary glTF
@@ -25,5 +31,5 @@ export declare class GLTFValidation {
      * @param getExternalResource The callback to get external resources for the glTF validator
      * @returns A promise that resolves with the glTF validation results once complete
      */
-    static ValidateAsync(data: string | ArrayBuffer, rootUrl: string, fileName: string, getExternalResource: (uri: string) => Promise<ArrayBuffer>): Promise<GLTF2.IGLTFValidationResults>;
+    static ValidateAsync(data: string | Uint8Array, rootUrl: string, fileName: string, getExternalResource: (uri: string) => Promise<Uint8Array>): Promise<GLTF2.IGLTFValidationResults>;
 }

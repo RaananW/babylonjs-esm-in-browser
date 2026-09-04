@@ -5,22 +5,6 @@ import { InternalTexture } from "./internalTexture.js";
  */
 export class ExternalTexture {
     /**
-     * Constructs the texture
-     * @param video The video the texture should be wrapped around
-     */
-    constructor(video) {
-        /**
-         * Gets a boolean indicating if the texture uses mipmaps
-         */
-        this.useMipMaps = false;
-        /**
-         * The type of the underlying texture is implementation dependent, so return "UNDEFINED" for the type
-         */
-        this.type = 16;
-        this._video = video;
-        this.uniqueId = InternalTexture._Counter++;
-    }
-    /**
      * Checks if a texture is an external or internal texture
      * @param texture the external or internal texture
      * @returns true if the texture is an external texture, else false
@@ -40,6 +24,26 @@ export class ExternalTexture {
      */
     get underlyingResource() {
         return this._video;
+    }
+    /**
+     * Constructs the texture
+     * @param video The video the texture should be wrapped around
+     */
+    constructor(video) {
+        /**
+         * Gets a boolean indicating if the texture uses mipmaps
+         */
+        this.useMipMaps = false;
+        /**
+         * The type of the underlying texture is implementation dependent, so return "UNDEFINED" for the type
+         */
+        this.type = 16;
+        /**
+         * The format of the underlying texture is implementation dependent, so return "UNDEFINED" for the format
+         */
+        this.format = 4294967295;
+        this._video = video;
+        this.uniqueId = InternalTexture._Counter++;
     }
     /**
      * Get if the texture is ready to be used (downloaded, converted, mip mapped...).

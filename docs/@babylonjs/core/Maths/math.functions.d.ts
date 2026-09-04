@@ -1,6 +1,5 @@
-import type { FloatArray, Nullable, IndicesArray } from "../types";
-import type { Vector2 } from "./math.vector";
-import { Vector3 } from "./math.vector";
+import { type FloatArray, type Nullable, type IndicesArray } from "../types.js";
+import { type Vector2, Vector3 } from "./math.vector.pure.js";
 /**
  * Extracts minimum and maximum values from a list of indexed positions
  * @param positions defines the positions to use
@@ -27,3 +26,9 @@ export declare function extractMinAndMax(positions: FloatArray, start: number, c
     minimum: Vector3;
     maximum: Vector3;
 };
+/**
+ * Flip flipped faces
+ * @param positions defines the positions to use
+ * @param indices defines the indices to use and update
+ */
+export declare function FixFlippedFaces(positions: FloatArray, indices: IndicesArray): void;

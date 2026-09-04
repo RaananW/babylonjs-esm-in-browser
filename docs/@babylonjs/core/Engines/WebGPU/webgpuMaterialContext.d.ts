@@ -1,8 +1,8 @@
-import { ExternalTexture } from "../../Materials/Textures/externalTexture";
-import type { InternalTexture } from "../../Materials/Textures/internalTexture";
-import type { TextureSampler } from "../../Materials/Textures/textureSampler";
-import type { Nullable } from "../../types";
-import type { IMaterialContext } from "../IMaterialContext";
+import { ExternalTexture } from "../../Materials/Textures/externalTexture.js";
+import { type InternalTexture } from "../../Materials/Textures/internalTexture.js";
+import { type TextureSampler } from "../../Materials/Textures/textureSampler.js";
+import { type Nullable } from "../../types.js";
+import { type IMaterialContext } from "../IMaterialContext.js";
 /** @internal */
 interface IWebGPUMaterialContextSamplerCache {
     sampler: Nullable<TextureSampler>;
@@ -11,7 +11,7 @@ interface IWebGPUMaterialContextSamplerCache {
 /** @internal */
 interface IWebGPUMaterialContextTextureCache {
     texture: Nullable<InternalTexture | ExternalTexture>;
-    isFloatTexture: boolean;
+    isFloatOrDepthTexture: boolean;
     isExternalTexture: boolean;
 }
 /** @internal */
@@ -26,9 +26,11 @@ export declare class WebGPUMaterialContext implements IMaterialContext {
     textures: {
         [name: string]: Nullable<IWebGPUMaterialContextTextureCache>;
     };
+    textureState: number;
+    useVertexPulling: boolean;
     get forceBindGroupCreation(): boolean;
-    get hasFloatTextures(): boolean;
-    protected _numFloatTextures: number;
+    get hasFloatOrDepthTextures(): boolean;
+    protected _numFloatOrDepthTextures: number;
     protected _numExternalTextures: number;
     constructor();
     reset(): void;

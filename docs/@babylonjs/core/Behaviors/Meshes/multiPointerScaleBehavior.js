@@ -1,9 +1,15 @@
 import { PointerDragBehavior } from "./pointerDragBehavior.js";
-import { Vector3 } from "../../Maths/math.vector.js";
+import { Vector3 } from "../../Maths/math.vector.pure.js";
 /**
  * A behavior that when attached to a mesh will allow the mesh to be scaled
  */
 export class MultiPointerScaleBehavior {
+    /**
+     * Attached node of this behavior
+     */
+    get attachedNode() {
+        return this._ownerNode;
+    }
     /**
      * Instantiate a new behavior that when attached to a mesh will allow the mesh to be scaled
      */
@@ -16,6 +22,7 @@ export class MultiPointerScaleBehavior {
         this._dragBehaviorA.moveAttached = false;
         this._dragBehaviorB = new PointerDragBehavior({});
         this._dragBehaviorB.moveAttached = false;
+        this._ownerNode = null;
     }
     /**
      *  The name of the behavior
@@ -60,14 +67,15 @@ export class MultiPointerScaleBehavior {
             }
         });
         // Once both drag behaviors are active scale based on the distance between the two pointers
-        [this._dragBehaviorA, this._dragBehaviorB].forEach((behavior) => {
+        const dragBehaviors = [this._dragBehaviorA, this._dragBehaviorB];
+        for (const behavior of dragBehaviors) {
             behavior.onDragObservable.add(() => {
                 if (this._dragBehaviorA.dragging && this._dragBehaviorB.dragging) {
                     const ratio = this._getCurrentDistance() / this._startDistance;
                     this._initialScale.scaleToRef(ratio, this._targetScale);
                 }
             });
-        });
+        }
         ownerNode.addBehavior(this._dragBehaviorA);
         ownerNode.addBehavior(this._dragBehaviorB);
         // On every frame move towards target scaling to avoid jitter caused by vr controllers
@@ -85,11 +93,13 @@ export class MultiPointerScaleBehavior {
      */
     detach() {
         this._ownerNode.getScene().onBeforeRenderObservable.remove(this._sceneRenderObserver);
-        [this._dragBehaviorA, this._dragBehaviorB].forEach((behavior) => {
+        const dragBehaviors = [this._dragBehaviorA, this._dragBehaviorB];
+        for (const behavior of dragBehaviors) {
             behavior.onDragStartObservable.clear();
             behavior.onDragObservable.clear();
             this._ownerNode.removeBehavior(behavior);
-        });
+        }
+        this._ownerNode = null;
     }
 }
 //# sourceMappingURL=multiPointerScaleBehavior.js.map

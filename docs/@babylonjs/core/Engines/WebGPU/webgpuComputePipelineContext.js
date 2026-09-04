@@ -1,21 +1,23 @@
 /** @internal */
 export class WebGPUComputePipelineContext {
-    constructor(engine) {
-        this._name = "unnamed";
-        this.engine = engine;
-    }
+    // eslint-disable-next-line no-restricted-syntax
     get isAsync() {
         return false;
     }
     get isReady() {
-        if (this.stage) {
-            return true;
+        if (this.isAsync) {
+            // When async mode is implemented, this should return true if the pipeline is ready
+            return false;
         }
+        // In synchronous mode, we return false, the readiness being determined by ComputeEffect
         return false;
     }
+    constructor(engine) {
+        this._name = "unnamed";
+        this.engine = engine;
+    }
     _getComputeShaderCode() {
-        var _a;
-        return (_a = this.sources) === null || _a === void 0 ? void 0 : _a.compute;
+        return this.sources?.compute;
     }
     dispose() { }
 }

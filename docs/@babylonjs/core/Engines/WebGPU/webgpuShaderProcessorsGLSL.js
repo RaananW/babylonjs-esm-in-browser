@@ -1,8 +1,8 @@
 import { WebGPUShaderProcessingContext } from "./webgpuShaderProcessingContext.js";
-import * as WebGPUConstants from "./webgpuConstants.js";
 import { Logger } from "../../Misc/logger.js";
 import { WebGPUShaderProcessor } from "./webgpuShaderProcessor.js";
-import { ShaderLanguage } from "../../Materials/shaderLanguage.js";
+import { InjectStartingAndEndingCode } from "../../Misc/codeStringParsingTools.js";
+
 /** @internal */
 export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
     constructor() {
@@ -11,7 +11,7 @@ export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
         this._textureArrayProcessing = [];
         this._vertexIsGLES3 = false;
         this._fragmentIsGLES3 = false;
-        this.shaderLanguage = ShaderLanguage.GLSL;
+        this.shaderLanguage = 0 /* ShaderLanguage.GLSL */;
         this.parseGLES3 = true;
     }
     _getArraySize(name, type, preProcessors) {
@@ -24,7 +24,7 @@ export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
             if (isNaN(length)) {
                 length = +preProcessors[lengthInString.trim()];
             }
-            name = name.substr(0, startArray);
+            name = name.substring(0, startArray);
         }
         return [name, type, length];
     }
@@ -37,7 +37,7 @@ export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
         this.varyingFragmentKeywordName = undefined;
     }
     preProcessShaderCode(code, isFragment) {
-        const ubDeclaration = `// Internals UBO\r\nuniform ${WebGPUShaderProcessor.InternalsUBOName} {\nfloat yFactor_;\nfloat textureOutputHeight_;\n};\n`;
+        const ubDeclaration = `// Internals UBO\nuniform ${WebGPUShaderProcessor.InternalsUBOName} {\nfloat yFactor_;\nfloat textureOutputHeight_;\n};\n`;
         const alreadyInjected = code.indexOf("// Internals UBO") !== -1;
         if (isFragment) {
             this._fragmentIsGLES3 = code.indexOf("#version 3") !== -1;
@@ -53,16 +53,24 @@ export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
         }
         return alreadyInjected ? code : ubDeclaration + code;
     }
+    varyingCheck(varying, isFragment) {
+        const outRegex = /(flat\s)?\s*\bout\b/;
+        const inRegex = /(flat\s)?\s*\bin\b/;
+        const varyingRegex = /(flat\s)?\s*\bvarying\b/;
+        const regex = isFragment && this._fragmentIsGLES3 ? inRegex : !isFragment && this._vertexIsGLES3 ? outRegex : varyingRegex;
+        return regex.test(varying);
+    }
     varyingProcessor(varying, isFragment, preProcessors) {
         this._preProcessors = preProcessors;
-        const outRegex = /\s*out\s+(?:(?:highp)?|(?:lowp)?)\s*(\S+)\s+(\S+)\s*;/gm;
-        const inRegex = /\s*in\s+(?:(?:highp)?|(?:lowp)?)\s*(\S+)\s+(\S+)\s*;/gm;
-        const varyingRegex = /\s*varying\s+(?:(?:highp)?|(?:lowp)?)\s*(\S+)\s+(\S+)\s*;/gm;
+        const outRegex = /\s*(flat)?\s*out\s+(?:(?:highp)?|(?:lowp)?)\s*(\S+)\s+(\S+)\s*;/gm;
+        const inRegex = /\s*(flat)?\s*in\s+(?:(?:highp)?|(?:lowp)?)\s*(\S+)\s+(\S+)\s*;/gm;
+        const varyingRegex = /\s*(flat)?\s*varying\s+(?:(?:highp)?|(?:lowp)?)\s*(\S+)\s+(\S+)\s*;/gm;
         const regex = isFragment && this._fragmentIsGLES3 ? inRegex : !isFragment && this._vertexIsGLES3 ? outRegex : varyingRegex;
         const match = regex.exec(varying);
         if (match !== null) {
-            const varyingType = match[1];
-            const name = match[2];
+            const interpolationQualifier = match[1] ?? "";
+            const varyingType = match[2];
+            const name = match[3];
             let location;
             if (isFragment) {
                 location = this._webgpuProcessingContext.availableVaryings[name];
@@ -74,9 +82,9 @@ export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
             else {
                 location = this._webgpuProcessingContext.getVaryingNextLocation(varyingType, this._getArraySize(name, varyingType, preProcessors)[2]);
                 this._webgpuProcessingContext.availableVaryings[name] = location;
-                this._missingVaryings[location] = `layout(location = ${location}) in ${varyingType} ${name};`;
+                this._missingVaryings[location] = `layout(location = ${location}) ${interpolationQualifier} in ${varyingType} ${name};`;
             }
-            varying = varying.replace(match[0], location === undefined ? "" : `layout(location = ${location}) ${isFragment ? "in" : "out"} ${varyingType} ${name};`);
+            varying = varying.replace(match[0], location === undefined ? "" : `layout(location = ${location}) ${interpolationQualifier} ${isFragment ? "in" : "out"} ${varyingType} ${name};`);
         }
         return varying;
     }
@@ -92,12 +100,20 @@ export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
             const location = this._webgpuProcessingContext.getAttributeNextLocation(attributeType, this._getArraySize(name, attributeType, preProcessors)[2]);
             this._webgpuProcessingContext.availableAttributes[name] = location;
             this._webgpuProcessingContext.orderedAttributes[location] = name;
-            attribute = attribute.replace(match[0], `layout(location = ${location}) in ${attributeType} ${name};`);
+            const numComponents = this._webgpuProcessingContext.vertexBufferKindToNumberOfComponents[name];
+            if (numComponents !== undefined) {
+                // Special case for an int/ivecX vertex buffer that is used as a float/vecX attribute in the shader.
+                const newType = numComponents < 0 ? (numComponents === -1 ? "int" : "ivec" + -numComponents) : numComponents === 1 ? "uint" : "uvec" + numComponents;
+                const newName = `_int_${name}_`;
+                attribute = attribute.replace(match[0], `layout(location = ${location}) in ${newType} ${newName}; ${attributeType} ${name} = ${attributeType}(${newName});`);
+            }
+            else {
+                attribute = attribute.replace(match[0], `layout(location = ${location}) in ${attributeType} ${name};`);
+            }
         }
         return attribute;
     }
     uniformProcessor(uniform, isFragment, preProcessors) {
-        var _a;
         this._preProcessors = preProcessors;
         const uniformRegex = /\s*uniform\s+(?:(?:highp)?|(?:lowp)?)\s*(\S+)\s+(\S+)\s*;/gm;
         const match = uniformRegex.exec(uniform);
@@ -105,7 +121,7 @@ export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
             let uniformType = match[1];
             let name = match[2];
             if (uniformType.indexOf("sampler") === 0 || uniformType.indexOf("sampler") === 1) {
-                let arraySize = 0; // 0 means the texture is not declared as an array
+                let arraySize; // 0 means the texture is not declared as an array
                 [name, uniformType, arraySize] = this._getArraySize(name, uniformType, preProcessors);
                 let textureInfo = this._webgpuProcessingContext.availableTextures[name];
                 if (!textureInfo) {
@@ -114,16 +130,16 @@ export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
                         isTextureArray: arraySize > 0,
                         isStorageTexture: false,
                         textures: [],
-                        sampleType: WebGPUConstants.TextureSampleType.Float,
+                        sampleType: "float" /* WebGPUConstants.TextureSampleType.Float */,
                     };
                     for (let i = 0; i < (arraySize || 1); ++i) {
                         textureInfo.textures.push(this._webgpuProcessingContext.getNextFreeUBOBinding());
                     }
                 }
-                const samplerType = (_a = WebGPUShaderProcessor._SamplerTypeByWebGLSamplerType[uniformType]) !== null && _a !== void 0 ? _a : "sampler";
+                const samplerType = WebGPUShaderProcessor._SamplerTypeByWebGLSamplerType[uniformType] ?? "sampler";
                 const isComparisonSampler = !!WebGPUShaderProcessor._IsComparisonSamplerByWebGPUSamplerType[samplerType];
-                const samplerBindingType = isComparisonSampler ? WebGPUConstants.SamplerBindingType.Comparison : WebGPUConstants.SamplerBindingType.Filtering;
-                const samplerName = name + WebGPUShaderProcessor.AutoSamplerSuffix;
+                const samplerBindingType = isComparisonSampler ? "comparison" /* WebGPUConstants.SamplerBindingType.Comparison */ : "filtering" /* WebGPUConstants.SamplerBindingType.Filtering */;
+                const samplerName = name + `Sampler`;
                 let samplerInfo = this._webgpuProcessingContext.availableSamplers[samplerName];
                 if (!samplerInfo) {
                     samplerInfo = {
@@ -133,15 +149,15 @@ export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
                 }
                 const componentType = uniformType.charAt(0) === "u" ? "u" : uniformType.charAt(0) === "i" ? "i" : "";
                 if (componentType) {
-                    uniformType = uniformType.substr(1);
+                    uniformType = uniformType.substring(1);
                 }
                 const sampleType = isComparisonSampler
-                    ? WebGPUConstants.TextureSampleType.Depth
+                    ? "depth" /* WebGPUConstants.TextureSampleType.Depth */
                     : componentType === "u"
-                        ? WebGPUConstants.TextureSampleType.Uint
+                        ? "uint" /* WebGPUConstants.TextureSampleType.Uint */
                         : componentType === "i"
-                            ? WebGPUConstants.TextureSampleType.Sint
-                            : WebGPUConstants.TextureSampleType.Float;
+                            ? "sint" /* WebGPUConstants.TextureSampleType.Sint */
+                            : "float" /* WebGPUConstants.TextureSampleType.Float */;
                 textureInfo.sampleType = sampleType;
                 const isTextureArray = arraySize > 0;
                 const samplerGroupIndex = samplerInfo.binding.groupIndex;
@@ -152,21 +168,21 @@ export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
                 // Manage textures and samplers.
                 if (!isTextureArray) {
                     arraySize = 1;
-                    uniform = `layout(set = ${samplerGroupIndex}, binding = ${samplerBindingIndex}) uniform ${componentType}${samplerType} ${samplerName};
-                        layout(set = ${textureInfo.textures[0].groupIndex}, binding = ${textureInfo.textures[0].bindingIndex}) uniform ${textureType} ${name}Texture;
+                    uniform = `layout(set = ${samplerGroupIndex}, binding = ${samplerBindingIndex}) uniform ${samplerType} ${samplerName};
+                        layout(set = ${textureInfo.textures[0].groupIndex}, binding = ${textureInfo.textures[0].bindingIndex}) uniform ${componentType}${textureType} ${name}Texture;
                         #define ${name} ${componentType}${samplerFunction}(${name}Texture, ${samplerName})`;
                 }
                 else {
                     const layouts = [];
                     layouts.push(`layout(set = ${samplerGroupIndex}, binding = ${samplerBindingIndex}) uniform ${componentType}${samplerType} ${samplerName};`);
-                    uniform = `\r\n`;
+                    uniform = `\n`;
                     for (let i = 0; i < arraySize; ++i) {
                         const textureSetIndex = textureInfo.textures[i].groupIndex;
                         const textureBindingIndex = textureInfo.textures[i].bindingIndex;
                         layouts.push(`layout(set = ${textureSetIndex}, binding = ${textureBindingIndex}) uniform ${textureType} ${name}Texture${i};`);
-                        uniform += `${i > 0 ? "\r\n" : ""}#define ${name}${i} ${componentType}${samplerFunction}(${name}Texture${i}, ${samplerName})`;
+                        uniform += `${i > 0 ? "\n" : ""}#define ${name}${i} ${componentType}${samplerFunction}(${name}Texture${i}, ${samplerName})`;
                     }
-                    uniform = layouts.join("\r\n") + uniform;
+                    uniform = layouts.join("\n") + uniform;
                     this._textureArrayProcessing.push(name);
                 }
                 this._webgpuProcessingContext.availableTextures[name] = textureInfo;
@@ -201,12 +217,12 @@ export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
                 uniformBufferInfo = { binding };
                 this._webgpuProcessingContext.availableBuffers[name] = uniformBufferInfo;
             }
-            this._addBufferBindingDescription(name, uniformBufferInfo, WebGPUConstants.BufferBindingType.Uniform, !isFragment);
+            this._addBufferBindingDescription(name, uniformBufferInfo, "uniform" /* WebGPUConstants.BufferBindingType.Uniform */, !isFragment);
             uniformBuffer = uniformBuffer.replace("uniform", `layout(set = ${uniformBufferInfo.binding.groupIndex}, binding = ${uniformBufferInfo.binding.bindingIndex}) uniform`);
         }
         return uniformBuffer;
     }
-    postProcessor(code, defines, isFragment, processingContext, engine) {
+    postProcessor(code, defines, isFragment, _processingContext, _parameters, preProcessors) {
         const hasDrawBuffersExtension = code.search(/#extension.+GL_EXT_draw_buffers.+require/) !== -1;
         // Remove extensions
         const regex = /#extension.+(GL_OVR_multiview2|GL_OES_standard_derivatives|GL_EXT_shader_texture_lod|GL_EXT_frag_depth|GL_EXT_draw_buffers).+(enable|require)/g;
@@ -222,6 +238,7 @@ export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
                 }
             `;
             const injectCode = hasFragCoord ? "vec4 glFragCoord_;\n" : "";
+            const hasOutput = code.search(/layout *\(location *= *0\) *out/g) !== -1;
             code = code.replace(/texture2DLodEXT\s*\(/g, "textureLod(");
             code = code.replace(/textureCubeLodEXT\s*\(/g, "textureLod(");
             code = code.replace(/textureCube\s*\(/g, "texture(");
@@ -230,7 +247,7 @@ export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
             code = code.replace(/gl_FragData/g, "glFragData");
             code = code.replace(/gl_FragCoord/g, "glFragCoord_");
             if (!this._fragmentIsGLES3) {
-                code = code.replace(/void\s+?main\s*\(/g, (hasDrawBuffersExtension ? "" : "layout(location = 0) out vec4 glFragColor;\n") + "void main(");
+                code = code.replace(/void\s+?main\s*\(/g, (hasDrawBuffersExtension || hasOutput ? "" : "layout(location = 0) out vec4 glFragColor;\n") + "void main(");
             }
             else {
                 const match = /^\s*out\s+\S+\s+\S+\s*;/gm.exec(code);
@@ -241,10 +258,13 @@ export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
             code = code.replace(/dFdy/g, "(-yFactor_)*dFdy"); // will also handle dFdyCoarse and dFdyFine
             code = code.replace("##INJECTCODE##", injectCode);
             if (hasFragCoord) {
-                code = this._injectStartingAndEndingCode(code, "void main", fragCoordCode);
+                code = InjectStartingAndEndingCode(code, "void main", fragCoordCode);
             }
         }
         else {
+            if ("VERTEXOUTPUT_INVARIANT" in preProcessors) {
+                code = "invariant gl_Position;\n" + code;
+            }
             code = code.replace(/gl_InstanceID/g, "gl_InstanceIndex");
             code = code.replace(/gl_VertexID/g, "gl_VertexIndex");
             const hasMultiviewExtension = defines.indexOf("#define MULTIVIEW") !== -1;
@@ -257,9 +277,7 @@ export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
             const lastClosingCurly = code.lastIndexOf("}");
             code = code.substring(0, lastClosingCurly);
             code += "gl_Position.y *= yFactor_;\n";
-            if (!engine.isNDCHalfZRange) {
-                code += "gl_Position.z = (gl_Position.z + gl_Position.w) / 2.0;\n";
-            }
+            // isNDCHalfZRange is always true in WebGPU
             code += "}";
         }
         return code;
@@ -313,6 +331,7 @@ export class WebGPUShaderProcessorGLSL extends WebGPUShaderProcessor {
         this._collectBindingNames();
         this._preCreateBindGroupEntries();
         this._preProcessors = null;
+        this._webgpuProcessingContext.vertexBufferKindToNumberOfComponents = {};
         return { vertexCode, fragmentCode };
     }
 }

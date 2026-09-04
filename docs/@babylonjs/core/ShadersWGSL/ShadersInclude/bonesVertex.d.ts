@@ -1,5 +1,5 @@
 /** @internal */
-export declare const bonesVertex: {
+export declare const bonesVertexWGSL: {
     name: string;
     shader: string;
 };

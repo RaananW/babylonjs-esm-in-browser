@@ -1,17 +1,20 @@
-import * as WebGPUConstants from "./webgpuConstants.js";
+/* eslint-disable babylonjs/available */
+/* eslint-disable @typescript-eslint/naming-convention */
 import { PerfCounter } from "../../Misc/perfCounter.js";
 import { WebGPUQuerySet } from "./webgpuQuerySet.js";
+import { Logger } from "../../Misc/logger.js";
 /** @internal */
 export class WebGPUTimestampQuery {
-    constructor(device, bufferManager) {
+    get gpuFrameTimeCounter() {
+        return this._gpuFrameTimeCounter;
+    }
+    constructor(engine, device, bufferManager) {
         this._enabled = false;
         this._gpuFrameTimeCounter = new PerfCounter();
         this._measureDurationState = 0;
+        this._engine = engine;
         this._device = device;
         this._bufferManager = bufferManager;
-    }
-    get gpuFrameTimeCounter() {
-        return this._gpuFrameTimeCounter;
     }
     get enable() {
         return this._enabled;
@@ -23,7 +26,14 @@ export class WebGPUTimestampQuery {
         this._enabled = value;
         this._measureDurationState = 0;
         if (value) {
-            this._measureDuration = new WebGPUDurationMeasure(this._device, this._bufferManager);
+            try {
+                this._measureDuration = new WebGPUDurationMeasure(this._engine, this._device, this._bufferManager, 2000, "QuerySet_TimestampQuery");
+            }
+            catch (e) {
+                this._enabled = false;
+                Logger.Error("Could not create a WebGPUDurationMeasure!\nError: " + e.message + "\nMake sure timestamp query is supported and enabled in your browser.");
+                return;
+            }
         }
         else {
             this._measureDuration.dispose();
@@ -38,6 +48,7 @@ export class WebGPUTimestampQuery {
     endFrame(commandEncoder) {
         if (this._measureDurationState === 1) {
             this._measureDurationState = 2;
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises, github/no-then
             this._measureDuration.stop(commandEncoder).then((duration) => {
                 if (duration !== null && duration >= 0) {
                     this._gpuFrameTimeCounter.fetchNewFrame();
@@ -47,18 +58,53 @@ export class WebGPUTimestampQuery {
             });
         }
     }
+    startPass(descriptor, index) {
+        if (this._enabled) {
+            this._measureDuration.startPass(descriptor, index);
+        }
+        else {
+            descriptor.timestampWrites = undefined;
+        }
+    }
+    endPass(index, gpuPerfCounter) {
+        if (!this._enabled || !gpuPerfCounter) {
+            return;
+        }
+        const currentFrameId = this._engine.frameId;
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises, github/no-then
+        this._measureDuration.stopPass(index).then((duration_) => {
+            gpuPerfCounter._addDuration(currentFrameId, duration_ !== null && duration_ > 0 ? duration_ : 0);
+        });
+    }
+    dispose() {
+        this._measureDuration?.dispose();
+    }
 }
 /** @internal */
 export class WebGPUDurationMeasure {
-    constructor(device, bufferManager) {
-        this._querySet = new WebGPUQuerySet(2, WebGPUConstants.QueryType.Timestamp, device, bufferManager);
+    constructor(engine, device, bufferManager, count = 2, querySetLabel) {
+        this._count = count;
+        this._querySet = new WebGPUQuerySet(engine, count, "timestamp" /* WebGPUConstants.QueryType.Timestamp */, device, bufferManager, true, querySetLabel);
     }
     start(encoder) {
-        encoder.writeTimestamp(this._querySet.querySet, 0);
+        encoder.writeTimestamp?.(this._querySet.querySet, 0);
     }
     async stop(encoder) {
-        encoder.writeTimestamp(this._querySet.querySet, 1);
-        return this._querySet.readTwoValuesAndSubtract(0);
+        encoder.writeTimestamp?.(this._querySet.querySet, 1);
+        return encoder.writeTimestamp ? await this._querySet.readTwoValuesAndSubtract(0) : 0;
+    }
+    startPass(descriptor, index) {
+        if (index + 3 > this._count) {
+            throw new Error("WebGPUDurationMeasure: index out of range (" + index + ")");
+        }
+        descriptor.timestampWrites = {
+            querySet: this._querySet.querySet,
+            beginningOfPassWriteIndex: index + 2,
+            endOfPassWriteIndex: index + 3,
+        };
+    }
+    async stopPass(index) {
+        return await this._querySet.readTwoValuesAndSubtract(index + 2);
     }
     dispose() {
         this._querySet.dispose();

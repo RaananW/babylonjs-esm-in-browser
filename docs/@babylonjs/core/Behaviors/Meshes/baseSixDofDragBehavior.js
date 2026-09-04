@@ -1,9 +1,9 @@
-import { AbstractMesh } from "../../Meshes/abstractMesh.js";
-import { Scene } from "../../scene.js";
+import { Scene } from "../../scene.pure.js";
 import { PointerEventTypes } from "../../Events/pointerEvents.js";
-import { Vector3, Quaternion, TmpVectors } from "../../Maths/math.vector.js";
+import { Vector3, Quaternion, TmpVectors } from "../../Maths/math.vector.pure.js";
 import { Observable } from "../../Misc/observable.js";
-import { Camera } from "../../Cameras/camera.js";
+import { TransformNode } from "../../Meshes/transformNode.pure.js";
+import { Camera } from "../../Cameras/camera.pure.js";
 /**
  * Base behavior for six degrees of freedom interactions in XR experiences.
  * Creates virtual meshes that are dragged around
@@ -22,6 +22,7 @@ export class BaseSixDofDragBehavior {
             NEAR_DRAG: 3,
         };
         this._moving = false;
+        this._ownerNode = null;
         this._dragging = this._dragType.NONE;
         /**
          * The list of child meshes that can receive drag events
@@ -74,9 +75,11 @@ export class BaseSixDofDragBehavior {
      * Get or set the currentDraggingPointerId
      * @deprecated Please use currentDraggingPointerId instead
      */
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     get currentDraggingPointerID() {
         return this.currentDraggingPointerId;
     }
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     set currentDraggingPointerID(currentDraggingPointerID) {
         this.currentDraggingPointerId = currentDraggingPointerID;
     }
@@ -91,6 +94,12 @@ export class BaseSixDofDragBehavior {
      */
     get isMoving() {
         return this._moving;
+    }
+    /**
+     * Attached node of this behavior
+     */
+    get attachedNode() {
+        return this._ownerNode;
     }
     /**
      *  Initializes the behavior
@@ -109,11 +118,11 @@ export class BaseSixDofDragBehavior {
     }
     _createVirtualMeshInfo() {
         // Setup virtual meshes to be used for dragging without dirtying the existing scene
-        const dragMesh = new AbstractMesh("", BaseSixDofDragBehavior._virtualScene);
+        const dragMesh = new TransformNode("", BaseSixDofDragBehavior._VirtualScene);
         dragMesh.rotationQuaternion = new Quaternion();
-        const originMesh = new AbstractMesh("", BaseSixDofDragBehavior._virtualScene);
+        const originMesh = new TransformNode("", BaseSixDofDragBehavior._VirtualScene);
         originMesh.rotationQuaternion = new Quaternion();
-        const pivotMesh = new AbstractMesh("", BaseSixDofDragBehavior._virtualScene);
+        const pivotMesh = new TransformNode("", BaseSixDofDragBehavior._VirtualScene);
         pivotMesh.rotationQuaternion = new Quaternion();
         return {
             dragging: false,
@@ -146,7 +155,7 @@ export class BaseSixDofDragBehavior {
         }
         const virtualMeshesInfo = this._virtualMeshesInfo[pointerId];
         // Calculate controller drag distance in controller space
-        const originDragDifference = TmpVectors.Vector3[0];
+        const originDragDifference = TmpVectors.Vector3[11];
         ray.origin.subtractToRef(virtualMeshesInfo.lastOriginPosition, originDragDifference);
         virtualMeshesInfo.lastOriginPosition.copyFrom(ray.origin);
         const localOriginDragDifference = -Vector3.Dot(originDragDifference, ray.direction);
@@ -156,7 +165,7 @@ export class BaseSixDofDragBehavior {
         this._applyZOffset(virtualMeshesInfo.pivotMesh, localOriginDragDifference, zDragFactor);
         // Update the controller position
         virtualMeshesInfo.originMesh.position.copyFrom(ray.origin);
-        const lookAt = TmpVectors.Vector3[0];
+        const lookAt = TmpVectors.Vector3[10];
         ray.origin.addToRef(ray.direction, lookAt);
         virtualMeshesInfo.originMesh.lookAt(lookAt);
         virtualMeshesInfo.originMesh.removeChild(virtualMeshesInfo.dragMesh);
@@ -176,15 +185,15 @@ export class BaseSixDofDragBehavior {
         // Z scaling logic
         if (zDragFactor !== 0) {
             // Camera.getForwardRay modifies TmpVectors.Vector[0-3], so cache it in advance
-            const cameraForwardVec = TmpVectors.Vector3[0];
-            const originDragDirection = TmpVectors.Vector3[1];
+            const cameraForwardVec = TmpVectors.Vector3[10];
+            const originDragDirection = TmpVectors.Vector3[11];
             cameraForwardVec.copyFrom(this._pointerCamera.getForwardRay().direction);
             virtualMeshesInfo.originMesh.position.subtractToRef(virtualMeshesInfo.lastOriginPosition, originDragDirection);
             virtualMeshesInfo.lastOriginPosition.copyFrom(virtualMeshesInfo.originMesh.position);
             const controllerDragDistance = originDragDirection.length();
             originDragDirection.normalize();
-            const cameraToDrag = TmpVectors.Vector3[2];
-            const controllerToDrag = TmpVectors.Vector3[3];
+            const cameraToDrag = TmpVectors.Vector3[12];
+            const controllerToDrag = TmpVectors.Vector3[9];
             virtualMeshesInfo.dragMesh.absolutePosition.subtractToRef(this._pointerCamera.globalPosition, cameraToDrag);
             virtualMeshesInfo.dragMesh.absolutePosition.subtractToRef(virtualMeshesInfo.originMesh.position, controllerToDrag);
             const controllerToDragDistance = controllerToDrag.length();
@@ -211,9 +220,9 @@ export class BaseSixDofDragBehavior {
     attach(ownerNode) {
         this._ownerNode = ownerNode;
         this._scene = this._ownerNode.getScene();
-        if (!BaseSixDofDragBehavior._virtualScene) {
-            BaseSixDofDragBehavior._virtualScene = new Scene(this._scene.getEngine(), { virtual: true });
-            BaseSixDofDragBehavior._virtualScene.detachControl();
+        if (!BaseSixDofDragBehavior._VirtualScene) {
+            BaseSixDofDragBehavior._VirtualScene = new Scene(this._scene.getEngine(), { virtual: true });
+            BaseSixDofDragBehavior._VirtualScene.detachControl();
         }
         const pickPredicate = (m) => {
             return this._ownerNode === m || (m.isDescendantOf(this._ownerNode) && (!this.draggableMeshes || this.draggableMeshes.indexOf(m) !== -1));
@@ -224,7 +233,8 @@ export class BaseSixDofDragBehavior {
                 this._virtualMeshesInfo[pointerId] = this._createVirtualMeshInfo();
             }
             const virtualMeshesInfo = this._virtualMeshesInfo[pointerId];
-            const isXRNearPointer = pointerInfo.event.pointerType === "xr-near";
+            const isXRPointer = pointerInfo.event.pointerType === "xr-near" || pointerInfo.event.pointerType === "xr";
+            const isNearXRPointer = pointerInfo.event.pointerType === "xr-near";
             if (pointerInfo.type == PointerEventTypes.POINTERDOWN) {
                 if (!virtualMeshesInfo.dragging &&
                     pointerInfo.pickInfo &&
@@ -232,9 +242,9 @@ export class BaseSixDofDragBehavior {
                     pointerInfo.pickInfo.pickedMesh &&
                     pointerInfo.pickInfo.pickedPoint &&
                     pointerInfo.pickInfo.ray &&
-                    (!isXRNearPointer || pointerInfo.pickInfo.aimTransform) &&
+                    (!isNearXRPointer || pointerInfo.pickInfo.aimTransform) &&
                     pickPredicate(pointerInfo.pickInfo.pickedMesh)) {
-                    if (!this.allowMultiPointer && this.currentDraggingPointerIds.length > 0) {
+                    if ((!this.allowMultiPointer || isXRPointer) && this.currentDraggingPointerIds.length > 0) {
                         return;
                     }
                     if (this._pointerCamera &&
@@ -245,7 +255,7 @@ export class BaseSixDofDragBehavior {
                     }
                     this._ownerNode.computeWorldMatrix(true);
                     const virtualMeshesInfo = this._virtualMeshesInfo[pointerId];
-                    if (isXRNearPointer) {
+                    if (isXRPointer) {
                         this._dragging = pointerInfo.pickInfo.originMesh ? this._dragType.NEAR_DRAG : this._dragType.DRAG_WITH_CONTROLLER;
                         virtualMeshesInfo.originMesh.position.copyFrom(pointerInfo.pickInfo.aimTransform.position);
                         if (this._dragging === this._dragType.NEAR_DRAG && pointerInfo.pickInfo.gripTransform) {
@@ -268,7 +278,7 @@ export class BaseSixDofDragBehavior {
                     virtualMeshesInfo.startingPivotPosition.copyFrom(virtualMeshesInfo.pivotMesh.position);
                     virtualMeshesInfo.startingOrientation.copyFrom(virtualMeshesInfo.dragMesh.rotationQuaternion);
                     virtualMeshesInfo.startingPivotOrientation.copyFrom(virtualMeshesInfo.pivotMesh.rotationQuaternion);
-                    if (isXRNearPointer) {
+                    if (isNearXRPointer) {
                         virtualMeshesInfo.originMesh.addChild(virtualMeshesInfo.dragMesh);
                         virtualMeshesInfo.originMesh.addChild(virtualMeshesInfo.pivotMesh);
                     }
@@ -286,7 +296,7 @@ export class BaseSixDofDragBehavior {
                             this._pointerCamera.detachControl();
                             this._attachedToElement = true;
                         }
-                        else {
+                        else if (!this.allowMultiPointer || this.currentDraggingPointerIds.length === 0) {
                             this._attachedToElement = false;
                         }
                     }
@@ -325,7 +335,7 @@ export class BaseSixDofDragBehavior {
                         zDragFactor = 0;
                     }
                     this._ownerNode.computeWorldMatrix(true);
-                    if (!isXRNearPointer) {
+                    if (!isNearXRPointer) {
                         this._pointerUpdate2D(pointerInfo.pickInfo.ray, pointerId, zDragFactor);
                     }
                     else {
@@ -396,6 +406,7 @@ export class BaseSixDofDragBehavior {
         this.onDragEndObservable.clear();
         this.onDragObservable.clear();
         this.onDragStartObservable.clear();
+        this._ownerNode = null;
     }
 }
 //# sourceMappingURL=baseSixDofDragBehavior.js.map

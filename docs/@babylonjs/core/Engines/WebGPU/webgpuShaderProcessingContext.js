@@ -1,7 +1,7 @@
-const _maxGroups = 4;
-const _maxBindingsPerGroup = 1 << 16;
+const MaxGroups = 4;
+const MaxBindingsPerGroup = 1 << 16;
 // all types not listed are assumed to consume 1 location
-const _typeToLocationSize = {
+const TypeToLocationSize = {
     // GLSL types
     mat2: 2,
     mat3: 3,
@@ -15,7 +15,11 @@ const _typeToLocationSize = {
  * @internal
  */
 export class WebGPUShaderProcessingContext {
-    constructor(shaderLanguage) {
+    static get KnownUBOs() {
+        return WebGPUShaderProcessingContext._SimplifiedKnownBindings ? WebGPUShaderProcessingContext._SimplifiedKnownUBOs : WebGPUShaderProcessingContext._KnownUBOs;
+    }
+    constructor(shaderLanguage, pureMode = false) {
+        this.vertexBufferKindToNumberOfComponents = {};
         this.shaderLanguage = shaderLanguage;
         this._attributeNextLocation = 0;
         this._varyingNextLocation = 0;
@@ -34,10 +38,9 @@ export class WebGPUShaderProcessingContext {
         this.textureNames = [];
         this.samplerNames = [];
         this.leftOverUniforms = [];
-        this._findStartingGroupBinding();
-    }
-    static get KnownUBOs() {
-        return WebGPUShaderProcessingContext._SimplifiedKnownBindings ? WebGPUShaderProcessingContext._SimplifiedKnownUBOs : WebGPUShaderProcessingContext._KnownUBOs;
+        if (!pureMode) {
+            this._findStartingGroupBinding();
+        }
     }
     _findStartingGroupBinding() {
         const knownUBOs = WebGPUShaderProcessingContext.KnownUBOs;
@@ -64,26 +67,25 @@ export class WebGPUShaderProcessingContext {
         }
     }
     getAttributeNextLocation(dataType, arrayLength = 0) {
-        var _a;
         const index = this._attributeNextLocation;
-        this._attributeNextLocation += ((_a = _typeToLocationSize[dataType]) !== null && _a !== void 0 ? _a : 1) * (arrayLength || 1);
+        this._attributeNextLocation += (TypeToLocationSize[dataType] ?? 1) * (arrayLength || 1);
         return index;
     }
     getVaryingNextLocation(dataType, arrayLength = 0) {
-        var _a;
         const index = this._varyingNextLocation;
-        this._varyingNextLocation += ((_a = _typeToLocationSize[dataType]) !== null && _a !== void 0 ? _a : 1) * (arrayLength || 1);
+        this._varyingNextLocation += (TypeToLocationSize[dataType] ?? 1) * (arrayLength || 1);
         return index;
     }
     getNextFreeUBOBinding() {
         return this._getNextFreeBinding(1);
     }
     _getNextFreeBinding(bindingCount) {
-        if (this.freeBindingIndex > _maxBindingsPerGroup - bindingCount) {
+        if (this.freeBindingIndex > MaxBindingsPerGroup - bindingCount) {
             this.freeGroupIndex++;
             this.freeBindingIndex = 0;
         }
-        if (this.freeGroupIndex === _maxGroups) {
+        if (this.freeGroupIndex === MaxGroups) {
+            // eslint-disable-next-line no-throw-literal
             throw "Too many textures or UBOs have been declared and it is not supported in WebGPU.";
         }
         const returnValue = {

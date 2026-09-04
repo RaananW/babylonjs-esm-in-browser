@@ -1,27 +1,5 @@
-import { NodeMaterialBlock } from "../nodeMaterialBlock";
-import type { NodeMaterialBuildState } from "../nodeMaterialBuildState";
-import type { NodeMaterialConnectionPoint } from "../nodeMaterialBlockConnectionPoint";
 /**
- * Block used to compute the determinant of a matrix
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import matrixDeterminantBlock.pure for tree-shakeable, side-effect-free usage.
  */
-export declare class MatrixDeterminantBlock extends NodeMaterialBlock {
-    /**
-     * Creates a new MatrixDeterminantBlock
-     * @param name defines the block name
-     */
-    constructor(name: string);
-    /**
-     * Gets the current class name
-     * @returns the class name
-     */
-    getClassName(): string;
-    /**
-     * Gets the input matrix
-     */
-    get input(): NodeMaterialConnectionPoint;
-    /**
-     * Gets the output component
-     */
-    get output(): NodeMaterialConnectionPoint;
-    protected _buildBlock(state: NodeMaterialBuildState): this;
-}
+export * from "./matrixDeterminantBlock.pure.js";

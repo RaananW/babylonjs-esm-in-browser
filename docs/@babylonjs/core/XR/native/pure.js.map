@@ -1,0 +1,1 @@
+{"version":3,"file":"pure.js","sourceRoot":"","sources":["../../../../../dev/core/src/XR/native/pure.ts"],"names":[],"mappings":"AAAA,6DAA6D;AAC7D,cAAc,wBAAwB,CAAC;AACvC,cAAc,sBAAsB,CAAC","sourcesContent":["/** Pure barrel — re-exports only side-effect-free modules */\nexport * from \"./nativeXRRenderTarget\";\nexport * from \"./nativeXRFrame.pure\";\n"]}

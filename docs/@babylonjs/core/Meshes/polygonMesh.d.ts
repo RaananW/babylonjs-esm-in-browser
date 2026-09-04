@@ -1,8 +1,8 @@
-import type { Scene } from "../scene";
-import { Vector2 } from "../Maths/math.vector";
-import { Mesh } from "../Meshes/mesh";
-import { VertexData } from "../Meshes/mesh.vertexData";
-import { Path2 } from "../Maths/math.path";
+import { type Scene } from "../scene.js";
+import { Vector2 } from "../Maths/math.vector.pure.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
+import { VertexData } from "../Meshes/mesh.vertexData.js";
+import { Path2 } from "../Maths/math.path.js";
 /**
  * Polygon
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/creation/param#non-regular-polygon

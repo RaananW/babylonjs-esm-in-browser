@@ -1,13 +1,13 @@
-import { Observable } from "../Misc/observable";
-import type { Nullable } from "../types";
-import type { Scene } from "../scene";
-import { Vector3 } from "../Maths/math.vector";
-import { Color3 } from "../Maths/math.color";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import { Mesh } from "../Meshes/mesh";
-import { BaseTexture } from "../Materials/Textures/baseTexture";
-import { MirrorTexture } from "../Materials/Textures/mirrorTexture";
-import { BackgroundMaterial } from "../Materials/Background/backgroundMaterial";
+import { Observable } from "../Misc/observable.js";
+import { type Nullable } from "../types.js";
+import { type Scene } from "../scene.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { Color3 } from "../Maths/math.color.pure.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
+import { BaseTexture } from "../Materials/Textures/baseTexture.pure.js";
+import { MirrorTexture } from "../Materials/Textures/mirrorTexture.pure.js";
+import { BackgroundMaterial } from "../Materials/Background/backgroundMaterial.pure.js";
 /**
  * Represents the different options available during the creation of
  * a Environment helper.
@@ -160,9 +160,9 @@ export interface IEnvironmentHelperOptions {
     toneMappingEnabled: boolean;
 }
 /**
- * The Environment helper class can be used to add a fully featured none expensive background to your scene.
+ * The EnvironmentHelper class can be used to add a fully featured non-expensive background to your scene.
  * It includes by default a skybox and a ground relying on the BackgroundMaterial.
- * It also helps with the default setup of your imageProcessing configuration.
+ * It also helps with the default setup of your ImageProcessingConfiguration.
  */
 export declare class EnvironmentHelper {
     /**
@@ -179,6 +179,8 @@ export declare class EnvironmentHelper {
     private static _EnvironmentTextureCDNUrl;
     /**
      * Creates the default options for the helper.
+     * @param scene The scene the environment helper belongs to.
+     * @returns default options for the helper.
      */
     private static _GetDefaultOptions;
     private _rootMesh;
@@ -246,8 +248,8 @@ export declare class EnvironmentHelper {
      */
     constructor(options: Partial<IEnvironmentHelperOptions>, scene: Scene);
     /**
-     * Updates the background according to the new options
-     * @param options
+     * Updates the environment according to the new options
+     * @param options options to configure the helper (IEnvironmentHelperOptions)
      */
     updateOptions(options: Partial<IEnvironmentHelperOptions>): void;
     /**
@@ -269,6 +271,7 @@ export declare class EnvironmentHelper {
     private _setupBackground;
     /**
      * Get the scene sizes according to the setup.
+     * @returns the different ground and skybox sizes.
      */
     private _getSceneSize;
     /**

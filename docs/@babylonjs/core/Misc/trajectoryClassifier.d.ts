@@ -1,5 +1,5 @@
-import type { DeepImmutable, Nullable } from "../types";
-import { Vector3 } from "../Maths/math.vector";
+import { type DeepImmutable, type Nullable } from "../types.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
 /**
  * A 3D trajectory consisting of an order list of vectors describing a
  * path of motion through 3D space.

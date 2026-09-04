@@ -1,0 +1,1 @@
+{"version":3,"file":"effect.webgl.functions.js","sourceRoot":"","sources":["../../../../dev/core/src/Materials/effect.webgl.functions.ts"],"names":[],"mappings":"AAAA,cAAc,+BAA+B,CAAC","sourcesContent":["export * from \"./effect.webgl.functions.pure\";\n"]}

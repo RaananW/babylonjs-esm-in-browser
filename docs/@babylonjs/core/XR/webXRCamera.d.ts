@@ -1,10 +1,10 @@
-import { Vector3 } from "../Maths/math.vector";
-import type { Scene } from "../scene";
-import { Camera } from "../Cameras/camera";
-import { FreeCamera } from "../Cameras/freeCamera";
-import type { WebXRSessionManager } from "./webXRSessionManager";
-import { Observable } from "../Misc/observable";
-import { WebXRTrackingState } from "./webXRTypes";
+import { Vector3, Quaternion } from "../Maths/math.vector.pure.js";
+import { type Scene } from "../scene.js";
+import { Camera } from "../Cameras/camera.pure.js";
+import { FreeCamera } from "../Cameras/freeCamera.pure.js";
+import { type WebXRSessionManager } from "./webXRSessionManager.js";
+import { Observable } from "../Misc/observable.js";
+import { WebXRTrackingState } from "./webXRTypes.js";
 /**
  * WebXR Camera which holds the views for the xrSession
  * @see https://doc.babylonjs.com/features/featuresDeepDive/webXR/webXRCamera
@@ -13,15 +13,25 @@ export declare class WebXRCamera extends FreeCamera {
     private _xrSessionManager;
     private static _ScaleReadOnly;
     private _firstFrame;
+    private _xrSessionInitObserver;
+    private _xrFrameObserver;
     private _referenceQuaternion;
     private _referencedPosition;
     private _trackingState;
+    private _onWorldScaleFactorChanged;
+    /**
+     * This will be triggered after the first XR Frame initialized the camera,
+     * including the right number of views and their rendering parameters
+     */
+    onXRCameraInitializedObservable: Observable<WebXRCamera>;
     /**
      * Observable raised before camera teleportation
+     * @deprecated use onBeforeCameraTeleport of the teleportation feature instead
      */
     onBeforeCameraTeleport: Observable<Vector3>;
     /**
      *  Observable raised after camera teleportation
+     * @deprecated use onAfterCameraTeleport of the teleportation feature instead
      */
     onAfterCameraTeleport: Observable<Vector3>;
     /**
@@ -40,6 +50,10 @@ export declare class WebXRCamera extends FreeCamera {
      */
     _lastXRViewerPose?: XRViewerPose;
     /**
+     * webXRCamera relies on rotationQuaternion and doesn't use camera rotation property
+     */
+    rotationQuaternion: Quaternion;
+    /**
      * Creates a new webXRCamera, this should only be set at the camera after it has been updated by the xrSessionManager
      * @param name the name of the camera
      * @param scene the scene to add the camera to
@@ -54,6 +68,8 @@ export declare class WebXRCamera extends FreeCamera {
     /**
      * Return the user's height, unrelated to the current ground.
      * This will be the y position of this camera, when ground level is 0.
+     *
+     * Note - this value is multiplied by the worldScalingFactor (if set), so it will be in the same units as the scene.
      */
     get realWorldHeight(): number;
     /** @internal */
@@ -69,8 +85,14 @@ export declare class WebXRCamera extends FreeCamera {
      * @returns the class name
      */
     getClassName(): string;
+    /**
+     * Set the target for the camera to look at.
+     * Note that this only rotates around the Y axis, as opposed to the default behavior of other cameras
+     * @param target the target to set the camera to look at
+     */
+    setTarget(target: Vector3): void;
     dispose(): void;
-    private _rotate180;
+    private _updateDepthNearFar;
     private _updateFromXRSession;
     private _updateNumberOfRigCameras;
     private _updateReferenceSpace;

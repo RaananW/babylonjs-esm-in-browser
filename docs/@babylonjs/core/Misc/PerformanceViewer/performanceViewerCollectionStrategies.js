@@ -3,7 +3,7 @@ import { PrecisionDate } from "../precisionDate.js";
 import { SceneInstrumentation } from "../../Instrumentation/sceneInstrumentation.js";
 import { PressureObserverWrapper } from "../pressureObserverWrapper.js";
 // Dispose which does nothing.
-const defaultDisposeImpl = () => { };
+const DefaultDisposeImpl = () => { };
 /**
  * Defines the predefined strategies used in the performance viewer.
  */
@@ -18,7 +18,7 @@ export class PerfCollectionStrategy {
             return {
                 id: "FPS",
                 getData: () => engine.getFps(),
-                dispose: defaultDisposeImpl,
+                dispose: DefaultDisposeImpl,
             };
         };
     }
@@ -53,7 +53,7 @@ export class PerfCollectionStrategy {
             wrapper.observe("cpu");
             wrapper.onPressureChanged.add((update) => {
                 for (const record of update) {
-                    if ((factor && record.factors.includes(factor)) || (!factor && record.factors.length === 0)) {
+                    if ((factor && record.factors.includes(factor)) || (!factor && (record.factors?.length ?? 0) === 0)) {
                         // Let s consider each step being 25% of the total pressure.
                         switch (record.state) {
                             case "nominal":
@@ -88,7 +88,7 @@ export class PerfCollectionStrategy {
             return {
                 id: "Total meshes",
                 getData: () => scene.meshes.length,
-                dispose: defaultDisposeImpl,
+                dispose: DefaultDisposeImpl,
             };
         };
     }
@@ -101,7 +101,7 @@ export class PerfCollectionStrategy {
             return {
                 id: "Active meshes",
                 getData: () => scene.getActiveMeshes().length,
-                dispose: defaultDisposeImpl,
+                dispose: DefaultDisposeImpl,
             };
         };
     }
@@ -114,7 +114,7 @@ export class PerfCollectionStrategy {
             return {
                 id: "Active indices",
                 getData: () => scene.getActiveIndices(),
-                dispose: defaultDisposeImpl,
+                dispose: DefaultDisposeImpl,
             };
         };
     }
@@ -127,7 +127,7 @@ export class PerfCollectionStrategy {
             return {
                 id: "Active faces",
                 getData: () => scene.getActiveIndices() / 3,
-                dispose: defaultDisposeImpl,
+                dispose: DefaultDisposeImpl,
             };
         };
     }
@@ -140,7 +140,7 @@ export class PerfCollectionStrategy {
             return {
                 id: "Active bones",
                 getData: () => scene.getActiveBones(),
-                dispose: defaultDisposeImpl,
+                dispose: DefaultDisposeImpl,
             };
         };
     }
@@ -153,7 +153,7 @@ export class PerfCollectionStrategy {
             return {
                 id: "Active particles",
                 getData: () => scene.getActiveParticles(),
-                dispose: defaultDisposeImpl,
+                dispose: DefaultDisposeImpl,
             };
         };
     }
@@ -189,7 +189,7 @@ export class PerfCollectionStrategy {
             return {
                 id: "Total lights",
                 getData: () => scene.lights.length,
-                dispose: defaultDisposeImpl,
+                dispose: DefaultDisposeImpl,
             };
         };
     }
@@ -202,7 +202,7 @@ export class PerfCollectionStrategy {
             return {
                 id: "Total vertices",
                 getData: () => scene.getTotalVertices(),
-                dispose: defaultDisposeImpl,
+                dispose: DefaultDisposeImpl,
             };
         };
     }
@@ -215,7 +215,7 @@ export class PerfCollectionStrategy {
             return {
                 id: "Total materials",
                 getData: () => scene.materials.length,
-                dispose: defaultDisposeImpl,
+                dispose: DefaultDisposeImpl,
             };
         };
     }
@@ -228,7 +228,7 @@ export class PerfCollectionStrategy {
             return {
                 id: "Total textures",
                 getData: () => scene.textures.length,
-                dispose: defaultDisposeImpl,
+                dispose: DefaultDisposeImpl,
             };
         };
     }
@@ -245,7 +245,7 @@ export class PerfCollectionStrategy {
                 getData: () => {
                     return 1000.0 / sceneInstrumentation.frameTimeCounter.lastSecAverage;
                 },
-                dispose: defaultDisposeImpl,
+                dispose: DefaultDisposeImpl,
             };
         };
     }
@@ -327,22 +327,20 @@ export class PerfCollectionStrategy {
      */
     static SpritesStrategy() {
         return (scene) => {
-            var _a, _b;
             let startTime = PrecisionDate.Now;
             let timeTaken = 0;
-            const onBeforeSpritesObserver = (_a = scene.onBeforeSpritesRenderingObservable) === null || _a === void 0 ? void 0 : _a.add(() => {
+            const onBeforeSpritesObserver = scene.onBeforeSpritesRenderingObservable?.add(() => {
                 startTime = PrecisionDate.Now;
             });
-            const onAfterSpritesObserver = (_b = scene.onAfterSpritesRenderingObservable) === null || _b === void 0 ? void 0 : _b.add(() => {
+            const onAfterSpritesObserver = scene.onAfterSpritesRenderingObservable?.add(() => {
                 timeTaken = PrecisionDate.Now - startTime;
             });
             return {
                 id: "Sprites",
                 getData: () => timeTaken,
                 dispose: () => {
-                    var _a, _b;
-                    (_a = scene.onBeforeSpritesRenderingObservable) === null || _a === void 0 ? void 0 : _a.remove(onBeforeSpritesObserver);
-                    (_b = scene.onAfterSpritesRenderingObservable) === null || _b === void 0 ? void 0 : _b.remove(onAfterSpritesObserver);
+                    scene.onBeforeSpritesRenderingObservable?.remove(onBeforeSpritesObserver);
+                    scene.onAfterSpritesRenderingObservable?.remove(onAfterSpritesObserver);
                 },
             };
         };
@@ -377,22 +375,20 @@ export class PerfCollectionStrategy {
      */
     static PhysicsStrategy() {
         return (scene) => {
-            var _a, _b;
             let startTime = PrecisionDate.Now;
             let timeTaken = 0;
-            const onBeforePhysicsObserver = (_a = scene.onBeforePhysicsObservable) === null || _a === void 0 ? void 0 : _a.add(() => {
+            const onBeforePhysicsObserver = scene.onBeforePhysicsObservable?.add(() => {
                 startTime = PrecisionDate.Now;
             });
-            const onAfterPhysicsObserver = (_b = scene.onAfterPhysicsObservable) === null || _b === void 0 ? void 0 : _b.add(() => {
+            const onAfterPhysicsObserver = scene.onAfterPhysicsObservable?.add(() => {
                 timeTaken = PrecisionDate.Now - startTime;
             });
             return {
                 id: "Physics",
                 getData: () => timeTaken,
                 dispose: () => {
-                    var _a, _b;
-                    (_a = scene.onBeforePhysicsObservable) === null || _a === void 0 ? void 0 : _a.remove(onBeforePhysicsObserver);
-                    (_b = scene.onAfterPhysicsObservable) === null || _b === void 0 ? void 0 : _b.remove(onAfterPhysicsObserver);
+                    scene.onBeforePhysicsObservable?.remove(onBeforePhysicsObserver);
+                    scene.onAfterPhysicsObservable?.remove(onAfterPhysicsObserver);
                 },
             };
         };

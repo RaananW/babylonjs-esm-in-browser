@@ -1,4 +1,4 @@
-import type { IDisposable } from "../../scene";
+import { type IDisposable } from "../../scene.js";
 /**
  * Configuration for meshoptimizer compression
  */
@@ -41,7 +41,7 @@ export declare class MeshoptCompression implements IDisposable {
      * The configuration. Defaults to the following:
      * ```javascript
      * decoder: {
-     *   url: "https://preview.babylonjs.com/meshopt_decoder.js"
+     *   url: "https://cdn.babylonjs.com/meshopt_decoder.js"
      * }
      * ```
      */

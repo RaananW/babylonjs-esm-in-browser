@@ -1,17 +1,16 @@
-import type { Observer } from "../Misc/observable";
-import { Observable } from "../Misc/observable";
-import type { Nullable } from "../types";
-import type { PointerInfo } from "../Events/pointerEvents";
-import type { Scene } from "../scene";
-import { Vector3 } from "../Maths/math.vector";
-import { AbstractMesh } from "../Meshes/abstractMesh";
-import type { Mesh } from "../Meshes/mesh";
-import { PointerDragBehavior } from "../Behaviors/Meshes/pointerDragBehavior";
-import type { IGizmo } from "./gizmo";
-import { Gizmo } from "./gizmo";
-import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer";
-import { StandardMaterial } from "../Materials/standardMaterial";
-import { Color3 } from "../Maths/math.color";
+import { type Observer, Observable } from "../Misc/observable.js";
+import { type Nullable } from "../types.js";
+import { type PointerInfo } from "../Events/pointerEvents.js";
+import { type Scene } from "../scene.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
+import { PointerDragBehavior } from "../Behaviors/Meshes/pointerDragBehavior.js";
+import { type IGizmo, Gizmo } from "./gizmo.js";
+import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer.js";
+import { StandardMaterial } from "../Materials/standardMaterial.pure.js";
+import { Color3 } from "../Maths/math.color.pure.js";
+import { TransformNode } from "../Meshes/transformNode.pure.js";
 /**
  * Interface for bounding box gizmo
  */
@@ -24,17 +23,17 @@ export interface IBoundingBoxGizmo extends IGizmo {
      * Returns true if a descendant should be included when computing the bounding box. When null, all descendants are included. If ignoreChildren is set this will be ignored.
      */
     includeChildPredicate: Nullable<(abstractMesh: AbstractMesh) => boolean>;
-    /** The size of the rotation spheres attached to the bounding box */
+    /** The size of the rotation anchors attached to the bounding box */
     rotationSphereSize: number;
     /** The size of the scale boxes attached to the bounding box */
     scaleBoxSize: number;
     /**
-     * If set, the rotation spheres and scale boxes will increase in size based on the distance away from the camera to have a consistent screen size
+     * If set, the rotation anchors and scale boxes will increase in size based on the distance away from the camera to have a consistent screen size
      * Note : fixedDragMeshScreenSize takes precedence over fixedDragMeshBoundsSize if both are true
      */
     fixedDragMeshScreenSize: boolean;
     /**
-     * If set, the rotation spheres and scale boxes will increase in size based on the size of the bounding box
+     * If set, the rotation anchors and scale boxes will increase in size based on the size of the bounding box
      * Note : fixedDragMeshScreenSize takes precedence over fixedDragMeshBoundsSize if both are true
      */
     fixedDragMeshBoundsSize: boolean;
@@ -42,16 +41,37 @@ export interface IBoundingBoxGizmo extends IGizmo {
      * The distance away from the object which the draggable meshes should appear world sized when fixedDragMeshScreenSize is set to true
      */
     fixedDragMeshScreenSizeDistanceFactor: number;
-    /** Fired when a rotation sphere or scale box is dragged */
-    onDragStartObservable: Observable<{}>;
+    /** True when a rotation anchor or scale box or a attached mesh is dragged */
+    readonly isDragging: boolean;
+    /** Fired when a rotation anchor or scale box is dragged */
+    onDragStartObservable: Observable<{
+        dragOperation: DragOperation;
+        dragAxis: Vector3;
+    }>;
+    /** Fired when the gizmo mesh hovering starts*/
+    onHoverStartObservable: Observable<void>;
+    /** Fired when the gizmo mesh hovering ends*/
+    onHoverEndObservable: Observable<void>;
     /** Fired when a scale box is dragged */
-    onScaleBoxDragObservable: Observable<{}>;
+    onScaleBoxDragObservable: Observable<{
+        dragOperation: DragOperation;
+        dragAxis: Vector3;
+    }>;
     /** Fired when a scale box drag is ended */
-    onScaleBoxDragEndObservable: Observable<{}>;
-    /** Fired when a rotation sphere is dragged */
-    onRotationSphereDragObservable: Observable<{}>;
-    /** Fired when a rotation sphere drag is ended */
-    onRotationSphereDragEndObservable: Observable<{}>;
+    onScaleBoxDragEndObservable: Observable<{
+        dragOperation: DragOperation;
+        dragAxis: Vector3;
+    }>;
+    /** Fired when a rotation anchor is dragged */
+    onRotationSphereDragObservable: Observable<{
+        dragOperation: DragOperation;
+        dragAxis: Vector3;
+    }>;
+    /** Fired when a rotation anchor drag is ended */
+    onRotationSphereDragEndObservable: Observable<{
+        dragOperation: DragOperation;
+        dragAxis: Vector3;
+    }>;
     /** Relative bounding box pivot used when scaling the attached node. */
     scalePivot: Nullable<Vector3>;
     /** Scale factor vector used for masking some axis */
@@ -80,22 +100,50 @@ export interface IBoundingBoxGizmo extends IGizmo {
     setEnabledScaling(enable: boolean, homogeneousScaling?: boolean): void;
     /** Enables a pointer drag behavior on the bounding box of the gizmo */
     enableDragBehavior(): void;
+    /**
+     * Force release the drag action by code
+     */
+    releaseDrag(): void;
     /** Default material used to render when gizmo is not disabled or hovered */
     coloredMaterial: StandardMaterial;
     /** Material used to render when gizmo is hovered with mouse*/
     hoverMaterial: StandardMaterial;
+    /** Drag distance in babylon units that the gizmo will snap scaling to when dragged */
+    scalingSnapDistance: number;
+    /** Drag distance in babylon units that the gizmo will snap rotation to when dragged */
+    rotationSnapDistance: number;
+}
+/**
+ * Dragging operation in observable
+ */
+export declare enum DragOperation {
+    Rotation = 0,
+    Scaling = 1
 }
 /**
  * Bounding box gizmo
  */
 export declare class BoundingBoxGizmo extends Gizmo implements IBoundingBoxGizmo {
-    protected _lineBoundingBox: AbstractMesh;
-    protected _rotateSpheresParent: AbstractMesh;
-    protected _scaleBoxesParent: AbstractMesh;
+    protected _lineBoundingBox: TransformNode;
+    protected _rotateAnchorsParent: TransformNode;
+    protected _scaleBoxesParent: TransformNode;
     protected _boundingDimensions: Vector3;
     protected _renderObserver: Nullable<Observer<Scene>>;
     protected _pointerObserver: Nullable<Observer<PointerInfo>>;
     protected _scaleDragSpeed: number;
+    protected _rotateAnchorsDragBehaviors: Array<PointerDragBehavior>;
+    protected _scaleBoxesDragBehaviors: Array<PointerDragBehavior>;
+    /**
+     * boolean updated when a rotation anchor or scale box is dragged
+     */
+    protected _dragging: boolean;
+    private _tmpQuaternion;
+    private _tmpVector;
+    private _tmpRotationMatrix;
+    private _incrementalStartupValue;
+    private _incrementalAnchorStartupValue;
+    private _isCenterScaleModeActive;
+    private _centerScaleKeyObserver;
     /**
      * If child meshes should be ignored when calculating the bounding box. This should be set to true to avoid perf hits with heavily nested meshes (Default: false)
      */
@@ -105,7 +153,7 @@ export declare class BoundingBoxGizmo extends Gizmo implements IBoundingBoxGizmo
      */
     includeChildPredicate: Nullable<(abstractMesh: AbstractMesh) => boolean>;
     /**
-     * The size of the rotation spheres attached to the bounding box (Default: 0.1)
+     * The size of the rotation anchors attached to the bounding box (Default: 0.1)
      */
     rotationSphereSize: number;
     /**
@@ -113,12 +161,12 @@ export declare class BoundingBoxGizmo extends Gizmo implements IBoundingBoxGizmo
      */
     scaleBoxSize: number;
     /**
-     * If set, the rotation spheres and scale boxes will increase in size based on the distance away from the camera to have a consistent screen size (Default: false)
+     * If set, the rotation anchors and scale boxes will increase in size based on the distance away from the camera to have a consistent screen size (Default: false)
      * Note : fixedDragMeshScreenSize takes precedence over fixedDragMeshBoundsSize if both are true
      */
     fixedDragMeshScreenSize: boolean;
     /**
-     * If set, the rotation spheres and scale boxes will increase in size based on the size of the bounding box
+     * If set, the rotation anchors and scale boxes will increase in size based on the size of the bounding box
      * Note : fixedDragMeshScreenSize takes precedence over fixedDragMeshBoundsSize if both are true
      */
     fixedDragMeshBoundsSize: boolean;
@@ -127,25 +175,56 @@ export declare class BoundingBoxGizmo extends Gizmo implements IBoundingBoxGizmo
      */
     fixedDragMeshScreenSizeDistanceFactor: number;
     /**
-     * Fired when a rotation sphere or scale box is dragged
+     * Drag distance in babylon units that the gizmo will snap scaling to when dragged
      */
-    onDragStartObservable: Observable<{}>;
+    scalingSnapDistance: number;
+    /**
+     * Drag distance in babylon units that the gizmo will snap rotation to when dragged
+     */
+    rotationSnapDistance: number;
+    /**
+     * Fired when a rotation anchor or scale box is dragged
+     */
+    onDragStartObservable: Observable<{
+        dragOperation: DragOperation;
+        dragAxis: Vector3;
+    }>;
+    /**
+     * Fired when the gizmo mesh hovering starts
+     */
+    onHoverStartObservable: Observable<void>;
+    /**
+     * Fired when the gizmo mesh hovering ends
+     */
+    onHoverEndObservable: Observable<void>;
     /**
      * Fired when a scale box is dragged
      */
-    onScaleBoxDragObservable: Observable<{}>;
+    onScaleBoxDragObservable: Observable<{
+        dragOperation: DragOperation;
+        dragAxis: Vector3;
+    }>;
     /**
      * Fired when a scale box drag is ended
      */
-    onScaleBoxDragEndObservable: Observable<{}>;
+    onScaleBoxDragEndObservable: Observable<{
+        dragOperation: DragOperation;
+        dragAxis: Vector3;
+    }>;
     /**
-     * Fired when a rotation sphere is dragged
+     * Fired when a rotation anchor is dragged
      */
-    onRotationSphereDragObservable: Observable<{}>;
+    onRotationSphereDragObservable: Observable<{
+        dragOperation: DragOperation;
+        dragAxis: Vector3;
+    }>;
     /**
-     * Fired when a rotation sphere drag is ended
+     * Fired when a rotation anchor drag is ended
      */
-    onRotationSphereDragEndObservable: Observable<{}>;
+    onRotationSphereDragEndObservable: Observable<{
+        dragOperation: DragOperation;
+        dragAxis: Vector3;
+    }>;
     /**
      * Relative bounding box pivot used when scaling the attached node. When null object with scale from the opposite corner. 0.5,0.5,0.5 for center and 0.5,0,0.5 for bottom (Default: null)
      */
@@ -154,6 +233,10 @@ export declare class BoundingBoxGizmo extends Gizmo implements IBoundingBoxGizmo
      * Scale factor used for masking some axis
      */
     protected _axisFactor: Vector3;
+    /**
+     * Incremental snap scaling (default is false). When true, with a snapDistance of 0.1, scaling will be 1.1,1.2,1.3 instead of, when false: 1.1,1.21,1.33,...
+     */
+    incrementalSnap: boolean;
     /**
      * Sets the axis factor
      * @param factor the Vector3 value
@@ -177,12 +260,13 @@ export declare class BoundingBoxGizmo extends Gizmo implements IBoundingBoxGizmo
     /**
      * Mesh used as a pivot to rotate the attached node
      */
-    protected _anchorMesh: AbstractMesh;
+    protected _anchorMesh: TransformNode;
     protected _existingMeshScale: Vector3;
     protected _dragMesh: Nullable<Mesh>;
     protected _pointerDragBehavior: PointerDragBehavior;
     protected _coloredMaterial: StandardMaterial;
     protected _hoverColoredMaterial: StandardMaterial;
+    protected _cornerMesh: Nullable<Mesh>;
     /** Default material used to render when gizmo is not disabled or hovered */
     get coloredMaterial(): StandardMaterial;
     /** Material used to render when gizmo is hovered with mouse*/
@@ -191,6 +275,8 @@ export declare class BoundingBoxGizmo extends Gizmo implements IBoundingBoxGizmo
      * Get the pointerDragBehavior
      */
     get pointerDragBehavior(): PointerDragBehavior;
+    /** True when a rotation anchor or scale box or a attached mesh is dragged */
+    get isDragging(): boolean;
     /**
      * Sets the color of the bounding box gizmo
      * @param color the color to set
@@ -202,17 +288,26 @@ export declare class BoundingBoxGizmo extends Gizmo implements IBoundingBoxGizmo
      * @param gizmoLayer The utility layer the gizmo will be added to
      */
     constructor(color?: Color3, gizmoLayer?: UtilityLayerRenderer);
+    protected _getCornerMesh(gizmoLayer: UtilityLayerRenderer): Mesh;
+    /**
+     * returns true if the combination of non uniform scaling and rotation of the attached mesh is not supported
+     * In that case, the matrix is skewed and the bounding box gizmo will not work correctly
+     * @returns True if the combination is not supported, otherwise false.
+     */
+    protected _hasInvalidNonUniformScaling(): boolean;
     protected _attachedNodeChanged(value: Nullable<AbstractMesh>): void;
     protected _selectNode(selectedMesh: Nullable<Mesh>): void;
+    protected _unhoverMeshOnTouchUp(pointerInfo: Nullable<PointerInfo>, selectedMesh: AbstractMesh): void;
     /**
      * returns an array containing all boxes used for scaling (in increasing x, y and z orders)
+     * @returns array of scaling boxes
      */
     getScaleBoxes(): AbstractMesh[];
     /**
      * Updates the bounding box information for the Gizmo
      */
     updateBoundingBox(): void;
-    protected _updateRotationSpheres(): void;
+    protected _updateRotationAnchors(): void;
     protected _updateScaleBoxes(): void;
     /**
      * Enables rotation on the specified axis and disables rotation on the others
@@ -230,6 +325,10 @@ export declare class BoundingBoxGizmo extends Gizmo implements IBoundingBoxGizmo
      * Enables a pointer drag behavior on the bounding box of the gizmo
      */
     enableDragBehavior(): void;
+    /**
+     * Force release the drag action by code
+     */
+    releaseDrag(): void;
     /**
      * Disposes of the gizmo
      */

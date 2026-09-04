@@ -1,32 +1,11 @@
-import { Vector3 } from "../Maths/math.vector.js";
-import { VertexBuffer } from "../Buffers/buffer.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
+import { VertexBuffer } from "../Buffers/buffer.pure.js";
 import { SubMesh } from "../Meshes/subMesh.js";
-import { Mesh } from "../Meshes/mesh.js";
-import { AsyncLoop } from "../Misc/tools.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
+import { AsyncLoop } from "../Misc/tools.pure.js";
 import { Epsilon } from "../Maths/math.constants.js";
-/**
- * Class used to specify simplification options
- * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/simplifyingMeshes
- */
-export class SimplificationSettings {
-    /**
-     * Creates a SimplificationSettings
-     * @param quality expected quality
-     * @param distance distance when this optimized version should be used
-     * @param optimizeMesh already optimized mesh
-     */
-    constructor(
-    /** expected quality */
-    quality, 
-    /** distance when this optimized version should be used */
-    distance, 
-    /** already optimized mesh  */
-    optimizeMesh) {
-        this.quality = quality;
-        this.distance = distance;
-        this.optimizeMesh = optimizeMesh;
-    }
-}
+import { RegisterMeshSimplificationSceneComponent } from "./meshSimplificationSceneComponent.pure.js";
+export { SimplificationSettings, SimplificationType } from "./meshSimplification.common.js";
 /**
  * Queue used to order the simplification tasks
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/simplifyingMeshes
@@ -36,6 +15,7 @@ export class SimplificationQueue {
      * Creates a new queue
      */
     constructor() {
+        RegisterMeshSimplificationSceneComponent(SimplificationQueue);
         this.running = false;
         this._simplificationArray = [];
     }
@@ -66,7 +46,7 @@ export class SimplificationQueue {
     runSimplification(task) {
         if (task.parallelProcessing) {
             //parallel simplifier
-            task.settings.forEach((setting) => {
+            for (const setting of task.settings) {
                 const simplifier = this._getSimplifier(task);
                 simplifier.simplify(setting, (newMesh) => {
                     if (setting.distance !== undefined) {
@@ -80,7 +60,7 @@ export class SimplificationQueue {
                     }
                     this.executeNext();
                 });
-            });
+            }
         }
         else {
             //single simplifier.
@@ -110,22 +90,12 @@ export class SimplificationQueue {
     }
     _getSimplifier(task) {
         switch (task.simplificationType) {
-            case SimplificationType.QUADRATIC:
+            case 0 /* SimplificationType.QUADRATIC */:
             default:
                 return new QuadraticErrorSimplification(task.mesh);
         }
     }
 }
-/**
- * The implemented types of simplification
- * At the moment only Quadratic Error Decimation is implemented
- * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/simplifyingMeshes
- */
-export var SimplificationType;
-(function (SimplificationType) {
-    /** Quadratic error decimation */
-    SimplificationType[SimplificationType["QUADRATIC"] = 0] = "QUADRATIC";
-})(SimplificationType || (SimplificationType = {}));
 class DecimationTriangle {
     constructor(_vertices) {
         this._vertices = _vertices;
@@ -146,6 +116,7 @@ class DecimationVertex {
         this.triangleStart = 0;
         this.originalOffsets = [];
     }
+    /** @internal */
     updatePosition(newPosition) {
         this.position.copyFrom(newPosition);
     }
@@ -162,6 +133,7 @@ class QuadraticMatrix {
             }
         }
     }
+    /** @internal */
     det(a11, a12, a13, a21, a22, a23, a31, a32, a33) {
         const det = this.data[a11] * this.data[a22] * this.data[a33] +
             this.data[a13] * this.data[a21] * this.data[a32] +
@@ -171,16 +143,19 @@ class QuadraticMatrix {
             this.data[a12] * this.data[a21] * this.data[a33];
         return det;
     }
+    /** @internal */
     addInPlace(matrix) {
         for (let i = 0; i < 10; ++i) {
             this.data[i] += matrix.data[i];
         }
     }
+    /** @internal */
     addArrayInPlace(data) {
         for (let i = 0; i < 10; ++i) {
             this.data[i] += data[i];
         }
     }
+    /** @internal */
     add(matrix) {
         const m = new QuadraticMatrix();
         for (let i = 0; i < 10; ++i) {
@@ -188,6 +163,7 @@ class QuadraticMatrix {
         }
         return m;
     }
+    /** @internal */
     static FromData(a, b, c, d) {
         return new QuadraticMatrix(QuadraticMatrix.DataFromNumbers(a, b, c, d));
     }
@@ -206,7 +182,6 @@ class Reference {
  * An implementation of the Quadratic Error simplification algorithm.
  * Original paper : http://www1.cs.columbia.edu/~cs4162/html05s/garland97.pdf
  * Ported mostly from QSlim and http://voxels.blogspot.de/2014/05/quadric-mesh-simplification-with-source.html to babylon JS
- * @author RaananW
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/simplifyingMeshes
  */
 export class QuadraticErrorSimplification {
@@ -279,7 +254,7 @@ export class QuadraticErrorSimplification {
                             // var uv = Vector2.Zero();
                             // var color = new Color4(0, 0, 0, 1);
                             this._calculateError(v0, v1, p);
-                            const delTr = new Array();
+                            const delTr = [];
                             if (this._isFlipped(v0, v1, p, deleted0, delTr)) {
                                 continue;
                             }
@@ -289,13 +264,13 @@ export class QuadraticErrorSimplification {
                             if (deleted0.indexOf(true) < 0 || deleted1.indexOf(true) < 0) {
                                 continue;
                             }
-                            const uniqueArray = new Array();
-                            delTr.forEach((deletedT) => {
+                            const uniqueArray = [];
+                            for (const deletedT of delTr) {
                                 if (uniqueArray.indexOf(deletedT) === -1) {
                                     deletedT.deletePending = true;
                                     uniqueArray.push(deletedT);
                                 }
-                            });
+                            }
                             if (uniqueArray.length % 2 !== 0) {
                                 continue;
                             }
@@ -446,7 +421,7 @@ export class QuadraticErrorSimplification {
             const vertex = this._vertices[i];
             vertex.id = vertexCount;
             if (vertex.triangleCount) {
-                vertex.originalOffsets.forEach((originalOffset) => {
+                for (const originalOffset of vertex.originalOffsets) {
                     newPositionData.push(vertex.position.x);
                     newPositionData.push(vertex.position.y);
                     newPositionData.push(vertex.position.z);
@@ -466,7 +441,7 @@ export class QuadraticErrorSimplification {
                         newColorsData.push(colorsData[originalOffset * 4 + 3]);
                     }
                     ++vertexCount;
-                });
+                }
             }
         }
         const startingIndex = this._reconstructedMesh.getTotalIndices();
@@ -477,14 +452,14 @@ export class QuadraticErrorSimplification {
         const originalIndices = this._mesh.getIndices();
         for (i = 0; i < newTriangles.length; ++i) {
             t = newTriangles[i]; //now get the new referencing point for each vertex
-            [0, 1, 2].forEach((idx) => {
+            for (let idx = 0; idx < 3; ++idx) {
                 const id = originalIndices[t.originalOffset + idx];
                 let offset = t._vertices[idx].originalOffsets.indexOf(id);
                 if (offset < 0) {
                     offset = 0;
                 }
                 newIndicesArray.push(t._vertices[idx].id + offset + startingVertex);
-            });
+            }
         }
         //overwriting the old vertex buffers and indices.
         this._reconstructedMesh.setIndices(newIndicesArray);
@@ -502,10 +477,10 @@ export class QuadraticErrorSimplification {
         const originalSubmesh = this._mesh.subMeshes[submeshIndex];
         if (submeshIndex > 0) {
             this._reconstructedMesh.subMeshes = [];
-            submeshesArray.forEach((submesh) => {
+            for (const submesh of submeshesArray) {
                 SubMesh.AddToMesh(submesh.materialIndex, submesh.verticesStart, submesh.verticesCount, 
                 /* 0, newPositionData.length/3, */ submesh.indexStart, submesh.indexCount, submesh.getMesh());
-            });
+            }
             SubMesh.AddToMesh(originalSubmesh.materialIndex, startingVertex, vertexCount, 
             /* 0, newPositionData.length / 3, */ startingIndex, newTriangles.length * 3, this._reconstructedMesh);
         }
@@ -668,7 +643,7 @@ export class QuadraticErrorSimplification {
     _calculateError(vertex1, vertex2, pointResult) {
         const q = vertex1.q.add(vertex2.q);
         const border = vertex1.isBorder && vertex2.isBorder;
-        let error = 0;
+        let error;
         const qDet = q.det(0, 1, 2, 1, 4, 5, 2, 5, 7);
         if (qDet !== 0 && !border) {
             if (!pointResult) {

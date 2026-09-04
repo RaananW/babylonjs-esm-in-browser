@@ -1,5 +1,5 @@
-import type { Nullable } from "../types";
-import { Camera } from "./camera";
+import { type Nullable } from "../types.js";
+import { Camera } from "./camera.pure.js";
 /**
  * @ignore
  * This is a list of all the different input types that are available in the application.
@@ -10,11 +10,11 @@ export declare var CameraInputTypes: {};
  * This is the contract to implement in order to create a new input class.
  * Inputs are dealing with listening to user actions and moving the camera accordingly.
  */
-export interface ICameraInput<TCamera extends Camera> {
+export interface ICameraInput<Tcamera extends Camera> {
     /**
      * Defines the camera the input is attached to.
      */
-    camera: Nullable<TCamera>;
+    camera: Nullable<Tcamera>;
     /**
      * Gets the class name of the current input.
      * @returns the class name
@@ -43,26 +43,26 @@ export interface ICameraInput<TCamera extends Camera> {
 /**
  * Represents a map of input types to input instance or input index to input instance.
  */
-export interface CameraInputsMap<TCamera extends Camera> {
+export interface CameraInputsMap<Tcamera extends Camera> {
     /**
      * Accessor to the input by input type.
      */
-    [name: string]: ICameraInput<TCamera>;
+    [name: string]: ICameraInput<Tcamera>;
     /**
      * Accessor to the input by input index.
      */
-    [idx: number]: ICameraInput<TCamera>;
+    [idx: number]: ICameraInput<Tcamera>;
 }
 /**
  * This represents the input manager used within a camera.
  * It helps dealing with all the different kind of input attached to a camera.
  * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs
  */
-export declare class CameraInputsManager<TCamera extends Camera> {
+export declare class CameraInputsManager<Tcamera extends Camera> {
     /**
      * Defines the list of inputs attached to the camera.
      */
-    attached: CameraInputsMap<TCamera>;
+    attached: CameraInputsMap<Tcamera>;
     /**
      * Defines the dom element the camera is collecting inputs from.
      * This is null if the controls have not been attached.
@@ -75,7 +75,7 @@ export declare class CameraInputsManager<TCamera extends Camera> {
     /**
      * Defined the camera the input manager belongs to.
      */
-    camera: TCamera;
+    camera: Tcamera;
     /**
      * Update the current camera state depending on the inputs that have been used this frame.
      * This is a dynamically created lambda to avoid the performance penalty of looping for inputs in the render loop.
@@ -85,19 +85,19 @@ export declare class CameraInputsManager<TCamera extends Camera> {
      * Instantiate a new Camera Input Manager.
      * @param camera Defines the camera the input manager belongs to
      */
-    constructor(camera: TCamera);
+    constructor(camera: Tcamera);
     /**
      * Add an input method to a camera
      * @see https://doc.babylonjs.com/features/featuresDeepDive/cameras/customizingCameraInputs
      * @param input Camera input method
      */
-    add(input: ICameraInput<TCamera>): void;
+    add(input: ICameraInput<Tcamera>): void;
     /**
      * Remove a specific input method from a camera
      * example: camera.inputs.remove(camera.inputs.attached.mouse);
      * @param inputToRemove camera input method
      */
-    remove(inputToRemove: ICameraInput<TCamera>): void;
+    remove(inputToRemove: ICameraInput<Tcamera>): void;
     /**
      * Remove a specific input type from a camera
      * example: camera.inputs.remove("ArcRotateCameraGamepadInput");
@@ -109,7 +109,7 @@ export declare class CameraInputsManager<TCamera extends Camera> {
      * Attach the input controls to the currently attached dom element to listen the events from.
      * @param input Defines the input to attach
      */
-    attachInput(input: ICameraInput<TCamera>): void;
+    attachInput(input: ICameraInput<Tcamera>): void;
     /**
      * Attach the current manager inputs controls to a specific dom element to listen the events from.
      * @param noPreventDefault Defines whether event caught by the controls should call preventdefault() (https://developer.mozilla.org/en-US/docs/Web/API/Event/preventDefault)

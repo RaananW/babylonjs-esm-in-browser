@@ -1,0 +1,1 @@
+{"version":3,"file":"equirectangularCapture.js","sourceRoot":"","sources":["../../../../dev/core/src/Misc/equirectangularCapture.ts"],"names":[],"mappings":"AAAA,cAAc,+BAA+B,CAAC;AAE9C,OAAO,6CAA6C,CAAC","sourcesContent":["export * from \"./equirectangularCapture.pure\";\n\nimport \"../Shaders/equirectangularPanorama.fragment\";\n"]}

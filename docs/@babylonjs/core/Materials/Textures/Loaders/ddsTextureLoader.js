@@ -1,6 +1,5 @@
 import { SphericalPolynomial } from "../../../Maths/sphericalPolynomial.js";
-import { Engine } from "../../../Engines/engine.js";
-import { DDSTools } from "../../../Misc/dds.js";
+import { DDSTools } from "../../../Misc/dds.pure.js";
 /**
  * Implementation of the DDS Texture Loader.
  * @internal
@@ -12,14 +11,6 @@ export class _DDSTextureLoader {
          * Defines whether the loader supports cascade loading the different faces.
          */
         this.supportCascades = true;
-    }
-    /**
-     * This returns if the loader support the current file information.
-     * @param extension defines the file extension of the file being loaded
-     * @returns true if the loader can load the specified file
-     */
-    canLoad(extension) {
-        return extension.endsWith(".dds");
     }
     /**
      * Uploads the cube texture data to the WebGL texture. It has already been bound.
@@ -85,12 +76,10 @@ export class _DDSTextureLoader {
      */
     loadData(data, texture, callback) {
         const info = DDSTools.GetDDSInfo(data);
-        const loadMipmap = (info.isRGB || info.isLuminance || info.mipmapCount > 1) && texture.generateMipMaps && info.width >> (info.mipmapCount - 1) === 1;
+        const loadMipmap = (info.isRGB || info.isLuminance || info.mipmapCount > 1) && texture.generateMipMaps && Math.max(info.width, info.height) >> (info.mipmapCount - 1) === 1;
         callback(info.width, info.height, loadMipmap, info.isFourCC, () => {
             DDSTools.UploadDDSLevels(texture.getEngine(), texture, data, info, loadMipmap, 1);
         });
     }
 }
-// Register the loader.
-Engine._TextureLoaders.push(new _DDSTextureLoader());
 //# sourceMappingURL=ddsTextureLoader.js.map

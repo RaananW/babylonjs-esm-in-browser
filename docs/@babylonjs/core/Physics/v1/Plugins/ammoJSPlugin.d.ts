@@ -1,10 +1,10 @@
-import { Quaternion, Vector3 } from "../../../Maths/math.vector";
-import type { IPhysicsEnginePlugin, PhysicsImpostorJoint } from "../IPhysicsEnginePlugin";
-import { PhysicsImpostor } from "../physicsImpostor";
-import type { IMotorEnabledJoint } from "..//physicsJoint";
-import type { Nullable } from "../../../types";
-import type { AbstractMesh } from "../../../Meshes/abstractMesh";
-import { PhysicsRaycastResult } from "../../physicsRaycastResult";
+import { Quaternion, Vector3 } from "../../../Maths/math.vector.pure.js";
+import { type IPhysicsEnginePlugin, type PhysicsImpostorJoint } from "../IPhysicsEnginePlugin.js";
+import { PhysicsImpostor } from "../physicsImpostor.pure.js";
+import { type IMotorEnabledJoint } from "../physicsJoint.js";
+import { type Nullable } from "../../../types.js";
+import { type AbstractMesh } from "../../../Meshes/abstractMesh.js";
+import { PhysicsRaycastResult } from "../../physicsRaycastResult.js";
 /**
  * AmmoJS Physics plugin
  * @see https://doc.babylonjs.com/features/featuresDeepDive/physics/usingPhysicsEngine
@@ -168,26 +168,31 @@ export declare class AmmoJSPlugin implements IPhysicsEnginePlugin {
      * Softbody vertices (nodes) are in world space and to match this
      * The object's position and rotation is set to zero and so its vertices are also then set in world space
      * @param impostor to create the softbody for
+     * @returns the number of vertices added to the softbody
      */
     private _softVertexData;
     /**
      * Create an impostor's soft body
      * @param impostor to create the softbody for
+     * @returns the softbody
      */
     private _createSoftbody;
     /**
      * Create cloth for an impostor
      * @param impostor to create the softbody for
+     * @returns the cloth
      */
     private _createCloth;
     /**
      * Create rope for an impostor
      * @param impostor to create the softbody for
+     * @returns the rope
      */
     private _createRope;
     /**
      * Create a custom physics impostor shape using the plugin's onCreateCustomShape handler
      * @param impostor to create the custom physics shape for
+     * @returns the custom physics shape
      */
     private _createCustom;
     private _addHullVerts;

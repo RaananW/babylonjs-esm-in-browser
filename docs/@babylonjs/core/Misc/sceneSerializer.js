@@ -1,15 +1,17 @@
-import { Mesh } from "../Meshes/mesh.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
 
-import { MultiMaterial } from "../Materials/multiMaterial.js";
-import { SerializationHelper } from "./decorators.js";
-import { Texture } from "../Materials/Textures/texture.js";
-let serializedGeometries = [];
+import { MultiMaterial } from "../Materials/multiMaterial.pure.js";
+import { SerializationHelper } from "./decorators.serialization.js";
+import { Texture } from "../Materials/Textures/texture.pure.js";
+import { Logger } from "./logger.js";
+import { _IsSideEffectImplemented } from "./devTools.js";
+let SerializedGeometries = [];
 const SerializeGeometry = (geometry, serializationGeometries) => {
     if (geometry.doNotSerialize) {
         return;
     }
     serializationGeometries.vertexData.push(geometry.serializeVerticeData());
-    serializedGeometries[geometry.id] = true;
+    SerializedGeometries[geometry.id] = true;
 };
 const SerializeMesh = (mesh, serializationScene) => {
     const serializationObject = {};
@@ -27,59 +29,74 @@ const SerializeMesh = (mesh, serializationScene) => {
     }
     return serializationObject;
 };
-const FinalizeSingleMesh = (mesh, serializationObject) => {
-    //only works if the mesh is already loaded
-    if (mesh.delayLoadState === 1 || mesh.delayLoadState === 0) {
-        const serializeMaterial = (material) => {
-            serializationObject.materials = serializationObject.materials || [];
-            if (mesh.material && !serializationObject.materials.some((mat) => mat.id === mesh.material.id)) {
-                serializationObject.materials.push(material.serialize());
-            }
-        };
-        //serialize material
-        if (mesh.material && !mesh.material.doNotSerialize) {
-            if (mesh.material instanceof MultiMaterial) {
-                serializationObject.multiMaterials = serializationObject.multiMaterials || [];
-                if (!serializationObject.multiMaterials.some((mat) => mat.id === mesh.material.id)) {
-                    serializationObject.multiMaterials.push(mesh.material.serialize());
-                    for (const submaterial of mesh.material.subMaterials) {
-                        if (submaterial) {
-                            serializeMaterial(submaterial);
+const FinalizeSingleNode = (node, serializationObject) => {
+    if (node._isMesh) {
+        const mesh = node;
+        //only works if the mesh is already loaded
+        if (mesh.delayLoadState === 1 || mesh.delayLoadState === 0) {
+            const serializeMaterial = (material) => {
+                serializationObject.materials = serializationObject.materials || [];
+                if (mesh.material && !serializationObject.materials.some((mat) => mat.id === mesh.material.id)) {
+                    serializationObject.materials.push(material.serialize());
+                }
+            };
+            //serialize material
+            if (mesh.material && !mesh.material.doNotSerialize) {
+                if (mesh.material instanceof MultiMaterial) {
+                    serializationObject.multiMaterials = serializationObject.multiMaterials || [];
+                    if (!serializationObject.multiMaterials.some((mat) => mat.id === mesh.material.id)) {
+                        serializationObject.multiMaterials.push(mesh.material.serialize());
+                        for (const submaterial of mesh.material.subMaterials) {
+                            if (submaterial) {
+                                serializeMaterial(submaterial);
+                            }
                         }
                     }
                 }
+                else {
+                    serializeMaterial(mesh.material);
+                }
             }
-            else {
-                serializeMaterial(mesh.material);
+            else if (!mesh.material) {
+                serializeMaterial(mesh.getScene().defaultMaterial);
             }
-        }
-        else if (!mesh.material) {
-            serializeMaterial(mesh.getScene().defaultMaterial);
-        }
-        //serialize geometry
-        const geometry = mesh._geometry;
-        if (geometry) {
-            if (!serializationObject.geometries) {
-                serializationObject.geometries = {};
-                serializationObject.geometries.boxes = [];
-                serializationObject.geometries.spheres = [];
-                serializationObject.geometries.cylinders = [];
-                serializationObject.geometries.toruses = [];
-                serializationObject.geometries.grounds = [];
-                serializationObject.geometries.planes = [];
-                serializationObject.geometries.torusKnots = [];
-                serializationObject.geometries.vertexData = [];
+            //serialize geometry
+            const geometry = mesh._geometry;
+            if (geometry) {
+                if (!serializationObject.geometries) {
+                    serializationObject.geometries = {};
+                    serializationObject.geometries.boxes = [];
+                    serializationObject.geometries.spheres = [];
+                    serializationObject.geometries.cylinders = [];
+                    serializationObject.geometries.toruses = [];
+                    serializationObject.geometries.grounds = [];
+                    serializationObject.geometries.planes = [];
+                    serializationObject.geometries.torusKnots = [];
+                    serializationObject.geometries.vertexData = [];
+                }
+                SerializeGeometry(geometry, serializationObject.geometries);
             }
-            SerializeGeometry(geometry, serializationObject.geometries);
+            // Skeletons
+            if (mesh.skeleton && !mesh.skeleton.doNotSerialize) {
+                serializationObject.skeletons = serializationObject.skeletons || [];
+                serializationObject.skeletons.push(mesh.skeleton.serialize());
+            }
+            //serialize the actual mesh
+            serializationObject.meshes = serializationObject.meshes || [];
+            serializationObject.meshes.push(SerializeMesh(mesh, serializationObject));
         }
-        // Skeletons
-        if (mesh.skeleton && !mesh.skeleton.doNotSerialize) {
-            serializationObject.skeletons = serializationObject.skeletons || [];
-            serializationObject.skeletons.push(mesh.skeleton.serialize());
-        }
-        //serialize the actual mesh
-        serializationObject.meshes = serializationObject.meshes || [];
-        serializationObject.meshes.push(SerializeMesh(mesh, serializationObject));
+    }
+    else if (node.getClassName() === "TransformNode") {
+        const transformNode = node;
+        serializationObject.transformNodes.push(transformNode.serialize());
+    }
+    else if (node.getClassName().indexOf("Camera") !== -1) {
+        const camera = node;
+        serializationObject.cameras.push(camera.serialize());
+    }
+    else if (node.getClassName().indexOf("Light") !== -1) {
+        const light = node;
+        serializationObject.lights.push(light.serialize());
     }
 };
 /**
@@ -90,7 +107,7 @@ export class SceneSerializer {
      * Clear cache used by a previous serialization
      */
     static ClearCache() {
-        serializedGeometries = [];
+        SerializedGeometries = [];
     }
     /**
      * Serialize a scene into a JSON compatible object
@@ -105,7 +122,7 @@ export class SceneSerializer {
     static _Serialize(scene, checkSyncReadSupported = true) {
         const serializationObject = {};
         if (checkSyncReadSupported && !scene.getEngine()._features.supportSyncTextureRead && Texture.ForceSerializeBuffers) {
-            console.warn("The serialization object may not contain the proper base64 encoded texture data! You should use the SerializeAsync method instead.");
+            Logger.Warn("The serialization object may not contain the proper base64 encoded texture data! You should use the SerializeAsync method instead.");
         }
         SceneSerializer.ClearCache();
         // Scene
@@ -117,15 +134,23 @@ export class SceneSerializer {
         serializationObject.collisionsEnabled = scene.collisionsEnabled;
         serializationObject.useRightHandedSystem = scene.useRightHandedSystem;
         // Fog
-        if (scene.fogMode && scene.fogMode !== 0) {
+        if (scene.fogMode !== undefined && scene.fogMode !== null) {
             serializationObject.fogMode = scene.fogMode;
+        }
+        if (scene.fogColor !== undefined && scene.fogColor !== null) {
             serializationObject.fogColor = scene.fogColor.asArray();
+        }
+        if (scene.fogStart !== undefined && scene.fogStart !== null) {
             serializationObject.fogStart = scene.fogStart;
+        }
+        if (scene.fogEnd !== undefined && scene.fogEnd !== null) {
             serializationObject.fogEnd = scene.fogEnd;
+        }
+        if (scene.fogDensity !== undefined && scene.fogDensity !== null) {
             serializationObject.fogDensity = scene.fogDensity;
         }
         //Physics
-        if (scene.isPhysicsEnabled()) {
+        if (_IsSideEffectImplemented(scene.isPhysicsEnabled) && scene.isPhysicsEnabled()) {
             const physicEngine = scene.getPhysicsEngine();
             if (physicEngine) {
                 serializationObject.physicsEnabled = true;
@@ -212,6 +237,8 @@ export class SceneSerializer {
         }
         // Environment Intensity
         serializationObject.environmentIntensity = scene.environmentIntensity;
+        // IBL Intensity
+        serializationObject.iblIntensity = scene.iblIntensity;
         // Skeletons
         serializationObject.skeletons = [];
         for (index = 0; index < scene.skeletons.length; index++) {
@@ -237,7 +264,7 @@ export class SceneSerializer {
         serializationObject.geometries.planes = [];
         serializationObject.geometries.torusKnots = [];
         serializationObject.geometries.vertexData = [];
-        serializedGeometries = [];
+        SerializedGeometries = [];
         const geometries = scene.getGeometries();
         for (index = 0; index < geometries.length; index++) {
             const geometry = geometries[index];
@@ -249,7 +276,8 @@ export class SceneSerializer {
         serializationObject.meshes = [];
         for (index = 0; index < scene.meshes.length; index++) {
             const abstractMesh = scene.meshes[index];
-            if (abstractMesh instanceof Mesh) {
+            // GaussianSplattingPartProxyMesh would be serialized with the GaussianSplattingMesh holding it
+            if (abstractMesh instanceof Mesh && abstractMesh.getClassName() !== "GaussianSplattingPartProxyMesh") {
                 const mesh = abstractMesh;
                 if (!mesh.doNotSerialize) {
                     if (mesh.delayLoadState === 1 || mesh.delayLoadState === 0) {
@@ -261,12 +289,18 @@ export class SceneSerializer {
         // Particles Systems
         serializationObject.particleSystems = [];
         for (index = 0; index < scene.particleSystems.length; index++) {
-            serializationObject.particleSystems.push(scene.particleSystems[index].serialize(false));
+            const particleSystem = scene.particleSystems[index];
+            if (!particleSystem.doNotSerialize) {
+                serializationObject.particleSystems.push(particleSystem.serialize(false));
+            }
         }
         // Post processes
         serializationObject.postProcesses = [];
         for (index = 0; index < scene.postProcesses.length; index++) {
-            serializationObject.postProcesses.push(scene.postProcesses[index].serialize());
+            const postProcess = scene.postProcesses[index];
+            if (!postProcess.doNotSerialize) {
+                serializationObject.postProcesses.push(postProcess.serialize());
+            }
         }
         // Action Manager
         if (scene.actionManager) {
@@ -276,6 +310,16 @@ export class SceneSerializer {
         for (const component of scene._serializableComponents) {
             component.serialize(serializationObject);
         }
+        // Sprites
+        if (scene.spriteManagers) {
+            serializationObject.spriteManagers = [];
+            for (index = 0; index < scene.spriteManagers.length; index++) {
+                const spriteManager = scene.spriteManagers[index];
+                if (!spriteManager.doNotSerialize) {
+                    serializationObject.spriteManagers.push(spriteManager.serialize(true));
+                }
+            }
+        }
         return serializationObject;
     }
     /**
@@ -283,17 +327,19 @@ export class SceneSerializer {
      * @param scene defines the scene to serialize
      * @returns a JSON promise compatible object
      */
-    static SerializeAsync(scene) {
+    static async SerializeAsync(scene) {
         const serializationObject = SceneSerializer._Serialize(scene, false);
         const promises = [];
         this._CollectPromises(serializationObject, promises);
-        return Promise.all(promises).then(() => serializationObject);
+        await Promise.all(promises);
+        return serializationObject;
     }
     static _CollectPromises(obj, promises) {
         if (Array.isArray(obj)) {
             for (let i = 0; i < obj.length; ++i) {
                 const o = obj[i];
                 if (o instanceof Promise) {
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, github/no-then
                     promises.push(o.then((res) => (obj[i] = res)));
                 }
                 else if (o instanceof Object || Array.isArray(o)) {
@@ -306,6 +352,7 @@ export class SceneSerializer {
                 if (Object.prototype.hasOwnProperty.call(obj, name)) {
                     const o = obj[name];
                     if (o instanceof Promise) {
+                        // eslint-disable-next-line @typescript-eslint/no-unsafe-return, github/no-then
                         promises.push(o.then((res) => (obj[name] = res)));
                     }
                     else if (o instanceof Object || Array.isArray(o)) {
@@ -324,17 +371,22 @@ export class SceneSerializer {
      */
     static SerializeMesh(toSerialize /* Mesh || Mesh[] */, withParents = false, withChildren = false) {
         const serializationObject = {};
+        serializationObject.meshes = [];
+        serializationObject.transformNodes = [];
+        serializationObject.cameras = [];
+        serializationObject.lights = [];
         SceneSerializer.ClearCache();
         toSerialize = toSerialize instanceof Array ? toSerialize : [toSerialize];
         if (withParents || withChildren) {
             //deliberate for loop! not for each, appended should be processed as well.
             for (let i = 0; i < toSerialize.length; ++i) {
                 if (withChildren) {
-                    toSerialize[i].getDescendants().forEach((node) => {
-                        if (node instanceof Mesh && toSerialize.indexOf(node) < 0 && !node.doNotSerialize) {
+                    const descendants = toSerialize[i].getDescendants();
+                    for (const node of descendants) {
+                        if (toSerialize.indexOf(node) < 0 && !node.doNotSerialize) {
                             toSerialize.push(node);
                         }
-                    });
+                    }
                 }
                 //make sure the array doesn't contain the object already
                 if (withParents && toSerialize[i].parent && toSerialize.indexOf(toSerialize[i].parent) < 0 && !toSerialize[i].parent.doNotSerialize) {
@@ -342,9 +394,9 @@ export class SceneSerializer {
                 }
             }
         }
-        toSerialize.forEach((mesh) => {
-            FinalizeSingleMesh(mesh, serializationObject);
-        });
+        for (const mesh of toSerialize) {
+            FinalizeSingleNode(mesh, serializationObject);
+        }
         return serializationObject;
     }
 }

@@ -1,17 +1,18 @@
-import { Bone } from "./bone";
-import { Observable } from "../Misc/observable";
-import { Vector3, Matrix } from "../Maths/math.vector";
-import type { Scene } from "../scene";
-import type { Nullable } from "../types";
-import type { AbstractMesh } from "../Meshes/abstractMesh";
-import { RawTexture } from "../Materials/Textures/rawTexture";
-import type { Animatable } from "../Animations/animatable";
-import type { AnimationPropertiesOverride } from "../Animations/animationPropertiesOverride";
-import { Animation } from "../Animations/animation";
-import { AnimationRange } from "../Animations/animationRange";
-import type { IInspectable } from "../Misc/iInspectable";
-import type { IAnimatable } from "../Animations/animatable.interface";
-import type { AbstractScene } from "../abstractScene";
+import { Bone } from "./bone.js";
+import { Observable } from "../Misc/observable.js";
+import { Vector3, Matrix } from "../Maths/math.vector.pure.js";
+import { type Scene } from "../scene.js";
+import { type Nullable } from "../types.js";
+import { type AbstractMesh } from "../Meshes/abstractMesh.js";
+import { RawTexture } from "../Materials/Textures/rawTexture.js";
+import { type Animatable } from "../Animations/animatable.core.js";
+import { type AnimationPropertiesOverride } from "../Animations/animationPropertiesOverride.js";
+import { type Animation } from "../Animations/animation.pure.js";
+import { AnimationRange } from "../Animations/animationRange.js";
+import { type IInspectable } from "../Misc/iInspectable.js";
+import { type IAnimatable } from "../Animations/animatable.interface.js";
+import { type IAssetContainer } from "../IAssetContainer.js";
+import { type TransformNode } from "../Meshes/transformNode.js";
 /**
  * Class used to handle skinning animations
  * @see https://doc.babylonjs.com/features/featuresDeepDive/mesh/bonesSkeletons
@@ -45,6 +46,11 @@ export declare class Skeleton implements IAnimatable {
     private _animatables;
     private _identity;
     private _synchronizedWithMesh;
+    private _currentRenderId;
+    /** @internal */
+    _textureWidth: number;
+    /** @internal */
+    _textureHeight: number;
     private _ranges;
     private _absoluteTransformIsDirty;
     private _canUseTextureForBones;
@@ -54,7 +60,7 @@ export declare class Skeleton implements IAnimatable {
     /** @internal */
     _hasWaitingData: Nullable<boolean>;
     /** @internal */
-    _parentContainer: Nullable<AbstractScene>;
+    _parentContainer: Nullable<IAssetContainer>;
     /**
      * Specifies if the skeleton should be serialized
      */
@@ -90,6 +96,10 @@ export declare class Skeleton implements IAnimatable {
      */
     get uniqueId(): number;
     /**
+     * Gets or sets an object used to store user defined information for the skeleton
+     */
+    metadata: any;
+    /**
      * Creates a new skeleton
      * @param name defines the skeleton name
      * @param id defines the skeleton Id
@@ -115,7 +125,7 @@ export declare class Skeleton implements IAnimatable {
      * @param mesh defines the mesh to use to get the root matrix (if needInitialSkinMatrix === true)
      * @returns a Float32Array containing matrices data
      */
-    getTransformMatrices(mesh: AbstractMesh): Float32Array;
+    getTransformMatrices(mesh: Nullable<AbstractMesh>): Float32Array;
     /**
      * Gets the list of transform matrices to send to shaders inside a texture (one matrix per bone)
      * @param mesh defines the mesh to use to get the root matrix (if needInitialSkinMatrix === true)
@@ -139,6 +149,18 @@ export declare class Skeleton implements IAnimatable {
      * @returns the indice of the bone. Returns -1 if not found
      */
     getBoneIndexByName(name: string): number;
+    /**
+     * Finds a bone in a skeleton that is linked to the given transform node.
+     * @param transformNode The transform node to find the bone for
+     * @returns The bone linked to the transform node, or null if not found
+     */
+    findBoneFromLinkedTransformNode(transformNode: TransformNode): Bone | null;
+    /**
+     * Finds a bone in a skeleton by the name of its linked transform node.
+     * @param name The name of the linked transform node
+     * @returns The bone linked to the transform node with the given name, or null if not found
+     */
+    findBoneFromLinkedTransformNodeName(name: string): Bone | null;
     /**
      * Create a new animation range
      * @param name defines the name of the range
@@ -205,10 +227,12 @@ export declare class Skeleton implements IAnimatable {
      */
     _unregisterMeshWithPoseMatrix(mesh: AbstractMesh): void;
     private _computeTransformMatrices;
+    private _computeTextureSize;
     /**
      * Build all resources required to render a skeleton
+     * @param dontCheckFrameId defines a boolean indicating if prepare should be run without checking first the current frame id (default: false)
      */
-    prepare(): void;
+    prepare(dontCheckFrameId?: boolean): void;
     /**
      * Gets the list of animatables currently running for this skeleton
      * @returns an array of animatables
@@ -244,8 +268,14 @@ export declare class Skeleton implements IAnimatable {
      */
     static Parse(parsedSkeleton: any, scene: Scene): Skeleton;
     /**
-     * Compute all node absolute transforms
+     * Compute all node absolute matrices
      * @param forceUpdate defines if computation must be done even if cache is up to date
+     */
+    computeAbsoluteMatrices(forceUpdate?: boolean): void;
+    /**
+     * Compute all node absolute matrices
+     * @param forceUpdate defines if computation must be done even if cache is up to date
+     * @deprecated Please use computeAbsoluteMatrices instead
      */
     computeAbsoluteTransforms(forceUpdate?: boolean): void;
     /**

@@ -1,7 +1,7 @@
-import type { Behavior } from "../behavior";
-import type { Nullable } from "../../types";
-import type { Camera } from "../../Cameras/camera";
-import type { TransformNode } from "../../Meshes/transformNode";
+import { type Behavior } from "../behavior.js";
+import { type Nullable } from "../../types.js";
+import { type Camera } from "../../Cameras/camera.js";
+import { type TransformNode } from "../../Meshes/transformNode.js";
 /**
  * A behavior that when attached to a mesh will follow a camera
  * @since 5.0.0

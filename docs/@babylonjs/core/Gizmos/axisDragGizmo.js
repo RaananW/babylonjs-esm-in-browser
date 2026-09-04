@@ -1,17 +1,72 @@
 import { Observable } from "../Misc/observable.js";
-import { TransformNode } from "../Meshes/transformNode.js";
-import { Mesh } from "../Meshes/mesh.js";
-import { CreateCylinder } from "../Meshes/Builders/cylinderBuilder.js";
+import { TransformNode } from "../Meshes/transformNode.pure.js";
+import { Mesh } from "../Meshes/mesh.pure.js";
+import { CreateCylinder } from "../Meshes/Builders/cylinderBuilder.pure.js";
 import { PointerDragBehavior } from "../Behaviors/Meshes/pointerDragBehavior.js";
 import { Gizmo } from "./gizmo.js";
 import { UtilityLayerRenderer } from "../Rendering/utilityLayerRenderer.js";
-import { StandardMaterial } from "../Materials/standardMaterial.js";
-import { Color3 } from "../Maths/math.color.js";
-import { TmpVectors } from "../Maths/math.vector.js";
+import { StandardMaterial } from "../Materials/standardMaterial.pure.js";
+import { Color3 } from "../Maths/math.color.pure.js";
+import { TmpVectors, Vector3 } from "../Maths/math.vector.pure.js";
 /**
  * Single axis drag gizmo
  */
 export class AxisDragGizmo extends Gizmo {
+    /** Default material used to render when gizmo is not disabled or hovered */
+    get coloredMaterial() {
+        return this._coloredMaterial;
+    }
+    /** Material used to render when gizmo is hovered with mouse*/
+    get hoverMaterial() {
+        return this._hoverMaterial;
+    }
+    /** Material used to render when gizmo is disabled. typically grey.*/
+    get disableMaterial() {
+        return this._disableMaterial;
+    }
+    /**
+     * @internal
+     */
+    static _CreateArrow(scene, material, thickness = 1, isCollider = false) {
+        const arrow = new TransformNode("arrow", scene);
+        const cylinder = CreateCylinder("cylinder", {
+            diameterTop: 0,
+            height: 0.075,
+            diameterBottom: 0.0375 * (1 + (thickness - 1) / 4),
+            tessellation: 96,
+        }, scene);
+        const line = CreateCylinder("cylinder", {
+            diameterTop: 0.005 * thickness,
+            height: 0.275,
+            diameterBottom: 0.005 * thickness,
+            tessellation: 96,
+        }, scene);
+        // Position arrow pointing in its drag axis
+        cylinder.parent = arrow;
+        cylinder.material = material;
+        cylinder.rotation.x = Math.PI / 2;
+        cylinder.position.z += 0.3;
+        line.parent = arrow;
+        line.material = material;
+        line.position.z += 0.275 / 2;
+        line.rotation.x = Math.PI / 2;
+        if (isCollider) {
+            line.visibility = 0;
+            cylinder.visibility = 0;
+        }
+        return arrow;
+    }
+    /**
+     * @internal
+     */
+    static _CreateArrowInstance(scene, arrow) {
+        const instance = new TransformNode("arrow", scene);
+        for (const mesh of arrow.getChildMeshes()) {
+            const childInstance = mesh.createInstance(mesh.name);
+            childInstance.parent = instance;
+        }
+        return instance;
+    }
     /**
      * Creates an AxisDragGizmo
      * @param dragAxis The axis which the gizmo will be able to drag on
@@ -19,9 +74,10 @@ export class AxisDragGizmo extends Gizmo {
      * @param gizmoLayer The utility layer the gizmo will be added to
      * @param parent
      * @param thickness display gizmo axis thickness
+     * @param hoverColor The color of the gizmo when hovering over and dragging
+     * @param disableColor The Color of the gizmo when its disabled
      */
-    constructor(dragAxis, color = Color3.Gray(), gizmoLayer = UtilityLayerRenderer.DefaultUtilityLayer, parent = null, thickness = 1) {
-        var _a;
+    constructor(dragAxis, color = Color3.Gray(), gizmoLayer = UtilityLayerRenderer.DefaultUtilityLayer, parent = null, thickness = 1, hoverColor = Color3.Yellow(), disableColor = Color3.Gray()) {
         super(gizmoLayer);
         this._pointerObserver = null;
         /**
@@ -30,7 +86,7 @@ export class AxisDragGizmo extends Gizmo {
         this.snapDistance = 0;
         /**
          * Event that fires each time the gizmo snaps to a new location.
-         * * snapDistance is the the change in distance
+         * * snapDistance is the change in distance
          */
         this.onSnapObservable = new Observable();
         this._isEnabled = true;
@@ -42,9 +98,9 @@ export class AxisDragGizmo extends Gizmo {
         this._coloredMaterial.diffuseColor = color;
         this._coloredMaterial.specularColor = color.subtract(new Color3(0.1, 0.1, 0.1));
         this._hoverMaterial = new StandardMaterial("", gizmoLayer.utilityLayerScene);
-        this._hoverMaterial.diffuseColor = Color3.Yellow();
+        this._hoverMaterial.diffuseColor = hoverColor;
         this._disableMaterial = new StandardMaterial("", gizmoLayer.utilityLayerScene);
-        this._disableMaterial.diffuseColor = Color3.Gray();
+        this._disableMaterial.diffuseColor = disableColor;
         this._disableMaterial.alpha = 0.4;
         // Build Mesh + Collider
         const arrow = AxisDragGizmo._CreateArrow(gizmoLayer.utilityLayerScene, this._coloredMaterial, thickness);
@@ -65,22 +121,29 @@ export class AxisDragGizmo extends Gizmo {
         this._rootMesh.addBehavior(this.dragBehavior);
         this.dragBehavior.onDragObservable.add((event) => {
             if (this.attachedNode) {
-                this._handlePivot();
                 // Keep world translation and use it to update world transform
                 // if the node has parent, the local transform properties (position, rotation, scale)
                 // will be recomputed in _matrixChanged function
                 let matrixChanged = false;
+                // Transform delta by additionalTransformNode world matrix if present
+                let delta = event.delta;
+                if (this._additionalTransformNode) {
+                    const additionalInverseMatrix = TmpVectors.Matrix[0];
+                    this._additionalTransformNode.getWorldMatrix().invertToRef(additionalInverseMatrix);
+                    Vector3.TransformNormalToRef(event.delta, additionalInverseMatrix, TmpVectors.Vector3[3]);
+                    delta = TmpVectors.Vector3[3];
+                }
                 // Snapping logic
                 if (this.snapDistance == 0) {
                     this.attachedNode.getWorldMatrix().getTranslationToRef(TmpVectors.Vector3[2]);
-                    TmpVectors.Vector3[2].addInPlace(event.delta);
+                    TmpVectors.Vector3[2].addInPlace(delta);
                     if (this.dragBehavior.validateDrag(TmpVectors.Vector3[2])) {
                         if (this.attachedNode.position) {
                             // Required for nodes like lights
-                            this.attachedNode.position.addInPlaceFromFloats(event.delta.x, event.delta.y, event.delta.z);
+                            this.attachedNode.position.addInPlaceFromFloats(delta.x, delta.y, delta.z);
                         }
                         // use _worldMatrix to not force a matrix update when calling GetWorldMatrix especially with Cameras
-                        this.attachedNode.getWorldMatrix().addTranslationFromFloats(event.delta.x, event.delta.y, event.delta.z);
+                        this.attachedNode.getWorldMatrix().addTranslationFromFloats(delta.x, delta.y, delta.z);
                         this.attachedNode.updateCache();
                         matrixChanged = true;
                     }
@@ -90,14 +153,14 @@ export class AxisDragGizmo extends Gizmo {
                     if (Math.abs(currentSnapDragDistance) > this.snapDistance) {
                         const dragSteps = Math.floor(Math.abs(currentSnapDragDistance) / this.snapDistance);
                         currentSnapDragDistance = currentSnapDragDistance % this.snapDistance;
-                        event.delta.normalizeToRef(TmpVectors.Vector3[1]);
+                        delta.normalizeToRef(TmpVectors.Vector3[1]);
                         TmpVectors.Vector3[1].scaleInPlace(this.snapDistance * dragSteps);
                         this.attachedNode.getWorldMatrix().getTranslationToRef(TmpVectors.Vector3[2]);
                         TmpVectors.Vector3[2].addInPlace(TmpVectors.Vector3[1]);
                         if (this.dragBehavior.validateDrag(TmpVectors.Vector3[2])) {
                             this.attachedNode.getWorldMatrix().addTranslationFromFloats(TmpVectors.Vector3[1].x, TmpVectors.Vector3[1].y, TmpVectors.Vector3[1].z);
                             this.attachedNode.updateCache();
-                            tmpSnapEvent.snapDistance = this.snapDistance * dragSteps;
+                            tmpSnapEvent.snapDistance = this.snapDistance * dragSteps * Math.sign(currentSnapDragDistance);
                             this.onSnapObservable.notifyObservers(tmpSnapEvent);
                             matrixChanged = true;
                         }
@@ -125,13 +188,12 @@ export class AxisDragGizmo extends Gizmo {
             active: false,
             dragBehavior: this.dragBehavior,
         };
-        (_a = this._parent) === null || _a === void 0 ? void 0 : _a.addToAxisCache(collider, cache);
+        this._parent?.addToAxisCache(collider, cache);
         this._pointerObserver = gizmoLayer.utilityLayerScene.onPointerObservable.add((pointerInfo) => {
-            var _a;
             if (this._customMeshSet) {
                 return;
             }
-            this._isHovered = !!(cache.colliderMeshes.indexOf((_a = pointerInfo === null || pointerInfo === void 0 ? void 0 : pointerInfo.pickInfo) === null || _a === void 0 ? void 0 : _a.pickedMesh) != -1);
+            this._isHovered = !!(cache.colliderMeshes.indexOf(pointerInfo?.pickInfo?.pickedMesh) != -1);
             if (!this._parent) {
                 const material = this.dragBehavior.enabled ? (this._isHovered || this._dragging ? this._hoverMaterial : this._coloredMaterial) : this._disableMaterial;
                 this._setGizmoMeshMaterial(cache.gizmoMeshes, material);
@@ -140,51 +202,6 @@ export class AxisDragGizmo extends Gizmo {
         this.dragBehavior.onEnabledObservable.add((newState) => {
             this._setGizmoMeshMaterial(cache.gizmoMeshes, newState ? cache.material : cache.disableMaterial);
         });
-    }
-    /** Default material used to render when gizmo is not disabled or hovered */
-    get coloredMaterial() {
-        return this._coloredMaterial;
-    }
-    /** Material used to render when gizmo is hovered with mouse*/
-    get hoverMaterial() {
-        return this._hoverMaterial;
-    }
-    /** Material used to render when gizmo is disabled. typically grey.*/
-    get disableMaterial() {
-        return this._disableMaterial;
-    }
-    /**
-     * @internal
-     */
-    static _CreateArrow(scene, material, thickness = 1, isCollider = false) {
-        const arrow = new TransformNode("arrow", scene);
-        const cylinder = CreateCylinder("cylinder", { diameterTop: 0, height: 0.075, diameterBottom: 0.0375 * (1 + (thickness - 1) / 4), tessellation: 96 }, scene);
-        const line = CreateCylinder("cylinder", { diameterTop: 0.005 * thickness, height: 0.275, diameterBottom: 0.005 * thickness, tessellation: 96 }, scene);
-        // Position arrow pointing in its drag axis
-        cylinder.parent = arrow;
-        cylinder.material = material;
-        cylinder.rotation.x = Math.PI / 2;
-        cylinder.position.z += 0.3;
-        line.parent = arrow;
-        line.material = material;
-        line.position.z += 0.275 / 2;
-        line.rotation.x = Math.PI / 2;
-        if (isCollider) {
-            line.visibility = 0;
-            cylinder.visibility = 0;
-        }
-        return arrow;
-    }
-    /**
-     * @internal
-     */
-    static _CreateArrowInstance(scene, arrow) {
-        const instance = new TransformNode("arrow", scene);
-        for (const mesh of arrow.getChildMeshes()) {
-            const childInstance = mesh.createInstance(mesh.name);
-            childInstance.parent = instance;
-        }
-        return instance;
     }
     _attachedNodeChanged(value) {
         if (this.dragBehavior) {
@@ -220,11 +237,12 @@ export class AxisDragGizmo extends Gizmo {
         if (this._gizmoMesh) {
             this._gizmoMesh.dispose();
         }
-        [this._coloredMaterial, this._hoverMaterial, this._disableMaterial].forEach((matl) => {
+        const mats = [this._coloredMaterial, this._hoverMaterial, this._disableMaterial];
+        for (const matl of mats) {
             if (matl) {
                 matl.dispose();
             }
-        });
+        }
         super.dispose();
     }
 }

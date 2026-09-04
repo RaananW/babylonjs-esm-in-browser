@@ -1,12 +1,10 @@
-import { ShaderLanguage } from "../../Materials/shaderLanguage.js";
-import * as WebGPUConstants from "./webgpuConstants.js";
 /** @internal */
 export class WebGPUShaderProcessor {
     constructor() {
-        this.shaderLanguage = ShaderLanguage.GLSL;
+        this.shaderLanguage = 0 /* ShaderLanguage.GLSL */;
     }
     _addUniformToLeftOverUBO(name, uniformType, preProcessors) {
-        let length = 0;
+        let length;
         [name, uniformType, length] = this._getArraySize(name, uniformType, preProcessors);
         for (let i = 0; i < this._webgpuProcessingContext.leftOverUniforms.length; i++) {
             if (this._webgpuProcessingContext.leftOverUniforms[i].name === name) {
@@ -30,8 +28,8 @@ export class WebGPUShaderProcessor {
                 binding: this._webgpuProcessingContext.getNextFreeUBOBinding(),
             };
             this._webgpuProcessingContext.availableBuffers[name] = availableUBO;
-            this._addBufferBindingDescription(name, availableUBO, WebGPUConstants.BufferBindingType.Uniform, true);
-            this._addBufferBindingDescription(name, availableUBO, WebGPUConstants.BufferBindingType.Uniform, false);
+            this._addBufferBindingDescription(name, availableUBO, "uniform" /* WebGPUConstants.BufferBindingType.Uniform */, true);
+            this._addBufferBindingDescription(name, availableUBO, "uniform" /* WebGPUConstants.BufferBindingType.Uniform */, false);
         }
         return this._generateLeftOverUBOCode(name, availableUBO);
     }
@@ -88,7 +86,7 @@ export class WebGPUShaderProcessor {
             bindGroupEntries[i] = entries;
         }
     }
-    _addTextureBindingDescription(name, textureInfo, textureIndex, dimension, format, isVertex) {
+    _addTextureBindingDescription(name, textureInfo, textureIndex, dimension, format, isVertex, storageTextureAccess = "write-only" /* WebGPUConstants.StorageTextureAccess.WriteOnly */) {
         // eslint-disable-next-line prefer-const
         let { groupIndex, bindingIndex } = textureInfo.textures[textureIndex];
         if (!this._webgpuProcessingContext.bindGroupLayoutEntries[groupIndex]) {
@@ -109,7 +107,7 @@ export class WebGPUShaderProcessor {
                     binding: bindingIndex,
                     visibility: 0,
                     storageTexture: {
-                        access: WebGPUConstants.StorageTextureAccess.WriteOnly,
+                        access: storageTextureAccess,
                         format,
                         viewDimension: dimension,
                     },
@@ -131,10 +129,10 @@ export class WebGPUShaderProcessor {
         }
         bindingIndex = this._webgpuProcessingContext.bindGroupLayoutEntryInfo[groupIndex][bindingIndex].index;
         if (isVertex) {
-            this._webgpuProcessingContext.bindGroupLayoutEntries[groupIndex][bindingIndex].visibility |= WebGPUConstants.ShaderStage.Vertex;
+            this._webgpuProcessingContext.bindGroupLayoutEntries[groupIndex][bindingIndex].visibility |= 1 /* WebGPUConstants.ShaderStage.Vertex */;
         }
         else {
-            this._webgpuProcessingContext.bindGroupLayoutEntries[groupIndex][bindingIndex].visibility |= WebGPUConstants.ShaderStage.Fragment;
+            this._webgpuProcessingContext.bindGroupLayoutEntries[groupIndex][bindingIndex].visibility |= 2 /* WebGPUConstants.ShaderStage.Fragment */;
         }
     }
     _addSamplerBindingDescription(name, samplerInfo, isVertex) {
@@ -156,10 +154,10 @@ export class WebGPUShaderProcessor {
         }
         bindingIndex = this._webgpuProcessingContext.bindGroupLayoutEntryInfo[groupIndex][bindingIndex].index;
         if (isVertex) {
-            this._webgpuProcessingContext.bindGroupLayoutEntries[groupIndex][bindingIndex].visibility |= WebGPUConstants.ShaderStage.Vertex;
+            this._webgpuProcessingContext.bindGroupLayoutEntries[groupIndex][bindingIndex].visibility |= 1 /* WebGPUConstants.ShaderStage.Vertex */;
         }
         else {
-            this._webgpuProcessingContext.bindGroupLayoutEntries[groupIndex][bindingIndex].visibility |= WebGPUConstants.ShaderStage.Fragment;
+            this._webgpuProcessingContext.bindGroupLayoutEntries[groupIndex][bindingIndex].visibility |= 2 /* WebGPUConstants.ShaderStage.Fragment */;
         }
     }
     _addBufferBindingDescription(name, uniformBufferInfo, bufferType, isVertex) {
@@ -181,36 +179,13 @@ export class WebGPUShaderProcessor {
         }
         bindingIndex = this._webgpuProcessingContext.bindGroupLayoutEntryInfo[groupIndex][bindingIndex].index;
         if (isVertex) {
-            this._webgpuProcessingContext.bindGroupLayoutEntries[groupIndex][bindingIndex].visibility |= WebGPUConstants.ShaderStage.Vertex;
+            this._webgpuProcessingContext.bindGroupLayoutEntries[groupIndex][bindingIndex].visibility |= 1 /* WebGPUConstants.ShaderStage.Vertex */;
         }
         else {
-            this._webgpuProcessingContext.bindGroupLayoutEntries[groupIndex][bindingIndex].visibility |= WebGPUConstants.ShaderStage.Fragment;
+            this._webgpuProcessingContext.bindGroupLayoutEntries[groupIndex][bindingIndex].visibility |= 2 /* WebGPUConstants.ShaderStage.Fragment */;
         }
-    }
-    _injectStartingAndEndingCode(code, mainFuncDecl, startingCode, endingCode) {
-        let idx = code.indexOf(mainFuncDecl);
-        if (idx < 0) {
-            console.error(`No "main" function found in shader code! Processing aborted.`);
-            return code;
-        }
-        if (startingCode) {
-            // eslint-disable-next-line no-empty
-            while (idx++ < code.length && code.charAt(idx) != "{") { }
-            if (idx < code.length) {
-                const part1 = code.substring(0, idx + 1);
-                const part2 = code.substring(idx + 1);
-                code = part1 + startingCode + part2;
-            }
-        }
-        if (endingCode) {
-            const lastClosingCurly = code.lastIndexOf("}");
-            code = code.substring(0, lastClosingCurly);
-            code += endingCode + "\n}";
-        }
-        return code;
     }
 }
-WebGPUShaderProcessor.AutoSamplerSuffix = "Sampler";
 WebGPUShaderProcessor.LeftOvertUBOName = "LeftOver";
 WebGPUShaderProcessor.InternalsUBOName = "Internals";
 WebGPUShaderProcessor.UniformSizes = {
@@ -220,10 +195,13 @@ WebGPUShaderProcessor.UniformSizes = {
     float: 1,
     vec2: 2,
     ivec2: 2,
+    uvec2: 2,
     vec3: 3,
     ivec3: 3,
+    uvec3: 3,
     vec4: 4,
     ivec4: 4,
+    uvec4: 4,
     mat2: 4,
     mat3: 12,
     mat4: 16,
@@ -234,6 +212,21 @@ WebGPUShaderProcessor.UniformSizes = {
     mat2x2: 4,
     mat3x3: 12,
     mat4x4: 16,
+    mat2x2f: 4,
+    mat3x3f: 12,
+    mat4x4f: 16,
+    vec2i: 2,
+    vec3i: 3,
+    vec4i: 4,
+    vec2u: 2,
+    vec3u: 3,
+    vec4u: 4,
+    vec2f: 2,
+    vec3f: 3,
+    vec4f: 4,
+    vec2h: 1,
+    vec3h: 2,
+    vec4h: 2,
 };
 // eslint-disable-next-line @typescript-eslint/naming-convention
 WebGPUShaderProcessor._SamplerFunctionByWebGLSamplerType = {
@@ -256,11 +249,11 @@ WebGPUShaderProcessor._TextureTypeByWebGLSamplerType = {
 };
 // eslint-disable-next-line @typescript-eslint/naming-convention
 WebGPUShaderProcessor._GpuTextureViewDimensionByWebGPUTextureType = {
-    textureCube: WebGPUConstants.TextureViewDimension.Cube,
-    textureCubeArray: WebGPUConstants.TextureViewDimension.CubeArray,
-    texture2D: WebGPUConstants.TextureViewDimension.E2d,
-    texture2DArray: WebGPUConstants.TextureViewDimension.E2dArray,
-    texture3D: WebGPUConstants.TextureViewDimension.E3d,
+    textureCube: "cube" /* WebGPUConstants.TextureViewDimension.Cube */,
+    textureCubeArray: "cube-array" /* WebGPUConstants.TextureViewDimension.CubeArray */,
+    texture2D: "2d" /* WebGPUConstants.TextureViewDimension.E2d */,
+    texture2DArray: "2d-array" /* WebGPUConstants.TextureViewDimension.E2dArray */,
+    texture3D: "3d" /* WebGPUConstants.TextureViewDimension.E3d */,
 };
 // if the webgl sampler type is not listed in this array, "sampler" is taken by default
 // eslint-disable-next-line @typescript-eslint/naming-convention

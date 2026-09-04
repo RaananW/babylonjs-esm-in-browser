@@ -113,5 +113,19 @@ export class Frustum {
         // Bottom
         Frustum.GetBottomPlaneToRef(transform, frustumPlanes[5]);
     }
+    /**
+     * Tests if a point is located between the frustum planes.
+     * @param point defines the point to test
+     * @param frustumPlanes defines the frustum planes to test
+     * @returns true if the point is located between the frustum planes
+     */
+    static IsPointInFrustum(point, frustumPlanes) {
+        for (let i = 0; i < 6; i++) {
+            if (frustumPlanes[i].dotCoordinate(point) < 0) {
+                return false;
+            }
+        }
+        return true;
+    }
 }
 //# sourceMappingURL=math.frustum.js.map

@@ -1,11 +1,11 @@
-import { ArrayTools } from "../Misc/arrayTools.js";
-import { Vector3 } from "../Maths/math.vector.js";
+import { BuildArray } from "../Misc/arrayTools.js";
+import { TmpVectors, Vector3 } from "../Maths/math.vector.pure.js";
 
 import { BoundingBox } from "./boundingBox.js";
 import { BoundingSphere } from "./boundingSphere.js";
-const _result0 = { min: 0, max: 0 };
-const _result1 = { min: 0, max: 0 };
-const computeBoxExtents = (axis, box, result) => {
+const _Result0 = { min: 0, max: 0 };
+const _Result1 = { min: 0, max: 0 };
+const ComputeBoxExtents = (axis, box, result) => {
     const p = Vector3.Dot(box.centerWorld, axis);
     const r0 = Math.abs(Vector3.Dot(box.directions[0], axis)) * box.extendSize.x;
     const r1 = Math.abs(Vector3.Dot(box.directions[1], axis)) * box.extendSize.y;
@@ -14,10 +14,10 @@ const computeBoxExtents = (axis, box, result) => {
     result.min = p - r;
     result.max = p + r;
 };
-const axisOverlap = (axis, box0, box1) => {
-    computeBoxExtents(axis, box0, _result0);
-    computeBoxExtents(axis, box1, _result1);
-    return !(_result0.min > _result1.max || _result1.min > _result0.max);
+const AxisOverlap = (axis, box0, box1) => {
+    ComputeBoxExtents(axis, box0, _Result0);
+    ComputeBoxExtents(axis, box1, _Result1);
+    return !(_Result0.min > _Result1.max || _Result1.min > _Result0.max);
 };
 /**
  * Info for a bounding data of a mesh
@@ -92,7 +92,7 @@ export class BoundingInfo {
     }
     /**
      * Grows the bounding info to include the given point.
-     * @param point The point that will be included in the current bounding info
+     * @param point The point that will be included in the current bounding info (in local space)
      * @returns the current bounding info
      */
     encapsulate(point) {
@@ -107,8 +107,13 @@ export class BoundingInfo {
      * @returns the current bounding info
      */
     encapsulateBoundingInfo(toEncapsulate) {
-        this.encapsulate(toEncapsulate.boundingBox.centerWorld.subtract(toEncapsulate.boundingBox.extendSizeWorld));
-        this.encapsulate(toEncapsulate.boundingBox.centerWorld.add(toEncapsulate.boundingBox.extendSizeWorld));
+        const invw = TmpVectors.Matrix[0];
+        this.boundingBox.getWorldMatrix().invertToRef(invw);
+        const v = TmpVectors.Vector3[0];
+        Vector3.TransformCoordinatesToRef(toEncapsulate.boundingBox.minimumWorld, invw, v);
+        this.encapsulate(v);
+        Vector3.TransformCoordinatesToRef(toEncapsulate.boundingBox.maximumWorld, invw, v);
+        this.encapsulate(v);
         return this;
     }
     /**
@@ -208,53 +213,53 @@ export class BoundingInfo {
         }
         const box0 = this.boundingBox;
         const box1 = boundingInfo.boundingBox;
-        if (!axisOverlap(box0.directions[0], box0, box1)) {
+        if (!AxisOverlap(box0.directions[0], box0, box1)) {
             return false;
         }
-        if (!axisOverlap(box0.directions[1], box0, box1)) {
+        if (!AxisOverlap(box0.directions[1], box0, box1)) {
             return false;
         }
-        if (!axisOverlap(box0.directions[2], box0, box1)) {
+        if (!AxisOverlap(box0.directions[2], box0, box1)) {
             return false;
         }
-        if (!axisOverlap(box1.directions[0], box0, box1)) {
+        if (!AxisOverlap(box1.directions[0], box0, box1)) {
             return false;
         }
-        if (!axisOverlap(box1.directions[1], box0, box1)) {
+        if (!AxisOverlap(box1.directions[1], box0, box1)) {
             return false;
         }
-        if (!axisOverlap(box1.directions[2], box0, box1)) {
+        if (!AxisOverlap(box1.directions[2], box0, box1)) {
             return false;
         }
-        if (!axisOverlap(Vector3.Cross(box0.directions[0], box1.directions[0]), box0, box1)) {
+        if (!AxisOverlap(Vector3.Cross(box0.directions[0], box1.directions[0]), box0, box1)) {
             return false;
         }
-        if (!axisOverlap(Vector3.Cross(box0.directions[0], box1.directions[1]), box0, box1)) {
+        if (!AxisOverlap(Vector3.Cross(box0.directions[0], box1.directions[1]), box0, box1)) {
             return false;
         }
-        if (!axisOverlap(Vector3.Cross(box0.directions[0], box1.directions[2]), box0, box1)) {
+        if (!AxisOverlap(Vector3.Cross(box0.directions[0], box1.directions[2]), box0, box1)) {
             return false;
         }
-        if (!axisOverlap(Vector3.Cross(box0.directions[1], box1.directions[0]), box0, box1)) {
+        if (!AxisOverlap(Vector3.Cross(box0.directions[1], box1.directions[0]), box0, box1)) {
             return false;
         }
-        if (!axisOverlap(Vector3.Cross(box0.directions[1], box1.directions[1]), box0, box1)) {
+        if (!AxisOverlap(Vector3.Cross(box0.directions[1], box1.directions[1]), box0, box1)) {
             return false;
         }
-        if (!axisOverlap(Vector3.Cross(box0.directions[1], box1.directions[2]), box0, box1)) {
+        if (!AxisOverlap(Vector3.Cross(box0.directions[1], box1.directions[2]), box0, box1)) {
             return false;
         }
-        if (!axisOverlap(Vector3.Cross(box0.directions[2], box1.directions[0]), box0, box1)) {
+        if (!AxisOverlap(Vector3.Cross(box0.directions[2], box1.directions[0]), box0, box1)) {
             return false;
         }
-        if (!axisOverlap(Vector3.Cross(box0.directions[2], box1.directions[1]), box0, box1)) {
+        if (!AxisOverlap(Vector3.Cross(box0.directions[2], box1.directions[1]), box0, box1)) {
             return false;
         }
-        if (!axisOverlap(Vector3.Cross(box0.directions[2], box1.directions[2]), box0, box1)) {
+        if (!AxisOverlap(Vector3.Cross(box0.directions[2], box1.directions[2]), box0, box1)) {
             return false;
         }
         return true;
     }
 }
-BoundingInfo._TmpVector3 = ArrayTools.BuildArray(2, Vector3.Zero);
+BoundingInfo._TmpVector3 = BuildArray(2, Vector3.Zero);
 //# sourceMappingURL=boundingInfo.js.map

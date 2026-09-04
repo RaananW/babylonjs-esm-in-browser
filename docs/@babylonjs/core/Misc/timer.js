@@ -21,12 +21,13 @@ export var TimerState;
  * A simple version of the timer. Will take options and start the timer immediately after calling it
  *
  * @param options options with which to initialize this timer
+ * @returns an observer that can be used to stop the timer
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export function setAndStartTimer(options) {
-    var _a;
     let timer = 0;
     const startTime = Date.now();
-    options.observableParameters = (_a = options.observableParameters) !== null && _a !== void 0 ? _a : {};
+    options.observableParameters = options.observableParameters ?? {};
     const observer = options.contextObservable.add((payload) => {
         const now = Date.now();
         timer = now - startTime;
@@ -37,15 +38,17 @@ export function setAndStartTimer(options) {
             completeRate: timer / options.timeout,
             payload,
         };
-        options.onTick && options.onTick(data);
-        if (options.breakCondition && options.breakCondition()) {
+        if (options.breakCondition && options.breakCondition(data)) {
             options.contextObservable.remove(observer);
             options.onAborted && options.onAborted(data);
+            return;
         }
         if (timer >= options.timeout) {
             options.contextObservable.remove(observer);
             options.onEnded && options.onEnded(data);
+            return;
         }
+        options.onTick && options.onTick(data);
     }, options.observableParameters.mask, options.observableParameters.insertFirst, options.observableParameters.scope);
     return observer;
 }
@@ -58,7 +61,6 @@ export class AdvancedTimer {
      * @param options construction options for this advanced timer
      */
     constructor(options) {
-        var _a, _b;
         /**
          * Will notify each time the timer calculates the remaining time
          */
@@ -95,10 +97,10 @@ export class AdvancedTimer {
                 this.onEachCountObservable.notifyObservers(data);
             }
         };
-        this._setState(TimerState.INIT);
+        this._setState(0 /* TimerState.INIT */);
         this._contextObservable = options.contextObservable;
-        this._observableParameters = (_a = options.observableParameters) !== null && _a !== void 0 ? _a : {};
-        this._breakCondition = (_b = options.breakCondition) !== null && _b !== void 0 ? _b : (() => false);
+        this._observableParameters = options.observableParameters ?? {};
+        this._breakCondition = options.breakCondition ?? (() => false);
         this._timeToEnd = options.timeout;
         if (options.onEnded) {
             this.onTimerEndedObservable.add(options.onEnded);
@@ -132,20 +134,20 @@ export class AdvancedTimer {
      * @param timeToEnd how much time to measure until timer ended
      */
     start(timeToEnd = this._timeToEnd) {
-        if (this._state === TimerState.STARTED) {
+        if (this._state === 1 /* TimerState.STARTED */) {
             throw new Error("Timer already started. Please stop it before starting again");
         }
         this._timeToEnd = timeToEnd;
         this._startTime = Date.now();
         this._timer = 0;
         this._observer = this._contextObservable.add(this._tick, this._observableParameters.mask, this._observableParameters.insertFirst, this._observableParameters.scope);
-        this._setState(TimerState.STARTED);
+        this._setState(1 /* TimerState.STARTED */);
     }
     /**
      * Will force a stop on the next tick.
      */
     stop() {
-        if (this._state !== TimerState.STARTED) {
+        if (this._state !== 1 /* TimerState.STARTED */) {
             return;
         }
         this._breakOnNextTick = true;
@@ -165,7 +167,7 @@ export class AdvancedTimer {
     }
     _stop(data, aborted = false) {
         this._contextObservable.remove(this._observer);
-        this._setState(TimerState.ENDED);
+        this._setState(2 /* TimerState.ENDED */);
         if (aborted) {
             this.onTimerAbortedObservable.notifyObservers(data);
         }

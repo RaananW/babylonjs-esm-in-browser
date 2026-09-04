@@ -1,20 +1,35 @@
-import type { Nullable } from "../types";
-import type { IMatrixLike } from "../Maths/math.like";
-import type { ThinEngine } from "../Engines/thinEngine";
-import type { ThinSprite } from "./thinSprite";
-import type { ISize } from "../Maths/math.size";
-declare type ThinTexture = import("../Materials/Textures/thinTexture").ThinTexture;
-declare type Scene = import("../scene").Scene;
-import "../Engines/Extensions/engine.alpha";
-import "../Engines/Extensions/engine.dynamicBuffer";
-import "../Shaders/sprites.fragment";
-import "../Shaders/sprites.vertex";
+import { type Nullable } from "../types.js";
+import { type IMatrixLike } from "../Maths/math.like.js";
+import { type AbstractEngine } from "../Engines/abstractEngine.js";
+import { DrawWrapper } from "../Materials/drawWrapper.js";
+import { type ThinSprite } from "./thinSprite.js";
+import { type ISize } from "../Maths/math.size.js";
+import { type ThinTexture } from "../Materials/Textures/thinTexture.js";
+import { type Scene } from "../scene.js";
+import { ShaderLanguage } from "../Materials/shaderLanguage.js";
+/**
+ * Options for the SpriteRenderer
+ */
+export interface SpriteRendererOptions {
+    /**
+     * Sets a boolean indicating if the renderer must render sprites with pixel perfect rendering.
+     * In this mode, sprites are rendered as "pixel art", which means that they appear as pixelated but remain stable when moving or when rotated or scaled.
+     * Note that for this mode to work as expected, the sprite texture must use the BILINEAR sampling mode, not NEAREST!
+     * Default is false.
+     */
+    pixelPerfect?: boolean;
+}
 /**
  * Class used to render sprites.
  *
  * It can be used either to render Sprites or ThinSprites with ThinEngine only.
  */
 export declare class SpriteRenderer {
+    /**
+     * Force all the sprites to compile to glsl even on WebGPU engines.
+     * False by default. This is mostly meant for backward compatibility.
+     */
+    static ForceGLSL: boolean;
     /**
      * Defines the texture of the spritesheet
      */
@@ -44,14 +59,37 @@ export declare class SpriteRenderer {
      * and setting some specific blend modes.
      */
     disableDepthWrite: boolean;
+    private _fogEnabled;
     /**
      * Gets or sets a boolean indicating if the manager must consider scene fog when rendering
      */
-    fogEnabled: boolean;
+    get fogEnabled(): boolean;
+    set fogEnabled(value: boolean);
+    protected _useLogarithmicDepth: boolean;
+    /**
+     * In case the depth buffer does not allow enough depth precision for your scene (might be the case in large scenes)
+     * You can try switching to logarithmic depth.
+     * @see https://doc.babylonjs.com/features/featuresDeepDive/materials/advanced/logarithmicDepthBuffer
+     */
+    get useLogarithmicDepth(): boolean;
+    set useLogarithmicDepth(value: boolean);
     /**
      * Gets the capacity of the manager
      */
     get capacity(): number;
+    private _pixelPerfect;
+    /**
+     * Gets or sets a boolean indicating if the renderer must render sprites with pixel perfect rendering
+     * Note that pixel perfect mode is not supported in WebGL 1
+     */
+    get pixelPerfect(): boolean;
+    set pixelPerfect(value: boolean);
+    /** Shader language used by the material */
+    protected _shaderLanguage: ShaderLanguage;
+    /**
+     * Gets the shader language used in this renderer.
+     */
+    get shaderLanguage(): ShaderLanguage;
     private readonly _engine;
     private readonly _useVAO;
     private readonly _useInstancing;
@@ -64,19 +102,24 @@ export declare class SpriteRenderer {
     private _vertexBuffers;
     private _spriteBuffer;
     private _indexBuffer;
-    private _drawWrapperBase;
-    private _drawWrapperFog;
-    private _drawWrapperDepth;
-    private _drawWrapperFogDepth;
+    /** @internal */
+    _drawWrapperBase: DrawWrapper;
+    /** @internal */
+    _drawWrapperDepth: DrawWrapper;
     private _vertexArrayObject;
+    private _isDisposed;
     /**
-     * Creates a new sprite Renderer
+     * Creates a new sprite renderer
      * @param engine defines the engine the renderer works with
      * @param capacity defines the maximum allowed number of sprites
      * @param epsilon defines the epsilon value to align texture (0.01 by default)
      * @param scene defines the hosting scene
+     * @param rendererOptions options for the sprite renderer
      */
-    constructor(engine: ThinEngine, capacity: number, epsilon?: number, scene?: Nullable<Scene>);
+    constructor(engine: AbstractEngine, capacity: number, epsilon?: number, scene?: Nullable<Scene>, rendererOptions?: SpriteRendererOptions);
+    private _shadersLoaded;
+    private _initShaderSourceAsync;
+    private _createEffects;
     /**
      * Render all child sprites
      * @param sprites defines the list of sprites to render
@@ -97,4 +140,3 @@ export declare class SpriteRenderer {
      */
     dispose(): void;
 }
-export {};

@@ -1,13 +1,6 @@
-declare module "../../Engines/thinEngine" {
-    interface ThinEngine {
-        /** @internal */
-        _debugPushGroup(groupName: string, targetObject?: number): void;
-        /** @internal */
-        _debugPopGroup(targetObject?: number): void;
-        /** @internal */
-        _debugInsertMarker(text: string, targetObject?: number): void;
-        /** @internal */
-        _debugFlushPendingCommands(): void;
-    }
-}
-export {};
+export * from "./engine.debugging.types.js";
+/**
+ * Re-exports pure implementation and applies runtime side effects.
+ * Import engine.debugging.pure for tree-shakeable, side-effect-free usage.
+ */
+export * from "./engine.debugging.pure.js";

@@ -1,4 +1,4 @@
-import { Vector3, Matrix } from "./math.vector.js";
+import { Vector3, Matrix } from "./math.vector.pure.js";
 /**
  * Represents a plane by the equation ax + by + cz + d = 0
  */
@@ -162,13 +162,22 @@ export class Plane {
      * @param origin origin of the plane to be constructed
      * @param normal normal of the plane to be constructed
      * @returns a new Plane the normal vector to this plane at the given origin point.
-     * Note : the vector "normal" is updated because normalized.
      */
     static FromPositionAndNormal(origin, normal) {
-        const result = new Plane(0.0, 0.0, 0.0, 0.0);
-        normal.normalize();
-        result.normal = normal;
-        result.d = -(normal.x * origin.x + normal.y * origin.y + normal.z * origin.z);
+        const plane = new Plane(0.0, 0.0, 0.0, 0.0);
+        return this.FromPositionAndNormalToRef(origin, normal, plane);
+    }
+    /**
+     * Updates the given Plane "result" from an origin point and a normal.
+     * @param origin origin of the plane to be constructed
+     * @param normal the normalized normals of the plane to be constructed
+     * @param result defines the Plane where to store the result
+     * @returns result input
+     */
+    static FromPositionAndNormalToRef(origin, normal, result) {
+        result.normal.copyFrom(normal);
+        result.normal.normalize();
+        result.d = -origin.dot(result.normal);
         return result;
     }
     /**

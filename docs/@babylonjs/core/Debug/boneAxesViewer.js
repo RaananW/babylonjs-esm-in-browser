@@ -1,5 +1,5 @@
 import { AxesViewer } from "../Debug/axesViewer.js";
-import { Vector3 } from "../Maths/math.vector.js";
+import { Vector3 } from "../Maths/math.vector.pure.js";
 import { Axis } from "../Maths/math.axis.js";
 /**
  * The BoneAxesViewer will attach 3 axes to a specific bone of a specific mesh

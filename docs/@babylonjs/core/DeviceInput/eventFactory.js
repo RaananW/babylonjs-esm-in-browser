@@ -1,6 +1,6 @@
 
 import { EventConstants } from "../Events/deviceInputEvents.js";
-import { DeviceType, NativePointerInput, PointerInput } from "./InputDevices/deviceEnums.js";
+import { DeviceType, PointerInput } from "./InputDevices/deviceEnums.js";
 /**
  * Class to wrap DeviceInputSystem data into an event object
  */
@@ -14,9 +14,10 @@ export class DeviceEventFactory {
      * @param currentState Current value for given input
      * @param deviceInputSystem Reference to DeviceInputSystem
      * @param elementToAttachTo HTMLElement to reference as target for inputs
+     * @param pointerId PointerId to use for pointer events
      * @returns IUIEvent object
      */
-    static CreateDeviceEvent(deviceType, deviceSlot, inputIndex, currentState, deviceInputSystem, elementToAttachTo) {
+    static CreateDeviceEvent(deviceType, deviceSlot, inputIndex, currentState, deviceInputSystem, elementToAttachTo, pointerId) {
         switch (deviceType) {
             case DeviceType.Keyboard:
                 return this._CreateKeyboardEvent(inputIndex, currentState, deviceInputSystem, elementToAttachTo);
@@ -26,8 +27,9 @@ export class DeviceEventFactory {
                 }
             // eslint-disable-next-line no-fallthrough
             case DeviceType.Touch:
-                return this._CreatePointerEvent(deviceType, deviceSlot, inputIndex, currentState, deviceInputSystem, elementToAttachTo);
+                return this._CreatePointerEvent(deviceType, deviceSlot, inputIndex, currentState, deviceInputSystem, elementToAttachTo, pointerId);
             default:
+                // eslint-disable-next-line no-throw-literal
                 throw `Unable to generate event for device ${DeviceType[deviceType]}`;
         }
     }
@@ -40,9 +42,10 @@ export class DeviceEventFactory {
      * @param currentState Current value for given input
      * @param deviceInputSystem Reference to DeviceInputSystem
      * @param elementToAttachTo HTMLElement to reference as target for inputs
+     * @param pointerId PointerId to use for pointer events
      * @returns IUIEvent object (Pointer)
      */
-    static _CreatePointerEvent(deviceType, deviceSlot, inputIndex, currentState, deviceInputSystem, elementToAttachTo) {
+    static _CreatePointerEvent(deviceType, deviceSlot, inputIndex, currentState, deviceInputSystem, elementToAttachTo, pointerId) {
         const evt = this._CreateMouseEvent(deviceType, deviceSlot, inputIndex, currentState, deviceInputSystem, elementToAttachTo);
         if (deviceType === DeviceType.Mouse) {
             evt.deviceType = DeviceType.Mouse;
@@ -51,9 +54,16 @@ export class DeviceEventFactory {
         }
         else {
             evt.deviceType = DeviceType.Touch;
-            evt.pointerId = deviceSlot;
+            evt.pointerId = pointerId ?? deviceSlot;
             evt.pointerType = "touch";
         }
+        let buttons = 0;
+        // Populate buttons property with current state of all mouse buttons
+        // Uses values found on: https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/buttons
+        buttons += deviceInputSystem.pollInput(deviceType, deviceSlot, PointerInput.LeftClick);
+        buttons += deviceInputSystem.pollInput(deviceType, deviceSlot, PointerInput.RightClick) * 2;
+        buttons += deviceInputSystem.pollInput(deviceType, deviceSlot, PointerInput.MiddleClick) * 4;
+        evt.buttons = buttons;
         if (inputIndex === PointerInput.Move) {
             evt.type = "pointermove";
         }
@@ -75,6 +85,10 @@ export class DeviceEventFactory {
      */
     static _CreateWheelEvent(deviceType, deviceSlot, inputIndex, currentState, deviceInputSystem, elementToAttachTo) {
         const evt = this._CreateMouseEvent(deviceType, deviceSlot, inputIndex, currentState, deviceInputSystem, elementToAttachTo);
+        // While WheelEvents don't generally have a pointerId, we used to add one in the InputManager
+        // This line has been added to make the InputManager more platform-agnostic
+        // Similar code exists in the WebDeviceInputSystem to handle browser created events
+        evt.pointerId = 1;
         evt.type = "wheel";
         evt.deltaMode = EventConstants.DOM_DELTA_PIXEL;
         evt.deltaX = 0;
@@ -115,8 +129,8 @@ export class DeviceEventFactory {
             evt.offsetY = evt.movementY - elementToAttachTo.getBoundingClientRect().y;
         }
         else {
-            evt.movementX = deviceInputSystem.pollInput(deviceType, deviceSlot, NativePointerInput.DeltaHorizontal); // DeltaHorizontal
-            evt.movementY = deviceInputSystem.pollInput(deviceType, deviceSlot, NativePointerInput.DeltaVertical); // DeltaVertical
+            evt.movementX = deviceInputSystem.pollInput(deviceType, deviceSlot, 10 /* NativePointerInput.DeltaHorizontal */); // DeltaHorizontal
+            evt.movementY = deviceInputSystem.pollInput(deviceType, deviceSlot, 11 /* NativePointerInput.DeltaVertical */); // DeltaVertical
             evt.offsetX = 0;
             evt.offsetY = 0;
         }

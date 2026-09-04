@@ -12,7 +12,7 @@ export class DeviceSource {
     constructor(deviceInputSystem, 
     /** Type of device */
     deviceType, 
-    /** "Slot" or index that device is referenced in */
+    /** [0] "Slot" or index that device is referenced in */
     deviceSlot = 0) {
         this.deviceType = deviceType;
         this.deviceSlot = deviceSlot;

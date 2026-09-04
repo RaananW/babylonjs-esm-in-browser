@@ -1,7 +1,8 @@
-import { RenderTargetTexture } from "../Textures/renderTargetTexture.js";
+import { RenderTargetTexture } from "../Textures/renderTargetTexture.pure.js";
 
 /**
  * Renders to multiple views with a single draw call
+ * Only for WebGL backends
  * @see https://www.khronos.org/registry/webgl/extensions/OVR_multiview2/
  */
 export class MultiviewRenderTarget extends RenderTargetTexture {

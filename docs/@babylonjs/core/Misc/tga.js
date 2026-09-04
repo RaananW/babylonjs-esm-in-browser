@@ -30,7 +30,7 @@ export function GetTGAHeader(data) {
         width: data[offset++] | (data[offset++] << 8),
         height: data[offset++] | (data[offset++] << 8),
         pixel_size: data[offset++],
-        flags: data[offset++],
+        flags: data[offset],
     };
     return header;
 }
@@ -120,7 +120,7 @@ export function UploadContent(texture, data) {
     }
     // RAW Pixels
     else {
-        pixel_data = data.subarray(offset, (offset += use_pal ? header.width * header.height : pixel_total));
+        pixel_data = data.subarray(offset, offset + (use_pal ? header.width * header.height : pixel_total));
     }
     // Load to texture
     let x_start, y_start, x_step, y_step, y_end, x_end;
@@ -168,7 +168,7 @@ export function UploadContent(texture, data) {
 /**
  * @internal
  */
-function _getImageData8bits(header, palettes, pixel_data, y_start, y_step, y_end, x_start, x_step, x_end) {
+function GetImageData8bits(header, palettes, pixel_data, y_start, y_step, y_end, x_start, x_step, x_end) {
     const image = pixel_data, colormap = palettes;
     const width = header.width, height = header.height;
     let color, i = 0, x, y;
@@ -187,7 +187,7 @@ function _getImageData8bits(header, palettes, pixel_data, y_start, y_step, y_end
 /**
  * @internal
  */
-function _getImageData16bits(header, palettes, pixel_data, y_start, y_step, y_end, x_start, x_step, x_end) {
+function GetImageData16bits(header, palettes, pixel_data, y_start, y_step, y_end, x_start, x_step, x_end) {
     const image = pixel_data;
     const width = header.width, height = header.height;
     let color, i = 0, x, y;
@@ -209,7 +209,7 @@ function _getImageData16bits(header, palettes, pixel_data, y_start, y_step, y_en
 /**
  * @internal
  */
-function _getImageData24bits(header, palettes, pixel_data, y_start, y_step, y_end, x_start, x_step, x_end) {
+function GetImageData24bits(header, palettes, pixel_data, y_start, y_step, y_end, x_start, x_step, x_end) {
     const image = pixel_data;
     const width = header.width, height = header.height;
     let i = 0, x, y;
@@ -227,7 +227,7 @@ function _getImageData24bits(header, palettes, pixel_data, y_start, y_step, y_en
 /**
  * @internal
  */
-function _getImageData32bits(header, palettes, pixel_data, y_start, y_step, y_end, x_start, x_step, x_end) {
+function GetImageData32bits(header, palettes, pixel_data, y_start, y_step, y_end, x_start, x_step, x_end) {
     const image = pixel_data;
     const width = header.width, height = header.height;
     let i = 0, x, y;
@@ -245,7 +245,7 @@ function _getImageData32bits(header, palettes, pixel_data, y_start, y_step, y_en
 /**
  * @internal
  */
-function _getImageDataGrey8bits(header, palettes, pixel_data, y_start, y_step, y_end, x_start, x_step, x_end) {
+function GetImageDataGrey8bits(header, palettes, pixel_data, y_start, y_step, y_end, x_start, x_step, x_end) {
     const image = pixel_data;
     const width = header.width, height = header.height;
     let color, i = 0, x, y;
@@ -264,7 +264,7 @@ function _getImageDataGrey8bits(header, palettes, pixel_data, y_start, y_step, y
 /**
  * @internal
  */
-function _getImageDataGrey16bits(header, palettes, pixel_data, y_start, y_step, y_end, x_start, x_step, x_end) {
+function GetImageDataGrey16bits(header, palettes, pixel_data, y_start, y_step, y_end, x_start, x_step, x_end) {
     const image = pixel_data;
     const width = header.width, height = header.height;
     let i = 0, x, y;
@@ -297,16 +297,16 @@ export const TGATools = {
      */
     UploadContent,
     /** @internal */
-    _getImageData8bits,
+    _getImageData8bits: GetImageData8bits,
     /** @internal */
-    _getImageData16bits,
+    _getImageData16bits: GetImageData16bits,
     /** @internal */
-    _getImageData24bits,
+    _getImageData24bits: GetImageData24bits,
     /** @internal */
-    _getImageData32bits,
+    _getImageData32bits: GetImageData32bits,
     /** @internal */
-    _getImageDataGrey8bits,
+    _getImageDataGrey8bits: GetImageDataGrey8bits,
     /** @internal */
-    _getImageDataGrey16bits,
+    _getImageDataGrey16bits: GetImageDataGrey16bits,
 };
 //# sourceMappingURL=tga.js.map

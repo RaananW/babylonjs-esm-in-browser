@@ -1,6 +1,8 @@
-import type { TransformNode } from "../../Meshes/transformNode";
-import type { WebXRExperienceHelper } from "../../XR/webXRExperienceHelper";
-import type { Behavior } from "../behavior";
+import { type TransformNode } from "../../Meshes/transformNode.js";
+import { type Nullable } from "../../types.js";
+import { type WebXRFeaturesManager } from "../../XR/webXRFeaturesManager.js";
+import { type WebXRExperienceHelper } from "../../XR/webXRExperienceHelper.js";
+import { type Behavior } from "../behavior.js";
 /**
  * Zones around the hand
  */
@@ -109,6 +111,10 @@ export declare class HandConstraintBehavior implements Behavior<TransformNode> {
      */
     lerpTime: number;
     /**
+     * Attached node of this behavior
+     */
+    get attachedNode(): Nullable<TransformNode>;
+    /**
      * Builds a hand constraint behavior
      */
     constructor();
@@ -137,5 +143,5 @@ export declare class HandConstraintBehavior implements Behavior<TransformNode> {
      * Links the behavior to the XR experience in which to retrieve hand transform information.
      * @param xr xr experience
      */
-    linkToXRExperience(xr: WebXRExperienceHelper): void;
+    linkToXRExperience(xr: WebXRExperienceHelper | WebXRFeaturesManager): void;
 }

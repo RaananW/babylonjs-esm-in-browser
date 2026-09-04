@@ -1,9 +1,9 @@
-import type { Nullable } from "../../types";
-import type { InternalTexture } from "../../Materials/Textures/internalTexture";
-import type { ThinEngine } from "../../Engines/thinEngine";
-import type { IRenderTargetTexture, RenderTargetWrapper } from "../../Engines/renderTargetWrapper";
-import { ThinTexture } from "./thinTexture";
-import type { TextureSize, RenderTargetCreationOptions } from "./textureCreationOptions";
+import { type Nullable } from "../../types.js";
+import { type InternalTexture } from "../../Materials/Textures/internalTexture.js";
+import { type AbstractEngine } from "../../Engines/abstractEngine.js";
+import { type IRenderTargetTexture, type RenderTargetWrapper } from "../../Engines/renderTargetWrapper.js";
+import { ThinTexture } from "./thinTexture.js";
+import { type TextureSize, type RenderTargetCreationOptions } from "./textureCreationOptions.js";
 /**
  * This is a tiny helper class to wrap a RenderTargetWrapper in a texture
  * usable as the input of an effect.
@@ -19,12 +19,12 @@ export declare class ThinRenderTargetTexture extends ThinTexture implements IRen
     /**
      * Instantiates a new ThinRenderTargetTexture.
      * Tiny helper class to wrap a RenderTargetWrapper in a texture.
-     * This can be used as an internal texture wrapper in ThinEngine to benefit from the cache and to hold on the associated RTT
-     * @param engine Define the internalTexture to wrap
+     * This can be used as an internal texture wrapper to benefit from the cache and to hold on the associated RTT
+     * @param engine Define the engine used to create and host the render target
      * @param size Define the size of the RTT to create
      * @param options Define rendertarget options
      */
-    constructor(engine: ThinEngine, size: TextureSize, options: RenderTargetCreationOptions);
+    constructor(engine: AbstractEngine, size: TextureSize, options: RenderTargetCreationOptions);
     /**
      * Resize the texture to a new desired size.
      * Be careful as it will recreate all the data in the new texture.
@@ -45,7 +45,7 @@ export declare class ThinRenderTargetTexture extends ThinTexture implements IRen
     getClassName(): string;
     /**
      * Dispose the texture and release its associated resources.
-     * @param disposeOnlyFramebuffers
+     * @param disposeOnlyFramebuffers if set to true it will dispose only the frame buffers (default: false)
      */
     dispose(disposeOnlyFramebuffers?: boolean): void;
 }

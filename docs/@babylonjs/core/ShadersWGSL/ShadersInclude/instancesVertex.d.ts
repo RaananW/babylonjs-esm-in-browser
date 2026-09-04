@@ -1,5 +1,5 @@
 /** @internal */
-export declare const instancesVertex: {
+export declare const instancesVertexWGSL: {
     name: string;
     shader: string;
 };

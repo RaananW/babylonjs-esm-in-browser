@@ -1,8 +1,8 @@
-import { Engine } from "../../../Engines/engine.js";
-import { LoadTextureFromTranscodeResult, TranscodeAsync } from "../../../Misc/basis.js";
-import { Tools } from "../../../Misc/tools.js";
+import { LoadTextureFromTranscodeResult, TranscodeAsync } from "../../../Misc/basis.pure.js";
+import { Tools } from "../../../Misc/tools.pure.js";
 /**
  * Loader for .basis file format
+ * @internal
  */
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export class _BasisTextureLoader {
@@ -11,14 +11,6 @@ export class _BasisTextureLoader {
          * Defines whether the loader supports cascade loading the different faces.
          */
         this.supportCascades = false;
-    }
-    /**
-     * This returns if the loader support the current file information.
-     * @param extension defines the file extension of the file being loaded
-     * @returns true if the loader can load the specified file
-     */
-    canLoad(extension) {
-        return extension.endsWith(".basis");
     }
     /**
      * Uploads the cube texture data to the WebGL texture. It has already been bound.
@@ -44,6 +36,7 @@ export class _BasisTextureLoader {
             },
         };
         TranscodeAsync(data, transcodeConfig)
+            // eslint-disable-next-line github/no-then
             .then((result) => {
             const hasMipmap = result.fileInfo.images[0].levels.length > 1 && texture.generateMipMaps;
             LoadTextureFromTranscodeResult(texture, result);
@@ -55,6 +48,7 @@ export class _BasisTextureLoader {
                 onLoad();
             }
         })
+            // eslint-disable-next-line github/no-then
             .catch((err) => {
             const errorMessage = "Failed to transcode Basis file, transcoding may not be supported on this device";
             Tools.Warn(errorMessage);
@@ -83,6 +77,7 @@ export class _BasisTextureLoader {
             },
         };
         TranscodeAsync(data, transcodeConfig)
+            // eslint-disable-next-line github/no-then
             .then((result) => {
             const rootImage = result.fileInfo.images[0].levels[0];
             const hasMipmap = result.fileInfo.images[0].levels.length > 1 && texture.generateMipMaps;
@@ -90,6 +85,7 @@ export class _BasisTextureLoader {
                 LoadTextureFromTranscodeResult(texture, result);
             });
         })
+            // eslint-disable-next-line github/no-then
             .catch((err) => {
             Tools.Warn("Failed to transcode Basis file, transcoding may not be supported on this device");
             Tools.Warn(`Failed to transcode Basis file: ${err}`);
@@ -97,6 +93,4 @@ export class _BasisTextureLoader {
         });
     }
 }
-// Register the loader.
-Engine._TextureLoaders.push(new _BasisTextureLoader());
 //# sourceMappingURL=basisTextureLoader.js.map

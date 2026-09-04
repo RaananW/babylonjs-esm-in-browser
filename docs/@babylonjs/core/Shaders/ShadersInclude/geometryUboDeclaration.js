@@ -5,7 +5,9 @@ const name = "geometryUboDeclaration";
 const shader = `#include<sceneUboDeclaration>
 `;
 // Sideeffect
-ShaderStore.IncludesShadersStore[name] = shader;
+if (!ShaderStore.IncludesShadersStore[name]) {
+    ShaderStore.IncludesShadersStore[name] = shader;
+}
 /** @internal */
 export const geometryUboDeclaration = { name, shader };
 //# sourceMappingURL=geometryUboDeclaration.js.map

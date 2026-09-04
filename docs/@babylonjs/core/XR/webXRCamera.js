@@ -1,10 +1,9 @@
-import { Vector3, Matrix, Quaternion, TmpVectors } from "../Maths/math.vector.js";
-import { Camera } from "../Cameras/camera.js";
-import { FreeCamera } from "../Cameras/freeCamera.js";
-import { TargetCamera } from "../Cameras/targetCamera.js";
+import { Vector3, Matrix, Quaternion, TmpVectors } from "../Maths/math.vector.pure.js";
+import { Camera } from "../Cameras/camera.pure.js";
+import { FreeCamera } from "../Cameras/freeCamera.pure.js";
+import { TargetCamera } from "../Cameras/targetCamera.pure.js";
 import { Viewport } from "../Maths/math.viewport.js";
 import { Observable } from "../Misc/observable.js";
-import { WebXRTrackingState } from "./webXRTypes.js";
 /**
  * WebXR Camera which holds the views for the xrSession
  * @see https://doc.babylonjs.com/features/featuresDeepDive/webXR/webXRCamera
@@ -20,15 +19,31 @@ export class WebXRCamera extends FreeCamera {
         super(name, Vector3.Zero(), scene);
         this._xrSessionManager = _xrSessionManager;
         this._firstFrame = false;
+        this._xrSessionInitObserver = null;
+        this._xrFrameObserver = null;
         this._referenceQuaternion = Quaternion.Identity();
         this._referencedPosition = new Vector3();
-        this._trackingState = WebXRTrackingState.NOT_TRACKING;
+        this._trackingState = 0 /* WebXRTrackingState.NOT_TRACKING */;
+        this._onWorldScaleFactorChanged = () => {
+            // only run if in session
+            if (!this._xrSessionManager.currentFrame) {
+                return;
+            }
+            this._updateDepthNearFar();
+        };
+        /**
+         * This will be triggered after the first XR Frame initialized the camera,
+         * including the right number of views and their rendering parameters
+         */
+        this.onXRCameraInitializedObservable = new Observable();
         /**
          * Observable raised before camera teleportation
+         * @deprecated use onBeforeCameraTeleport of the teleportation feature instead
          */
         this.onBeforeCameraTeleport = new Observable();
         /**
          *  Observable raised after camera teleportation
+         * @deprecated use onAfterCameraTeleport of the teleportation feature instead
          */
         this.onAfterCameraTeleport = new Observable();
         /**
@@ -41,7 +56,6 @@ export class WebXRCamera extends FreeCamera {
          * This is used when copying the position from a native (non XR) camera
          */
         this.compensateOnFirstFrame = true;
-        this._rotate180 = new Quaternion(0, 1, 0, 0);
         // Initial camera configuration
         this.minZ = 0.1;
         this.rotationQuaternion = new Quaternion();
@@ -50,17 +64,27 @@ export class WebXRCamera extends FreeCamera {
         this._updateNumberOfRigCameras(1);
         // freeze projection matrix, which will be copied later
         this.freezeProjectionMatrix();
-        this._xrSessionManager.onXRSessionInit.add(() => {
+        this._deferOnly = true;
+        this._xrSessionInitObserver = this._xrSessionManager.onXRSessionInit.add(() => {
             this._referencedPosition.copyFromFloats(0, 0, 0);
             this._referenceQuaternion.copyFromFloats(0, 0, 0, 1);
             // first frame - camera's y position should be 0 for the correct offset
             this._firstFrame = this.compensateOnFirstFrame;
         });
+        this._xrSessionManager.onWorldScaleFactorChangedObservable.add(this._onWorldScaleFactorChanged);
         // Check transformation changes on each frame. Callback is added to be first so that the transformation will be
         // applied to the rest of the elements using the referenceSpace object
-        this._xrSessionManager.onXRFrameObservable.add(() => {
+        this._xrFrameObserver = this._xrSessionManager.onXRFrameObservable.add(() => {
             if (this._firstFrame) {
                 this._updateFromXRSession();
+            }
+            if (this.onXRCameraInitializedObservable.hasObservers()) {
+                this.onXRCameraInitializedObservable.notifyObservers(this);
+                this.onXRCameraInitializedObservable.clear();
+            }
+            if (this._deferredUpdated) {
+                this.position.copyFrom(this._deferredPositionUpdate);
+                this.rotationQuaternion.copyFrom(this._deferredRotationQuaternionUpdate);
             }
             this._updateReferenceSpace();
             this._updateFromXRSession();
@@ -81,11 +105,13 @@ export class WebXRCamera extends FreeCamera {
     /**
      * Return the user's height, unrelated to the current ground.
      * This will be the y position of this camera, when ground level is 0.
+     *
+     * Note - this value is multiplied by the worldScalingFactor (if set), so it will be in the same units as the scene.
      */
     get realWorldHeight() {
         const basePose = this._xrSessionManager.currentFrame && this._xrSessionManager.currentFrame.getViewerPose(this._xrSessionManager.baseReferenceSpace);
         if (basePose && basePose.transform) {
-            return basePose.transform.position.y;
+            return basePose.transform.position.y * this._xrSessionManager.worldScalingFactor;
         }
         else {
             return 0;
@@ -128,30 +154,55 @@ export class WebXRCamera extends FreeCamera {
     getClassName() {
         return "WebXRCamera";
     }
+    /**
+     * Set the target for the camera to look at.
+     * Note that this only rotates around the Y axis, as opposed to the default behavior of other cameras
+     * @param target the target to set the camera to look at
+     */
+    setTarget(target) {
+        // only rotate around the y axis!
+        const tmpVector = TmpVectors.Vector3[1];
+        target.subtractToRef(this.position, tmpVector);
+        tmpVector.y = 0;
+        tmpVector.normalize();
+        const yRotation = Math.atan2(tmpVector.x, tmpVector.z) + (this._scene.useRightHandedSystem ? Math.PI : 0);
+        this.rotationQuaternion.toEulerAnglesToRef(tmpVector);
+        Quaternion.FromEulerAnglesToRef(tmpVector.x, yRotation, tmpVector.z, this.rotationQuaternion);
+    }
     dispose() {
+        this._xrSessionManager.onWorldScaleFactorChangedObservable.removeCallback(this._onWorldScaleFactorChanged);
+        this._xrSessionManager.onXRSessionInit.remove(this._xrSessionInitObserver);
+        this._xrSessionInitObserver = null;
+        this._xrSessionManager.onXRFrameObservable.remove(this._xrFrameObserver);
+        this._xrFrameObserver = null;
         super.dispose();
         this._lastXRViewerPose = undefined;
+        this.onTrackingStateChanged.clear();
+    }
+    _updateDepthNearFar() {
+        const far = (this.maxZ || 10000) * this._xrSessionManager.worldScalingFactor;
+        const xrRenderState = {
+            // if maxZ is 0 it should be "Infinity", but it doesn't work with the WebXR API. Setting to a large number.
+            depthFar: far,
+            depthNear: this.minZ,
+        };
+        this._xrSessionManager.updateRenderState(xrRenderState);
+        this._cache.minZ = this.minZ;
+        this._cache.maxZ = far;
     }
     _updateFromXRSession() {
         const pose = this._xrSessionManager.currentFrame && this._xrSessionManager.currentFrame.getViewerPose(this._xrSessionManager.referenceSpace);
         this._lastXRViewerPose = pose || undefined;
         if (!pose) {
-            this._setTrackingState(WebXRTrackingState.NOT_TRACKING);
+            this._setTrackingState(0 /* WebXRTrackingState.NOT_TRACKING */);
             return;
         }
         // Set the tracking state. if it didn't change it is a no-op
-        const trackingState = pose.emulatedPosition ? WebXRTrackingState.TRACKING_LOST : WebXRTrackingState.TRACKING;
+        const trackingState = pose.emulatedPosition ? 1 /* WebXRTrackingState.TRACKING_LOST */ : 2 /* WebXRTrackingState.TRACKING */;
         this._setTrackingState(trackingState);
         // check min/max Z and update if not the same as in cache
         if (this.minZ !== this._cache.minZ || this.maxZ !== this._cache.maxZ) {
-            const xrRenderState = {
-                // if maxZ is 0 it should be "Infinity", but it doesn't work with the WebXR API. Setting to a large number.
-                depthFar: this.maxZ || 10000,
-                depthNear: this.minZ,
-            };
-            this._xrSessionManager.updateRenderState(xrRenderState);
-            this._cache.minZ = this.minZ;
-            this._cache.maxZ = this.maxZ;
+            this._updateDepthNearFar();
         }
         if (pose.transform) {
             const orientation = pose.transform.orientation;
@@ -161,7 +212,7 @@ export class WebXRCamera extends FreeCamera {
                 return;
             }
             const pos = pose.transform.position;
-            this._referencedPosition.set(pos.x, pos.y, pos.z);
+            this._referencedPosition.set(pos.x, pos.y, pos.z).scaleInPlace(this._xrSessionManager.worldScalingFactor);
             this._referenceQuaternion.set(orientation.x, orientation.y, orientation.z, orientation.w);
             if (!this._scene.useRightHandedSystem) {
                 this._referencedPosition.z *= -1;
@@ -187,8 +238,8 @@ export class WebXRCamera extends FreeCamera {
         if (this.rigCameras.length !== pose.views.length) {
             this._updateNumberOfRigCameras(pose.views.length);
         }
-        pose.views.forEach((view, i) => {
-            var _a;
+        for (let i = 0; i < pose.views.length; i++) {
+            const view = pose.views[i];
             const currentRig = this.rigCameras[i];
             // update right and left, where applicable
             if (!currentRig.isLeftCamera && !currentRig.isRightCamera) {
@@ -199,30 +250,68 @@ export class WebXRCamera extends FreeCamera {
                     currentRig._isLeftCamera = true;
                 }
             }
+            // add any custom render targets to this camera, if available in the scene
+            const customRenderTargets = this.getScene().customRenderTargets;
+            // use a for loop
+            for (let i = 0; i < customRenderTargets.length; i++) {
+                const rt = customRenderTargets[i];
+                // make sure we don't add the same render target twice
+                if (currentRig.customRenderTargets.indexOf(rt) === -1) {
+                    currentRig.customRenderTargets.push(rt);
+                }
+            }
             // Update view/projection matrix
             const pos = view.transform.position;
             const orientation = view.transform.orientation;
             currentRig.parent = this.parent;
-            currentRig.position.set(pos.x, pos.y, pos.z);
-            currentRig.rotationQuaternion.set(orientation.x, orientation.y, orientation.z, orientation.w);
-            if (!this._scene.useRightHandedSystem) {
+            currentRig.position.set(pos.x, pos.y, pos.z).scaleInPlace(this._xrSessionManager.worldScalingFactor);
+            currentRig.rotationQuaternion?.set(orientation.x, orientation.y, orientation.z, orientation.w);
+            if (!this._scene.useRightHandedSystem && currentRig.rotationQuaternion) {
                 currentRig.position.z *= -1;
                 currentRig.rotationQuaternion.z *= -1;
                 currentRig.rotationQuaternion.w *= -1;
             }
-            else {
-                currentRig.rotationQuaternion.multiplyInPlace(this._rotate180);
-            }
             Matrix.FromFloat32ArrayToRefScaled(view.projectionMatrix, 0, 1, currentRig._projectionMatrix);
+            // WebGPU uses a [0, 1] clip-space depth range (engine.isNDCHalfZRange === true) whereas WebGL/OpenGL uses
+            // [-1, 1]. The rig cameras freeze their projection (see _updateNumberOfRigCameras) and take the XR binding's
+            // projection matrix verbatim, bypassing the engine's range-aware projection builders. If the binding hands
+            // back a [-1, 1]-convention matrix while the engine clips at [0, 1], every fragment with NDC z in [-1, 0)
+            // is clipped and all geometry disappears. On a half-Z engine we therefore detect the convention the binding
+            // actually used and convert a [-1, 1] matrix to [0, 1]. Detection is empirical (coefficient inspection is
+            // provably ambiguous): project the view-space near-plane point through the raw matrix, before the hand
+            // toggle. WebXR view space is right-handed (-Z forward), so the near point is (0, 0, -near); a [-1, 1] matrix
+            // maps it to NDC z ~= -1, a [0, 1] matrix to ~= 0. Assumes a non-reverse-Z projection (near -> 0 or -1),
+            // which UA-provided XR matrices are. WebGL2 (isNDCHalfZRange === false) never enters this block, so its path
+            // is byte-identical.
+            if (this._scene.getEngine().isNDCHalfZRange) {
+                const near = this.minZ;
+                let needsHalfZConversion;
+                if (near > 0) {
+                    const ndc = Vector3.TransformCoordinatesFromFloatsToRef(0, 0, -near, currentRig._projectionMatrix, TmpVectors.Vector3[0]);
+                    needsHalfZConversion = ndc.z < -0.5;
+                }
+                else {
+                    // depthNear must be > 0 per the WebXR spec; if it is not, the near-plane probe would divide by zero,
+                    // so default to converting (matches the [-1, 1] range current XRGPUBinding implementations return).
+                    needsHalfZConversion = true;
+                }
+                if (needsHalfZConversion) {
+                    currentRig._projectionMatrix._convertProjectionToHalfZRangeInPlace();
+                }
+            }
             if (!this._scene.useRightHandedSystem) {
                 currentRig._projectionMatrix.toggleProjectionMatrixHandInPlace();
             }
+            // fov
+            const fov = Math.atan2(1, view.projectionMatrix[5]) * 2;
+            currentRig.fov = fov;
             // first camera?
             if (i === 0) {
+                this.fov = fov;
                 this._projectionMatrix.copyFrom(currentRig._projectionMatrix);
             }
             const renderTargetTexture = this._xrSessionManager.getRenderTargetTextureForView(view);
-            this._renderingMultiview = ((_a = renderTargetTexture === null || renderTargetTexture === void 0 ? void 0 : renderTargetTexture._texture) === null || _a === void 0 ? void 0 : _a.isMultiview) || false;
+            this._renderingMultiview = renderTargetTexture?._texture?.isMultiview || false;
             if (this._renderingMultiview) {
                 // For multiview, the render target texture is the same per-view (just the slice index is different),
                 // so we only need to set the output render target once for the rig parent.
@@ -239,7 +328,7 @@ export class WebXRCamera extends FreeCamera {
             }
             // Replicate parent rig camera behavior
             currentRig.layerMask = this.layerMask;
-        });
+        }
     }
     _updateNumberOfRigCameras(viewCount = 1) {
         while (this.rigCameras.length < viewCount) {
@@ -275,9 +364,10 @@ export class WebXRCamera extends FreeCamera {
             }
             transformMat.decompose(undefined, this._referenceQuaternion, this._referencedPosition);
             const transform = new XRRigidTransform({
-                x: this._referencedPosition.x,
-                y: this._referencedPosition.y,
-                z: this._referencedPosition.z,
+                x: this._referencedPosition.x / this._xrSessionManager.worldScalingFactor,
+                y: this._referencedPosition.y / this._xrSessionManager.worldScalingFactor,
+                z: this._referencedPosition.z / this._xrSessionManager.worldScalingFactor,
+                w: 1,
             }, {
                 x: this._referenceQuaternion.x,
                 y: this._referenceQuaternion.y,
