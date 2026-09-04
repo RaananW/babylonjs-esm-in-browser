@@ -17,19 +17,20 @@
         width: 100%;
         height: 100%;
         display: block;
-        font-size: 0;
+        outline: none;
+        touch-action: none;
       }
     </style>
     <title>Babylon.js ES Modules</title>
   </head>
   <body>
-    <canvas id="renderCanvas"></canvas>
+    <canvas id="renderCanvas" aria-label="Interactive Babylon.js scene" tabindex="0"></canvas>
     <script type="importmap">
       {
         "imports": {
-          "@babylonjs/core": "./@babylonjs/core",
+          "@babylonjs/core": "./@babylonjs/core/index.js",
           "@babylonjs/core/": "./@babylonjs/core/",
-          "@babylonjs/loaders": "./@babylonjs/loaders",
+          "@babylonjs/loaders": "./@babylonjs/loaders/index.js",
           "@babylonjs/loaders/": "./@babylonjs/loaders/"
         }
       }

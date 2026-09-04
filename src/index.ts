@@ -1,55 +1,95 @@
+import {
+  FreeCamera,
+  RegisterFreeCamera,
+} from "@babylonjs/core/Cameras/freeCamera.pure.js";
+import { Engine } from "@babylonjs/core/Engines/engine.pure.js";
+import { RegisterStandardEngineExtensions } from "@babylonjs/core/Engines/engineRegistration.pure.js";
+import {
+  HemisphericLight,
+  RegisterHemisphericLight,
+} from "@babylonjs/core/Lights/hemisphericLight.pure.js";
+import { ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader.js";
+import {
+  RegisterStandardMaterial,
+  StandardMaterial,
+} from "@babylonjs/core/Materials/standardMaterial.pure.js";
+import {
+  RegisterMathVector,
+  Vector3,
+} from "@babylonjs/core/Maths/math.vector.pure.js";
+import {
+  CreateGround,
+  RegisterGroundBuilder,
+} from "@babylonjs/core/Meshes/Builders/groundBuilder.pure.js";
+import { RegisterScene, Scene } from "@babylonjs/core/scene.pure.js";
+import { registerBuiltInLoaders } from "@babylonjs/loaders/dynamic.js";
 
-import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera.js";
-import { Engine } from "@babylonjs/core/Engines/engine.js";
-import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight.js";
-import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader.js";
-import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial.js";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector.js";
-import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder.js";
-import { Scene } from "@babylonjs/core/scene.js";
-import "@babylonjs/core/Loading/loadingScreen.js";
-import "@babylonjs/loaders/glTF/2.0/index.js";
+function registerBabylonFeatures() {
+  RegisterStandardEngineExtensions();
+  RegisterMathVector();
+  RegisterScene();
+  RegisterFreeCamera();
+  RegisterHemisphericLight();
+  RegisterStandardMaterial();
+  RegisterGroundBuilder();
+  registerBuiltInLoaders();
+}
 
-// Get the canvas element from the DOM.
-const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
+async function main() {
+  const canvas = document.querySelector<HTMLCanvasElement>("#renderCanvas");
 
-// Associate a Babylon Engine to it.
-const engine = new Engine(canvas);
+  if (!canvas) {
+    throw new Error("The render canvas was not found.");
+  }
 
-// Create our first scene.
-const scene = new Scene(engine);
+  registerBabylonFeatures();
 
-// This creates and positions a free camera (non-mesh)
-const camera = new FreeCamera("camera1", new Vector3(0, 5, 10), scene);
+  const engine = new Engine(canvas, true);
+  const scene = new Scene(engine);
+  const camera = new FreeCamera("camera", new Vector3(0, 5, 10), scene);
+  camera.setTarget(Vector3.Zero());
+  camera.attachControl(canvas, true);
 
-// This targets the camera to scene origin
-camera.setTarget(Vector3.Zero());
+  const light = new HemisphericLight("light", Vector3.Up(), scene);
+  light.intensity = 0.7;
 
-// This attaches the camera to the canvas
-camera.attachControl(canvas, true);
+  const material = new StandardMaterial("ground-material", scene);
+  const ground = CreateGround("ground", { width: 6, height: 6 }, scene);
+  ground.material = material;
 
-// This creates a light, aiming 0,1,0 - to the sky (non-mesh)
-const light = new HemisphericLight("light1", new Vector3(0, 1, 0), scene);
+  const result = await ImportMeshAsync(
+    "https://assets.babylonjs.com/meshes/BoomBox/BoomBox.gltf",
+    scene,
+  );
+  const boomBox = result.meshes[0];
 
-// Default intensity is 1. Let's dim the light a small amount
-light.intensity = 0.7;
+  if (!boomBox) {
+    throw new Error("The BoomBox model did not contain any meshes.");
+  }
 
-// Create a grid material
-const material = new StandardMaterial("grid", scene);
+  boomBox.position.y = 1;
+  boomBox.scaling.scaleInPlace(50);
 
-// Our built-in 'ground' shape.
-const ground = CreateGround("ground1", { width: 6, height: 6, subdivisions: 2 }, scene);
+  engine.runRenderLoop(() => scene.render());
+  document.documentElement.dataset.demoState = "ready";
 
-// Affect a material
-ground.material = material;
+  const resize = () => engine.resize();
+  window.addEventListener("resize", resize);
+  window.addEventListener(
+    "pagehide",
+    () => {
+      window.removeEventListener("resize", resize);
+      scene.dispose();
+      engine.dispose();
+    },
+    { once: true },
+  );
+}
 
-SceneLoader.ImportMeshAsync("", "https://assets.babylonjs.com/meshes/BoomBox/", "BoomBox.gltf", scene).then((result) => {
-    const boomBox = result.meshes[0];
-    boomBox.position.y = 1;
-    boomBox.scaling.scaleInPlace(50);
-});
-
-// Render every frame
-engine.runRenderLoop(() => {
-  scene.render();
+main().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error("Unable to start the Babylon.js demo.", error);
+  document.documentElement.dataset.demoState = "error";
+  document.documentElement.dataset.demoError = message;
+  document.body.textContent = `Unable to start the Babylon.js demo: ${message}`;
 });
