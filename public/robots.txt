@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://raananw.github.io/babylonjs-esm-in-browser/sitemap.xml

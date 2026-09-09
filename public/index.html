@@ -3,6 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A live Babylon.js example that loads tree-shakeable ES modules directly in the browser with an import map and no bundler."
+    />
+    <meta name="theme-color" content="#111827" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Babylon.js Native ES Modules" />
+    <meta property="og:title" content="Babylon.js Native ES Modules in the Browser" />
+    <meta
+      property="og:description"
+      content="See Babylon.js load as native, tree-shakeable ES modules using an import map and no bundler."
+    />
+    <meta
+      property="og:url"
+      content="https://raananw.github.io/babylonjs-esm-in-browser/"
+    />
+    <meta name="twitter:card" content="summary" />
+    <link
+      rel="canonical"
+      href="https://raananw.github.io/babylonjs-esm-in-browser/"
+    />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://assets.babylonjs.com" crossorigin />
     <style>
       html,
       body {
@@ -20,11 +44,55 @@
         outline: none;
         touch-action: none;
       }
+
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
     </style>
-    <title>Babylon.js ES Modules</title>
+    <title>Babylon.js Native ES Modules in the Browser</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareSourceCode",
+        "name": "Babylon.js Native ES Modules in the Browser",
+        "description": "A live example that loads tree-shakeable Babylon.js ES modules directly in the browser with an import map and no bundler.",
+        "codeRepository": "https://github.com/RaananW/babylonjs-esm-in-browser",
+        "license": "https://opensource.org/license/mit",
+        "programmingLanguage": ["TypeScript", "JavaScript"],
+        "runtimePlatform": "Web browser",
+        "url": "https://raananw.github.io/babylonjs-esm-in-browser/"
+      }
+    </script>
   </head>
   <body>
-    <canvas id="renderCanvas" aria-label="Interactive Babylon.js scene" tabindex="0"></canvas>
+    <main class="visually-hidden">
+      <h1 id="page-title">Babylon.js Native ES Modules in the Browser</h1>
+      <p id="page-description">
+        This interactive example loads Babylon.js as native browser ES modules
+        through an import map. It uses granular pure imports and requires no
+        application bundler.
+      </p>
+      <p>
+        <a href="https://github.com/RaananW/babylonjs-esm-in-browser">
+          View the TypeScript source code on GitHub
+        </a>
+      </p>
+    </main>
+    <canvas
+      id="renderCanvas"
+      aria-labelledby="page-title"
+      aria-describedby="page-description"
+      tabindex="0"
+    ></canvas>
+    <noscript>This interactive Babylon.js example requires JavaScript.</noscript>
     <script type="importmap">
       {
         "imports": {

@@ -39,6 +39,17 @@ standalone TypeScript check.
 
 All deployable files are generated in `dist`.
 
+## Hosting
+
+The live example is hosted by GitHub Pages. Every push to `main` runs the
+deployment workflow, which installs the locked dependencies, checks the
+TypeScript, builds `dist`, and deploys that directory. The workflow can also be
+started manually from the repository's **Actions** tab.
+
+GitHub Pages must use **GitHub Actions** as its publishing source under
+**Settings → Pages → Build and deployment**. The generated site includes
+canonical and social metadata, structured data, a sitemap, and crawler rules.
+
 ## It doesn't work
 
 [View the live example](https://raananw.github.io/babylonjs-esm-in-browser/).

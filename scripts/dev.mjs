@@ -19,7 +19,10 @@ const contentTypes = new Map([
   [".js", "text/javascript; charset=utf-8"],
   [".json", "application/json; charset=utf-8"],
   [".map", "application/json; charset=utf-8"],
+  [".svg", "image/svg+xml; charset=utf-8"],
+  [".txt", "text/plain; charset=utf-8"],
   [".wasm", "application/wasm"],
+  [".xml", "application/xml; charset=utf-8"],
 ]);
 const distPath = resolve(fileURLToPath(distDirectory));
 const port = Number(process.env.PORT ?? 3000);
