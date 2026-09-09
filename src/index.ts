@@ -35,6 +35,58 @@ function registerBabylonFeatures() {
   registerBuiltInLoaders();
 }
 
+async function fetchSource(path: string) {
+  const response = await fetch(path);
+
+  if (!response.ok) {
+    throw new Error(`Unable to load ${path}: ${response.status} ${response.statusText}`);
+  }
+
+  return response.text();
+}
+
+function setupSourceViewer() {
+  const showSource = document.querySelector<HTMLButtonElement>("#showSource");
+  const sourceDialog = document.querySelector<HTMLDialogElement>("#sourceDialog");
+  const htmlSource = document.querySelector<HTMLElement>("#htmlSource");
+  const javascriptSource = document.querySelector<HTMLElement>("#javascriptSource");
+
+  if (!showSource || !sourceDialog || !htmlSource || !javascriptSource) {
+    throw new Error("The source viewer elements were not found.");
+  }
+
+  let sourcePromise: Promise<void> | undefined;
+
+  const loadSource = async () => {
+    try {
+      const [html, javascript] = await Promise.all([
+        fetchSource("./index.html"),
+        fetchSource("./index.js"),
+      ]);
+      htmlSource.textContent = html;
+      javascriptSource.textContent = javascript;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const errorText = `Unable to load the source code: ${message}`;
+      htmlSource.textContent = errorText;
+      javascriptSource.textContent = errorText;
+      console.error(errorText, error);
+    }
+  };
+
+  const openSource = () => {
+    sourceDialog.showModal();
+    sourcePromise ??= loadSource();
+  };
+
+  showSource.addEventListener("click", openSource);
+
+  return () => {
+    showSource.removeEventListener("click", openSource);
+    sourceDialog.close();
+  };
+}
+
 async function main() {
   const canvas = document.querySelector<HTMLCanvasElement>("#renderCanvas");
 
@@ -42,6 +94,7 @@ async function main() {
     throw new Error("The render canvas was not found.");
   }
 
+  const disposeSourceViewer = setupSourceViewer();
   registerBabylonFeatures();
 
   const engine = new Engine(canvas, true);
@@ -79,6 +132,7 @@ async function main() {
     "pagehide",
     () => {
       window.removeEventListener("resize", resize);
+      disposeSourceViewer();
       scene.dispose();
       engine.dispose();
     },
