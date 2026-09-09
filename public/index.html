@@ -35,6 +35,9 @@
         padding: 0;
         margin: 0;
         overflow: hidden;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
       }
 
       #renderCanvas {
@@ -45,16 +48,48 @@
         touch-action: none;
       }
 
-      .visually-hidden {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-        border: 0;
+      .site-info {
+        position: fixed;
+        z-index: 1;
+        top: max(1rem, env(safe-area-inset-top));
+        left: max(1rem, env(safe-area-inset-left));
+        box-sizing: border-box;
+        width: min(30rem, calc(100vw - 2rem));
+        padding: 1rem 1.125rem;
+        color: #f8fafc;
+        background: rgb(17 24 39 / 88%);
+        border: 1px solid rgb(255 255 255 / 18%);
+        border-radius: 0.75rem;
+        box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 25%);
+        backdrop-filter: blur(0.5rem);
+      }
+
+      .site-info h1 {
+        margin: 0;
+        font-size: 1.125rem;
+        line-height: 1.4;
+      }
+
+      .site-info p {
+        margin: 0.5rem 0 0;
+        color: #dbeafe;
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+
+      .site-info a {
+        color: #7dd3fc;
+        font-weight: 600;
+        text-underline-offset: 0.2em;
+      }
+
+      .site-info a:hover {
+        color: #bae6fd;
+      }
+
+      .site-info a:focus-visible {
+        outline: 2px solid #f8fafc;
+        outline-offset: 0.2rem;
       }
     </style>
     <title>Babylon.js Native ES Modules in the Browser</title>
@@ -73,7 +108,7 @@
     </script>
   </head>
   <body>
-    <main class="visually-hidden">
+    <main class="site-info">
       <h1 id="page-title">Babylon.js Native ES Modules in the Browser</h1>
       <p id="page-description">
         This interactive example loads Babylon.js as native browser ES modules
@@ -81,8 +116,12 @@
         application bundler.
       </p>
       <p>
-        <a href="https://github.com/RaananW/babylonjs-esm-in-browser">
-          View the TypeScript source code on GitHub
+        <a
+          href="https://github.com/RaananW/babylonjs-esm-in-browser"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          View source code on GitHub
         </a>
       </p>
     </main>
