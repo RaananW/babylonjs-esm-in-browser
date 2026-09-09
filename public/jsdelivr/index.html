@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A live Babylon.js demo loading native ES modules from jsDelivr with an import map and no bundler."
+    />
+    <meta name="theme-color" content="#111827" />
+    <meta name="robots" content="index, follow" />
+    <link
+      rel="canonical"
+      href="https://raananw.github.io/babylonjs-esm-in-browser/jsdelivr/"
+    />
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../demo.css" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="preconnect" href="https://assets.babylonjs.com" crossorigin />
+    <title>Babylon.js Native ES Modules from jsDelivr</title>
+  </head>
+  <body>
+    <main class="site-info">
+      <h1 id="page-title">Native ES modules from jsDelivr</h1>
+      <p id="page-description">
+        Babylon.js __BABYLON_VERSION__ is loaded directly from jsDelivr's npm
+        CDN. Only the import map differs from the self-hosted demo.
+      </p>
+      <p class="site-actions">
+        <button class="source-button" id="showSource" type="button">
+          View source code
+        </button>
+        <a href="../">All demos</a>
+      </p>
+    </main>
+    <dialog class="source-dialog" id="sourceDialog" aria-labelledby="source-title">
+      <header>
+        <div>
+          <h2 id="source-title">Source code running this demo</h2>
+          <p>These are the exact HTML and JavaScript entry files loaded by this page.</p>
+        </div>
+        <form method="dialog">
+          <button type="submit">Close</button>
+        </form>
+      </header>
+      <div class="source-files">
+        <section>
+          <h3>index.html</h3>
+          <pre><code id="htmlSource">Loading...</code></pre>
+        </section>
+        <section>
+          <h3>index.js</h3>
+          <pre><code id="javascriptSource">Loading...</code></pre>
+        </section>
+      </div>
+      <footer>
+        <a
+          href="https://github.com/RaananW/babylonjs-esm-in-browser"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Browse the complete repository on GitHub
+        </a>
+      </footer>
+    </dialog>
+    <canvas
+      id="renderCanvas"
+      aria-labelledby="page-title"
+      aria-describedby="page-description"
+      tabindex="0"
+    ></canvas>
+    <noscript>This interactive Babylon.js example requires JavaScript.</noscript>
+    <script type="importmap">
+      {
+        "imports": {
+          "@babylonjs/core": "https://cdn.jsdelivr.net/npm/@babylonjs/core@__BABYLON_VERSION__/index.js",
+          "@babylonjs/core/": "https://cdn.jsdelivr.net/npm/@babylonjs/core@__BABYLON_VERSION__/",
+          "@babylonjs/loaders": "https://cdn.jsdelivr.net/npm/@babylonjs/loaders@__BABYLON_VERSION__/index.js",
+          "@babylonjs/loaders/": "https://cdn.jsdelivr.net/npm/@babylonjs/loaders@__BABYLON_VERSION__/"
+        }
+      }
+    </script>
+    <script type="module" src="../index.js"></script>
+  </body>
+</html>

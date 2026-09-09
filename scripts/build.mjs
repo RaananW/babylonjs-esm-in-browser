@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { cp, mkdir, rm } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -9,6 +9,13 @@ export const publicDirectory = new URL("../public/", import.meta.url);
 export const sourceDirectory = new URL("../src/", import.meta.url);
 
 const babylonPackages = ["core", "loaders"];
+const babylonVersionPlaceholder = "__BABYLON_VERSION__";
+const versionedHtmlFiles = [
+  new URL("./index.html", distDirectory),
+  new URL("./self-hosted/index.html", distDirectory),
+  new URL("./jsdelivr/index.html", distDirectory),
+  new URL("./unpkg/index.html", distDirectory),
+];
 const typescriptBin = fileURLToPath(
   new URL("../node_modules/typescript/bin/tsc", import.meta.url),
 );
@@ -44,6 +51,41 @@ export function compileTypeScript() {
 
 export async function copyPublicFiles() {
   await cp(publicDirectory, distDirectory, { recursive: true });
+
+  const versions = await Promise.all(
+    babylonPackages.map(async (packageName) => {
+      const packageJson = JSON.parse(
+        await readFile(
+          new URL(`../node_modules/@babylonjs/${packageName}/package.json`, import.meta.url),
+          "utf8",
+        ),
+      );
+      return packageJson.version;
+    }),
+  );
+  const [babylonVersion] = versions;
+
+  if (
+    typeof babylonVersion !== "string" ||
+    versions.some((version) => version !== babylonVersion)
+  ) {
+    throw new Error(`Babylon.js package versions must match: ${versions.join(", ")}.`);
+  }
+
+  await Promise.all(
+    versionedHtmlFiles.map(async (file) => {
+      const html = await readFile(file, "utf8");
+
+      if (!html.includes(babylonVersionPlaceholder)) {
+        throw new Error(`${fileURLToPath(file)} does not contain the version placeholder.`);
+      }
+
+      await writeFile(
+        file,
+        html.replaceAll(babylonVersionPlaceholder, babylonVersion),
+      );
+    }),
+  );
 }
 
 async function copyBabylonPackages() {

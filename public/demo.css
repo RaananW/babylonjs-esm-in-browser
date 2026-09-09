@@ -1,0 +1,203 @@
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+}
+
+#renderCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
+  touch-action: none;
+}
+
+.site-info {
+  position: fixed;
+  z-index: 1;
+  top: max(1rem, env(safe-area-inset-top));
+  left: max(1rem, env(safe-area-inset-left));
+  box-sizing: border-box;
+  width: min(31rem, calc(100vw - 2rem));
+  padding: 1rem 1.125rem;
+  color: #f8fafc;
+  background: rgb(17 24 39 / 88%);
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 0.75rem;
+  box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 25%);
+  backdrop-filter: blur(0.5rem);
+}
+
+.site-info h1 {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.4;
+}
+
+.site-info p {
+  margin: 0.5rem 0 0;
+  color: #dbeafe;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.site-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.source-button,
+.site-actions a,
+.source-dialog a {
+  color: #7dd3fc;
+  font-weight: 600;
+  text-underline-offset: 0.2em;
+}
+
+.source-button {
+  padding: 0;
+  font: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.source-button:hover,
+.site-actions a:hover,
+.source-dialog a:hover {
+  color: #bae6fd;
+}
+
+.source-button:focus-visible,
+.site-actions a:focus-visible,
+.source-dialog a:focus-visible,
+.source-dialog button:focus-visible {
+  outline: 2px solid #f8fafc;
+  outline-offset: 0.2rem;
+}
+
+.source-dialog {
+  box-sizing: border-box;
+  width: min(90rem, calc(100vw - 2rem));
+  height: min(54rem, calc(100dvh - 2rem));
+  padding: 0;
+  color: #e5e7eb;
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 0.75rem;
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 45%);
+}
+
+.source-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.source-dialog::backdrop {
+  background: rgb(0 0 0 / 65%);
+  backdrop-filter: blur(0.2rem);
+}
+
+.source-dialog header,
+.source-dialog footer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.source-dialog header {
+  border-bottom: 1px solid #374151;
+}
+
+.source-dialog footer {
+  border-top: 1px solid #374151;
+}
+
+.source-dialog h2,
+.source-dialog h3,
+.source-dialog p {
+  margin: 0;
+}
+
+.source-dialog h2 {
+  font-size: 1.125rem;
+}
+
+.source-dialog header p {
+  margin-top: 0.25rem;
+  color: #9ca3af;
+  font-size: 0.85rem;
+}
+
+.source-dialog button {
+  padding: 0.5rem 0.75rem;
+  color: #f8fafc;
+  font: inherit;
+  background: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+
+.source-files {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 1;
+  min-height: 0;
+  gap: 1px;
+  background: #374151;
+}
+
+.source-files section {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  background: #0b1020;
+}
+
+.source-files h3 {
+  padding: 0.65rem 1rem;
+  color: #cbd5e1;
+  font:
+    600 0.85rem/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    monospace;
+  background: #1f2937;
+}
+
+.source-files pre {
+  flex: 1;
+  margin: 0;
+  padding: 1rem;
+  overflow: auto;
+  color: #d1fae5;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  tab-size: 2;
+}
+
+@media (max-width: 48rem) {
+  .source-files {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+
+  .source-files section {
+    min-height: 20rem;
+  }
+}

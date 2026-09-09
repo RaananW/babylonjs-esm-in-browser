@@ -50,9 +50,16 @@ function setupSourceViewer() {
   const sourceDialog = document.querySelector<HTMLDialogElement>("#sourceDialog");
   const htmlSource = document.querySelector<HTMLElement>("#htmlSource");
   const javascriptSource = document.querySelector<HTMLElement>("#javascriptSource");
+  const mainScript = document.querySelector<HTMLScriptElement>('script[type="module"][src]');
 
-  if (!showSource || !sourceDialog || !htmlSource || !javascriptSource) {
+  if (!showSource || !sourceDialog || !htmlSource || !javascriptSource || !mainScript) {
     throw new Error("The source viewer elements were not found.");
+  }
+
+  const mainScriptSource = mainScript.getAttribute("src");
+
+  if (!mainScriptSource) {
+    throw new Error("The main module source was not found.");
   }
 
   let sourcePromise: Promise<void> | undefined;
@@ -61,7 +68,7 @@ function setupSourceViewer() {
     try {
       const [html, javascript] = await Promise.all([
         fetchSource("./index.html"),
-        fetchSource("./index.js"),
+        fetchSource(mainScriptSource),
       ]);
       htmlSource.textContent = html;
       javascriptSource.textContent = javascript;

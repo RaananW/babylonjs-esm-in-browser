@@ -5,16 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="A live Babylon.js example that loads tree-shakeable ES modules directly in the browser with an import map and no bundler."
+      content="Compare self-hosted, jsDelivr, and unpkg approaches for loading Babylon.js as native browser ES modules with import maps and no bundler."
     />
-    <meta name="theme-color" content="#111827" />
+    <meta name="theme-color" content="#0b1020" />
     <meta name="robots" content="index, follow" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Babylon.js Native ES Modules" />
-    <meta property="og:title" content="Babylon.js Native ES Modules in the Browser" />
+    <meta property="og:title" content="Babylon.js Native ES Module Demos" />
     <meta
       property="og:description"
-      content="See Babylon.js load as native, tree-shakeable ES modules using an import map and no bundler."
+      content="Run the same Babylon.js demo with self-hosted modules, jsDelivr, or unpkg."
     />
     <meta
       property="og:url"
@@ -26,206 +26,14 @@
       href="https://raananw.github.io/babylonjs-esm-in-browser/"
     />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <link rel="preconnect" href="https://assets.babylonjs.com" crossorigin />
-    <style>
-      html,
-      body {
-        width: 100%;
-        height: 100%;
-        padding: 0;
-        margin: 0;
-        overflow: hidden;
-        font-family:
-          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-          "Segoe UI", sans-serif;
-      }
-
-      #renderCanvas {
-        width: 100%;
-        height: 100%;
-        display: block;
-        outline: none;
-        touch-action: none;
-      }
-
-      .site-info {
-        position: fixed;
-        z-index: 1;
-        top: max(1rem, env(safe-area-inset-top));
-        left: max(1rem, env(safe-area-inset-left));
-        box-sizing: border-box;
-        width: min(30rem, calc(100vw - 2rem));
-        padding: 1rem 1.125rem;
-        color: #f8fafc;
-        background: rgb(17 24 39 / 88%);
-        border: 1px solid rgb(255 255 255 / 18%);
-        border-radius: 0.75rem;
-        box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 25%);
-        backdrop-filter: blur(0.5rem);
-      }
-
-      .site-info h1 {
-        margin: 0;
-        font-size: 1.125rem;
-        line-height: 1.4;
-      }
-
-      .site-info p {
-        margin: 0.5rem 0 0;
-        color: #dbeafe;
-        font-size: 0.9rem;
-        line-height: 1.5;
-      }
-
-      .source-button,
-      .source-dialog a {
-        color: #7dd3fc;
-        font-weight: 600;
-        text-underline-offset: 0.2em;
-      }
-
-      .source-button {
-        padding: 0;
-        font: inherit;
-        background: none;
-        border: 0;
-        cursor: pointer;
-        text-decoration: underline;
-      }
-
-      .source-button:hover,
-      .source-dialog a:hover {
-        color: #bae6fd;
-      }
-
-      .source-button:focus-visible,
-      .source-dialog a:focus-visible,
-      .source-dialog button:focus-visible {
-        outline: 2px solid #f8fafc;
-        outline-offset: 0.2rem;
-      }
-
-      .source-dialog {
-        box-sizing: border-box;
-        width: min(90rem, calc(100vw - 2rem));
-        height: min(54rem, calc(100dvh - 2rem));
-        padding: 0;
-        color: #e5e7eb;
-        background: #111827;
-        border: 1px solid #374151;
-        border-radius: 0.75rem;
-        box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 45%);
-      }
-
-      .source-dialog[open] {
-        display: flex;
-        flex-direction: column;
-      }
-
-      .source-dialog::backdrop {
-        background: rgb(0 0 0 / 65%);
-        backdrop-filter: blur(0.2rem);
-      }
-
-      .source-dialog header,
-      .source-dialog footer {
-        display: flex;
-        flex: none;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 1rem 1.25rem;
-      }
-
-      .source-dialog header {
-        border-bottom: 1px solid #374151;
-      }
-
-      .source-dialog footer {
-        border-top: 1px solid #374151;
-      }
-
-      .source-dialog h2,
-      .source-dialog h3,
-      .source-dialog p {
-        margin: 0;
-      }
-
-      .source-dialog h2 {
-        font-size: 1.125rem;
-      }
-
-      .source-dialog header p {
-        margin-top: 0.25rem;
-        color: #9ca3af;
-        font-size: 0.85rem;
-      }
-
-      .source-dialog button {
-        padding: 0.5rem 0.75rem;
-        color: #f8fafc;
-        font: inherit;
-        background: #374151;
-        border: 1px solid #4b5563;
-        border-radius: 0.4rem;
-        cursor: pointer;
-      }
-
-      .source-files {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        flex: 1;
-        min-height: 0;
-        gap: 1px;
-        background: #374151;
-      }
-
-      .source-files section {
-        display: flex;
-        min-width: 0;
-        min-height: 0;
-        flex-direction: column;
-        background: #0b1020;
-      }
-
-      .source-files h3 {
-        padding: 0.65rem 1rem;
-        color: #cbd5e1;
-        font:
-          600 0.85rem/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco,
-          Consolas, monospace;
-        background: #1f2937;
-      }
-
-      .source-files pre {
-        flex: 1;
-        margin: 0;
-        padding: 1rem;
-        overflow: auto;
-        color: #d1fae5;
-        font-size: 0.78rem;
-        line-height: 1.55;
-        tab-size: 2;
-      }
-
-      @media (max-width: 48rem) {
-        .source-files {
-          grid-template-columns: 1fr;
-          overflow: auto;
-        }
-
-        .source-files section {
-          min-height: 20rem;
-        }
-      }
-    </style>
-    <title>Babylon.js Native ES Modules in the Browser</title>
+    <link rel="stylesheet" href="./lobby.css" />
+    <title>Babylon.js Native ES Module Demos</title>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "SoftwareSourceCode",
-        "name": "Babylon.js Native ES Modules in the Browser",
-        "description": "A live example that loads tree-shakeable Babylon.js ES modules directly in the browser with an import map and no bundler.",
+        "name": "Babylon.js Native ES Module Demos",
+        "description": "Equivalent self-hosted, jsDelivr, and unpkg examples for loading Babylon.js as native browser ES modules with import maps and no bundler.",
         "codeRepository": "https://github.com/RaananW/babylonjs-esm-in-browser",
         "license": "https://opensource.org/license/mit",
         "programmingLanguage": ["TypeScript", "JavaScript"],
@@ -235,66 +43,65 @@
     </script>
   </head>
   <body>
-    <main class="site-info">
-      <h1 id="page-title">Babylon.js Native ES Modules in the Browser</h1>
-      <p id="page-description">
-        This interactive example loads Babylon.js as native browser ES modules
-        through an import map. It uses granular pure imports and requires no
-        application bundler.
-      </p>
-      <p>
-        <button class="source-button" id="showSource" type="button">
-          View source code
-        </button>
-      </p>
-    </main>
-    <dialog class="source-dialog" id="sourceDialog" aria-labelledby="source-title">
-      <header>
-        <div>
-          <h2 id="source-title">Source code running this demo</h2>
-          <p>These are the exact HTML and JavaScript entry files loaded by this page.</p>
-        </div>
-        <form method="dialog">
-          <button type="submit">Close</button>
-        </form>
+    <main>
+      <header class="hero">
+        <p class="eyebrow">No framework. No bundler.</p>
+        <h1>Babylon.js native ES modules</h1>
+        <p class="intro">
+          Run the same Babylon.js application three ways. Each demo loads the
+          same <code>index.js</code>; only the import map changes where the
+          Babylon.js modules come from.
+        </p>
+        <p class="version">
+          Using the latest Babylon.js release:
+          <strong>__BABYLON_VERSION__</strong>
+        </p>
       </header>
-      <div class="source-files">
-        <section>
-          <h3>index.html</h3>
-          <pre><code id="htmlSource">Loading...</code></pre>
-        </section>
-        <section>
-          <h3>index.js</h3>
-          <pre><code id="javascriptSource">Loading...</code></pre>
-        </section>
-      </div>
+
+      <section class="demo-grid" aria-label="Choose a module source">
+        <article class="demo-card">
+          <p class="card-label">Local control</p>
+          <h2>Self-hosted</h2>
+          <p>
+            Babylon.js package files are copied into this deployment and served
+            from the same origin as the application.
+          </p>
+          <code>"@babylonjs/core/": "../@babylonjs/core/"</code>
+          <a href="./self-hosted/">Open self-hosted demo</a>
+        </article>
+
+        <article class="demo-card">
+          <p class="card-label">Package CDN</p>
+          <h2>jsDelivr</h2>
+          <p>
+            The browser imports the pinned Babylon.js packages directly from
+            jsDelivr's globally distributed npm CDN.
+          </p>
+          <code>"@babylonjs/core/": "https://cdn.jsdelivr.net/npm/..."</code>
+          <a href="./jsdelivr/">Open jsDelivr demo</a>
+        </article>
+
+        <article class="demo-card">
+          <p class="card-label">Package CDN</p>
+          <h2>unpkg</h2>
+          <p>
+            The browser imports the same pinned Babylon.js packages directly
+            from unpkg without changing the application code.
+          </p>
+          <code>"@babylonjs/core/": "https://unpkg.com/..."</code>
+          <a href="./unpkg/">Open unpkg demo</a>
+        </article>
+      </section>
+
       <footer>
         <a
           href="https://github.com/RaananW/babylonjs-esm-in-browser"
           target="_blank"
           rel="noopener noreferrer"
         >
-          Browse the complete repository on GitHub
+          Browse the source repository on GitHub
         </a>
       </footer>
-    </dialog>
-    <canvas
-      id="renderCanvas"
-      aria-labelledby="page-title"
-      aria-describedby="page-description"
-      tabindex="0"
-    ></canvas>
-    <noscript>This interactive Babylon.js example requires JavaScript.</noscript>
-    <script type="importmap">
-      {
-        "imports": {
-          "@babylonjs/core": "./@babylonjs/core/index.js",
-          "@babylonjs/core/": "./@babylonjs/core/",
-          "@babylonjs/loaders": "./@babylonjs/loaders/index.js",
-          "@babylonjs/loaders/": "./@babylonjs/loaders/"
-        }
-      }
-    </script>
-    <script type="module" src="index.js"></script>
+    </main>
   </body>
 </html>

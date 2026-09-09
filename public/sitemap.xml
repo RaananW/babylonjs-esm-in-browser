@@ -3,4 +3,13 @@
   <url>
     <loc>https://raananw.github.io/babylonjs-esm-in-browser/</loc>
   </url>
+  <url>
+    <loc>https://raananw.github.io/babylonjs-esm-in-browser/self-hosted/</loc>
+  </url>
+  <url>
+    <loc>https://raananw.github.io/babylonjs-esm-in-browser/jsdelivr/</loc>
+  </url>
+  <url>
+    <loc>https://raananw.github.io/babylonjs-esm-in-browser/unpkg/</loc>
+  </url>
 </urlset>
