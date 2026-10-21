@@ -18,7 +18,7 @@
   "author": "Raanan Weber",
   "license": "MIT",
   "dependencies": {
-    "@babylonjs/core": "^9.30.0",
+    "@babylonjs/core": "^9.31.0",
     "@babylonjs/loaders": "^9.30.0"
   },
   "devDependencies": {
