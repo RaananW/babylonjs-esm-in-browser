@@ -19,7 +19,7 @@
   "license": "MIT",
   "dependencies": {
     "@babylonjs/core": "^9.32.0",
-    "@babylonjs/loaders": "^9.30.0"
+    "@babylonjs/loaders": "^9.32.0"
   },
   "devDependencies": {
     "typescript": "^7.0.2"
